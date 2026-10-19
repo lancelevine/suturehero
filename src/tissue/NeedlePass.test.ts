@@ -1,0 +1,25 @@
+import { expect, it } from 'vitest';
+import * as THREE from 'three';
+import { NeedlePass } from './NeedlePass';
+import { SutureModel } from '../suture/SutureModel';
+it('carries the actual needle tip along its own radius from entry to exit',()=>{
+  const pass=new NeedlePass(); const needle=new SutureModel(); pass.begin();
+  for(let i=0;i<100;i++) {
+    const m=pass.pose; m.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
+    const tip=needle.getTipPose();
+    expect(tip.position.distanceTo(pass.center)).toBeCloseTo(pass.radius);
+    expect(tip.position.y).toBeLessThanOrEqual(pass.entry.y+1e-8);
+    if(i===0) { expect(tip.position.distanceTo(pass.entry)).toBeLessThan(1e-8); expect(tip.tangent.y).toBeCloseTo(-1); }
+    pass.update(1,true,0.05);
+  }
+  pass.pose.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
+  expect(pass.phase).toBe('complete'); expect(needle.getTipPose().position.distanceTo(pass.exit)).toBeLessThan(1e-8);
+  expect(needle.getTipPose().tangent.y).toBeCloseTo(1);
+});
+it('supports reverse motion, stops on release, and resets',()=>{
+  const pass=new NeedlePass(); pass.begin(); pass.update(1,true,0.05); const angle=pass.angle;
+  pass.update(-1,true,0.025); expect(pass.angle).toBeLessThan(angle);
+  pass.update(1,false,0.05); expect(pass.phase).toBe('interrupted'); expect(pass.progress).toBeLessThan(1);
+  pass.update(1,true,0.05); expect(pass.phase).toBe('interrupted');
+  pass.reset(); expect(pass.phase).toBe('idle'); expect(pass.progress).toBe(0);
+});

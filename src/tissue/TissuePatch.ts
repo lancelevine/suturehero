@@ -10,7 +10,7 @@ export function createTissuePatch(): THREE.Group {
   }
   const wound=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.025,2.3),new THREE.MeshStandardMaterial({color:0x743d42}));
   wound.position.y=0.31; group.add(wound);
-  for(const x of [-0.48,0.48]) {
+  for(const x of [-0.3,0.3]) {
     const target=new THREE.Mesh(new THREE.RingGeometry(0.075,0.095,32),new THREE.MeshBasicMaterial({color:0xf7e3b3,side:THREE.DoubleSide}));
     target.rotation.x=-Math.PI/2; target.position.set(x,0.417,0); group.add(target);
   }

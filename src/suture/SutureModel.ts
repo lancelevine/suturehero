@@ -20,7 +20,7 @@ export class SutureModel {
     const end=this.points.length-1;
     return {
       position:this.points[end].clone().applyMatrix4(this.root.matrixWorld),
-      tangent:this.points[end].clone().sub(this.points[end-1]).transformDirection(this.root.matrixWorld),
+      tangent:new THREE.Vector3(-Math.sin(Math.PI*1.25),0,Math.cos(Math.PI*1.25)).transformDirection(this.root.matrixWorld),
     };
   }
   reset() { this.root.position.set(-0.3,0.65,0); this.root.quaternion.identity(); }
