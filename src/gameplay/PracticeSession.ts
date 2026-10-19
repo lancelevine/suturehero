@@ -11,11 +11,34 @@ export class PracticeSession {
   readonly pull=new PullThrough();
   constructor(private input: InputDevice, readonly instruments: readonly Instrument[], readonly grasp?: NeedleGrasp) {}
   get canBeginPass() {
-    return this.pass.phase!=='passing' && this.pass.phase!=='complete' && this.placement.complete && this.placement.distance<=0.12 && this.placement.angle<=20 && this.grasp?.holder?.kind==='needle-driver';
+    return !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted');
   }
   beginPass() {
-    if(!this.canBeginPass) return false;
-    this.pass.begin(); this.applyPassPose(); return true;
+    if(!this.canBeginPass || !this.grasp) return false;
+    const driver=this.instruments.find(tool=>tool.kind==='needle-driver');
+    if(!driver) return false;
+    this.grasp.reset(); this.pull.reset(); this.placement.reset(); this.pass.begin();
+    const needle=this.grasp.needle;
+    this.pass.pose.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
+    needle.root.updateWorldMatrix(true,false);
+    driver.reset(); driver.openness=0.1;
+    const grip=needle.points[30].clone().applyMatrix4(needle.root.matrixWorld);
+    const offset=new THREE.Vector3(0,0,0.05).applyQuaternion(driver.root.quaternion);
+    driver.root.position.copy(grip).sub(offset);
+    driver.update({translation:[0,0,0],rotation:[0,0,0],jaw:0},0);
+    this.grasp.attach(driver); return true;
+  }
+  get canPositionForceps() {
+    return !!this.grasp && this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp.holder?.kind!=='forceps';
+  }
+  positionForceps() {
+    if(!this.canPositionForceps || !this.grasp) return false;
+    const forceps=this.instruments.find(tool=>tool.kind==='forceps');
+    if(!forceps) return false;
+    forceps.reset(); forceps.openness=0.65;
+    forceps.root.position.copy(this.grasp.needle.getTipPose().position).sub(new THREE.Vector3(0,0,0.05).applyQuaternion(forceps.root.quaternion));
+    forceps.update({translation:[0,0,0],rotation:[0,0,0],jaw:0},0);
+    this.grasp.update(this.instruments,true); return true;
   }
   private applyPassPose(pose=this.pass.pose) {
     const holder=this.grasp?.holder;
@@ -31,11 +54,14 @@ export class PracticeSession {
   update(dt: number) {
     const step=Math.max(0,Math.min(dt,0.05));
     const constrained=this.pass.phase==='passing';
+    const waitingForHandoff=this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp?.holder?.kind==='needle-driver';
     const extracting=this.pull.phase==='pulling' && this.grasp?.holder?.kind==='forceps';
     let drive=0; let lift=0;
     for(const tool of this.instruments) {
       const command=this.input.sample(tool.id);
-      if(extracting && tool===this.grasp?.holder) {
+      if(waitingForHandoff && tool===this.grasp?.holder) {
+        tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step);
+      } else if(extracting && tool===this.grasp?.holder) {
         lift=command.translation[1];
         tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step);
       } else if(constrained && tool===this.grasp?.holder) {

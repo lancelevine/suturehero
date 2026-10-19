@@ -51,3 +51,14 @@ it('stages a forceps grip at the exposed tip and transfers only when the driver 
   const before=needle.root.position.clone(); right.openness=0.7; grasp.update([left,right],true);
   expect(grasp.holder).toBe(left); expect(grasp.receiver).toBeNull(); expect(needle.root.position.distanceTo(before)).toBeLessThan(1e-8);
 });
+it('accepts an approximate forceps approach with closed jaws and cancels a grip moved out of reach',()=>{
+  const needle=new SutureModel(); const left=new Instrument('left',0); const right=new Instrument('right',0);
+  const scene=new THREE.Scene(); scene.add(needle.root,left.root,right.root);
+  const tip=needle.getTipPose().position;
+  right.root.quaternion.identity(); right.root.position.copy(tip).add(new THREE.Vector3(0,0,-0.05));
+  const grasp=new NeedleGrasp(needle); grasp.update([right,left]); right.openness=0.1; grasp.update([right,left]);
+  left.root.position.copy(tip).add(new THREE.Vector3(0.18,0.08,0)).sub(new THREE.Vector3(0,0,0.05).applyQuaternion(left.root.quaternion));
+  left.openness=0.1; grasp.update([left,right],true); expect(grasp.receiver).toBe(left);
+  left.root.position.x+=1; grasp.update([left,right],true); expect(grasp.receiver).toBeNull();
+  right.openness=0.7; grasp.update([left,right],true); expect(grasp.holder).toBeNull();
+});

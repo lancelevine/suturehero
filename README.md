@@ -51,22 +51,14 @@ The deployment workflow in `.github/workflows/deploy.yml` tests, builds, and pub
 
 The Vite configuration uses relative asset URLs so the build works beneath the repository path as well as locally. Only the generated `dist` site is published; no backend is required.
 
-## Needle-placement exercise
+## Guided pass and pull-through (build 0.7)
 
-Grasp the needle with the right needle driver, or transfer it from the left forceps. The blue dot identifies the needle's working tip; the blue projection on the pad and dashed vertical line help judge depth. Move that tip into the gold ring on the right side of the incision and orient the needle's forward tangent downward, following the gold arrow. Hold within **0.12 sandbox units** and **20 degrees** for **one continuous second** to complete the exercise. The readout shows distance, angle and hold progress. Losing alignment or releasing the needle resets the hold; completion stays recorded until **Reset practice**.
+1. Click **Start guided pass**. The needle is loaded in the right driver and positioned at the gold entry on the right. There is no angle, distance, or steady-hold test. Starting also restarts an interrupted pass.
+2. Hold **U** to pass right to left, **O** to reverse, and **Shift** for precision. The needle and driver follow the circular guide together. At emergence the driver stays still for handoff, even if U remains held.
+3. Click **Position forceps** to bring the open left forceps to the tip, or move them manually into the blue capture sphere. Close with **Z**. The assisted capture region accepts a jaw center within 0.24 sandbox units of the exposed endpoint, including an already closed approach. Its color and status text indicate readiness.
+4. Open the right driver with **period** to transfer ownership. The staged grip cancels if the forceps open or move out of reach. Only one tool drives the needle at a time.
+5. Hold **E** to extract with the left forceps; **Q** reverses. Needle clearance and thread take-up are shown separately. Opening the forceps pauses progress; regrasp to resume.
 
-Hold **Shift** with any tool control for 20% speed, including fine rotation and jaw adjustment. Thresholds are forgiving game criteria, not clinical measurements. This exercise checks placement only; it does not puncture tissue or simulate contact forces. The tip marker is a visual aid rather than a modeled sharp tip.
+**Reset practice** restores tool poses, needle, thread and exercise state. The positioning buttons are explicit assists; the instruments remain independently controlled outside guided portions. Free needle pickup is still available before starting the pass, but is not a prerequisite.
 
-## Guided tissue pass (build 0.5)
-
-After the placement hold, keep the driver grasp and current entry alignment, then click **Begin assisted pass**. Engagement aligns the needle plane and center to a canonical circular guide while preserving the instrument-to-needle grasp relationship. The pass travels right to left: the gold entry is on the right of the incision and the blue exit is on the left. The entry and exit are 0.6 sandbox units apart, matching this needle's 0.3-unit radius. Hold **U** to advance, **O** to reverse, and **Shift** for fine control. Right-tool translation and other rotation axes are temporarily replaced by the guided circular motion; the left forceps remain independently movable. The blue exit marker and dashed arc are visible through tissue as practice aids.
-
-The pass completes when the needle tip reaches the exit after a half-circle rotation; releasing early interrupts it. Reset for a fresh attempt, or regrasp and realign at entry to engage again after interruption. At completion, normal instrument control resumes and the completion result remains recorded until reset. This is needle-tip emergence only, not the entire needle being extracted or the suture pulled through. Tissue remains static, other free motion is not collision-constrained, and thread routing is only an assisted visualization. No force feedback, tissue damage, deformation, or thread tension is simulated.
-
-## Forceps handoff and pull-through (build 0.6)
-
-At needle-tip emergence, bring the left forceps to the blue tip. Only the exposed tip region is eligible for this handoff. Close **Z** to stage the forceps grip while the right driver still owns the needle, then open the driver with **period** to transfer without a pose jump. Opening or moving the waiting forceps out of reach cancels the staged grip. You can also release the driver first and then grasp the exposed tip with the forceps.
-
-After transfer, **E** drives assisted upward extraction and **Q** reverses it; **Shift** slows both. Other forceps motion is constrained during this step. The needle clears first, then the remaining lift takes up the visual thread, leaving a short tail on the entry side. Opening the forceps pauses progress; regrasp to resume. The completion result stays until **Reset practice**, which restores all geometry and ownership state.
-
-This is a geometric upward extraction aid, not a physically accurate continuation of needle rotation. The thread visualization is routed through fixed entry/exit points and follows the needle eye, with a shortened entry-side tail. It has no conserved length, friction, tension, tissue deformation, or knot mechanics. Refining extraction and thread mechanics remains necessary for realistic surgical simulation.
+The pass uses a 0.3-unit needle radius and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. Extraction is assisted upward motion, not a physically accurate continuation of needle rotation. The thread follows the eye through fixed entry/exit points with a shortened entry tail; it has no conserved length, friction, or tension. Knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.

@@ -12,6 +12,12 @@ export class NeedleGrasp {
   private withinJaws(tool: Instrument, exposedOnly=false): boolean {
     tool.root.updateWorldMatrix(true,false);
     this.needle.root.updateWorldMatrix(true,false);
+    if(exposedOnly) {
+      const tip=this.needle.getTipPose().position;
+      const jawCenter=tool.root.localToWorld(new THREE.Vector3(0,0,0.05));
+      // Endpoint is exposed at emergence, even when the adjacent arc is buried.
+      return tip.y>=0.4 && jawCenter.distanceTo(tip)<=0.24;
+    }
     // Test actual arc segments in the tool's local jaw capture region.
     const toTool=new THREE.Matrix4().copy(tool.root.matrixWorld).invert().multiply(this.needle.root.matrixWorld);
     const target=new THREE.Vector3(0,0,0.05);
@@ -19,15 +25,11 @@ export class NeedleGrasp {
       const a=this.needle.points[i-1].clone().applyMatrix4(toTool);
       const b=this.needle.points[i].clone().applyMatrix4(toTool);
       const nearest=new THREE.Line3(a,b).closestPointToPoint(target,true,new THREE.Vector3());
-      if(exposedOnly) {
-        if(i<this.needle.points.length*0.8) continue;
-        if(nearest.clone().applyMatrix4(tool.root.matrixWorld).y<0.425) continue;
-      }
       if(Math.abs(nearest.x)<0.12 && Math.abs(nearest.y)<0.085 && Math.abs(nearest.z-0.05)<0.14) return true;
     }
     return false;
   }
-  private attach(tool: Instrument) {
+  attach(tool: Instrument) {
     tool.root.updateWorldMatrix(true,false); this.needle.root.updateWorldMatrix(true,false);
     this.relative.copy(tool.root.matrixWorld).invert().multiply(this.needle.root.matrixWorld);
     this.holder=tool;
@@ -39,7 +41,7 @@ export class NeedleGrasp {
       for(const tool of tools) {
         if(tool.kind!=='forceps' || !this.withinJaws(tool,true)) continue;
         if(tool.openness>0.2) this.candidate=tool;
-        if((this.previous.get(tool)??tool.openness)>0.2 && tool.openness<=0.2) this.receiver=tool;
+        if(tool.openness<=0.2) this.receiver=tool;
       }
     }
     if(this.holder) {
@@ -60,7 +62,7 @@ export class NeedleGrasp {
         if(!this.withinJaws(tool,allowHandoff && tool.kind==='forceps')) continue;
         if(tool.openness>0.2 && !this.candidate) this.candidate=tool;
         const previous=this.previous.get(tool)??tool.openness;
-        if(previous>0.2 && tool.openness<=0.2) {
+        if(tool.openness<=0.2 && (previous>0.2 || (allowHandoff && tool.kind==='forceps'))) {
           this.attach(tool); this.candidate=null; break;
         }
       }
