@@ -50,3 +50,9 @@ Next playable milestones: refine needle grasp/contact mechanics, tissue entry/ex
 The deployment workflow in `.github/workflows/deploy.yml` tests, builds, and publishes on pushes to `main`. One-time repository setting: **Settings → Pages → Build and deployment → Source → GitHub Actions**. Then run **Actions → Deploy Suture Hero to GitHub Pages → Run workflow** if the initial push ran before Pages was enabled. After a successful deployment, the site is available at https://lancelevine.github.io/suturehero/ . Future pushes update that site automatically. GitHub Pages availability depends on repository visibility and account plan.
 
 The Vite configuration uses relative asset URLs so the build works beneath the repository path as well as locally. Only the generated `dist` site is published; no backend is required.
+
+## Needle-placement exercise
+
+Grasp the needle with the right needle driver, or transfer it from the left forceps. The blue dot identifies the needle's working tip; the blue projection on the pad and dashed vertical line help judge depth. Move that tip into the gold ring on the left side of the incision and orient the needle's forward tangent downward, following the gold arrow. Hold within **0.12 sandbox units** and **20 degrees** for **one continuous second** to complete the exercise. The readout shows distance, angle and hold progress. Losing alignment or releasing the needle resets the hold; completion stays recorded until **Reset practice**.
+
+Hold **Shift** with any tool control for 20% speed, including fine rotation and jaw adjustment. Thresholds are forgiving game criteria, not clinical measurements. This exercise checks placement only; it does not puncture tissue or simulate contact forces. The tip marker is a visual aid rather than a modeled sharp tip.

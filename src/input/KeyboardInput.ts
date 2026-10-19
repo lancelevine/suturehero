@@ -14,7 +14,8 @@ export class KeyboardInput implements InputDevice {
     window.addEventListener('blur', this.blur);
   }
   sample(tool: ToolId): ToolCommand {
-    const axis = (positive: string, negative: string) => Number(this.keys.has(positive)) - Number(this.keys.has(negative));
+    const speed=this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 0.2 : 1;
+    const axis = (positive: string, negative: string) => (Number(this.keys.has(positive)) - Number(this.keys.has(negative)))*speed;
     return tool === 'left'
       ? { translation: [axis('KeyD','KeyA'),axis('KeyE','KeyQ'),axis('KeyS','KeyW')], rotation: [axis('KeyT','KeyG'),axis('KeyF','KeyH'),axis('KeyR','KeyY')], jaw: axis('KeyX','KeyZ') }
       : { translation: [axis('ArrowRight','ArrowLeft'),axis('PageUp','PageDown'),axis('ArrowDown','ArrowUp')], rotation: [axis('KeyI','KeyK'),axis('KeyJ','KeyL'),axis('KeyU','KeyO')], jaw: axis('Period','Comma') };
