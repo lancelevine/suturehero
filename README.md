@@ -44,3 +44,9 @@ This is an assisted kinematic grasp prototype, not a contact simulation. Release
 The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Tissue penetration, thread dynamics, knot tying, haptics, and VR are not implemented. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
 
 Next playable milestones: refine needle grasp/contact mechanics, tissue entry/exit constraints, thread pull-through, then knot mechanics and completion criteria for one simple interrupted suture. Those features require their own validated simulation models; needle pickup is currently a kinematic proximity constraint.
+
+## Play online with GitHub Pages
+
+The deployment workflow in `.github/workflows/deploy.yml` tests, builds, and publishes on pushes to `main`. One-time repository setting: **Settings → Pages → Build and deployment → Source → GitHub Actions**. Then run **Actions → Deploy Suture Hero to GitHub Pages → Run workflow** if the initial push ran before Pages was enabled. After a successful deployment, the site is available at https://lancelevine.github.io/suturehero/ . Future pushes update that site automatically. GitHub Pages availability depends on repository visibility and account plan.
+
+The Vite configuration uses relative asset URLs so the build works beneath the repository path as well as locally. Only the generated `dist` site is published; no backend is required.
