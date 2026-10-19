@@ -2,11 +2,14 @@ import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { NeedlePass } from './NeedlePass';
 import { SutureModel } from '../suture/SutureModel';
-it('carries the actual needle tip along its own radius from entry to exit',()=>{
+it('carries the actual needle tip along its own radius from right entry to left exit',()=>{
   const pass=new NeedlePass(); const needle=new SutureModel(); pass.begin();
+  expect(pass.entry.x).toBeGreaterThan(0); expect(pass.exit.x).toBeLessThan(0);
+  let previousX=pass.entry.x;
   for(let i=0;i<100;i++) {
     const m=pass.pose; m.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
     const tip=needle.getTipPose();
+    expect(tip.position.x).toBeLessThanOrEqual(previousX+1e-8); previousX=tip.position.x;
     expect(tip.position.distanceTo(pass.center)).toBeCloseTo(pass.radius);
     expect(tip.position.y).toBeLessThanOrEqual(pass.entry.y+1e-8);
     if(i===0) { expect(tip.position.distanceTo(pass.entry)).toBeLessThan(1e-8); expect(tip.tangent.y).toBeCloseTo(-1); }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 /** Geometric exercise criteria in sandbox units; not a clinical assessment. */
 export class NeedlePlacement {
-  readonly target = new THREE.Vector3(-0.3,0.43,0);
+  readonly target = new THREE.Vector3(0.3,0.43,0);
   readonly direction = new THREE.Vector3(0,-1,0);
   distance = Infinity;
   angle = 180;

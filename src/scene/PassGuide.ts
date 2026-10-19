@@ -6,7 +6,7 @@ export class PassGuide {
   constructor(pass: NeedlePass) {
     const exit=new THREE.Mesh(new THREE.TorusGeometry(0.1,0.01,8,32),this.material);
     exit.rotation.x=Math.PI/2; exit.position.copy(pass.exit); this.root.add(exit);
-    const points=Array.from({length:65},(_,i)=>new THREE.Vector3(-Math.cos(i/64*Math.PI)*pass.radius,pass.center.y-Math.sin(i/64*Math.PI)*pass.radius,0));
+    const points=Array.from({length:65},(_,i)=>new THREE.Vector3(Math.cos(i/64*Math.PI)*pass.radius,pass.center.y-Math.sin(i/64*Math.PI)*pass.radius,0));
     const path=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineDashedMaterial({color:0x88c8ee,depthTest:false,dashSize:0.035,gapSize:0.025,transparent:true,opacity:0.65}));
     path.computeLineDistances(); path.renderOrder=3; this.root.add(path); exit.renderOrder=3;
   }
