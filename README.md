@@ -1,6 +1,6 @@
 # Suture Hero
 
-A browser-based surgical sandbox built with TypeScript and Three.js. This first increment provides a tissue pad, a reference curved needle and thread, and two independently controlled needle holders. It is not a clinical training tool.
+A browser-based surgical sandbox built with TypeScript and Three.js. This first increment provides a tissue pad, a reference curved needle and thread, and left spring forceps and a right needle driver. It is not a clinical training tool.
 
 ## Development
 
@@ -26,15 +26,21 @@ npm run dev
 
 Hold keys for continuous motion. Both instruments can move simultaneously; browser and keyboard hardware may limit some key combinations. Drag to orbit the camera, scroll to zoom. Reset buttons restore tool poses or camera. Movement uses world axes; rotations use local axes about each working tip. Jaws are continuously adjustable. Keyboard controls are temporary and require a desktop keyboard.
 
+## Grasping the needle
+
+Start with open jaws and move either tool to the curved needle near the center of the pad. The needle glows green when its arc is within the jaw capture region. Close with **Z** (left forceps) or **comma** (right needle driver) to pick it up. Its pickup orientation is preserved as the tool moves and rotates. Open with **X** or **period** to release, then use the other tool to regrasp. Only one instrument can hold the needle at a time. A closed tool must reopen before another grasp attempt. **Reset practice** restores both instruments and the needle.
+
+This is an assisted kinematic grasp prototype, not a contact simulation. Released needles remain suspended at their release pose; the visual thread moves rigidly with the needle. No gravity, tissue collision, thread dynamics, or surgical grasp-quality assessment is implemented.
+
 ## Architecture
 
 - `input/`: device-independent commands and keyboard adapter. Future tracked controllers should supply target poses through a dedicated pose driver rather than translating tracking into keyboard events.
 - `instruments/`: instrument geometry, working-tip pivot, pose integration, jaw state, and sandbox bounds.
 - `tissue/`: tissue visualization; future material, collision, and deformation models belong here.
-- `suture/`: static curved needle and thread reference; future grasp constraints and suture solver belong here.
+- `suture/`: needle visualization and independent proximity-based grasp constraint; future suture solver belongs here.
 - `gameplay/`: practice-session orchestration, decoupled from rendering and input bindings.
 - `scene/`: renderer, lighting, camera, and viewport resizing.
 
-The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Tissue penetration, grasping, thread dynamics, knot tying, haptics, and VR are not implemented. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
+The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Tissue penetration, thread dynamics, knot tying, haptics, and VR are not implemented. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
 
-Next playable milestones: needle grasp/release, tissue entry/exit constraints, thread pull-through, then knot mechanics and completion criteria for one simple interrupted suture. Those features require their own validated simulation models; the static needle is not currently interactive.
+Next playable milestones: refine needle grasp/contact mechanics, tissue entry/exit constraints, thread pull-through, then knot mechanics and completion criteria for one simple interrupted suture. Those features require their own validated simulation models; needle pickup is currently a kinematic proximity constraint.

@@ -4,28 +4,46 @@ export class Instrument {
   readonly root = new THREE.Group();
   readonly tip = new THREE.Object3D();
   private jaws: THREE.Group[] = [];
-  openness = 0.45;
+  openness = 0.65;
+  readonly kind: 'forceps' | 'needle-driver';
   constructor(readonly id: ToolId, color: number) {
+    this.kind = id === 'left' ? 'forceps' : 'needle-driver';
     const steel = new THREE.MeshStandardMaterial({color:0xb6c6ce,metalness:0.85,roughness:0.27});
     const accent = new THREE.MeshStandardMaterial({color,metalness:0.4,roughness:0.4});
     // Local +Z runs from the working tip toward the handle; the root is the tip pivot.
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.075,2.8,16),steel);
-    shaft.rotation.x = Math.PI/2; shaft.position.z=1.65; this.root.add(shaft);
-    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.24,20),accent);
-    collar.rotation.x=Math.PI/2; collar.position.z=2.75; this.root.add(collar);
-    for (const side of [-1,1]) {
-      const jaw = new THREE.Group(); jaw.position.set(side*0.035,0,0.35);
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.065,0.085,0.42),steel);
+    if(this.kind==='needle-driver') {
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.075,2.8,16),steel);
+      shaft.rotation.x=Math.PI/2; shaft.position.z=1.65; this.root.add(shaft);
+      for(const side of [-1,1]) {
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.045,10,32),steel);
+        ring.position.set(side*0.27,0,3.28); this.root.add(ring);
+      }
+    } else {
+      // Spring forceps: two tapered arms joined at the proximal end, no finger rings.
+      for(const side of [-1,1]) {
+        const arm=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.07,2.65),steel);
+        arm.position.set(side*0.11,0,1.72); arm.rotation.y=-side*0.055; this.root.add(arm);
+        for(let i=0;i<9;i++) {
+          const grip=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.085,0.025),accent);
+          grip.position.set(side*0.11,0,1.7+i*0.09); this.root.add(grip);
+        }
+      }
+      const heel=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.09,0.22),steel);
+      heel.position.z=3.05; this.root.add(heel);
+    }
+    const collar=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.12,0.18),accent);
+    collar.position.z=2.75; this.root.add(collar);
+    for(const side of [-1,1]) {
+      const jaw=new THREE.Group(); jaw.position.set(side*0.035,0,0.35);
+      const blade=new THREE.Mesh(new THREE.BoxGeometry(this.kind==='forceps'?0.035:0.065,0.065,0.42),steel);
       blade.position.z=-0.21; jaw.add(blade); this.root.add(jaw); this.jaws.push(jaw);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22,0.045,10,32),steel);
-      ring.position.set(side*0.27,0,3.28); this.root.add(ring);
     }
     this.root.add(this.tip); this.reset();
   }
   reset() {
-    this.root.position.set(this.id==='left'?-1.25:1.25,1.0,0.1);
+    this.root.position.set(this.id==='left'?-0.85:0.85,0.7,0.1);
     this.root.rotation.set(-0.45,this.id==='left'?-0.55:0.55,0);
-    this.openness=0.45; this.updateJaws();
+    this.openness=0.65; this.updateJaws();
   }
   update(command: ToolCommand, dt: number) {
     const delta = new THREE.Vector3(...command.translation);
@@ -35,5 +53,5 @@ export class Instrument {
     this.root.rotateX(command.rotation[0]*dt); this.root.rotateY(command.rotation[1]*dt); this.root.rotateZ(command.rotation[2]*dt);
     this.openness=THREE.MathUtils.clamp(this.openness+command.jaw*dt,0,1); this.updateJaws();
   }
-  private updateJaws() { this.jaws.forEach((jaw,i)=>{jaw.rotation.y=(i===0?-1:1)*this.openness*0.35;}); }
+  private updateJaws() { this.jaws.forEach((jaw,i)=>{jaw.rotation.y=(i===0?1:-1)*this.openness*0.35;}); }
 }
