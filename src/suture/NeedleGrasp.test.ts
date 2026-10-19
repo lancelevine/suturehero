@@ -39,3 +39,15 @@ describe('needle grasp constraint',()=>{
     grasp.update([left,right]); left.openness=right.openness=0; grasp.update([left,right]); expect(grasp.holder).toBe(left);
   });
 });
+it('stages a forceps grip at the exposed tip and transfers only when the driver opens',()=>{
+  const needle=new SutureModel(); const left=new Instrument('left',0); const right=new Instrument('right',0);
+  const scene=new THREE.Scene(); scene.add(needle.root,left.root,right.root);
+  const tip=needle.getTipPose().position;
+  for(const tool of [left,right]) { tool.root.quaternion.identity(); tool.root.position.copy(tip).add(new THREE.Vector3(0,0,-0.05)); }
+  const grasp=new NeedleGrasp(needle); grasp.update([right,left]); right.openness=0.1; grasp.update([right,left]);
+  expect(grasp.holder).toBe(right);
+  grasp.update([left,right],true); left.openness=0.1; grasp.update([left,right],true);
+  expect(grasp.receiver).toBe(left); expect(grasp.holder).toBe(right);
+  const before=needle.root.position.clone(); right.openness=0.7; grasp.update([left,right],true);
+  expect(grasp.holder).toBe(left); expect(grasp.receiver).toBeNull(); expect(needle.root.position.distanceTo(before)).toBeLessThan(1e-8);
+});

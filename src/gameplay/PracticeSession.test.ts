@@ -5,12 +5,13 @@ import { Instrument } from '../instruments/Instrument';
 import { NeedleGrasp } from '../suture/NeedleGrasp';
 import { SutureModel } from '../suture/SutureModel';
 import type { ToolCommand } from '../input/types';
-it('requires placement and driver grasp, then drives both the needle and tool together',()=>{
+it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   const needle=new SutureModel(); const left=new Instrument('left',0); const right=new Instrument('right',0);
   const scene=new THREE.Scene(); scene.add(needle.root,left.root,right.root);
   const grasp=new NeedleGrasp(needle);
   let command:ToolCommand={translation:[0,0,0],rotation:[0,0,0],jaw:0};
-  const session=new PracticeSession({sample:()=>command,dispose:()=>{}},[left,right],grasp);
+  let leftCommand:ToolCommand={translation:[0,0,0],rotation:[0,0,0],jaw:0};
+  const session=new PracticeSession({sample:(id)=>id==='right'?command:leftCommand,dispose:()=>{}},[left,right],grasp);
   expect(session.beginPass()).toBe(false);
   session.pass.pose.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
   needle.root.updateWorldMatrix(true,false);
@@ -25,5 +26,21 @@ it('requires placement and driver grasp, then drives both the needle and tool to
   expect(session.pass.phase).toBe('complete'); expect(grasp.holder).toBe(right);
   expect(right.root.position.distanceTo(before)).toBeGreaterThan(0.1);
   expect(needle.getTipPose().position.distanceTo(session.pass.exit)).toBeLessThan(1e-7);
-  session.reset(); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
+  command={translation:[0,0,0],rotation:[0,0,0],jaw:0};
+  const emerged=needle.getTipPose().position;
+  left.root.quaternion.identity(); left.root.position.copy(emerged).add(new THREE.Vector3(0,0,-0.05));
+  session.update(0.01); left.openness=0.1; session.update(0.01);
+  expect(grasp.receiver).toBe(left); expect(grasp.holder).toBe(right);
+  right.openness=0.7; session.update(0.01); expect(grasp.holder).toBe(left); expect(session.pull.phase).toBe('pulling');
+  leftCommand={...leftCommand,translation:[0,1,0]};
+  session.update(0.05); const moved=session.pull.distance;
+  left.openness=0.7; session.update(0.05); expect(session.pull.distance).toBe(moved);
+  leftCommand={...leftCommand,translation:[0,0,0]};
+  left.openness=0.1; session.update(0.01); expect(grasp.holder).toBe(left);
+  leftCommand={...leftCommand,translation:[0,1,0]};
+  for(let i=0;i<60 && session.pull.phase==='pulling';i++)session.update(0.05);
+  expect(session.pull.phase).toBe('complete'); expect(session.pull.threadProgress).toBe(1);
+  needle.root.updateWorldMatrix(true,false);
+  for(const point of needle.points)expect(point.clone().applyMatrix4(needle.root.matrixWorld).y).toBeGreaterThan(0.43);
+  session.reset(); expect(session.pull.phase).toBe('waiting'); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
 });
