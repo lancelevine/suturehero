@@ -1,5 +1,6 @@
+import { StrandContact } from './StrandContact';
 import * as THREE from 'three';
-/** Position-based strand with a fixed material length. No self-contact or force calibration. */
+/** Position-based strand with a fixed material length. Discrete self-contact, without force calibration. */
 export class ThreadStrand {
   readonly points: THREE.Vector3[];
   private previous: THREE.Vector3[];
@@ -7,9 +8,11 @@ export class ThreadStrand {
   private accumulator=0;
   private pinned=new Set<number>();
   private delta=new THREE.Vector3();
+  private contact: StrandContact;
   constructor(readonly length=3.8,readonly count=80) {
     if(length<=0 || count<3)throw new Error('A strand needs positive length and at least three particles.');
     this.restLength=length/(count-1);
+    this.contact=new StrandContact(this.restLength*1.5);
     this.points=Array.from({length:count},()=>new THREE.Vector3());
     this.previous=this.points.map(p=>p.clone());
   }
@@ -24,11 +27,15 @@ export class ThreadStrand {
     this.accumulator+=Math.max(0,Math.min(dt,0.05));
     for(const index of this.pinned)if(!anchors.has(index))this.previous[index].copy(this.points[index]);
     this.pinned=new Set(anchors.keys());
+    const steps=Math.floor((this.accumulator+1e-10)/step);
+    const starts=new Map([...anchors].map(([i])=>[i,this.points[i].clone()]));
+    let substep=0;
     while(this.accumulator+1e-10>=step) {
+      substep++;
       this.accumulator-=step;
       for(let i=0;i<this.count;i++) {
         const p=this.points[i],prev=this.previous[i],anchor=anchors.get(i);
-        if(anchor) {p.copy(anchor);prev.copy(anchor);continue;}
+        if(anchor) {p.copy(starts.get(i)!).lerp(anchor,substep/steps);prev.copy(p);continue;}
         const x=p.x,y=p.y,z=p.z;
         p.addScaledVector(this.delta.subVectors(p,prev),0.986);p.y-=2.5*step*step;
         prev.set(x,y,z);
@@ -44,6 +51,7 @@ export class ThreadStrand {
           this.delta.multiplyScalar((distance-this.restLength)/(distance*(wa+wb)));
           if(wa)a.add(this.delta);if(wb)b.sub(this.delta);
         }
+        if(iteration%6===5)this.contact.resolve(this.points,this.previous,this.pinned);
         for(let i=0;i<this.count;i++)if(!anchors.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
       }
       for(let i=0;i<this.count;i++)if(!anchors.has(i) && this.points[i].y<=surfaceAt(this.points[i])+0.0001) {

@@ -1,3 +1,4 @@
+import { THREAD_RADIUS } from '../suture/threadMaterial';
 import * as THREE from 'three';
 /** Reuses tube buffers instead of allocating and disposing geometry every frame. */
 export class StrandMesh extends THREE.Mesh<THREE.BufferGeometry,THREE.MeshStandardMaterial> {
@@ -27,7 +28,7 @@ export class StrandMesh extends THREE.Mesh<THREE.BufferGeometry,THREE.MeshStanda
       for(let j=0;j<this.sides;j++) {
         const a=j/this.sides*Math.PI*2;n.copy(u).multiplyScalar(Math.cos(a)).addScaledVector(v,Math.sin(a));
         const index=i*this.sides+j;
-        position.setXYZ(index,points[i].x+n.x*0.009,points[i].y+n.y*0.009,points[i].z+n.z*0.009);
+        position.setXYZ(index,points[i].x+n.x*THREAD_RADIUS,points[i].y+n.y*THREAD_RADIUS,points[i].z+n.z*THREAD_RADIUS);
         normal.setXYZ(index,n.x,n.y,n.z);
       }
     }
