@@ -72,3 +72,9 @@ The forceps are modeled as two continuous spring arms with shallow serrations on
 **Close-up view** gives a closer oblique view; **Wide view** or **Reset view** restores the default camera. Soft tool shadows on the tissue and pad help show height. Purple marks the selected assisted grip, green the reachable or staged point, and gold the held point. These small practice markers remain visible through geometry for clarity; they are not physical instrument features.
 
 Tissue pores, brushed metal, and a woven pad are generated as small deterministic textures in `src/visuals/surfaceTextures.ts`; no image downloads or external texture services are needed. Texture maps are cached and shared. Textures are cosmetic, and shadows do not add tissue contact or physics.
+
+## Layout regression check
+
+Run `npm run test:layout` with a local Chrome/Chromium installation (set `CHROMIUM_PATH` if it is not in a standard location). It builds the production site and checks repeated wide-to-narrow window resizing at display scale factors 1, 1.25 and 2. It verifies that the page stops growing, has no horizontal overflow, and the canvas stays inside its container. It also checks browser runtime/ResizeObserver errors. The temporary preview server uses port 4178 and is stopped afterward.
+
+The viewport has a CSS-controlled size. Three.js resizes only its drawing buffer, while the canvas is positioned inside the viewport and the grid columns can shrink below their contents' intrinsic size. This prevents canvas dimensions from feeding back into page layout.
