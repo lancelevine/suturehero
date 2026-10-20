@@ -19,6 +19,7 @@ export class SutureModel {
     this.root.traverse(object=>{if(object instanceof THREE.Mesh) object.castShadow=true;});
     this.reset();
   }
+  setThreadVisible(visible: boolean) {this.thread.visible=visible;}
   getPointAt(fraction: number) {
     const a=THREE.MathUtils.clamp(fraction,0,1)*NEEDLE_ARC;
     return new THREE.Vector3(Math.cos(a)*NEEDLE_RADIUS,0,Math.sin(a)*NEEDLE_RADIUS);
@@ -41,6 +42,7 @@ export class SutureModel {
   }
   reset() { this.root.position.set(-0.3,0.65,0); this.root.quaternion.identity();
     if(this.thread) {
+      this.thread.visible=true;
       const pts=[this.points[0],new THREE.Vector3(0.65,0,0.2),new THREE.Vector3(0.8,0,0.65),new THREE.Vector3(1.25,0,0.5),new THREE.Vector3(1.6,0,0.8)];
       this.thread.geometry.dispose(); this.thread.geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),50,0.009,6,false);
     }

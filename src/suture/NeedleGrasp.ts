@@ -85,11 +85,12 @@ export class NeedleGrasp {
     this.needle.highlight(!!this.candidate || !!this.receiver);
     for(const tool of tools) this.previous.set(tool,tool.openness);
   }
-  reset() {
+  release() {
     this.holder=null; this.candidate=null; this.receiver=null;
     this.heldPoint=null; this.candidatePoint=null; this.receiverPoint=null;
-    this.previous.clear(); this.needle.reset(); this.needle.highlight(false);
+    this.previous.clear(); this.needle.highlight(false);
   }
+  reset() {this.release(); this.needle.reset();}
   get status(): string {
     if(this.receiver) return 'Forceps grip ready · Open right driver (period) to transfer';
     if(this.candidate && this.holder) return 'Exposed needle body in reach · Close left forceps (Z), then open driver (period)';

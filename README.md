@@ -41,7 +41,7 @@ This is an assisted kinematic grasp prototype, not a contact simulation. Release
 - `gameplay/`: practice-session orchestration, decoupled from rendering and input bindings.
 - `scene/`: renderer, lighting, camera, and viewport resizing.
 
-The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Tissue penetration, thread dynamics, knot tying, haptics, and VR are not implemented. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
+The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Tissue deformation, thread dynamics, physical knot mechanics, haptics, and VR are not implemented. Guided passage and knot-tying stages use kinematic constraints. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
 
 Next playable milestones: refine needle grasp/contact mechanics, tissue entry/exit constraints, thread pull-through, then knot mechanics and completion criteria for one simple interrupted suture. Those features require their own validated simulation models; needle pickup is currently a kinematic proximity constraint.
 
@@ -61,7 +61,7 @@ The Vite configuration uses relative asset URLs so the build works beneath the r
 
 **Reset practice** restores tool poses, needle, thread and exercise state. The positioning buttons are explicit assists; the instruments remain independently controlled outside guided portions. Free needle pickup is still available before starting the pass, but is not a prerequisite.
 
-The pass uses a 0.3-unit needle radius, a 135° (three-eighths-circle) needle, and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. The driver rotates until a short section of needle body emerges, then the forceps continue the same circular path until the entire 135° needle and eye clear the exit, plus a small clearance margin. There is no vertical-lift extraction. The thread follows the eye through fixed entry/exit points with a shortened entry tail; this visual take-up does not model full thread extraction. It has no conserved length, friction, or tension. Knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
+The pass uses a 0.3-unit needle radius, a 135° (three-eighths-circle) needle, and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. The driver rotates until a short section of needle body emerges, then the forceps continue the same circular path until the entire 135° needle and eye clear the exit, plus a small clearance margin. There is no vertical-lift extraction. The thread follows the eye through fixed entry/exit points with a shortened entry tail; this visual take-up does not model full thread extraction. It has no conserved length, friction, or tension. Physical knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
 
 
 The forceps are modeled as two continuous spring arms with shallow serrations on their inner ends. Opening spreads the arms; closing brings the opposing tip faces together. No detached terminal teeth or separate forceps jaw blades are used.
@@ -78,3 +78,21 @@ Tissue pores, fine creases and warm skin color variation use separate color, hei
 Run `npm run test:layout` with a local Chrome/Chromium installation (set `CHROMIUM_PATH` if it is not in a standard location). It builds the production site and checks repeated wide-to-narrow window resizing at display scale factors 1, 1.25 and 2. It verifies that the page stops growing, has no horizontal overflow, and the canvas stays inside its container. It also checks browser runtime/ResizeObserver errors. The temporary preview server uses port 4178 and is stopped afterward.
 
 The viewport has a CSS-controlled size. Three.js resizes only its drawing buffer, while the canvas is positioned inside the viewport and the grid columns can shrink below their contents' intrinsic size. This prevents canvas dimensions from feeding back into page layout.
+
+## Guided instrument tie (build 0.10)
+
+After curved extraction completes, click **Begin knot tying**. The needle is parked on the tray, the left forceps are positioned holding the long strand, and the open right driver is positioned for wrapping. These are explicit positioning assists. The separate `GuidedKnot` state machine controls the sequence, and `KnotView` renders the staged thread geometry.
+
+| Stage | First throw | Opposing throw |
+| --- | --- | --- |
+| Wrap long strand around driver | Hold R | Hold Y |
+| Position driver at short tail | Click Position driver at tail | Click Position driver at tail |
+| Grasp short tail | Close with comma | Close with comma |
+| Seat with opposed hand movement | Hold A + Right arrow | Hold D + Left arrow |
+
+After seating the first throw, click **Next opposing throw**. Holding the wrong wrap direction unwinds instead of advancing. Moving the ends in the same direction cannot seat a throw. Keep the forceps closed; Z recloses them after an accidental release. Opening the driver during seating returns to the tail-grasp stage. Shift slows all keyboard actions. **Reset practice** clears the knot, restores the original thread and needle, and returns to the pass workflow.
+
+The completed result records two opposing single throws, a guided square-knot sequence. This is a staged geometric exercise: there is no knot topology solver, conserved thread length, tension, friction, tissue approximation, or knot-security assessment. The sequence currently ends after two throws; further throws and realistic tightening mechanics are future increments.
+
+
+Browser regression: with the dev server running, execute `node scripts/check-knot.mjs`. Set `CHROMIUM_PATH` to your Chrome/Chromium executable outside Linux, and optionally `SUTURE_TEST_URL` to another running instance. This exercises real keyboard controls through passage, selected body grasp, forceps extraction, both throws and completion, and rejects browser runtime errors. It uses the existing Playwright Core development dependency.

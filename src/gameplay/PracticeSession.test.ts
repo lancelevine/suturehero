@@ -44,5 +44,21 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   expect(session.pull.phase).toBe('complete'); expect(session.pull.threadProgress).toBe(1);
   needle.root.updateWorldMatrix(true,false);
   for(const point of needle.points)expect(point.clone().applyMatrix4(needle.root.matrixWorld).y).toBeGreaterThan(0.43);
-  session.reset(); expect(session.pull.phase).toBe('waiting'); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
+  expect(session.canBeginKnot).toBe(true); expect(session.knotAction()).toBe(true);
+  expect(grasp.holder).toBeNull(); expect(session.canBeginPass).toBe(false);
+  command={translation:[0,0,0],rotation:[0,0,0],jaw:0};
+  for(const direction of [1,-1]) {
+    leftCommand={translation:[0,0,0],rotation:[0,0,direction],jaw:0};
+    for(let i=0;i<50;i++)session.update(0.05);
+    expect(session.knot.phase).toBe('tail'); expect(session.knotAction()).toBe(true);
+    command={...command,jaw:-1};
+    for(let i=0;i<15;i++)session.update(0.05);
+    expect(session.knot.phase).toBe('seating');
+    leftCommand={translation:[-direction,0,0],rotation:[0,0,0],jaw:0};
+    command={translation:[direction,0,0],rotation:[0,0,0],jaw:0};
+    for(let i=0;i<40;i++)session.update(0.05);
+    if(direction===1) {expect(session.knot.phase).toBe('between'); expect(session.knotAction()).toBe(true);}
+  }
+  expect(session.knot.phase).toBe('complete'); expect(session.knot.throws).toBe(2);
+  session.reset(); expect(session.knot.phase).toBe('idle'); expect(session.pull.phase).toBe('waiting'); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
 });

@@ -1,3 +1,4 @@
+import { GuidedKnot } from '../suture/GuidedKnot';
 import { PullThrough } from '../suture/PullThrough';
 import * as THREE from 'three';
 import { NeedlePlacement } from './NeedlePlacement';
@@ -9,11 +10,12 @@ export class PracticeSession {
   readonly placement=new NeedlePlacement();
   readonly pass=new NeedlePass();
   readonly pull=new PullThrough();
+  readonly knot=new GuidedKnot();
   gripFraction=0.9;
   get selectedGripPoint() { return this.grasp?.needle.getPointAt(this.gripFraction)??new THREE.Vector3(); }
   constructor(private input: InputDevice, readonly instruments: readonly Instrument[], readonly grasp?: NeedleGrasp) {}
   get canBeginPass() {
-    return !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted');
+    return !this.knot.active && !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted');
   }
   beginPass() {
     if(!this.canBeginPass || !this.grasp) return false;
@@ -44,6 +46,28 @@ export class PracticeSession {
     forceps.update({translation:[0,0,0],rotation:[0,0,0],jaw:0},0);
     this.grasp.update(this.instruments,true); return true;
   }
+  get canBeginKnot() {return this.pull.phase==='complete' && !this.knot.active && !!this.grasp;}
+  get canKnotAction() {return this.canBeginKnot || this.knot.phase==='between' || (this.knot.phase==='tail' && !this.knot.tailPositioned);}
+  knotAction() {
+    if(this.canBeginKnot && this.grasp) {
+      this.grasp.release(); this.grasp.needle.setThreadVisible(false);
+      this.grasp.needle.root.position.set(3.1,0.1,1.2); this.grasp.needle.root.quaternion.identity();
+      this.knot.begin(); this.prepareKnotTools(); return true;
+    }
+    if(this.knot.phase==='between') {this.knot.nextThrow(); this.prepareKnotTools(); return true;}
+    if(this.knot.phase==='tail' && !this.knot.tailPositioned) {this.knot.positionTail();this.placeKnotTools();return true;}
+    return false;
+  }
+  private prepareKnotTools() {
+    for(const tool of this.instruments) {
+      tool.root.quaternion.identity(); tool.openness=tool.id==='left'?0.1:0.65;
+      tool.update({translation:[0,0,0],rotation:[0,0,0],jaw:0},0);
+    }
+    this.placeKnotTools();
+  }
+  private placeKnotTools() {
+    for(const tool of this.instruments) tool.root.position.copy(tool.id==='left'?this.knot.leftPosition:this.knot.rightPosition);
+  }
   private applyPassPose(pose=this.pass.pose) {
     const holder=this.grasp?.holder;
     if(!holder || !this.grasp) return;
@@ -57,6 +81,12 @@ export class PracticeSession {
   }
   update(dt: number) {
     const step=Math.max(0,Math.min(dt,0.05));
+    if(this.knot.active) {
+      const left=this.instruments.find(t=>t.id==='left')!,right=this.instruments.find(t=>t.id==='right')!;
+      const lc=this.input.sample('left'),rc=this.input.sample('right');
+      for(const tool of this.instruments) tool.update({...this.input.sample(tool.id),translation:[0,0,0],rotation:[0,0,0]},step);
+      this.knot.update(lc,rc,left.openness,right.openness,step); this.placeKnotTools(); return;
+    }
     const constrained=this.pass.phase==='passing';
     const waitingForHandoff=this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp?.holder?.kind==='needle-driver';
     const extracting=this.pull.phase==='pulling' && this.grasp?.holder?.kind==='forceps';
@@ -93,5 +123,5 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); }
+  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); this.knot.reset(); }
 }

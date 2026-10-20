@@ -5,3 +5,4 @@ button:disabled{opacity:.45;cursor:default;background:transparent}.toolbar{flex-
 
 /* The renderer must never contribute an intrinsic minimum size to the layout. */
 .workspace,.control-grid article{min-width:0}#viewport{width:100%;contain:size layout}.toolbar>span{min-width:0;overflow-wrap:anywhere}.exercise-feedback>div{min-width:0}
+.knot-note{margin-top:14px;padding:15px 20px;background:#edf1f8;border:1px solid #d5dfec;border-radius:5px;font-size:11px;line-height:1.7;color:#687c98}
