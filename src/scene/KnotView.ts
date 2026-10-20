@@ -1,3 +1,6 @@
+import { StrandMesh } from './StrandMesh';
+import { knotLoop } from '../suture/knotGeometry';
+import type { KnotSlack } from '../suture/KnotSlack';
 import * as THREE from 'three';
 import type { GuidedKnot } from '../suture/GuidedKnot';
 import type { Instrument } from '../instruments/Instrument';
@@ -5,34 +8,38 @@ import type { Instrument } from '../instruments/Instrument';
 export class KnotView {
   readonly root=new THREE.Group();
   private thread=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshStandardMaterial({color:0x355fb0,roughness:0.7}));
+  private shortSpan=new StrandMesh(32);
+  private longSpan=new StrandMesh(36);
+  private continuation=new THREE.Mesh(new THREE.BufferGeometry(),this.thread.material);
   private seated=new THREE.Group();
   private tailMarker=new THREE.Mesh(new THREE.SphereGeometry(0.055,12,8),new THREE.MeshBasicMaterial({color:0xf0c277,depthTest:false}));
   private stamp=''; private count=-1;
-  constructor() {this.thread.castShadow=true;this.tailMarker.renderOrder=4;this.root.add(this.thread,this.seated,this.tailMarker);}
-  update(knot: GuidedKnot,tools: readonly Instrument[],entry: THREE.Vector3,exit: THREE.Vector3,eye: THREE.Vector3) {
+  constructor() {this.thread.castShadow=true;this.tailMarker.renderOrder=4;this.continuation.castShadow=true;this.root.add(this.thread,this.continuation,this.shortSpan,this.longSpan,this.seated,this.tailMarker);}
+  update(knot: GuidedKnot,tools: readonly Instrument[],entry: THREE.Vector3,exit: THREE.Vector3,eye: THREE.Vector3,simulation:KnotSlack) {
     this.root.visible=knot.active; if(!knot.active) {this.stamp='';return;}
     const left=tools.find(t=>t.id==='left')!,right=tools.find(t=>t.id==='right')!;
     const jaw=(tool:Instrument)=>{tool.root.updateWorldMatrix(true,false);return tool.root.localToWorld(new THREE.Vector3(0,0,0.05));};
     const leftJaw=jaw(left),rightJaw=jaw(right);
     this.tailMarker.visible=knot.phase==='tail';this.tailMarker.position.copy(knot.tail);
-    const key=[knot.phase,knot.throws,knot.wrap.toFixed(3),knot.seating.toFixed(3),entry.x.toFixed(4),exit.x.toFixed(4)].join(':');
+    this.shortSpan.visible=this.longSpan.visible=this.continuation.visible=simulation.enabled;
+    if(simulation.enabled) {
+      this.root.updateWorldMatrix(true,false);
+      this.shortSpan.update(simulation.short.points,this.root.matrixWorld);this.longSpan.update(simulation.long.points,this.root.matrixWorld);
+    }
+    const key=[knot.phase,knot.throws,knot.wrap.toFixed(3),knot.seating.toFixed(3),entry.x.toFixed(4),exit.x.toFixed(4),simulation.enabled].join(':');
     if(key===this.stamp)return;this.stamp=key;
-    const seating=knot.phase==='seating'?knot.seating:knot.phase==='between' || knot.phase==='complete'?1:0;
+    const loop=knotLoop(knot,right.root.position);
     const tail=knot.phase==='seating' || knot.phase==='between' || knot.phase==='complete'?rightJaw:knot.tail;
     const slack=1-knot.takeUp;
     const tailBend=tail.clone().lerp(entry,0.5).add(new THREE.Vector3(0,0.12*slack,0.18*slack));
-    const points=[tail.clone(),tailBend,entry.clone(),new THREE.Vector3(0,0.15,0),exit.clone()];
-    const center=right.root.position.clone().add(new THREE.Vector3(0,0,0.55)).lerp(new THREE.Vector3(0,0.47,0),seating);
-    const fraction=knot.phase==='wrapping'?knot.wrap:1;
-    if(fraction>0) {
-      const steps=Math.max(2,Math.ceil(fraction*48));
-      for(let i=0;i<=steps;i++) {
-        const a=i/steps*fraction*Math.PI*2*knot.direction;
-        const radius=0.14*(1-seating)+0.025*seating;
-        points.push(center.clone().add(new THREE.Vector3(Math.cos(a)*radius,Math.sin(a)*radius,(i/steps-0.5)*0.12*(1-seating))));
-      }
-    }
-    points.push(center.clone().lerp(leftJaw,0.5).add(new THREE.Vector3(0,-0.15*slack,0.08*slack)),leftJaw,
+    const points=simulation.enabled?[entry.clone(),new THREE.Vector3(0,0.15,0),exit.clone()]
+      :[tail.clone(),tailBend,entry.clone(),new THREE.Vector3(0,0.15,0),exit.clone()];
+    points.push(...loop.points);
+    if(simulation.enabled) {
+      if(loop.points.length===0)points.push(loop.end);
+      const tailPoints=[leftJaw,leftJaw.clone().lerp(eye,0.5).add(new THREE.Vector3(0,-0.2,0.15)),eye.clone()];
+      this.continuation.geometry.dispose();this.continuation.geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tailPoints),40,0.012,6,false);
+    } else points.push(loop.center.clone().lerp(leftJaw,0.5).add(new THREE.Vector3(0,-0.15*slack,0.08*slack)),leftJaw,
       leftJaw.clone().lerp(eye,0.5).add(new THREE.Vector3(0,-0.2,0.15)),eye.clone());
     (this.thread.material as THREE.MeshStandardMaterial).color.copy(new THREE.Color(0x4b79b5)).lerp(new THREE.Color(0x294a87),knot.takeUp);
     const geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,false,'centripetal'),128,0.012,6,false);

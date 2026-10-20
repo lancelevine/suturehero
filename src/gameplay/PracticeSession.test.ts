@@ -51,6 +51,8 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
     leftCommand={translation:[0,0,0],rotation:[0,0,direction],jaw:0};
     for(let i=0;i<50;i++)session.update(0.05);
     expect(session.knot.phase).toBe('tail');
+    expect(session.knotSlack.enabled).toBe(direction===1);
+    if(direction===1)expect(session.knotSlack.short.points[0].distanceTo(session.wound.deformPoint(session.pass.entry))).toBeLessThan(1e-8);
     if(direction===-1)expect(session.wound.closure).toBeGreaterThan(0.8);
     expect(session.knotAction()).toBe(true);
     command={...command,jaw:-1};
@@ -62,5 +64,5 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
     if(direction===1) {expect(session.knot.phase).toBe('between'); expect(session.wound.closure).toBeGreaterThan(0.75); expect(session.knotAction()).toBe(true);}
   }
   expect(session.knot.phase).toBe('complete'); expect(session.knot.throws).toBe(2); expect(session.wound.closure).toBeGreaterThan(0.95);
-  session.reset(); expect(session.wound.closure).toBe(0); expect(session.knot.phase).toBe('idle'); expect(session.pull.phase).toBe('waiting'); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
+  session.reset(); expect(session.knotSlack.enabled).toBe(false); expect(session.wound.closure).toBe(0); expect(session.knot.phase).toBe('idle'); expect(session.pull.phase).toBe('waiting'); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
 });

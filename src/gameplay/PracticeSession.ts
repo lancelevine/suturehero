@@ -1,3 +1,5 @@
+import { KnotSlack } from '../suture/KnotSlack';
+import { knotLoop } from '../suture/knotGeometry';
 import { WoundApproximation } from '../tissue/WoundApproximation';
 import { GuidedKnot } from '../suture/GuidedKnot';
 import { PullThrough } from '../suture/PullThrough';
@@ -12,6 +14,7 @@ export class PracticeSession {
   readonly pass=new NeedlePass();
   readonly pull=new PullThrough();
   readonly knot=new GuidedKnot();
+  readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
   gripFraction=0.9;
   get selectedGripPoint() { return this.grasp?.needle.getPointAt(this.gripFraction)??new THREE.Vector3(); }
@@ -90,7 +93,16 @@ export class PracticeSession {
       this.knot.update(lc,rc,left.openness,right.openness,step);
       const seating=this.knot.phase==='seating'?THREE.MathUtils.smoothstep(this.knot.seating,0.3,1):0;
       const target=this.knot.throws>=2?1:this.knot.throws===1?0.85+0.15*seating:0.85*seating;
-      this.wound.update(target,step); this.placeKnotTools(); return;
+      this.wound.update(target,step); this.placeKnotTools();
+      left.root.updateWorldMatrix(true,false);right.root.updateWorldMatrix(true,false);
+      const leftJaw=left.root.localToWorld(new THREE.Vector3(0,0,0.05)),rightJaw=right.root.localToWorld(new THREE.Vector3(0,0,0.05));
+      const loop=knotLoop(this.knot,right.root.position);
+      const tail=this.knot.phase==='seating' || this.knot.phase==='between' || this.knot.phase==='complete'?rightJaw:this.knot.tail;
+      this.knotSlack.update(step,{
+        enabled:this.knot.throws===0 || this.knot.phase==='between',
+        shortStart:this.wound.deformPoint(this.pass.entry),shortEnd:tail,
+        longStart:loop.end,longEnd:leftJaw,
+      });return;
     }
     const constrained=this.pass.phase==='passing';
     const waitingForHandoff=this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp?.holder?.kind==='needle-driver';
@@ -130,5 +142,5 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset(); }
+  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset(); this.knotSlack.reset(); }
 }
