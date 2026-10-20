@@ -132,3 +132,11 @@ This increment covers the first throw only. Each span has a fixed length budget,
 ## Continuous knot/tail routing (build 0.14.1)
 
 The short-side free span now feeds into a shared knot contact as the first throw seats, with an explicit connection back to the tissue entry. Both outgoing spans and the seated crossing meet at that contact instead of rendering a floating knot beside a tail that runs directly to the skin. The opposing throw retains the seated connection. The short-span budget accommodates this longer route. This remains assisted routing, not physical sliding contact or a solved knot topology. Renderer regression tests check the actual curve endpoints against the simulated spans and the seated crossing.
+
+## Driver-carried wrap and assisted loop tightening (build 0.15)
+
+The wrapping guide now uses the driver's full world transform. Its geometry cache includes instrument poses, so **Position driver at tail** carries the wrap with the driver even though the knot stage and wrap progress do not change. Translation and rotation are covered by rendering and geometry regression tests.
+
+`LoopTightening` supplies a shared sliding-loop constraint for rendering and strand anchors. During the initial opposed pull the wrap slides along the shaft toward the jaws, retaining its radius. It then aligns with the captured tail, narrows with continued pulling, and settles at the wound. The first throw's short-side particle strand connects to the moving loop after release from the driver, preserving the connection while the loop tightens. The readout distinguishes sliding, tightening and seating. The same assisted loop progression is used for the opposing throw; its free spans still use the staged path.
+
+This is an assisted geometric constraint with a bounded radius, not a frictional thread/instrument collision solver or a force-based knot model. Loop size follows the existing opposed-pull progress; full material conservation, slip resistance and knot security are not assessed. Input adapters and keyboard controls are unchanged.

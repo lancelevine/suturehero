@@ -96,11 +96,11 @@ export class PracticeSession {
       this.wound.update(target,step); this.placeKnotTools();
       left.root.updateWorldMatrix(true,false);right.root.updateWorldMatrix(true,false);
       const leftJaw=left.root.localToWorld(new THREE.Vector3(0,0,0.05)),rightJaw=right.root.localToWorld(new THREE.Vector3(0,0,0.05));
-      const loop=knotLoop(this.knot,right.root.position);
+      const loop=knotLoop(this.knot,right.root.matrixWorld);
       const tail=this.knot.phase==='seating' || this.knot.phase==='between' || this.knot.phase==='complete'?rightJaw:this.knot.tail;
       this.knotSlack.update(step,{
         enabled:this.knot.throws===0 || this.knot.phase==='between',
-        shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry)),shortEnd:tail,
+        shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop),shortEnd:tail,
         longStart:loop.end,longEnd:leftJaw,
       });return;
     }

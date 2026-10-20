@@ -57,7 +57,7 @@ export class GuidedKnot {
   get threadState() {
     if(this.phase==='complete' || this.phase==='between')return 'Throw seated';
     if(this.phase!=='seating')return 'Thread slack';
-    return this.seating<0.3?'Taking up slack':'Seating the throw';
+    return this.seating<0.3?'Sliding loop off driver':this.seating<0.7?'Tightening loop around tail':'Seating tightened loop';
   }
   get progress() { return this.phase==='wrapping'?this.wrap:this.phase==='seating'?this.seating:this.phase==='between' || this.phase==='complete'?1:0; }
   get instruction() {

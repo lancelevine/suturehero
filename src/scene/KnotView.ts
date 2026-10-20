@@ -26,11 +26,11 @@ export class KnotView {
       this.root.updateWorldMatrix(true,false);
       this.shortSpan.update(simulation.short.points,this.root.matrixWorld);this.longSpan.update(simulation.long.points,this.root.matrixWorld);
     }
-    const key=[knot.phase,knot.throws,knot.wrap.toFixed(3),knot.seating.toFixed(3),entry.x.toFixed(4),exit.x.toFixed(4),simulation.enabled].join(':');
+    const key=[knot.phase,knot.throws,knot.wrap.toFixed(3),knot.seating.toFixed(3),entry.x.toFixed(4),exit.x.toFixed(4),simulation.enabled,...right.root.matrixWorld.elements,...leftJaw.toArray(),...eye.toArray()].join(':');
     if(key===this.stamp)return;this.stamp=key;
-    const loop=knotLoop(knot,right.root.position);
+    const loop=knotLoop(knot,right.root.matrixWorld);
     const tail=knot.phase==='seating' || knot.phase==='between' || knot.phase==='complete'?rightJaw:knot.tail;
-    const contact=knotTailContact(knot,entry);
+    const contact=knotTailContact(knot,entry,loop);
     const slack=1-knot.takeUp;
     const tailBend=tail.clone().lerp(contact,0.5).add(new THREE.Vector3(0,0.12*slack,0.18*slack));
     const prefix=[entry.clone(),new THREE.Vector3(0,0.15,0),exit.clone()];
