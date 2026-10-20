@@ -1,3 +1,4 @@
+import { WoundApproximation } from '../tissue/WoundApproximation';
 import { GuidedKnot } from '../suture/GuidedKnot';
 import { PullThrough } from '../suture/PullThrough';
 import * as THREE from 'three';
@@ -11,6 +12,7 @@ export class PracticeSession {
   readonly pass=new NeedlePass();
   readonly pull=new PullThrough();
   readonly knot=new GuidedKnot();
+  readonly wound=new WoundApproximation();
   gripFraction=0.9;
   get selectedGripPoint() { return this.grasp?.needle.getPointAt(this.gripFraction)??new THREE.Vector3(); }
   constructor(private input: InputDevice, readonly instruments: readonly Instrument[], readonly grasp?: NeedleGrasp) {}
@@ -85,7 +87,10 @@ export class PracticeSession {
       const left=this.instruments.find(t=>t.id==='left')!,right=this.instruments.find(t=>t.id==='right')!;
       const lc=this.input.sample('left'),rc=this.input.sample('right');
       for(const tool of this.instruments) tool.update({...this.input.sample(tool.id),translation:[0,0,0],rotation:[0,0,0]},step);
-      this.knot.update(lc,rc,left.openness,right.openness,step); this.placeKnotTools(); return;
+      this.knot.update(lc,rc,left.openness,right.openness,step);
+      const seating=this.knot.phase==='seating'?THREE.MathUtils.smoothstep(this.knot.seating,0.3,1):0;
+      const target=this.knot.throws>=2?1:this.knot.throws===1?0.85+0.15*seating:0.85*seating;
+      this.wound.update(target,step); this.placeKnotTools(); return;
     }
     const constrained=this.pass.phase==='passing';
     const waitingForHandoff=this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp?.holder?.kind==='needle-driver';
@@ -123,5 +128,5 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); this.knot.reset(); }
+  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset(); }
 }

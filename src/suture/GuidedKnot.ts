@@ -50,6 +50,15 @@ export class GuidedKnot {
     const side=this.phase==='between'?1:this.phase==='complete'?-1:this.direction;
     return this.tail.clone().lerp(new THREE.Vector3(side*1.25,0.72,0),seat).sub(new THREE.Vector3(0,0,0.05));
   }
+  get takeUp() {
+    if(this.phase==='between' || this.phase==='complete')return 1;
+    return this.phase==='seating'?THREE.MathUtils.smoothstep(this.seating,0,0.3):0;
+  }
+  get threadState() {
+    if(this.phase==='complete' || this.phase==='between')return 'Throw seated';
+    if(this.phase!=='seating')return 'Thread slack';
+    return this.seating<0.3?'Taking up slack':'Seating the throw';
+  }
   get progress() { return this.phase==='wrapping'?this.wrap:this.phase==='seating'?this.seating:this.phase==='between' || this.phase==='complete'?1:0; }
   get instruction() {
     const throwName=this.throws===0?'First throw':'Opposing throw';

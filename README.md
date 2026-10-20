@@ -41,7 +41,7 @@ This is an assisted kinematic grasp prototype, not a contact simulation. Release
 - `gameplay/`: practice-session orchestration, decoupled from rendering and input bindings.
 - `scene/`: renderer, lighting, camera, and viewport resizing.
 
-The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Tissue deformation, thread dynamics, physical knot mechanics, haptics, and VR are not implemented. Guided passage and knot-tying stages use kinematic constraints. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
+The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Mechanical tissue deformation, thread dynamics, physical knot mechanics, haptics, and VR are not implemented. Guided passage and knot-tying stages use kinematic constraints. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
 
 Next playable milestones: refine needle grasp/contact mechanics, tissue entry/exit constraints, thread pull-through, then knot mechanics and completion criteria for one simple interrupted suture. Those features require their own validated simulation models; needle pickup is currently a kinematic proximity constraint.
 
@@ -92,7 +92,16 @@ After curved extraction completes, click **Begin knot tying**. The needle is par
 
 After seating the first throw, click **Next opposing throw**. Holding the wrong wrap direction unwinds instead of advancing. Moving the ends in the same direction cannot seat a throw. Keep the forceps closed; Z recloses them after an accidental release. Opening the driver during seating returns to the tail-grasp stage. Shift slows all keyboard actions. **Reset practice** clears the knot, restores the original thread and needle, and returns to the pass workflow.
 
-The completed result records two opposing single throws, a guided square-knot sequence. This is a staged geometric exercise: there is no knot topology solver, conserved thread length, tension, friction, tissue approximation, or knot-security assessment. The sequence currently ends after two throws; further throws and realistic tightening mechanics are future increments.
+The completed result records two opposing single throws, a guided square-knot sequence. This is a staged geometric exercise: there is no knot topology solver, conserved thread length, physical tension, friction, elastic tissue model, or knot-security assessment. The sequence currently ends after two throws; further throws and realistic tightening mechanics are future increments.
 
 
 Browser regression: with the dev server running, execute `node scripts/check-knot.mjs`. Set `CHROMIUM_PATH` to your Chrome/Chromium executable outside Linux, and optionally `SUTURE_TEST_URL` to another running instance. This exercises real keyboard controls through passage, selected body grasp, forceps extraction, both throws and completion, and rejects browser runtime errors. It uses the existing Playwright Core development dependency.
+
+
+## Visual tightening and local wound closure (build 0.11)
+
+The first part of each seating pull takes up visible thread slack. Continued opposed pulling narrows the incision locally around the stitch; the first seated throw retains most of the approximation while the opposing throw is wrapped, and the second finishes it. Releasing the driver before a throw seats lets that throw's added approximation relax. The readout reports thread state and whether the local edges are open, drawing together, or approximated.
+
+`WoundApproximation` supplies a bounded, smoothed local displacement field. `TissuePatch` applies it to subdivided skin geometry, and entry/exit markers and knot thread anchors move with the skin. The unstitched incision ends and outer pad edges stay essentially unchanged. A small visible seam is retained so the skin surfaces never cross. Reset restores the original geometry and thread slack.
+
+These are guided visual effects, not force measurements or a biomechanical tissue model. Tightness, knot security, tissue damage, and realistic thread tension are not assessed.

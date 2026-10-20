@@ -28,6 +28,7 @@ try {
     await page.keyboard.up(first); await page.keyboard.up(second);
     if(wrap==='r')await page.getByRole('button',{name:'Next opposing throw',exact:true}).click();
   }
+  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Local wound edges approximated'),{},{timeout:10000});
   assert.deepEqual(errors,[],'Browser runtime errors');
   assert.match(await page.locator('#exercise-title').innerText(),/square-knot sequence complete/);
   assert.match(await page.locator('#exercise-readout').innerText(),/2 \/ 2 opposing throws seated/);
