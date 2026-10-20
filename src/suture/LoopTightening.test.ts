@@ -27,3 +27,24 @@ it('slides along the shaft before reducing radius, connects to the tail and fini
   expect(final.radius).toBeCloseTo(0.06);expect(final.center.distanceTo(other.center)).toBe(0);
   k.seating=0;expect(knotLoop(k,driver).radius).toBe(0.14);
 });
+it('lays the wrap behind the moving forceps in both directions without a pop at zero or completion',()=>{
+  for(const direction of [1,-1]) {
+    const k=new GuidedKnot();k.phase='wrapping';k.throws=direction===1?0:1;
+    const driver=new THREE.Matrix4().makeTranslation(0,1.1,-0.2);
+    const initial=knotLoop(k,driver);expect(initial.length).toBe(0);expect(initial.points).toHaveLength(1);
+    k.wrap=1e-7;const tiny=knotLoop(k,driver);
+    expect(tiny.points[0].distanceTo(initial.end)).toBeLessThan(1e-10);
+    expect(tiny.end.distanceTo(initial.end)).toBeLessThan(1e-6);
+    let length=0;
+    for(let i=1;i<=100;i++) {
+      k.wrap=i/100;const loop=knotLoop(k,driver);
+      const radial=loop.end.clone().sub(loop.center).setZ(0).normalize();
+      const grip=k.leftPosition.clone().sub(k.center).setZ(0).normalize();
+      expect(radial.distanceTo(grip)).toBeLessThan(1e-8);
+      expect(loop.length).toBeGreaterThan(length);length=loop.length;
+    }
+    const full=knotLoop(k,driver);k.phase='tail';const held=knotLoop(k,driver);
+    expect(held.end.distanceTo(full.end)).toBe(0);expect(held.length).toBe(full.length);
+    k.phase='wrapping';k.wrap=0;expect(knotLoop(k,driver).end.distanceTo(initial.end)).toBe(0);
+  }
+});

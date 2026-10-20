@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { KnotMaterial } from './KnotMaterial';
 import { ThreadStrand } from './ThreadStrand';
 import { threadSurfaceAt } from './TissueThreadGuide';
 export interface KnotSlackFrame {
   enabled:boolean;
+  loopLength?:number;
   shortStart:THREE.Vector3;
   shortEnd:THREE.Vector3;
   longStart:THREE.Vector3;
@@ -10,6 +12,7 @@ export interface KnotSlackFrame {
 }
 /** Two free spans for the first throw; the winding and knot topology remain guided. */
 export class KnotSlack {
+  readonly material=new KnotMaterial();
   readonly short=new ThreadStrand(1.35,32);
   readonly long=new ThreadStrand(1.35,36);
   enabled=false;
@@ -23,6 +26,8 @@ export class KnotSlack {
   update(dt:number,frame:KnotSlackFrame) {
     this.enabled=frame.enabled;
     if(!this.enabled) {this.initialized=false;return;}
+    this.material.update(frame.loopLength??0,frame.shortStart.distanceTo(frame.shortEnd),frame.longStart.distanceTo(frame.longEnd));
+    this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);
     if(!this.initialized) {
       this.seed(this.short,frame.shortStart,frame.shortEnd);this.seed(this.long,frame.longStart,frame.longEnd);this.initialized=true;
     }
@@ -30,6 +35,6 @@ export class KnotSlack {
     this.long.advance(dt,new Map([[0,frame.longStart],[this.long.count-1,frame.longEnd]]),threadSurfaceAt);
     this.availableSlack=Math.max(0,this.short.length-frame.shortStart.distanceTo(frame.shortEnd))+Math.max(0,this.long.length-frame.longStart.distanceTo(frame.longEnd));
   }
-  get state() {return this.availableSlack>0.3?'Free spans slack':this.availableSlack>0.15?'Slack reducing':'Free spans nearly taut';}
-  reset() {this.enabled=false;this.initialized=false;this.availableSlack=0;}
+  get state() {if(this.material.overreach)return 'Thread at reach limit';return this.availableSlack>0.3?'Free spans slack':this.availableSlack>0.2?'Slack reducing':'Free spans nearly taut';}
+  reset() {this.enabled=false;this.initialized=false;this.availableSlack=0;this.material.update(0,0,0);this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);}
 }

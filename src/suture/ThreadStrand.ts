@@ -1,17 +1,24 @@
 import { StrandContact } from './StrandContact';
 import * as THREE from 'three';
-/** Position-based strand with a fixed material length. Discrete self-contact, without force calibration. */
+/** Position-based strand with a prescribed material length. Discrete self-contact, without force calibration. */
 export class ThreadStrand {
   readonly points: THREE.Vector3[];
   private previous: THREE.Vector3[];
-  readonly restLength: number;
+  private materialLength:number;
+  get length() {return this.materialLength;}
+  get restLength() {return this.materialLength/(this.count-1);}
+  /** Feed material without reseeding particles or discarding their motion. */
+  setMaterialLength(length:number) {
+    if(!Number.isFinite(length) || length<=0)throw new Error('Material length must be finite and positive.');
+    this.materialLength=length;
+  }
   private accumulator=0;
   private pinned=new Set<number>();
   private delta=new THREE.Vector3();
   private contact: StrandContact;
-  constructor(readonly length=3.8,readonly count=80) {
+  constructor(length=3.8,readonly count=80) {
     if(length<=0 || count<3)throw new Error('A strand needs positive length and at least three particles.');
-    this.restLength=length/(count-1);
+    this.materialLength=length;
     this.contact=new StrandContact(this.restLength*1.5);
     this.points=Array.from({length:count},()=>new THREE.Vector3());
     this.previous=this.points.map(p=>p.clone());

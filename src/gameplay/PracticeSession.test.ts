@@ -52,6 +52,10 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
     for(let i=0;i<50;i++)session.update(0.05);
     expect(session.knot.phase).toBe('tail');
     expect(session.knotSlack.enabled).toBe(direction===1);
+    if(direction===1) {
+      expect(session.knotSlack.material.overreach).toBe(false);
+      expect(session.knotSlack.short.length+session.knotSlack.long.length+session.knotSlack.material.loop).toBeCloseTo(session.knotSlack.material.total,12);
+    }
     if(direction===1)expect(session.knotSlack.short.points[0].distanceTo(session.wound.deformPoint(session.pass.entry))).toBeLessThan(1e-8);
     if(direction===-1)expect(session.wound.closure).toBeGreaterThan(0.8);
     expect(session.knotAction()).toBe(true);

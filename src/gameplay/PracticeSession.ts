@@ -100,6 +100,7 @@ export class PracticeSession {
       const tail=this.knot.phase==='seating' || this.knot.phase==='between' || this.knot.phase==='complete'?rightJaw:this.knot.tail;
       this.knotSlack.update(step,{
         enabled:this.knot.throws===0 || this.knot.phase==='between',
+        loopLength:loop.length,
         shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop),shortEnd:tail,
         longStart:loop.end,longEnd:leftJaw,
       });return;

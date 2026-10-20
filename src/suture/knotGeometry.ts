@@ -7,15 +7,19 @@ export function knotLoop(knot:GuidedKnot,driverWorld:THREE.Matrix4) {
   const pose=tighteningPose(driverWorld,seating);
   const center=pose.center;
   const fraction=knot.phase==='wrapping'?knot.wrap:1;
+  // The forceps orbit begins at -X and advances clockwise for the first throw.
+  // Grow a helix behind that moving grip; even zero wrap retains its contact point.
   const points:THREE.Vector3[]=[];
-  if(fraction>0) {
-    const steps=Math.max(2,Math.ceil(fraction*48));
-    for(let i=0;i<=steps;i++) {
-      const a=i/steps*fraction*Math.PI*2*knot.direction,radius=pose.radius;
-      points.push(center.clone().add(new THREE.Vector3(Math.cos(a)*radius,Math.sin(a)*radius,(i/steps-0.5)*pose.pitch).applyQuaternion(pose.rotation)));
-    }
+  const steps=Math.max(1,Math.ceil(fraction*48));
+  const startAngle=Math.PI*(1-THREE.MathUtils.smoothstep(seating,0.3,1));
+  for(let i=0;i<=(fraction>0?steps:0);i++) {
+    const turn=fraction*i/steps;
+    const a=startAngle-turn*Math.PI*2*knot.direction;
+    points.push(center.clone().add(new THREE.Vector3(Math.cos(a)*pose.radius,Math.sin(a)*pose.radius,(turn-0.5)*pose.pitch).applyQuaternion(pose.rotation)));
   }
-  return {seating,center,stage:pose.stage,radius:pose.radius,points,end:points.at(-1)?.clone()??center.clone()};
+  let length=0;
+  for(let i=1;i<points.length;i++)length+=points[i-1].distanceTo(points[i]);
+  return {seating,center,stage:pose.stage,radius:pose.radius,length,points,end:points.at(-1)?.clone()??center.clone()};
 }
 
 /** Assisted short-side routing: feed the tail into the loop as the throw seats. */
