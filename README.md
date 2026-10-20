@@ -71,7 +71,7 @@ The forceps are modeled as two continuous spring arms with shallow serrations on
 
 **Close-up view** gives a closer oblique view; **Wide view** or **Reset view** restores the default camera. Soft tool shadows on the tissue and pad help show height. Purple marks the selected assisted grip, green the reachable or staged point, and gold the held point. These small practice markers remain visible through geometry for clarity; they are not physical instrument features.
 
-Tissue pores, brushed metal, and a woven pad are generated as small deterministic textures in `src/visuals/surfaceTextures.ts`; no image downloads or external texture services are needed. Texture maps are cached and shared. Textures are cosmetic, and shadows do not add tissue contact or physics.
+Tissue pores, fine creases and warm skin color variation use separate color, height and roughness maps in `src/visuals/skinSurface.ts`. Brushed metal and the woven pad use `src/visuals/surfaceTextures.ts`; no image downloads or external texture services are needed. Texture maps are cached and shared. Textures are cosmetic, and shadows do not add tissue contact or physics.
 
 ## Layout regression check
 
