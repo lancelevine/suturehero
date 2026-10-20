@@ -6,11 +6,12 @@ it('scales tool commands in precision mode and clears held keys on blur',()=>{
   vi.stubGlobal('HTMLInputElement',class {}); vi.stubGlobal('HTMLButtonElement',class {});
   try {
     const input=new KeyboardInput();
-    const press=(code:string)=>handlers.get('keydown')!({code,target:null,preventDefault:()=>{}});
-    press('ArrowRight'); press('KeyI'); expect(input.sample('right').translation[0]).toBe(1);
+    const press=(code:string,target:unknown=null)=>handlers.get('keydown')!({code,target,preventDefault:()=>{}});
+    press('ArrowRight',{tagName:'BUTTON'}); press('KeyI'); expect(input.sample('right').translation[0]).toBe(1);
     press('ShiftLeft'); expect(input.sample('right').translation[0]).toBe(0.2); expect(input.sample('right').rotation[0]).toBe(0.2);
     expect(input.sample('left').translation[0]).toBe(0);
     handlers.get('blur')!({}); expect(input.sample('right').translation[0]).toBe(0);
+    press('ArrowRight',{tagName:'INPUT'}); expect(input.sample('right').translation[0]).toBe(0);
     input.dispose(); expect(handlers.size).toBe(0);
   } finally { vi.unstubAllGlobals(); }
 });

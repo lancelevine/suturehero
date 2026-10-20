@@ -9,14 +9,17 @@ it('carries the actual needle tip along its own radius from right entry to left 
   for(let i=0;i<100;i++) {
     const m=pass.pose; m.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
     const tip=needle.getTipPose();
-    expect(tip.position.x).toBeLessThanOrEqual(previousX+1e-8); previousX=tip.position.x;
+    if(pass.angle<=Math.PI)expect(tip.position.x).toBeLessThanOrEqual(previousX+1e-8); previousX=tip.position.x;
     expect(tip.position.distanceTo(pass.center)).toBeCloseTo(pass.radius);
-    expect(tip.position.y).toBeLessThanOrEqual(pass.entry.y+1e-8);
+    if(pass.angle<=Math.PI)expect(tip.position.y).toBeLessThanOrEqual(pass.entry.y+1e-8);
+    else expect(tip.position.y).toBeGreaterThan(pass.entry.y);
     if(i===0) { expect(tip.position.distanceTo(pass.entry)).toBeLessThan(1e-8); expect(tip.tangent.y).toBeCloseTo(-1); }
     pass.update(1,true,0.05);
   }
   pass.pose.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
-  expect(pass.phase).toBe('complete'); expect(needle.getTipPose().position.distanceTo(pass.exit)).toBeLessThan(1e-8);
+  expect(pass.phase).toBe('complete'); expect(needle.getTipPose().position.y).toBeGreaterThan(pass.exit.y);
+  const final=pass.angle; pass.angle=Math.PI; pass.pose.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
+  expect(needle.getTipPose().position.distanceTo(pass.exit)).toBeLessThan(1e-8); pass.angle=final;
   expect(needle.getTipPose().tangent.y).toBeCloseTo(1);
 });
 it('supports reverse motion, stops on release, and resets',()=>{

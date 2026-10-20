@@ -22,7 +22,8 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   for(let i=0;i<100 && session.pass.phase==='passing';i++)session.update(0.05);
   expect(session.pass.phase).toBe('complete'); expect(grasp.holder).toBe(right);
   expect(right.root.position.distanceTo(before)).toBeGreaterThan(0.1);
-  expect(needle.getTipPose().position.distanceTo(session.pass.exit)).toBeLessThan(1e-7);
+  expect(needle.getTipPose().position.y).toBeGreaterThan(session.pass.exit.y);
+  expect(needle.getTipPose().position.x).toBeLessThan(0);
   // Continuing to hold U after emergence must not move the needle away.
   const atExit=needle.getTipPose().position;
   for(let i=0;i<10;i++)session.update(0.05);

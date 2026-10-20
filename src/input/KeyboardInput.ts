@@ -2,7 +2,8 @@ import type { InputDevice, ToolCommand, ToolId } from './types';
 export class KeyboardInput implements InputDevice {
   private keys = new Set<string>();
   private down = (event: KeyboardEvent) => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
+    const target=event.target as HTMLElement|null;
+    if(target && (['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable)) return;
     if (event.code.startsWith('Arrow') || event.code === 'Space') event.preventDefault();
     this.keys.add(event.code);
   };

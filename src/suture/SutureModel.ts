@@ -16,7 +16,12 @@ export class SutureModel {
     this.root.add(this.thread);
     const tipMarker=new THREE.Mesh(new THREE.SphereGeometry(0.035,12,8),new THREE.MeshBasicMaterial({color:0x70d5ee}));
     tipMarker.position.copy(this.points[this.points.length-1]); this.root.add(tipMarker);
+    this.root.traverse(object=>{if(object instanceof THREE.Mesh) object.castShadow=true;});
     this.reset();
+  }
+  getPointAt(fraction: number) {
+    const a=THREE.MathUtils.clamp(fraction,0,1)*NEEDLE_ARC;
+    return new THREE.Vector3(Math.cos(a)*NEEDLE_RADIUS,0,Math.sin(a)*NEEDLE_RADIUS);
   }
   getTipPose() {
     this.root.updateWorldMatrix(true,false);

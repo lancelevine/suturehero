@@ -1,4 +1,4 @@
-import { NEEDLE_ARC, NEEDLE_RADIUS } from '../suture/needleGeometry';
+import { NEEDLE_ARC, NEEDLE_RADIUS, NEEDLE_EXPOSURE } from '../suture/needleGeometry';
 import * as THREE from 'three';
 /** Assisted circular path only; no tissue forces, deformation, or thread solver. */
 export class NeedlePass {
@@ -8,6 +8,7 @@ export class NeedlePass {
   readonly center=new THREE.Vector3(0,0.43,0);
   phase: 'idle'|'passing'|'complete'|'interrupted'='idle';
   angle=0;
+  readonly totalAngle=Math.PI+NEEDLE_EXPOSURE;
   private startOrientation: THREE.Quaternion;
   constructor() {
     const a=NEEDLE_ARC;
@@ -21,10 +22,10 @@ export class NeedlePass {
   update(drive: number, held: boolean, dt: number) {
     if(this.phase!=='passing') return;
     if(!held) { this.phase='interrupted'; return; }
-    this.angle=THREE.MathUtils.clamp(this.angle+THREE.MathUtils.clamp(drive,-1,1)*Math.max(0,Math.min(dt,0.05))*0.8,0,Math.PI);
-    if(this.angle>=Math.PI) this.phase='complete';
+    this.angle=THREE.MathUtils.clamp(this.angle+THREE.MathUtils.clamp(drive,-1,1)*Math.max(0,Math.min(dt,0.05))*0.8,0,this.totalAngle);
+    if(this.angle>=this.totalAngle) this.phase='complete';
   }
-  get progress() { return this.angle/Math.PI; }
+  get progress() { return this.angle/this.totalAngle; }
   get pose() {
     const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,-1),this.angle).multiply(this.startOrientation);
     return new THREE.Matrix4().compose(this.center,q,new THREE.Vector3(1,1,1));

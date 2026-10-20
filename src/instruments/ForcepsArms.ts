@@ -8,6 +8,9 @@ export class ForcepsArms {
   constructor(material: THREE.Material) {
     for(const side of [-1,1]) {
       const geometry=new THREE.BufferGeometry();
+      const uv=new Float32Array((this.sections+1)*4*2);
+      for(let i=0;i<=this.sections;i++)for(let j=0;j<4;j++) { uv[(i*4+j)*2]=j/3; uv[(i*4+j)*2+1]=i/this.sections; }
+      geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));
       geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array((this.sections+1)*4*3),3));
       const indices:number[]=[];
       for(let i=0;i<this.sections;i++)for(let j=0;j<4;j++) {
@@ -18,7 +21,7 @@ export class ForcepsArms {
       const end=this.sections*4; indices.push(end,end+2,end+1,end,end+3,end+2);
       if(side===1) for(let i=0;i<indices.length;i+=3)[indices[i+1],indices[i+2]]=[indices[i+2],indices[i+1]];
       geometry.setIndex(indices);
-      const mesh=new THREE.Mesh(geometry,material); this.arms.push(mesh); this.root.add(mesh);
+      const mesh=new THREE.Mesh(geometry,material); this.arms.push(mesh); this.root.add(mesh); mesh.castShadow=true; mesh.receiveShadow=true;
     }
     this.update(0.65);
   }

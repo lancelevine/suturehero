@@ -4,7 +4,7 @@ import { PullThrough } from './PullThrough';
 import { NeedlePass } from '../tissue/NeedlePass';
 import { SutureModel } from './SutureModel';
 it('continues the same circle through forceps takeover until the whole needle clears tissue',()=>{
-  const pass=new NeedlePass(); pass.begin(); pass.angle=Math.PI;
+  const pass=new NeedlePass(); pass.begin(); pass.angle=pass.totalAngle;
   const pull=new PullThrough(); pull.begin(pass.pose); const needle=new SutureModel();
   const center=pass.center.clone(); let previous:THREE.Vector3|undefined;
   for(let i=0;i<100 && pull.phase!=='complete';i++) {

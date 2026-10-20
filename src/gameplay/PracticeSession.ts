@@ -9,6 +9,8 @@ export class PracticeSession {
   readonly placement=new NeedlePlacement();
   readonly pass=new NeedlePass();
   readonly pull=new PullThrough();
+  gripFraction=0.9;
+  get selectedGripPoint() { return this.grasp?.needle.getPointAt(this.gripFraction)??new THREE.Vector3(); }
   constructor(private input: InputDevice, readonly instruments: readonly Instrument[], readonly grasp?: NeedleGrasp) {}
   get canBeginPass() {
     return !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted');
@@ -36,7 +38,9 @@ export class PracticeSession {
     const forceps=this.instruments.find(tool=>tool.kind==='forceps');
     if(!forceps) return false;
     forceps.reset(); forceps.openness=0.65;
-    forceps.root.position.copy(this.grasp.needle.getTipPose().position).sub(new THREE.Vector3(0,0,0.05).applyQuaternion(forceps.root.quaternion));
+    this.grasp.needle.root.updateWorldMatrix(true,false);
+    const selected=this.selectedGripPoint.applyMatrix4(this.grasp.needle.root.matrixWorld);
+    forceps.root.position.copy(selected).sub(new THREE.Vector3(0,0,0.05).applyQuaternion(forceps.root.quaternion));
     forceps.update({translation:[0,0,0],rotation:[0,0,0],jaw:0},0);
     this.grasp.update(this.instruments,true); return true;
   }

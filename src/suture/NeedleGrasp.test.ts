@@ -62,3 +62,23 @@ it('accepts an approximate forceps approach with closed jaws and cancels a grip 
   left.root.position.x+=1; grasp.update([left,right],true); expect(grasp.receiver).toBeNull();
   right.openness=0.7; grasp.update([left,right],true); expect(grasp.holder).toBeNull();
 });
+it('selects distinct body attachment points and keeps the selected point through handoff',()=>{
+  const needle=new SutureModel(); const left=new Instrument('left',0); const right=new Instrument('right',0);
+  const scene=new THREE.Scene(); scene.add(needle.root,left.root,right.root);
+  right.root.quaternion.identity(); right.root.position.copy(needle.getPointAt(0.3)).add(needle.root.position).sub(new THREE.Vector3(0,0,0.05));
+  const grasp=new NeedleGrasp(needle); right.openness=0.1; grasp.attach(right);
+  const align=(fraction:number)=>{
+    needle.root.updateWorldMatrix(true,false); left.root.quaternion.identity();
+    left.root.position.copy(needle.getPointAt(fraction)).applyMatrix4(needle.root.matrixWorld).sub(new THREE.Vector3(0,0,0.05));
+  };
+  align(0.55); grasp.update([left,right],true); const first=grasp.candidatePoint!.clone();
+  align(0.85); grasp.update([left,right],true); const second=grasp.candidatePoint!.clone();
+  expect(first.distanceTo(second)).toBeGreaterThan(0.15);
+  left.openness=0.1; grasp.update([left,right],true); expect(grasp.receiverPoint!.distanceTo(second)).toBeLessThan(1e-8);
+  const before=needle.root.position.clone(); right.openness=0.7; grasp.update([left,right],true);
+  expect(grasp.holder).toBe(left); expect(grasp.heldPoint!.distanceTo(second)).toBeLessThan(1e-8);
+  expect(needle.root.position.distanceTo(before)).toBeLessThan(1e-8);
+  needle.root.updateWorldMatrix(true,false); left.root.updateWorldMatrix(true,false);
+  const actual=grasp.heldPoint!.clone().applyMatrix4(needle.root.matrixWorld);
+  expect(actual.distanceTo(left.root.localToWorld(new THREE.Vector3(0,0,0.05)))).toBeLessThan(1e-8);
+});
