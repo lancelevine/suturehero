@@ -10,7 +10,7 @@ export interface KnotSlackFrame {
 }
 /** Two free spans for the first throw; the winding and knot topology remain guided. */
 export class KnotSlack {
-  readonly short=new ThreadStrand(1.1,32);
+  readonly short=new ThreadStrand(1.35,32);
   readonly long=new ThreadStrand(1.35,36);
   enabled=false;
   private initialized=false;

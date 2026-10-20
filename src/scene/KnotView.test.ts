@@ -1,0 +1,30 @@
+import { expect,it } from 'vitest';
+import * as THREE from 'three';
+import { KnotView } from './KnotView';
+import { GuidedKnot } from '../suture/GuidedKnot';
+import { KnotSlack } from '../suture/KnotSlack';
+import { knotLoop,knotTailContact } from '../suture/knotGeometry';
+import { Instrument } from '../instruments/Instrument';
+it('joins rendered tissue and knot paths to both simulated free spans at the seated throw',()=>{
+  const knot=new GuidedKnot();knot.phase='between';knot.throws=1;knot.seating=1;knot.wrap=1;
+  const left=new Instrument('left',0),right=new Instrument('right',0);
+  left.root.position.copy(knot.leftPosition);right.root.position.copy(knot.rightPosition);
+  left.root.updateMatrixWorld(true);right.root.updateMatrixWorld(true);
+  const entry=new THREE.Vector3(0.27,0.43,0),exit=new THREE.Vector3(-0.27,0.43,0);
+  const contact=knotTailContact(knot,entry),loop=knotLoop(knot,right.root.position);
+  const simulation=new KnotSlack();simulation.update(1/60,{enabled:true,shortStart:contact,shortEnd:right.root.localToWorld(new THREE.Vector3(0,0,0.05)),longStart:loop.end,longEnd:left.root.localToWorld(new THREE.Vector3(0,0,0.05))});
+  const view=new KnotView();view.update(knot,[left,right],entry,exit,new THREE.Vector3(1,0.5,1),simulation);
+  const path=(view.root.children[0] as THREE.Mesh<THREE.TubeGeometry>).geometry.parameters.path;
+  expect(path.getPoint(0).distanceTo(simulation.short.points[0])).toBeLessThan(1e-8);
+  expect(path.getPoint(1).distanceTo(simulation.long.points[0])).toBeLessThan(1e-8);
+  expect(simulation.short.points[0].distanceTo(simulation.long.points[0])).toBeLessThan(1e-8);
+  // The decorative seated crossing must also touch this shared contact.
+  const seated=view.root.children[4].children[0] as THREE.Mesh<THREE.TubeGeometry>;
+  expect(seated.geometry.parameters.path.getPoint(0).distanceTo(contact)).toBeLessThan(1e-8);
+});
+it('retains the short-side seated contact while starting the opposing throw',()=>{
+  const knot=new GuidedKnot();knot.phase='between';knot.throws=1;
+  const entry=new THREE.Vector3(0.27,0.43,0),before=knotTailContact(knot,entry);
+  knot.nextThrow();expect(knotTailContact(knot,entry).distanceTo(before)).toBe(0);
+  knot.reset();expect(knotTailContact(knot,entry).equals(entry)).toBe(true);
+});

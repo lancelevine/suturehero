@@ -11,7 +11,7 @@ it('simulates persistent first-throw free spans with exact grip endpoints and st
     expect(strand.measuredLength).toBeCloseTo(strand.length,1);
     expect(strand.points.every(p=>p.toArray().every(Number.isFinite))).toBe(true);
   }
-  frame.shortEnd.set(1.28,0.72,0);frame.longStart.set(0.025,0.47,0);frame.longEnd.set(-1.25,0.72,0.05);
+  frame.shortStart.set(0.06,0.47,0);frame.shortEnd.set(1.25,0.72,0);frame.longStart.set(0.06,0.47,0);frame.longEnd.set(-1.25,0.72,0.05);
   for(let i=0;i<120;i++)model.update(1/60,frame);
   expect(model.state).toBe('Free spans nearly taut');
   expect(model.short.measuredLength).toBeCloseTo(model.short.length,1);expect(model.long.measuredLength).toBeCloseTo(model.long.length,1);

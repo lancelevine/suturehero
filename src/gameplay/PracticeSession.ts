@@ -1,5 +1,5 @@
 import { KnotSlack } from '../suture/KnotSlack';
-import { knotLoop } from '../suture/knotGeometry';
+import { knotLoop, knotTailContact } from '../suture/knotGeometry';
 import { WoundApproximation } from '../tissue/WoundApproximation';
 import { GuidedKnot } from '../suture/GuidedKnot';
 import { PullThrough } from '../suture/PullThrough';
@@ -100,7 +100,7 @@ export class PracticeSession {
       const tail=this.knot.phase==='seating' || this.knot.phase==='between' || this.knot.phase==='complete'?rightJaw:this.knot.tail;
       this.knotSlack.update(step,{
         enabled:this.knot.throws===0 || this.knot.phase==='between',
-        shortStart:this.wound.deformPoint(this.pass.entry),shortEnd:tail,
+        shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry)),shortEnd:tail,
         longStart:loop.end,longEnd:leftJaw,
       });return;
     }
