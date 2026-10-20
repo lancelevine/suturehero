@@ -56,13 +56,13 @@ export class PracticeSession {
     const constrained=this.pass.phase==='passing';
     const waitingForHandoff=this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp?.holder?.kind==='needle-driver';
     const extracting=this.pull.phase==='pulling' && this.grasp?.holder?.kind==='forceps';
-    let drive=0; let lift=0;
+    let drive=0; let turn=0;
     for(const tool of this.instruments) {
       const command=this.input.sample(tool.id);
       if(waitingForHandoff && tool===this.grasp?.holder) {
         tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step);
       } else if(extracting && tool===this.grasp?.holder) {
-        lift=command.translation[1];
+        turn=command.rotation[2];
         tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step);
       } else if(constrained && tool===this.grasp?.holder) {
         drive=command.rotation[2];
@@ -80,7 +80,7 @@ export class PracticeSession {
         this.grasp.needle.root.updateWorldMatrix(true,false);
         this.pull.begin(this.grasp.needle.root.matrixWorld);
       }
-      this.pull.update(lift,this.grasp.holder?.kind==='forceps',step);
+      this.pull.update(turn,this.grasp.holder?.kind==='forceps',step);
       if(extracting && this.grasp.holder?.kind==='forceps') this.applyPassPose(this.pull.pose);
       this.grasp.needle.updateThread(this.pass.entry,this.pass.exit,this.pull.threadProgress);
     }

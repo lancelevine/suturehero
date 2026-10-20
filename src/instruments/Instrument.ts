@@ -1,8 +1,10 @@
+import { ForcepsArms } from './ForcepsArms';
 import * as THREE from 'three';
 import type { ToolCommand, ToolId } from '../input/types';
 export class Instrument {
   readonly root = new THREE.Group();
   readonly tip = new THREE.Object3D();
+  private forcepsArms?: ForcepsArms;
   private jaws: THREE.Group[] = [];
   openness = 0.65;
   readonly kind: 'forceps' | 'needle-driver';
@@ -19,23 +21,14 @@ export class Instrument {
         ring.position.set(side*0.27,0,3.28); this.root.add(ring);
       }
     } else {
-      // Spring forceps: two tapered arms joined at the proximal end, no finger rings.
-      for(const side of [-1,1]) {
-        const arm=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.07,2.65),steel);
-        arm.position.set(side*0.11,0,1.72); arm.rotation.y=-side*0.055; this.root.add(arm);
-        for(let i=0;i<9;i++) {
-          const grip=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.085,0.025),accent);
-          grip.position.set(side*0.11,0,1.7+i*0.09); this.root.add(grip);
-        }
-      }
-      const heel=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.09,0.22),steel);
-      heel.position.z=3.05; this.root.add(heel);
+      this.forcepsArms=new ForcepsArms(steel);
+      this.root.add(this.forcepsArms.root);
     }
     const collar=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.12,0.18),accent);
     collar.position.z=2.75; this.root.add(collar);
-    for(const side of [-1,1]) {
+    if(this.kind==='needle-driver') for(const side of [-1,1]) {
       const jaw=new THREE.Group(); jaw.position.set(side*0.035,0,0.35);
-      const blade=new THREE.Mesh(new THREE.BoxGeometry(this.kind==='forceps'?0.035:0.065,0.065,0.42),steel);
+      const blade=new THREE.Mesh(new THREE.BoxGeometry(0.065,0.065,0.42),steel);
       blade.position.z=-0.21; jaw.add(blade); this.root.add(jaw); this.jaws.push(jaw);
     }
     this.root.add(this.tip); this.reset();
@@ -53,5 +46,5 @@ export class Instrument {
     this.root.rotateX(command.rotation[0]*dt); this.root.rotateY(command.rotation[1]*dt); this.root.rotateZ(command.rotation[2]*dt);
     this.openness=THREE.MathUtils.clamp(this.openness+command.jaw*dt,0,1); this.updateJaws();
   }
-  private updateJaws() { this.jaws.forEach((jaw,i)=>{jaw.rotation.y=(i===0?1:-1)*this.openness*0.35;}); }
+  private updateJaws() { this.forcepsArms?.update(this.openness); this.jaws.forEach((jaw,i)=>{jaw.rotation.y=(i===0?1:-1)*this.openness*0.35;}); }
 }

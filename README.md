@@ -51,14 +51,17 @@ The deployment workflow in `.github/workflows/deploy.yml` tests, builds, and pub
 
 The Vite configuration uses relative asset URLs so the build works beneath the repository path as well as locally. Only the generated `dist` site is published; no backend is required.
 
-## Guided pass and pull-through (build 0.7)
+## Guided pass and pull-through (build 0.8)
 
 1. Click **Start guided pass**. The needle is loaded in the right driver and positioned at the gold entry on the right. There is no angle, distance, or steady-hold test. Starting also restarts an interrupted pass.
 2. Hold **U** to pass right to left, **O** to reverse, and **Shift** for precision. The needle and driver follow the circular guide together. At emergence the driver stays still for handoff, even if U remains held.
 3. Click **Position forceps** to bring the open left forceps to the tip, or move them manually into the blue capture sphere. Close with **Z**. The assisted capture region accepts a jaw center within 0.24 sandbox units of the exposed endpoint, including an already closed approach. Its color and status text indicate readiness.
 4. Open the right driver with **period** to transfer ownership. The staged grip cancels if the forceps open or move out of reach. Only one tool drives the needle at a time.
-5. Hold **E** to extract with the left forceps; **Q** reverses. Needle clearance and thread take-up are shown separately. Opening the forceps pauses progress; regrasp to resume.
+5. Hold **R** to continue rotating the needle with the left forceps; **Y** reverses. The forceps and needle follow the same center and radius used by the driver. Angular progress is shown. Opening the forceps pauses progress; regrasp to resume.
 
 **Reset practice** restores tool poses, needle, thread and exercise state. The positioning buttons are explicit assists; the instruments remain independently controlled outside guided portions. Free needle pickup is still available before starting the pass, but is not a prerequisite.
 
-The pass uses a 0.3-unit needle radius and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. Extraction is assisted upward motion, not a physically accurate continuation of needle rotation. The thread follows the eye through fixed entry/exit points with a shortened entry tail; it has no conserved length, friction, or tension. Knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
+The pass uses a 0.3-unit needle radius, a 135° (three-eighths-circle) needle, and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. The driver rotates until tip emergence, then the forceps continue the same circular path until the entire 135° needle and eye clear the exit, plus a small clearance margin. There is no vertical-lift extraction. The thread follows the eye through fixed entry/exit points with a shortened entry tail; this visual take-up does not model full thread extraction. It has no conserved length, friction, or tension. Knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
+
+
+The forceps are modeled as two continuous spring arms with shallow serrations on their inner ends. Opening spreads the arms; closing brings the opposing tip faces together. No detached terminal teeth or separate forceps jaw blades are used.

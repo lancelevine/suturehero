@@ -1,10 +1,11 @@
+import { NEEDLE_ARC, NEEDLE_RADIUS } from './needleGeometry';
 import * as THREE from 'three';
 /** Kinematic needle with assisted thread routing, not a physics solver. */
 export class SutureModel {
   readonly root = new THREE.Group();
   readonly points = Array.from({length:65},(_,i)=>{
-    const a=i/64*Math.PI*1.25;
-    return new THREE.Vector3(Math.cos(a)*0.3,0,Math.sin(a)*0.3);
+    const a=i/64*NEEDLE_ARC;
+    return new THREE.Vector3(Math.cos(a)*NEEDLE_RADIUS,0,Math.sin(a)*NEEDLE_RADIUS);
   });
   private thread: THREE.Mesh;
   private material = new THREE.MeshStandardMaterial({color:0xe0e9ed,metalness:0.95,roughness:0.2});
@@ -22,7 +23,7 @@ export class SutureModel {
     const end=this.points.length-1;
     return {
       position:this.points[end].clone().applyMatrix4(this.root.matrixWorld),
-      tangent:new THREE.Vector3(-Math.sin(Math.PI*1.25),0,Math.cos(Math.PI*1.25)).transformDirection(this.root.matrixWorld),
+      tangent:new THREE.Vector3(-Math.sin(NEEDLE_ARC),0,Math.cos(NEEDLE_ARC)).transformDirection(this.root.matrixWorld),
     };
   }
   updateThread(entry: THREE.Vector3, exit: THREE.Vector3, progress: number) {

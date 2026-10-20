@@ -1,7 +1,8 @@
+import { NEEDLE_ARC, NEEDLE_RADIUS } from '../suture/needleGeometry';
 import * as THREE from 'three';
 /** Assisted circular path only; no tissue forces, deformation, or thread solver. */
 export class NeedlePass {
-  readonly radius=0.3;
+  readonly radius=NEEDLE_RADIUS;
   readonly entry=new THREE.Vector3(0.3,0.43,0);
   readonly exit=new THREE.Vector3(-0.3,0.43,0);
   readonly center=new THREE.Vector3(0,0.43,0);
@@ -9,7 +10,7 @@ export class NeedlePass {
   angle=0;
   private startOrientation: THREE.Quaternion;
   constructor() {
-    const a=Math.PI*1.25;
+    const a=NEEDLE_ARC;
     const radial=new THREE.Vector3(Math.cos(a),0,Math.sin(a));
     const tangent=new THREE.Vector3(-Math.sin(a),0,Math.cos(a));
     const source=new THREE.Matrix4().makeBasis(radial,tangent,new THREE.Vector3().crossVectors(radial,tangent));

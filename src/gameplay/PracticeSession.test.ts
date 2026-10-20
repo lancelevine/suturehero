@@ -33,12 +33,12 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   session.update(0.01); left.openness=0.1; session.update(0.01);
   expect(grasp.receiver).toBe(left); expect(grasp.holder).toBe(right);
   right.openness=0.7; session.update(0.01); expect(grasp.holder).toBe(left); expect(session.pull.phase).toBe('pulling');
-  leftCommand={...leftCommand,translation:[0,1,0]};
-  session.update(0.05); const moved=session.pull.distance;
-  left.openness=0.7; session.update(0.05); expect(session.pull.distance).toBe(moved);
-  leftCommand={...leftCommand,translation:[0,0,0]};
+  leftCommand={...leftCommand,rotation:[0,0,1]};
+  session.update(0.05); const moved=session.pull.angle;
+  left.openness=0.7; session.update(0.05); expect(session.pull.angle).toBe(moved);
+  leftCommand={...leftCommand,rotation:[0,0,0]};
   left.openness=0.1; session.update(0.01); expect(grasp.holder).toBe(left);
-  leftCommand={...leftCommand,translation:[0,1,0]};
+  leftCommand={...leftCommand,rotation:[0,0,1]};
   for(let i=0;i<60 && session.pull.phase==='pulling';i++)session.update(0.05);
   expect(session.pull.phase).toBe('complete'); expect(session.pull.threadProgress).toBe(1);
   needle.root.updateWorldMatrix(true,false);
