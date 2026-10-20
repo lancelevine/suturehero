@@ -30,18 +30,18 @@ Hold keys for continuous motion. Both instruments can move simultaneously; brows
 
 Start with open jaws and move either tool to the curved needle near the center of the pad. The needle glows green when its arc is within the jaw capture region. Close with **Z** (left forceps) or **comma** (right needle driver) to pick it up. Its pickup orientation is preserved as the tool moves and rotates. Open with **X** or **period** to release, then use the other tool to regrasp. Only one instrument can hold the needle at a time. A closed tool must reopen before another grasp attempt. **Reset practice** restores both instruments and the needle.
 
-This is an assisted kinematic grasp prototype, not a contact simulation. Released needles remain suspended at their release pose; the thread is a visual approximation rather than a physics model. No gravity, tissue collision, thread dynamics, or surgical grasp-quality assessment is implemented.
+This is an assisted kinematic grasp prototype, not a contact simulation. Released needles remain suspended at their release pose; the thread uses a separate basic strand simulation before knot mode. Needle gravity, instrument collision, and surgical grasp-quality assessment are not implemented.
 
 ## Architecture
 
 - `input/`: device-independent commands and keyboard adapter. Future tracked controllers should supply target poses through a dedicated pose driver rather than translating tracking into keyboard events.
 - `instruments/`: instrument geometry, working-tip pivot, pose integration, jaw state, and sandbox bounds.
 - `tissue/`: tissue visualization; future material, collision, and deformation models belong here.
-- `suture/`: needle visualization and independent proximity-based grasp constraint; future suture solver belongs here.
+- `suture/`: needle and grasp models, independent position-based thread strand, sliding tissue guides, and guided knot stages.
 - `gameplay/`: practice-session orchestration, decoupled from rendering and input bindings.
 - `scene/`: renderer, lighting, camera, and viewport resizing.
 
-The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Mechanical tissue deformation, thread dynamics, physical knot mechanics, haptics, and VR are not implemented. Guided passage and knot-tying stages use kinematic constraints. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
+The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Mechanical tissue deformation, calibrated thread mechanics, physical knot mechanics, haptics, and VR are not implemented. Guided passage and knot-tying stages use kinematic constraints. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
 
 Next playable milestones: refine needle grasp/contact mechanics, tissue entry/exit constraints, thread pull-through, then knot mechanics and completion criteria for one simple interrupted suture. Those features require their own validated simulation models; needle pickup is currently a kinematic proximity constraint.
 
@@ -61,7 +61,7 @@ The Vite configuration uses relative asset URLs so the build works beneath the r
 
 **Reset practice** restores tool poses, needle, thread and exercise state. The positioning buttons are explicit assists; the instruments remain independently controlled outside guided portions. Free needle pickup is still available before starting the pass, but is not a prerequisite.
 
-The pass uses a 0.3-unit needle radius, a 135° (three-eighths-circle) needle, and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. The driver rotates until a short section of needle body emerges, then the forceps continue the same circular path until the entire 135° needle and eye clear the exit, plus a small clearance margin. There is no vertical-lift extraction. The thread follows the eye through fixed entry/exit points with a shortened entry tail; this visual take-up does not model full thread extraction. It has no conserved length, friction, or tension. Physical knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
+The pass uses a 0.3-unit needle radius, a 135° (three-eighths-circle) needle, and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. The driver rotates until a short section of needle body emerges, then the forceps continue the same circular path until the entire 135° needle and eye clear the exit, plus a small clearance margin. There is no vertical-lift extraction. Before knot mode, a length-constrained strand follows the eye and feeds through guides along the existing tract. Surface contact and drag are simplified; there is no calibrated thread tension or tissue friction. Physical knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
 
 
 The forceps are modeled as two continuous spring arms with shallow serrations on their inner ends. Opening spreads the arms; closing brings the opposing tip faces together. No detached terminal teeth or separate forceps jaw blades are used.
@@ -105,3 +105,12 @@ The first part of each seating pull takes up visible thread slack. Continued opp
 `WoundApproximation` supplies a bounded, smoothed local displacement field. `TissuePatch` applies it to subdivided skin geometry, and entry/exit markers and knot thread anchors move with the skin. The unstitched incision ends and outer pad edges stay essentially unchanged. A small visible seam is retained so the skin surfaces never cross. Reset restores the original geometry and thread slack.
 
 These are guided visual effects, not force measurements or a biomechanical tissue model. Tightness, knot security, tissue damage, and realistic thread tension are not assessed.
+
+
+## Basic thread simulation (build 0.12)
+
+During free needle handling and the guided tissue pass, `ThreadStrand` simulates 80 particles with a fixed 3.8-unit material length, distance constraints, gravity, damping and simplified skin/pad/tray contact. A fixed 120 Hz timestep keeps behavior consistent across display rates. `TissueThreadGuide` adds buried tract guides only after the needle eye enters, then shifts material coordinates as the eye exits and moves away. This feeds thread from the entry-side tail to the needle side, rather than attaching a rigid thread shape to the needle or prescribing a shortened tail.
+
+`StrandMesh` updates persistent tube buffers in world space; moving the instrument does not move the entire thread as a rigid object. Rest lengths are approximately enforced while anchors are reachable, with numerical error and particle-sized discretization at guides. Beyond the available length the existing kinematic instrument can overreach; the readout reports **Thread at reach limit** rather than claiming a valid constraint solution or applying new input/force feedback.
+
+Controls and the input interface are unchanged. Beginning knot mode still explicitly repositions the ends and switches to the existing staged knot visualization. Material length is not conserved across that assisted transition or within knot mode yet. Self-collision, knot topology, calibrated portal friction and physical force feedback remain future work. Surface drag is a positional approximation, not a measured surgical friction law.

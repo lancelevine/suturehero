@@ -121,9 +121,11 @@ export class PracticeSession {
       }
       this.pull.update(turn,this.grasp.holder?.kind==='forceps',step);
       if(extracting && this.grasp.holder?.kind==='forceps') this.applyPassPose(this.pull.pose);
-      this.grasp.needle.updateThread(this.pass.entry,this.pass.exit,this.pull.threadProgress);
+
     }
     if(this.grasp) {
+      const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
+      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center);
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
