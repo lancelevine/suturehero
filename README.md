@@ -18,7 +18,7 @@ npm run dev
 | Action | Left instrument | Right instrument |
 | --- | --- | --- |
 | Move along pad X/Z | W A S D | Arrow keys |
-| Raise / lower | E / Q | PageUp / PageDown |
+| Raise / lower | E / Q | N / M |
 | Pitch | T / G | I / K |
 | Yaw | F / H | J / L |
 | Roll | R / Y | U / O |
@@ -51,17 +51,17 @@ The deployment workflow in `.github/workflows/deploy.yml` tests, builds, and pub
 
 The Vite configuration uses relative asset URLs so the build works beneath the repository path as well as locally. Only the generated `dist` site is published; no backend is required.
 
-## Guided pass and pull-through (build 0.9)
+## Guided pass and pull-through (updated in build 0.22)
 
-1. Click **Start guided pass**. The needle is loaded in the right driver and positioned at the gold entry on the right. There is no angle, distance, or steady-hold test. Starting also restarts an interrupted pass.
+1. Click **Start guided pass**, then optionally **Position forceps at skin edge**. Close **Z** and lift briefly with **E** to evert the upper right skin edge with its attached dermis. Stop lifting and click **Begin needle pass** to load the right driver at the right entry. There is no steady-hold timer.
 2. Hold **U** to pass right to left, **O** to reverse, and **Shift** for precision. The needle and driver follow the circular guide together. The driver exposes 30° of needle body beyond emergence, then stays still for handoff, even if U remains held.
-3. Choose an assisted grip with the **Forceps grip position** slider (0–18% behind the tip), then click **Position forceps**, or move manually to any exposed needle-body point. Close with **Z**. The assisted capture region accepts a jaw center within 0.24 sandbox units of an exposed body segment, including an already closed approach. Its color and status text indicate readiness.
+3. Open **X** to release the skin. Choose an assisted grip with the **Forceps grip position** slider (0–18% behind the tip), then click **Position forceps**, or move manually to any exposed needle-body point. Close with **Z**. The assisted capture region accepts a jaw center within 0.24 sandbox units of an exposed body segment, including an already closed approach. Its color and status text indicate readiness.
 4. Open the right driver with **period** to transfer ownership. The staged grip cancels if the forceps open or move out of reach. Closing in range seats the jaws at the nearest exposed body point; the needle keeps its pose, and the local grasp point persists through transfer and rotation. Only one tool drives the needle at a time.
 5. Hold **R** to continue rotating the needle with the left forceps; **Y** reverses. The forceps and needle follow the same center and radius used by the driver. Angular progress is shown. Opening the forceps pauses progress; regrasp to resume.
 
 **Reset practice** restores tool poses, needle, thread and exercise state. The positioning buttons are explicit assists; the instruments remain independently controlled outside guided portions. Free needle pickup is still available before starting the pass, but is not a prerequisite.
 
-The pass uses a 0.3-unit needle radius, a 135° (three-eighths-circle) needle, and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide through static tissue, not a tissue force or deformation model. The driver rotates until a short section of needle body emerges, then the forceps continue the same circular path until the entire 135° needle and eye clear the exit, plus a small clearance margin. There is no vertical-lift extraction. Before knot mode, a length-constrained strand follows the eye and feeds through guides along the existing tract. Surface contact and drag are simplified; there is no calibrated thread tension or tissue friction. Physical knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
+The pass uses a 0.3-unit needle radius, a 135° (three-eighths-circle) needle, and 0.6-unit entry-to-exit separation. It is a geometric constraint with a visible guide; local tissue eversion is prescribed visually, not solved from tissue forces. The driver rotates until a short section of needle body emerges, then the forceps continue the same circular path until the entire 135° needle and eye clear the exit, plus a small clearance margin. There is no vertical-lift extraction. Before knot mode, a length-constrained strand follows the eye and feeds through guides along the existing tract. Surface contact and drag are simplified; there is no calibrated thread tension or tissue friction. Physical knot mechanics remain future work. Sandbox units are not calibrated clinical measurements.
 
 
 The forceps are modeled as two continuous spring arms with shallow serrations on their inner ends. Opening spreads the arms; closing brings the opposing tip faces together. No detached terminal teeth or separate forceps jaw blades are used.
@@ -214,3 +214,13 @@ Two additional driver-crossing gaps are addressed. A held material point previou
 The needle driver's finger rings now lie in the longitudinal handle plane, with short connecting shanks. The pad has separate textured epidermal, dermal and subcutaneous-fat layers on both sides of a full-depth central split. The solid bridging base and shallow wound strip have been removed. All six layer halves follow the existing local wound approximation together, with the original top surface and needle entry coordinates preserved. Layer appearance and proportions are visual approximations; independent tissue mechanics are future work.
 
 Validation includes contact and passage cases, all-layer closure/reset alignment, the free-lab browser movement/release/reset and resizing checks, and the guided stitch/knot workflow.
+
+## Evert the skin edge before the guided pass (build 0.22)
+
+**Start guided pass** now starts skin handling. Click **Position forceps at skin edge** for an optional open-jaw placement and a close view of the upper right edge, or position manually. Close **Z**, then lift briefly with **E** (hold **Shift** for slower movement). The grasp is in the epidermal edge; the attached dermis rises with it. Once the edge is everted, stop lifting and click **Begin needle pass**. Keep the forceps grasp during the right-to-left **U/O** pass. Releasing the edge pauses needle advancement; the positioning aid can be used again to regrasp. Once the needle emerges, open **X** to release the skin before using the existing forceps positioning aid for needle handoff and curved extraction.
+
+`EdgeEversion` accepts a jaw pose and openness rather than keyboard events. It captures an actual local tissue attachment on jaw closure, derives local lift/roll from instrument motion, and relaxes on release. All layer meshes use the same continuous deformation at their shared interfaces; the fat base stays supported. Excessive displacement releases the provisional grip. This remains prescribed local deformation without calibrated tissue elasticity, damage or force feedback. The established needle arc remains assisted. The input adapter API is preserved. Needle-driver height now uses **N** to raise and **M** to lower, replacing Page Up/Down.
+
+Forceps grasping and suture purchase are separate. The forceps can lift the epidermis and underlying tissue; **the dermis is the suture-bearing layer**. Shared anatomical bounds distinguish it from epidermis and fat. The guided needle arc records purchase in the dermis on each side, separately from its visible surface entry/exit. `WoundApproximation` accepts closure load only with valid opposing dermal bites. Epidermis, fat, or a single dermal bite cannot drive closure; their geometry follows dermal approximation passively. This is a layer-specific load rule, not a constitutive tissue model or calibrated strength simulation.
+
+Tests cover epidermal grasp with dermal lift, close/open grasp transitions, local roll and release, layered rendering refresh without changing closure, pause/regrasp, complete guided handoff/extraction/knotting, and rejection of non-dermal or one-sided closure support. Browser helpers now exercise the first maneuver before continuing to the guided pass.

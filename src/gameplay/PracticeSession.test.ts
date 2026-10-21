@@ -15,6 +15,10 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   expect(session.canBeginPass).toBe(true);
   expect(session.placement.complete).toBe(false);
   expect(session.beginPass()).toBe(true);
+  expect(session.pass.phase).toBe('idle');expect(session.canBeginPass).toBe(false);
+  expect(session.positionForceps()).toBe(true);left.openness=0.1;session.update(0.01);
+  leftCommand={...leftCommand,translation:[0,1,0]};session.update(0.05);session.update(0.05);leftCommand={...leftCommand,translation:[0,0,0]};
+  expect(session.eversion.ready).toBe(true);expect(session.beginPass()).toBe(true);
   expect(grasp.holder).toBe(right);
   expect(session.beginPass()).toBe(false);
   const before=right.root.position.clone();
@@ -29,6 +33,8 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   for(let i=0;i<10;i++)session.update(0.05);
   expect(needle.getTipPose().position.distanceTo(atExit)).toBeLessThan(1e-7);
   command={translation:[0,0,0],rotation:[0,0,0],jaw:0};
+  expect(session.eversion.held).toBe(true);expect(grasp.receiver).toBeNull();
+  expect(session.canPositionForceps).toBe(false);left.openness=0.7;session.update(0.01);
   expect(session.canPositionForceps).toBe(true);
   expect(session.positionForceps()).toBe(true);
   session.update(0.01); left.openness=0.1; session.update(0.01);
@@ -105,6 +111,7 @@ it('transfers thread and reopens the wound under excessive guided pull without c
   const left=new Instrument('left',0),right=new Instrument('right',0);
   let command:ToolCommand={translation:[0,0,0],rotation:[0,0,0],jaw:0};
   const session=new PracticeSession({sample:id=>id==='right'?command:{translation:[0,0,0],rotation:[0,0,0],jaw:0},dispose:()=>{}},[left,right]);
+  session.wound.setDermalBites(new THREE.Vector3(0.27,0.31,0),new THREE.Vector3(-0.27,0.31,0));
   session.knot.phase='complete';session.knot.throws=2;session.knot.seating=1;session.knot.wrap=1;
   left.openness=right.openness=0.1;for(let i=0;i<100;i++)session.update(1/60);
   left.openness=right.openness=0.7;for(let i=0;i<190;i++)session.update(1/60);
@@ -115,4 +122,17 @@ it('transfers thread and reopens the wound under excessive guided pull without c
   command={...command,translation:[0,0,0]};for(let i=0;i<60;i++)session.update(1/60);
   expect(session.wound.closure).toBeLessThan(0.9);
   const m=session.knotSlack.material;expect(m.short+m.long+m.loop+m.retained).toBeCloseTo(m.total,12);
+});
+
+it('pauses needle advancement when the skin grip opens and supports repositioning to resume',()=>{
+  const left=new Instrument('left',0),right=new Instrument('right',0),needle=new SutureModel();
+  const command:ToolCommand={translation:[0,0,0],rotation:[0,0,1],jaw:0};
+  const session=new PracticeSession({sample:id=>id==='right'?command:{translation:[0,0,0],rotation:[0,0,0],jaw:0},dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+  session.beginPass();expect(session.beginPass()).toBe(false);session.positionForceps();left.openness=0.1;session.update(0.01);
+  left.root.position.y+=0.15;session.update(0.01);expect(session.beginPass()).toBe(true);
+  session.update(0.05);const angle=session.pass.angle;expect(angle).toBeGreaterThan(0);
+  left.openness=0.7;session.update(0.05);expect(session.pass.angle).toBe(angle);expect(session.canPositionForceps).toBe(true);
+  session.positionForceps();left.openness=0.1;session.update(0.01);left.root.position.y+=0.15;session.update(0.01);
+  session.update(0.05);expect(session.pass.angle).toBeGreaterThan(angle);
+  session.reset();expect(session.eversion.active).toBe(false);expect(session.canBeginPass).toBe(true);
 });

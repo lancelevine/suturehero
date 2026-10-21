@@ -1,3 +1,4 @@
+import { DERMAL_MIDPOINT } from './anatomy';
 import { NEEDLE_ARC, NEEDLE_RADIUS, NEEDLE_EXPOSURE } from '../suture/needleGeometry';
 import * as THREE from 'three';
 /** Assisted circular path only; no tissue forces, deformation, or thread solver. */
@@ -24,6 +25,14 @@ export class NeedlePass {
     if(!held) { this.phase='interrupted'; return; }
     this.angle=THREE.MathUtils.clamp(this.angle+THREE.MathUtils.clamp(drive,-1,1)*Math.max(0,Math.min(dt,0.05))*0.8,0,this.totalAngle);
     if(this.angle>=this.totalAngle) this.phase='complete';
+  }
+  /** Material purchase on each side, separate from the visible surface portals. */
+  get dermalBites():[THREE.Vector3|null,THREE.Vector3|null] {
+    const depth=(this.center.y-DERMAL_MIDPOINT)/this.radius;
+    if(depth<=0 || depth>=1)return [null,null];
+    const entryAngle=Math.asin(depth),exitAngle=Math.PI-entryAngle;
+    const at=(angle:number)=>new THREE.Vector3(this.center.x+this.radius*Math.cos(angle),DERMAL_MIDPOINT,this.center.z);
+    return [this.angle>=entryAngle?at(entryAngle):null,this.angle>=exitAngle?at(exitAngle):null];
   }
   get progress() { return this.angle/this.totalAngle; }
   get pose() {

@@ -1,3 +1,4 @@
+import {prepareEversion} from './guided-eversion.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
@@ -5,10 +6,12 @@ try {
   const page=await browser.newPage({viewport:{width:1440,height:1180}}); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   await page.goto(process.env.SUTURE_TEST_URL ?? 'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
   await page.getByRole('button',{name:'Start guided pass'}).click();
-  await page.getByRole('button',{name:'Close-up view',exact:true}).click();
+  await prepareEversion(page);
+  if(await page.locator('#close-up').getAttribute('aria-pressed')==='false')await page.locator('#close-up').click();
   await page.keyboard.down('u');
-  await page.waitForFunction(()=>!document.querySelector('#position-forceps').disabled,{},{timeout:45000});
+  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});
   await page.keyboard.up('u');
+  await page.keyboard.down('x');await page.waitForFunction(()=>!document.querySelector('#position-forceps').disabled,{},{timeout:15000});await page.keyboard.up('x');
   await page.locator('#grip-point').fill('85'); await page.locator('#grip-point').dispatchEvent('input');
   await page.getByRole('button',{name:'Position forceps',exact:true}).click();
   await page.keyboard.down('z'); await page.waitForFunction(()=>document.querySelector('#grasp-status').textContent.includes('grip ready'),{},{timeout:10000}); await page.keyboard.up('z');

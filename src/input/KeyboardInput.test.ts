@@ -7,8 +7,9 @@ it('scales tool commands in precision mode and clears held keys on blur',()=>{
   try {
     const input=new KeyboardInput();
     const press=(code:string,target:unknown=null)=>handlers.get('keydown')!({code,target,preventDefault:()=>{}});
-    press('ArrowRight',{tagName:'BUTTON'}); press('KeyI'); expect(input.sample('right').translation[0]).toBe(1);
-    press('ShiftLeft'); expect(input.sample('right').translation[0]).toBe(0.2); expect(input.sample('right').rotation[0]).toBe(0.2);
+    press('ArrowRight',{tagName:'BUTTON'}); press('KeyI');press('KeyN');expect(input.sample('right').translation[1]).toBe(1); expect(input.sample('right').translation[0]).toBe(1);
+    press('ShiftLeft'); expect(input.sample('right').translation[0]).toBe(0.2); expect(input.sample('right').rotation[0]).toBe(0.2);expect(input.sample('right').translation[1]).toBe(0.2);
+    handlers.get('keyup')!({code:'KeyN'});press('KeyM');expect(input.sample('right').translation[1]).toBe(-0.2);
     expect(input.sample('left').translation[0]).toBe(0);
     handlers.get('blur')!({}); expect(input.sample('right').translation[0]).toBe(0);
     press('ArrowRight',{tagName:'INPUT'}); expect(input.sample('right').translation[0]).toBe(0);

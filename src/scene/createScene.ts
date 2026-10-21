@@ -24,5 +24,5 @@ export function createScene(container: HTMLElement) {
     // Resize the drawing buffer only. CSS owns the display size and cannot feed back.
     renderer.setSize(width,height,false);
   }); resize.observe(container);
-  return {scene,camera,renderer,controls,closeUp:(target: THREE.Vector3)=>{controls.target.copy(target); camera.position.copy(target).add(new THREE.Vector3(-2.2,4,3)); controls.update();},resetCamera:()=>{camera.position.set(7,8,10); controls.target.set(0,0.5,0); controls.update();}};
+  return {scene,camera,renderer,controls,edgeCloseUp:(target:THREE.Vector3)=>{controls.target.copy(target);camera.position.copy(target).add(new THREE.Vector3(-2.2,1.25,1.2));controls.update();},closeUp:(target: THREE.Vector3)=>{controls.target.copy(target); camera.position.copy(target).add(new THREE.Vector3(-2.2,4,3)); controls.update();},resetCamera:()=>{camera.position.set(7,8,10); controls.target.set(0,0.5,0); controls.update();}};
 }

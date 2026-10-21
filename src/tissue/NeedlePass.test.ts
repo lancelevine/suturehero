@@ -29,3 +29,12 @@ it('supports reverse motion, stops on release, and resets',()=>{
   pass.update(1,true,0.05); expect(pass.phase).toBe('interrupted');
   pass.reset(); expect(pass.phase).toBe('idle'); expect(pass.progress).toBe(0);
 });
+
+it('records bilateral dermal purchase only after the needle reaches each side',()=>{
+  const pass=new NeedlePass();pass.begin();expect(pass.dermalBites).toEqual([null,null]);
+  for(let i=0;i<15;i++)pass.update(1,true,0.05);
+  expect(pass.dermalBites[0]?.y).toBeCloseTo(0.31);expect(pass.dermalBites[1]).toBeNull();
+  for(let i=0;i<85;i++)pass.update(1,true,0.05);
+  expect(pass.dermalBites[1]?.y).toBeCloseTo(0.31);expect(pass.dermalBites[1]!.x).toBeLessThan(0);
+  pass.reset();expect(pass.dermalBites).toEqual([null,null]);
+});

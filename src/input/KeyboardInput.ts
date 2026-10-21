@@ -19,7 +19,7 @@ export class KeyboardInput implements InputDevice {
     const axis = (positive: string, negative: string) => (Number(this.keys.has(positive)) - Number(this.keys.has(negative)))*speed;
     return tool === 'left'
       ? { translation: [axis('KeyD','KeyA'),axis('KeyE','KeyQ'),axis('KeyS','KeyW')], rotation: [axis('KeyT','KeyG'),axis('KeyF','KeyH'),axis('KeyR','KeyY')], jaw: axis('KeyX','KeyZ') }
-      : { translation: [axis('ArrowRight','ArrowLeft'),axis('PageUp','PageDown'),axis('ArrowDown','ArrowUp')], rotation: [axis('KeyI','KeyK'),axis('KeyJ','KeyL'),axis('KeyU','KeyO')], jaw: axis('Period','Comma') };
+      : { translation: [axis('ArrowRight','ArrowLeft'),axis('KeyN','KeyM'),axis('ArrowDown','ArrowUp')], rotation: [axis('KeyI','KeyK'),axis('KeyJ','KeyL'),axis('KeyU','KeyO')], jaw: axis('Period','Comma') };
   }
   dispose() {
     window.removeEventListener('keydown',this.down); window.removeEventListener('keyup',this.up); window.removeEventListener('blur',this.blur);

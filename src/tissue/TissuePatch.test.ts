@@ -17,3 +17,16 @@ it('keeps all three fully split layers aligned during local closure and reset',(
     }
   }
 });
+
+it('updates the layered mesh for eversion even when wound closure stays constant',async()=>{
+  const {EdgeEversion}=await import('./EdgeEversion');
+  const pad=new TissuePatch(),wound=new WoundApproximation(),edge=new EdgeEversion();
+  const top=(name:string)=>{const mesh=pad.root.getObjectByName(name) as THREE.Mesh;mesh.geometry.computeBoundingBox();return mesh.geometry.boundingBox!.max.y+mesh.position.y;};
+  pad.update(wound,edge);const resting=top('epidermis-right');
+  edge.begin();edge.update({jaw:edge.anchor.clone(),rotation:new THREE.Quaternion(),openness:0.1},0.01);
+  edge.update({jaw:edge.anchor.clone().add(new THREE.Vector3(0,0.15,0)),rotation:new THREE.Quaternion(),openness:0.1},0.01);
+  pad.update(wound,edge);
+  expect(top('epidermis-right')).toBeGreaterThan(0.5);expect(top('dermis-right')).toBeGreaterThan(0.47);
+  expect(top('epidermis-left')).toBeCloseTo(resting,6);
+  edge.reset();pad.update(wound,edge);expect(top('epidermis-right')).toBeCloseTo(resting,6);
+});
