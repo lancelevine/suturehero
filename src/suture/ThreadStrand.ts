@@ -50,16 +50,8 @@ export class ThreadStrand {
       }
       for(let iteration=0;iteration<24;iteration++) {
         if(iteration>0 && contactStart)this.points.forEach((p,i)=>contactStart[i].copy(p));
-        // Alternate sweep direction to reduce directional solver bias.
-        for(let n=0;n<this.count-1;n++) {
-          const i=iteration%2===0?n:this.count-2-n;
-          const a=this.points[i],b=this.points[i+1];
-          this.delta.subVectors(b,a);const distance=this.delta.length();
-          const wa=anchors.has(i)?0:1,wb=anchors.has(i+1)?0:1;
-          if(distance<1e-9 || wa+wb===0)continue;
-          this.delta.multiplyScalar((distance-this.restLength)/(distance*(wa+wb)));
-          if(wa)a.add(this.delta);if(wb)b.sub(this.delta);
-        }
+        this.projectDistances(anchors,iteration%2!==0);
+        this.projectBends(anchors);
         if(iteration%6===5)this.contact.resolve(this.points,this.previous,this.pinned);
         toolContact?.(this.points,this.previous,this.pinned,{from:iteration===0?(substep-1)/steps:substep/steps,to:substep/steps,start:contactStart});
         for(let i=0;i<this.count;i++)if(!anchors.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
@@ -73,6 +65,35 @@ export class ThreadStrand {
     }
     // Kinematic attachment remains exact even on a substep-free display frame.
     for(const [i,anchor] of anchors)this.points[i].copy(anchor);
+  }
+  private projectDistances(anchors:ReadonlyMap<number,THREE.Vector3>,reverse:boolean){
+    for(let n=0;n<this.count-1;n++){
+      const i=reverse?this.count-2-n:n,a=this.points[i],b=this.points[i+1];
+      this.delta.subVectors(b,a);const distance=this.delta.length(),wa=anchors.has(i)?0:1,wb=anchors.has(i+1)?0:1;
+      if(distance<1e-9 || wa+wb===0)continue;
+      this.delta.multiplyScalar((distance-this.restLength)/(distance*(wa+wb)));
+      if(wa)a.add(this.delta);if(wb)b.sub(this.delta);
+    }
+  }
+  private projectBends(anchors:ReadonlyMap<number,THREE.Vector3>){
+    // A soft angular limit suppresses zero-energy alternating folds without
+    // smoothing the rendered centerline or changing the material budget.
+    const minimum=this.restLength*1.5;
+    for(let i=1;i<this.count-1;i++){
+      const a=this.points[i-1],b=this.points[i+1],delta=b.clone().sub(a),distance=delta.length();
+      const wa=anchors.has(i-1)?0:1,wb=anchors.has(i+1)?0:1;
+      if(distance>=minimum || distance<1e-9 || wa+wb===0)continue;
+      delta.multiplyScalar((minimum-distance)/distance*0.2/(wa+wb));
+      if(wa)this.applyContactCorrection(i-1,delta.clone().negate());
+      if(wb)this.applyContactCorrection(i+1,delta);
+    }
+  }
+  /** Additional coupled contact sweeps, without another integration or reseeding. */
+  projectContacts(anchors:ReadonlyMap<number,THREE.Vector3>,surfaceAt:(p:THREE.Vector3)=>number,toolContact:((points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>,start:readonly THREE.Vector3[])=>void)|undefined,reverse=false){
+    const start=this.points.map(p=>p.clone()),pinned=new Set(anchors.keys());
+    this.projectDistances(anchors,reverse);this.projectBends(anchors);this.contact.resolve(this.points,this.previous,pinned);
+    toolContact?.(this.points,this.previous,pinned,start);
+    for(let i=0;i<this.count;i++)if(!pinned.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
   }
   /** Shared contact constraints preserve particle velocity when separating overlap. */
   applyContactCorrection(index:number,correction:THREE.Vector3) {

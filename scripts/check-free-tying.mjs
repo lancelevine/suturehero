@@ -19,6 +19,14 @@ try {
   await page.getByRole('button',{name:'Free tying lab',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Forceps: holding'));
   assert.equal(await page.locator('#begin-pass').isDisabled(),true);
+  await page.keyboard.down('m');
+  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Driver at tissue surface'),{},{timeout:15000});
+  await page.waitForTimeout(300);await page.keyboard.up('m');
+  assert.match(await page.locator('#exercise-readout').innerText(),/Driver at tissue surface/);
+  await page.keyboard.down('n');
+  await page.waitForFunction(()=>!document.querySelector('#exercise-readout').textContent.includes('Driver at tissue surface'),{},{timeout:15000});
+  await page.keyboard.up('n');
+
   await page.keyboard.down('d');await page.keyboard.down('n');await page.keyboard.down('r');
   await page.waitForTimeout(1200);
   await page.keyboard.up('d');await page.keyboard.up('n');await page.keyboard.up('r');

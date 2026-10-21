@@ -1,3 +1,4 @@
+import { FreeThrow } from '../suture/FreeThrow';
 import { TailPassage } from '../suture/TailPassage';
 import {resolveStrandPair} from '../suture/StrandPairContact';
 import * as THREE from 'three';
@@ -15,7 +16,9 @@ export class FreeKnotPractice {
   readonly exit=new THREE.Vector3(-0.3,0.43,0);
   readonly grips=new Map<string,Grip>();
   winding=0;
+  driverOnTissue=false;
   readonly passage=new TailPassage();
+  readonly retainedThrow=new FreeThrow();
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();
   private accumulator=0;
@@ -31,6 +34,7 @@ export class FreeKnotPractice {
       this.lastOpen.set(tool.id,tool.openness);
       if(tool.id==='left')this.grips.set(tool.id,{strand:this.long,index:this.long.count-1,local:new THREE.Vector3(0,0,0.05)});
     }
+    this.contact.configure(tools);
   }
   private grasp(tool:Instrument) {
     const jaw=tool.root.localToWorld(new THREE.Vector3(0,0,0.05));
@@ -53,12 +57,17 @@ export class FreeKnotPractice {
       this.lastOpen.set(tool.id,tool.openness);
     }
     this.contact.configure(tools);
+    this.driverOnTissue=false;
+    for(const tool of tools)this.driverOnTissue=this.contact.constrainDriverToSurface(tool,threadSurfaceAt)||this.driverOnTissue;
+    this.contact.configure(tools,true);
     for(const tool of tools) {
       const grip=this.grips.get(tool.id);if(!grip)continue;
       const target=tool.root.localToWorld(grip.local.clone());
       const allowed=this.contact.constrainGrip(tool.id,grip.strand.points[grip.index],target);
       tool.root.position.add(allowed.sub(target));tool.root.updateWorldMatrix(true,false);
     }
+    this.contact.configure(tools,true);
+    for(const tool of tools)this.driverOnTissue=this.contact.constrainDriverToSurface(tool,threadSurfaceAt)||this.driverOnTissue;
     this.contact.configure(tools,true);
     const pins=new Map<ThreadStrand,Map<number,THREE.Vector3>>([[this.long,new Map([[0,this.exit]])],[this.short,new Map([[0,this.entry]])]]);
     for(const tool of tools) {
@@ -82,6 +91,17 @@ export class FreeKnotPractice {
         strand.advance(step,map,threadSurfaceAt,(p,previous,pinned,time)=>this.contact.resolve(p,previous,pinned,{...time,from:(n+time.from)/steps,to:(n+time.to)/steps},exemptions.get(strand)));
       }
       resolveStrandPair(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!,beforeLong,beforeShort);
+      const driver=tools.find(t=>t.kind==='needle-driver')!;
+      this.passage.update(this.long.points,this.short.points.at(-1)!,driver.root.matrixWorld,this.gripLabel(driver.id)==='short tail');
+      const longGrip=[...this.grips.values()].find(g=>g.strand===this.long)?.index;
+      const shortGrip=[...this.grips.values()].find(g=>g.strand===this.short && g.index>=this.short.count-4)?.index;
+      this.retainedThrow.update(step,this.passage,this.long,this.short,driver.root.matrixWorld,longGrip,shortGrip);
+      if(this.retainedThrow.active)for(let iteration=0;iteration<8;iteration++){
+        this.retainedThrow.resolve(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!);
+        for(const strand of [this.long,this.short])strand.projectContacts(subPins.get(strand)!,threadSurfaceAt,(p,previous,pinned,start)=>this.contact.resolve(p,previous,pinned,{from:(n+1)/steps,to:(n+1)/steps,start},exemptions.get(strand)),iteration%2!==0);
+        const pairLong=this.long.points.map(p=>p.clone()),pairShort=this.short.points.map(p=>p.clone());
+        resolveStrandPair(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!,pairLong,pairShort);
+      }
       this.accumulator-=step;
     }
     if(steps===0)for(const strand of [this.long,this.short])strand.advance(0,pins.get(strand)!,threadSurfaceAt);
@@ -102,5 +122,5 @@ export class FreeKnotPractice {
     }
     return false;
   }
-  reset() {this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.accumulator=0;}
+  reset() {this.retainedThrow.reset();this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
 }

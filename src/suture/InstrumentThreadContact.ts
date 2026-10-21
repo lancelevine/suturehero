@@ -28,6 +28,24 @@ export class InstrumentThreadContact {
       }
     }
   }
+  /** Keep the free driver's metal and the exterior thread radius clear of
+   * the support surface. Forceps jaws remain available for tissue grasps. */
+  constrainDriverToSurface(tool:Instrument,surfaceAt:(p:THREE.Vector3)=>number) {
+    if(tool.kind!=='needle-driver')return false;
+    let lift=-Infinity;
+    for(const capsule of this.capsules)if(capsule.toolId===tool.id){
+      const steps=Math.max(1,Math.ceil(capsule.a.distanceTo(capsule.b)/0.06));
+      for(let i=0;i<=steps;i++){
+        const center=capsule.a.clone().lerp(capsule.b,i/steps);
+        let surface=surfaceAt(center);
+        // Include the capsule footprint when it straddles a pad/tray edge.
+        for(const [x,z] of [[1,0],[-1,0],[0,1],[0,-1]])surface=Math.max(surface,surfaceAt(center.clone().add(new THREE.Vector3(x*capsule.radius,0,z*capsule.radius))));
+        lift=Math.max(lift,surface+capsule.radius+0.002-center.y);
+      }
+    }
+    if(lift>0){tool.root.position.y+=lift;tool.root.updateWorldMatrix(true,false);}
+    return lift>=-0.001;
+  }
   /** A held point cannot be kinematically pulled through the other instrument. */
   constrainGrip(toolId:string,start:THREE.Vector3,target:THREE.Vector3) {
     const point=target.clone();

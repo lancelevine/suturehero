@@ -6,7 +6,9 @@ export class TailPassage {
   private indices:number[]=[];
   private previous?:{tip:THREE.Vector3;center:THREE.Vector3;side:number};
   private crossed=false;
-  reset(){this.indices=[];this.previous=undefined;this.crossed=false;this.state='Form a wrap around the driver';}
+  private crossing?:{first:number;last:number;normal:THREE.Vector3;side:number};
+  get passage(){return this.crossing;}
+  reset(){this.indices=[];this.previous=undefined;this.crossed=false;this.crossing=undefined;this.state='Form a wrap around the driver';}
   update(points:readonly THREE.Vector3[],tip:THREE.Vector3,driver:THREE.Matrix4,holdingTail:boolean){
     if(this.crossed){this.state='Short tip passed through the opening · Knot not assessed';return;}
     if(!this.indices.length){
@@ -46,7 +48,7 @@ export class TailPassage {
         const delta=b.clone().sub(a),t=THREE.MathUtils.clamp(new THREE.Vector2(x,y).sub(a).dot(delta)/Math.max(delta.lengthSq(),1e-10),0,1);
         clearance=Math.min(clearance,new THREE.Vector2(x,y).distanceTo(a.clone().addScaledVector(delta,t)));
       }
-      if(inside&&clearance>0.019)this.crossed=true;
+      if(inside&&clearance>0.019){this.crossed=true;this.crossing={first:this.indices[0],last:this.indices.at(-1)!,normal:normal.clone(),side:Math.sign(side)};}
     }
     if(!holdingTail)this.previous=undefined;
     else if(Math.abs(side)>=0.012)this.previous={tip:tip.clone(),center,side};

@@ -44,3 +44,16 @@ it('feeds into the tract only after eye entry and slides material between exteri
   guide.anchors(s,new THREE.Vector3(-0.3,8,0),NEEDLE_ARC+Math.PI+0.1,center);expect(guide.state).toBe('Thread at reach limit');
   expect(threadSurfaceAt(new THREE.Vector3(1,0,1))).toBeGreaterThan(threadSurfaceAt(new THREE.Vector3(3,0,1)));
 });
+it('relaxes alternating saw-tooth folds into broader slack without losing material',()=>{
+ const strand=new ThreadStrand(1.2,40),rest=strand.restLength;
+ strand.reset([new THREE.Vector3(0,0.423,0),new THREE.Vector3(0.6,0.423,0)]);
+ for(let i=0;i<strand.count;i++){
+  const target=new THREE.Vector3(i*rest*0.45,0.423,(i%2?1:-1)*rest*Math.sqrt(1-0.45**2)/2+0.002*Math.sin(i*0.3));
+  strand.applyContactCorrection(i,target.sub(strand.points[i]));
+ }
+ const alignment=()=>{let sum=0;for(let i=1;i<strand.count-1;i++)sum+=strand.points[i].clone().sub(strand.points[i-1]).normalize().dot(strand.points[i+1].clone().sub(strand.points[i]).normalize());return sum/(strand.count-2);};
+ const before=alignment(),pins=new Map([[0,strand.points[0].clone()],[39,strand.points[39].clone()]]);
+ for(let i=0;i<360;i++)strand.advance(1/120,pins,()=>0.423);
+ expect(alignment()).toBeGreaterThan(before+0.6);expect(strand.measuredLength).toBeCloseTo(strand.length,1);
+ expect(strand.points[0].distanceTo(pins.get(0)!)).toBeLessThan(1e-9);
+});
