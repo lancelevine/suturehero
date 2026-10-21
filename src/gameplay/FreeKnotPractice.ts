@@ -1,3 +1,5 @@
+import { TailPassage } from '../suture/TailPassage';
+import {resolveStrandPair} from '../suture/StrandPairContact';
 import * as THREE from 'three';
 import type { Instrument } from '../instruments/Instrument';
 import { ThreadStrand } from '../suture/ThreadStrand';
@@ -13,8 +15,10 @@ export class FreeKnotPractice {
   readonly exit=new THREE.Vector3(-0.3,0.43,0);
   readonly grips=new Map<string,Grip>();
   winding=0;
+  readonly passage=new TailPassage();
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();
+  private accumulator=0;
   begin(tools:readonly Instrument[]) {
     this.reset();this.active=true;
     this.long.reset([this.exit,new THREE.Vector3(-0.7,0.65,0.2),new THREE.Vector3(-1.3,1.15,0.4)]);
@@ -48,20 +52,47 @@ export class FreeKnotPractice {
       if(tool.openness<=0.2 && (this.lastOpen.get(tool.id)??1)>0.2 && !this.grips.has(tool.id))this.grasp(tool);
       this.lastOpen.set(tool.id,tool.openness);
     }
+    this.contact.configure(tools);
+    for(const tool of tools) {
+      const grip=this.grips.get(tool.id);if(!grip)continue;
+      const target=tool.root.localToWorld(grip.local.clone());
+      const allowed=this.contact.constrainGrip(tool.id,grip.strand.points[grip.index],target);
+      tool.root.position.add(allowed.sub(target));tool.root.updateWorldMatrix(true,false);
+    }
+    this.contact.configure(tools,true);
     const pins=new Map<ThreadStrand,Map<number,THREE.Vector3>>([[this.long,new Map([[0,this.exit]])],[this.short,new Map([[0,this.entry]])]]);
     for(const tool of tools) {
       const grip=this.grips.get(tool.id);if(grip)pins.get(grip.strand)!.set(grip.index,tool.root.localToWorld(grip.local.clone()));
     }
-    this.contact.configure(tools);
+    this.accumulator+=Math.max(0,Math.min(dt,0.05));
+    const step=1/120,steps=Math.floor((this.accumulator+1e-10)/step);
+    const starts=new Map([...pins].map(([strand,map])=>[strand,new Map([...map].map(([index])=>[index,strand.points[index].clone()]))]));
+    const exemptions=new Map<ThreadStrand,Map<string,Set<number>>>();
     for(const strand of [this.long,this.short]) {
-      // The captured neighborhood sits between the gripping jaws, not outside
-      // their coarse collision capsules. Other instruments still collide here.
-      const exemptions=new Map<string,Set<number>>();
-      for(const [id,grip] of this.grips)if(grip.strand===strand)exemptions.set(id,new Set([grip.index-2,grip.index-1,grip.index,grip.index+1,grip.index+2]));
-      strand.advance(dt,pins.get(strand)!,threadSurfaceAt,(p,previous,pinned,time)=>this.contact.resolve(p,previous,pinned,time,exemptions));
+      const own=new Map<string,Set<number>>();
+      for(const [id,grip] of this.grips)if(grip.strand===strand)own.set(id,new Set([grip.index-2,grip.index-1,grip.index,grip.index+1,grip.index+2]));
+      exemptions.set(strand,own);
     }
+    for(let n=0;n<steps;n++) {
+      const beforeLong=this.long.points.map(p=>p.clone()),beforeShort=this.short.points.map(p=>p.clone());
+      const subPins=new Map<ThreadStrand,Map<number,THREE.Vector3>>();
+      for(const strand of [this.long,this.short]) {
+        const map=new Map([...pins.get(strand)!].map(([index,target])=>[index,starts.get(strand)!.get(index)!.clone().lerp(target,(n+1)/steps)]));
+        subPins.set(strand,map);
+        strand.advance(step,map,threadSurfaceAt,(p,previous,pinned,time)=>this.contact.resolve(p,previous,pinned,{...time,from:(n+time.from)/steps,to:(n+time.to)/steps},exemptions.get(strand)));
+      }
+      resolveStrandPair(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!,beforeLong,beforeShort);
+      this.accumulator-=step;
+    }
+    if(steps===0)for(const strand of [this.long,this.short])strand.advance(0,pins.get(strand)!,threadSurfaceAt);
+
     const driver=tools.find(t=>t.kind==='needle-driver')!;
     this.winding=shaftWinding(this.long.points,driver.root.matrixWorld);
+    this.passage.update(this.long.points,this.short.points.at(-1)!,driver.root.matrixWorld,this.gripLabel(driver.id)==='short tail');
+  }
+  gripLabel(id:string) {
+    const grip=this.grips.get(id);if(!grip)return 'free';
+    return grip.strand===this.long?'long strand':grip.index>=this.short.count-4?'short tail':'short strand body';
   }
   get reachLimited() {
     if(this.long.measuredLength>this.long.length*1.04 || this.short.measuredLength>this.short.length*1.04)return true;
@@ -71,5 +102,5 @@ export class FreeKnotPractice {
     }
     return false;
   }
-  reset() {this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;}
+  reset() {this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.accumulator=0;}
 }

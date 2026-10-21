@@ -6,14 +6,14 @@ interface Capsule {toolId:string;a:THREE.Vector3;b:THREE.Vector3;oldA:THREE.Vect
 /** Substep-interpolated, conservatively sampled swept segment/capsule contact. Instrument bodies remain kinematic. */
 export class InstrumentThreadContact {
   private capsules:Capsule[]=[];
-  configure(tools:readonly Instrument[]) {
+  configure(tools:readonly Instrument[],preserveSweep=false) {
     const last=this.capsules;this.capsules=[];
     for(const tool of tools) {
       tool.root.updateWorldMatrix(true,false);
       const add=(a:THREE.Vector3,b:THREE.Vector3,radius:number)=>{
         a.applyMatrix4(tool.root.matrixWorld);b.applyMatrix4(tool.root.matrixWorld);
         const prior=last[this.capsules.length];
-        const oldA=prior?.toolId===tool.id?prior.a.clone():a.clone(),oldB=prior?.toolId===tool.id?prior.b.clone():b.clone();
+        const oldA=prior?.toolId===tool.id?(preserveSweep?prior.oldA:prior.a).clone():a.clone(),oldB=prior?.toolId===tool.id?(preserveSweep?prior.oldB:prior.b).clone():b.clone();
         this.capsules.push({toolId:tool.id,a,b,oldA,oldB,radius:radius+THREAD_RADIUS,bounds:new THREE.Box3().setFromPoints([a,b,oldA,oldB]).expandByScalar(radius+THREAD_RADIUS)});
       };
       if(tool.kind==='needle-driver')add(new THREE.Vector3(0,0,0.3),new THREE.Vector3(0,0,2.9),0.077);
@@ -27,6 +27,12 @@ export class InstrumentThreadContact {
         add(pivot,tip,0.04);
       }
     }
+  }
+  /** A held point cannot be kinematically pulled through the other instrument. */
+  constrainGrip(toolId:string,start:THREE.Vector3,target:THREE.Vector3) {
+    const point=target.clone();
+    this.resolve([point],[start.clone()],new Set(),{from:0,to:1,start:[start]},new Map([[toolId,new Set([0])]]));
+    return point;
   }
   resolve=(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>,time:{from:number;to:number;start?:readonly THREE.Vector3[]}={from:0,to:1},gripExemptions?:ReadonlyMap<string,ReadonlySet<number>>)=>{
     const start=time.start??previous;
@@ -50,7 +56,7 @@ export class InstrumentThreadContact {
         let c=center(points[i]),normal=points[i].clone().sub(c),distance=normal.length();
         const oldAxis=oldB.clone().sub(oldA),fraction=THREE.MathUtils.clamp(start[i].clone().sub(oldA).dot(oldAxis)/Math.max(1e-10,oldAxis.lengthSq()),0,1);
         const oldCenter=oldA.clone().addScaledVector(oldAxis,fraction),oldNormal=start[i].clone().sub(oldCenter);
-        if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<=0) {
+        if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<capsule.radius*capsule.radius) {
           const motion=start[i].distanceTo(points[i])+oldA.distanceTo(a);
           const samples=Math.min(32,Math.max(1,Math.ceil(motion/(capsule.radius*0.35))));
           for(let n=1;n<=samples;n++) {
@@ -72,7 +78,7 @@ export class InstrumentThreadContact {
         const bounds=new THREE.Box3().setFromPoints([start[i],start[i+1],points[i],points[i+1]]);if(!bounds.intersectsBox(capsule.bounds))continue;
         let hit=closestSegments(points[i],points[i+1],a,b),normal=hit.p.clone().sub(hit.q),distance=normal.length();
         const old=closestSegments(start[i],start[i+1],oldA,oldB),oldNormal=old.p.clone().sub(old.q);
-        if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<=0) {
+        if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<capsule.radius*capsule.radius) {
           const motion=Math.max(start[i].distanceTo(points[i]),start[i+1].distanceTo(points[i+1]))+oldA.distanceTo(a);
           const samples=Math.min(32,Math.max(1,Math.ceil(motion/(capsule.radius*0.35))));
           for(let n=1;n<=samples;n++) {

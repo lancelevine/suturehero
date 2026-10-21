@@ -74,5 +74,9 @@ export class ThreadStrand {
     // Kinematic attachment remains exact even on a substep-free display frame.
     for(const [i,anchor] of anchors)this.points[i].copy(anchor);
   }
+  /** Shared contact constraints preserve particle velocity when separating overlap. */
+  applyContactCorrection(index:number,correction:THREE.Vector3) {
+    this.points[index].add(correction);this.previous[index].add(correction);
+  }
   get measuredLength() {let length=0;for(let i=1;i<this.count;i++)length+=this.points[i-1].distanceTo(this.points[i]);return length;}
 }

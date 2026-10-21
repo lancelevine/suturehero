@@ -64,3 +64,12 @@ it('retains a material wrap around the shaft during settling instead of cutting 
   expect(Math.abs(shaftWinding(strand.points,driver.root.matrixWorld))).toBeGreaterThan(0.85);
   expect(strand.measuredLength).toBeCloseTo(strand.length,1);
 });
+
+it('blocks a shallow swept crossing even when the endpoint normals are not opposite',()=>{
+  const driver=new Instrument('right',0);driver.root.position.set(0,1,0);driver.root.quaternion.identity();
+  const contact=new InstrumentThreadContact();contact.configure([driver]);
+  const start=new THREE.Vector3(-0.045,1.078,1),point=new THREE.Vector3(0.045,1.078,1);
+  const before=point.clone();contact.resolve([point],[start.clone()],new Set(),{from:0,to:1,start:[start]});
+  expect(point.distanceTo(before)).toBeGreaterThan(0.01);
+  expect(Math.hypot(point.x,point.y-1)).toBeGreaterThanOrEqual(0.086);
+});

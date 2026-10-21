@@ -18,7 +18,12 @@ export class Instrument {
       const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.075,2.8,16),steel);
       shaft.rotation.x=Math.PI/2; shaft.position.z=1.65; this.root.add(shaft);
       for(const side of [-1,1]) {
+        const start=new THREE.Vector3(0,0,2.9),end=new THREE.Vector3(side*0.14,0,3.1);
+        const shank=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.045,start.distanceTo(end),10),steel);
+        shank.position.copy(start).add(end).multiplyScalar(0.5);
+        shank.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.sub(start).normalize());this.root.add(shank);
         const ring=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.045,10,32),steel);
+        ring.rotation.x=Math.PI/2;
         ring.position.set(side*0.27,0,3.28); this.root.add(ring);
       }
     } else {
