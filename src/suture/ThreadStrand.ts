@@ -29,7 +29,7 @@ export class ThreadStrand {
     this.points.forEach((p,i)=>{p.copy(points[i]);this.previous[i].copy(p);});
     this.accumulator=0;this.pinned.clear();
   }
-  advance(dt: number,anchors: ReadonlyMap<number,THREE.Vector3>,surfaceAt:(p:THREE.Vector3)=>number) {
+  advance(dt: number,anchors: ReadonlyMap<number,THREE.Vector3>,surfaceAt:(p:THREE.Vector3)=>number,toolContact?:(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>)=>void) {
     const step=1/120;
     this.accumulator+=Math.max(0,Math.min(dt,0.05));
     for(const index of this.pinned)if(!anchors.has(index))this.previous[index].copy(this.points[index]);
@@ -59,6 +59,7 @@ export class ThreadStrand {
           if(wa)a.add(this.delta);if(wb)b.sub(this.delta);
         }
         if(iteration%6===5)this.contact.resolve(this.points,this.previous,this.pinned);
+        if(iteration%12===11)toolContact?.(this.points,this.previous,this.pinned);
         for(let i=0;i<this.count;i++)if(!anchors.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
       }
       for(let i=0;i<this.count;i++)if(!anchors.has(i) && this.points[i].y<=surfaceAt(this.points[i])+0.0001) {
