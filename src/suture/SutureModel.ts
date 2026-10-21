@@ -42,7 +42,8 @@ export class SutureModel {
     this.strand.advance(dt,this.threadGuide.anchors(this.strand,eye,tipAngle,center),threadSurfaceAt);
     this.thread.update(this.strand.points,this.root.matrixWorld);
   }
-  reset() { this.root.position.set(-0.3,0.65,0); this.root.quaternion.identity();
+  reset() { this.root.position.set(-0.3,0.74,0);
+    this.root.quaternion.setFromAxisAngle(new THREE.Vector3(-Math.cos(NEEDLE_ARC),0,-Math.sin(NEEDLE_ARC)),Math.PI/2);
     if(this.thread) {
       this.thread.visible=true;this.root.updateWorldMatrix(true,false);
       const eye=this.points[0].clone().applyMatrix4(this.root.matrixWorld);

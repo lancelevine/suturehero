@@ -44,12 +44,12 @@ export class FreeKnotPractice {
     }
     if(best)this.grips.set(tool.id,{strand:best.strand,index:best.index,local:tool.root.worldToLocal(best.strand.points[best.index].clone())});
   }
-  update(dt:number,tools:readonly Instrument[]) {
+  update(dt:number,tools:readonly Instrument[],blockedGrips?:ReadonlySet<string>) {
     if(!this.active)return;
     for(const tool of tools) {
       tool.root.updateWorldMatrix(true,false);
       if(tool.openness>=0.45)this.grips.delete(tool.id);
-      if(tool.openness<=0.2 && (this.lastOpen.get(tool.id)??1)>0.2 && !this.grips.has(tool.id))this.grasp(tool);
+      if(tool.openness<=0.2 && (this.lastOpen.get(tool.id)??1)>0.2 && !this.grips.has(tool.id) && !blockedGrips?.has(tool.id))this.grasp(tool);
       this.lastOpen.set(tool.id,tool.openness);
     }
     this.contact.configure(tools);

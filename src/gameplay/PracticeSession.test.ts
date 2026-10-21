@@ -50,7 +50,7 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   expect(session.pull.phase).toBe('complete'); expect(session.pull.threadProgress).toBe(1);
   needle.root.updateWorldMatrix(true,false);
   for(const point of needle.points)expect(point.clone().applyMatrix4(needle.root.matrixWorld).y).toBeGreaterThan(0.43);
-  expect(session.canBeginKnot).toBe(true); expect(session.knotAction()).toBe(true); expect(session.wound.closure).toBe(0);
+  expect(session.canBeginKnot).toBe(true); expect(session.knotAction()).toBe(true);expect(session.canPositionForceps).toBe(false); expect(session.wound.closure).toBe(0);
   expect(grasp.holder).toBeNull(); expect(session.canBeginPass).toBe(false);
   const longSeed=vi.spyOn(session.knotSlack.long,'reset'),shortSeed=vi.spyOn(session.knotSlack.short,'reset');
   command={translation:[0,0,0],rotation:[0,0,0],jaw:0};
@@ -135,4 +135,15 @@ it('pauses needle advancement when the skin grip opens and supports repositionin
   session.positionForceps();left.openness=0.1;session.update(0.01);left.root.position.y+=0.15;session.update(0.01);
   session.update(0.05);expect(session.pass.angle).toBeGreaterThan(angle);
   session.reset();expect(session.eversion.active).toBe(false);expect(session.canBeginPass).toBe(true);
+});
+it('supports skin eversion before starting, and in the free lab without taking a thread grasp',()=>{
+ const left=new Instrument('left',0),right=new Instrument('right',0);
+ const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(new SutureModel()));
+ for(const free of [false,true]){
+  if(free){session.beginFreeTying();left.openness=0.7;session.update(0.01);}
+  expect(session.positionForceps()).toBe(true);left.openness=0.1;session.update(0.01);
+  expect(session.eversion.held).toBe(true);expect(session.preparingEdge).toBe(false);expect(session.pass.phase).toBe('idle');
+  left.root.position.y+=0.15;session.update(0.01);expect(session.eversion.ready).toBe(true);expect(session.freeKnot.grips.has('left')).toBe(false);
+  left.openness=0.7;session.update(0.01);expect(session.eversion.held).toBe(false);session.reset();
+ }
 });

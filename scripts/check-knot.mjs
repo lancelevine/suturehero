@@ -9,7 +9,7 @@ try {
   await prepareEversion(page);
   if(await page.locator('#close-up').getAttribute('aria-pressed')==='false')await page.locator('#close-up').click();
   await page.keyboard.down('u');
-  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});
+  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000}).catch(async error=>{console.error(await page.locator('.exercise-feedback').innerText(),await page.locator('#grasp-status').innerText());throw error;});
   await page.keyboard.up('u');
   await page.keyboard.down('x');await page.waitForFunction(()=>!document.querySelector('#position-forceps').disabled,{},{timeout:15000});await page.keyboard.up('x');
   await page.locator('#grip-point').fill('85'); await page.locator('#grip-point').dispatchEvent('input');

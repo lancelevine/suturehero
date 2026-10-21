@@ -1,4 +1,4 @@
-import { steelTexture } from '../visuals/surfaceTextures';
+import { steelSurface } from '../visuals/surfaceTextures';
 import { ForcepsArms } from './ForcepsArms';
 import * as THREE from 'three';
 import type { ToolCommand, ToolId } from '../input/types';
@@ -11,7 +11,8 @@ export class Instrument {
   readonly kind: 'forceps' | 'needle-driver';
   constructor(readonly id: ToolId, color: number) {
     this.kind = id === 'left' ? 'forceps' : 'needle-driver';
-    const steel = new THREE.MeshStandardMaterial({color:0xb6c6ce,metalness:0.85,roughness:0.35,bumpMap:steelTexture(),bumpScale:0.002,roughnessMap:steelTexture()});
+    const maps=steelSurface();
+    const steel = new THREE.MeshStandardMaterial({color:0xffffff,metalness:0.8,roughness:0.5,map:maps.color,bumpMap:maps.height,bumpScale:0.0015,roughnessMap:maps.roughness});
     const accent = new THREE.MeshStandardMaterial({color,metalness:0.4,roughness:0.4});
     // Local +Z runs from the working tip toward the handle; the root is the tip pivot.
     if(this.kind==='needle-driver') {

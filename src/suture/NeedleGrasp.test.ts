@@ -7,7 +7,8 @@ function setup() {
   const needle=new SutureModel(); const left=new Instrument('left',0); const right=new Instrument('right',0);
   const scene=new THREE.Scene(); scene.add(needle.root,left.root,right.root);
   left.root.quaternion.identity();
-  left.root.position.copy(needle.root.position).add(new THREE.Vector3(0.3,0,-0.05));
+  needle.root.updateWorldMatrix(true,false);
+  left.root.position.copy(needle.points[0].clone().applyMatrix4(needle.root.matrixWorld)).sub(new THREE.Vector3(0,0,0.05));
   const grasp=new NeedleGrasp(needle); return {needle,left,right,grasp};
 }
 describe('needle grasp constraint',()=>{
@@ -28,7 +29,7 @@ describe('needle grasp constraint',()=>{
     left.openness=0.7; grasp.update([left,right]); expect(grasp.holder).toBeNull();
     const released=needle.root.position.clone(); left.root.position.x-=2; grasp.update([left,right]);
     expect(needle.root.position.distanceTo(released)).toBeLessThan(1e-8);
-    right.root.quaternion.identity(); right.root.position.copy(released).add(new THREE.Vector3(0.3,0,-0.05));
+    right.root.quaternion.identity(); needle.root.updateWorldMatrix(true,false);right.root.position.copy(needle.points[0].clone().applyMatrix4(needle.root.matrixWorld)).sub(new THREE.Vector3(0,0,0.05));
     grasp.update([left,right]); right.openness=0.1; grasp.update([left,right]); expect(grasp.holder).toBe(right);
     grasp.reset(); expect(grasp.holder).toBeNull(); expect(needle.root.position.x).toBe(-0.3);
   });

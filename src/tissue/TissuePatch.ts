@@ -18,7 +18,7 @@ export class TissuePatch {
   // Keep the established surface height and needle entry coordinates. Every
   // layer is split completely; no solid base or wound strip bridges the gap.
   const layers=[
-    {name:'epidermis',...TISSUE_LAYERS.epidermis,material:new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.9,map:skinMaps.color,bumpMap:skinMaps.height,bumpScale:0.025,roughnessMap:skinMaps.roughness})},
+    {name:'epidermis',...TISSUE_LAYERS.epidermis,material:new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.86,map:skinMaps.color,bumpMap:skinMaps.height,bumpScale:0.035,roughnessMap:skinMaps.roughness})},
     {name:'dermis',...TISSUE_LAYERS.dermis,material:new THREE.MeshStandardMaterial({map:dermis.color,bumpMap:dermis.height,bumpScale:0.009,roughness:0.85})},
     {name:'subcutaneous-fat',...TISSUE_LAYERS.fat,material:new THREE.MeshStandardMaterial({map:fat.color,bumpMap:fat.height,bumpScale:0.018,roughness:0.8})},
   ];

@@ -21,11 +21,12 @@ export class PracticeSession {
     this.freeKnot.begin(this.instruments);
   }
   readonly eversion=new EdgeEversion();
-  get preparingEdge(){return this.eversion.active && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
-  private updateEversion(dt:number){
+  private guidedEdge=false;
+  get preparingEdge(){return this.guidedEdge && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
+  private updateEversion(dt:number,allowGrasp=true){
     const forceps=this.instruments.find(t=>t.kind==='forceps');if(!forceps)return;
     forceps.root.updateWorldMatrix(true,false);
-    this.eversion.update({jaw:forceps.root.localToWorld(new THREE.Vector3(0,0,0.05)),rotation:forceps.root.getWorldQuaternion(new THREE.Quaternion()),openness:forceps.openness},dt,this.pass.phase!=='complete');
+    this.eversion.update({jaw:forceps.root.localToWorld(new THREE.Vector3(0,0,0.05)),rotation:forceps.root.getWorldQuaternion(new THREE.Quaternion()),openness:forceps.openness},dt,allowGrasp && this.grasp?.holder!==forceps && !this.grasp?.findGrip(forceps,this.pass.phase==='complete'),this.preparingEdge || this.pass.phase==='passing');
   }
   readonly placement=new NeedlePlacement();
   readonly pass=new NeedlePass();
@@ -41,11 +42,11 @@ export class PracticeSession {
   get selectedGripPoint() { return this.grasp?.needle.getPointAt(this.gripFraction)??new THREE.Vector3(); }
   constructor(private input: InputDevice, readonly instruments: readonly Instrument[], readonly grasp?: NeedleGrasp) {}
   get canBeginPass() {
-    return !this.freeKnot.active && !this.knot.active && !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted') && (!this.eversion.active || this.eversion.ready);
+    return !this.freeKnot.active && !this.knot.active && !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted') && (!this.guidedEdge || this.eversion.ready);
   }
   beginPass() {
     if(!this.canBeginPass || !this.grasp) return false;
-    if(!this.eversion.active){this.grasp.reset();this.placement.reset();this.eversion.begin();return true;}
+    if(!this.guidedEdge){this.guidedEdge=true;this.grasp.reset();this.placement.reset();this.eversion.begin();return true;}
     const driver=this.instruments.find(tool=>tool.kind==='needle-driver');
     if(!driver) return false;
     this.wound.setDermalBites(null,null);this.grasp.reset(); this.pull.reset(); this.placement.reset(); this.pass.begin();
@@ -59,16 +60,19 @@ export class PracticeSession {
     driver.update({translation:[0,0,0],rotation:[0,0,0],jaw:0},0);
     this.grasp.attach(driver); return true;
   }
+  get positioningSkin(){return !this.knot.active && (this.preparingEdge || this.freeKnot.active || this.pass.phase==='idle' || this.pass.phase==='passing' || this.pull.phase==='complete');}
   get canPositionForceps() {
-    return (this.preparingEdge || this.pass.phase==='passing')?!this.eversion.held:!!this.grasp && !this.eversion.held && this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp.holder?.kind!=='forceps';
+    if(this.knot.active)return false;
+    return this.positioningSkin?!this.eversion.held && !this.freeKnot.grips.has('left') && this.grasp?.holder?.kind!=='forceps':!!this.grasp && !this.eversion.held && this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp.holder?.kind!=='forceps';
   }
   positionForceps() {
-    if(!this.canPositionForceps || !this.grasp) return false;
-    if(this.preparingEdge || this.pass.phase==='passing'){
+    if(!this.canPositionForceps) return false;
+    if(this.positioningSkin){
       const tool=this.instruments.find(t=>t.kind==='forceps');if(!tool)return false;
       tool.reset();tool.openness=0.65;tool.root.position.copy(this.eversion.target).sub(new THREE.Vector3(0,0,0.05).applyQuaternion(tool.root.quaternion));
       tool.update({translation:[0,0,0],rotation:[0,0,0],jaw:0},0);this.updateEversion(0);return true;
     }
+    if(!this.grasp)return false;
     const forceps=this.instruments.find(tool=>tool.kind==='forceps');
     if(!forceps) return false;
     forceps.reset(); forceps.openness=0.65;
@@ -124,7 +128,8 @@ export class PracticeSession {
     const step=Math.max(0,Math.min(dt,0.05));
     if(this.freeKnot.active) {
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
-      this.freeKnot.update(step,this.instruments);return;
+      this.freeKnot.update(step,this.instruments,this.eversion.held?new Set(['left']):undefined);
+      this.updateEversion(step,!this.freeKnot.grips.has('left'));return;
     }
     if(this.knot.active) {
       const left=this.instruments.find(t=>t.id==='left')!,right=this.instruments.find(t=>t.id==='right')!;
@@ -167,7 +172,7 @@ export class PracticeSession {
         loopMaterial:this.knotSlack.material.loop+this.knotSlack.material.retained,
         anchorError:Math.max(this.knotSlack.short.points[0].distanceTo(knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop)),this.knotSlack.long.points[0].distanceTo(loop.end)),
         finite:[...this.knotSlack.short.points,...this.knotSlack.long.points].every(p=>p.toArray().every(Number.isFinite)),
-      });return;
+      });this.updateEversion(step,false);return;
     }
     if(this.preparingEdge){
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
@@ -214,5 +219,5 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
+  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }
