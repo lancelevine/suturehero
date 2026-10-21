@@ -4,6 +4,9 @@ import { ThreadStrand } from './ThreadStrand';
 import { threadSurfaceAt } from './TissueThreadGuide';
 export interface KnotSlackFrame {
   enabled:boolean;
+  releaseShort?:boolean;
+  releaseLong?:boolean;
+  holdMaterial?:boolean;
   loopLength?:number;
   seating?:number;
   seatedThrows?:number;
@@ -21,23 +24,26 @@ export class KnotSlack {
   enabled=false;
   private initialized=false;
   private availableSlack=0;
+  private releasedEnds=0;
   private seed(strand:ThreadStrand,a:THREE.Vector3,b:THREE.Vector3) {
     const bow=Math.sqrt(Math.max(0,strand.length**2-a.distanceToSquared(b)))/2;
     const middle=a.clone().lerp(b,0.5);middle.y=Math.max(0.45,middle.y-bow*0.8);middle.z+=bow*0.6;
     strand.reset([a,middle,b]);
   }
   update(dt:number,frame:KnotSlackFrame) {
-    this.enabled=frame.enabled;
+    this.enabled=frame.enabled;this.releasedEnds=Number(!!frame.releaseShort)+Number(!!frame.releaseLong);
     if(!this.enabled) {this.initialized=false;return;}
-    this.material.update(frame.loopLength??0,frame.shortStart.distanceTo(frame.shortEnd),frame.longStart.distanceTo(frame.longEnd),{dt,seating:frame.seating??0,seatedThrows:frame.seatedThrows??0,retainedLength:frame.retainedLength??0});
+    if(!frame.holdMaterial)this.material.update(frame.loopLength??0,frame.shortStart.distanceTo(frame.shortEnd),frame.longStart.distanceTo(frame.longEnd),{dt,seating:frame.seating??0,seatedThrows:frame.seatedThrows??0,retainedLength:frame.retainedLength??0});
     this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);
     if(!this.initialized) {
       this.seed(this.short,frame.shortStart,frame.shortEnd);this.seed(this.long,frame.longStart,frame.longEnd);this.initialized=true;
     }
-    this.short.advance(dt,new Map([[0,frame.shortStart],[this.short.count-1,frame.shortEnd]]),threadSurfaceAt);
-    this.long.advance(dt,new Map([[0,frame.longStart],[this.long.count-1,frame.longEnd]]),threadSurfaceAt);
+    const shortPins=new Map([[0,frame.shortStart]]),longPins=new Map([[0,frame.longStart]]);
+    if(!frame.releaseShort)shortPins.set(this.short.count-1,frame.shortEnd);
+    if(!frame.releaseLong)longPins.set(this.long.count-1,frame.longEnd);
+    this.short.advance(dt,shortPins,threadSurfaceAt);this.long.advance(dt,longPins,threadSurfaceAt);
     this.availableSlack=Math.max(0,this.short.length-frame.shortStart.distanceTo(frame.shortEnd))+Math.max(0,this.long.length-frame.longStart.distanceTo(frame.longEnd));
   }
-  get state() {if(this.material.overreach)return 'Thread at reach limit';return this.availableSlack>0.3?'Free spans slack':this.availableSlack>0.2?'Slack reducing':'Free spans nearly taut';}
-  reset() {this.enabled=false;this.initialized=false;this.availableSlack=0;this.material.reset();this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);}
+  get state() {if(this.releasedEnds)return this.releasedEnds===2?'Both thread ends released':'One thread end released';if(this.material.overreach)return 'Thread at reach limit';return this.availableSlack>0.3?'Free spans slack':this.availableSlack>0.2?'Slack reducing':'Free spans nearly taut';}
+  reset() {this.enabled=false;this.initialized=false;this.availableSlack=0;this.releasedEnds=0;this.material.reset();this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);}
 }

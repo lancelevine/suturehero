@@ -1,3 +1,4 @@
+import { KnotReleaseCheck } from './KnotReleaseCheck';
 import { KnotSlack } from '../suture/KnotSlack';
 import { knotLoop, knotTailContact, SEATED_LOOP_LENGTH } from '../suture/knotGeometry';
 import { WoundApproximation } from '../tissue/WoundApproximation';
@@ -14,6 +15,7 @@ export class PracticeSession {
   readonly pass=new NeedlePass();
   readonly pull=new PullThrough();
   readonly knot=new GuidedKnot();
+  readonly releaseCheck=new KnotReleaseCheck();
   readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
   gripFraction=0.9;
@@ -91,6 +93,7 @@ export class PracticeSession {
       const lc=this.input.sample('left'),rc=this.input.sample('right');
       for(const tool of this.instruments) tool.update({...this.input.sample(tool.id),translation:[0,0,0],rotation:[0,0,0]},step);
       this.knot.update(lc,rc,left.openness,right.openness,step);
+      if(this.knot.phase==='complete')this.releaseCheck.release(left.openness,right.openness);
       const seating=this.knot.phase==='seating'?THREE.MathUtils.smoothstep(this.knot.seating,0.3,1):0;
       const target=this.knot.throws>=2?1:this.knot.throws===1?0.85+0.15*seating:0.85*seating;
       this.wound.update(target,step); this.placeKnotTools();
@@ -100,12 +103,21 @@ export class PracticeSession {
       const tail=this.knot.phase==='seating' || this.knot.phase==='between' || this.knot.phase==='complete'?rightJaw:this.knot.tail;
       this.knotSlack.update(step,{
         enabled:true,
+        releaseShort:this.releaseCheck.rightReleased,
+        releaseLong:this.releaseCheck.leftReleased,
+        holdMaterial:this.releaseCheck.anyReleased,
         seating:this.knot.seating,
         seatedThrows:this.knot.phase==='complete'?1:this.knot.phase==='between'?0:this.knot.throws,
         retainedLength:this.knot.throws>0 && this.knot.phase!=='between'?SEATED_LOOP_LENGTH:0,
         loopLength:loop.length,
         shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop),shortEnd:tail,
         longStart:loop.end,longEnd:leftJaw,
+      });
+      if(this.knot.phase==='complete')this.releaseCheck.observe(step,{
+        closure:this.wound.closure,shortMaterial:this.knotSlack.short.length,
+        loopMaterial:this.knotSlack.material.loop+this.knotSlack.material.retained,
+        anchorError:Math.max(this.knotSlack.short.points[0].distanceTo(knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop)),this.knotSlack.long.points[0].distanceTo(loop.end)),
+        finite:[...this.knotSlack.short.points,...this.knotSlack.long.points].every(p=>p.toArray().every(Number.isFinite)),
       });return;
     }
     const constrained=this.pass.phase==='passing';
@@ -146,5 +158,5 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset(); this.knotSlack.reset(); }
+  reset() { for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset(); this.knotSlack.reset(); this.releaseCheck.reset(); }
 }

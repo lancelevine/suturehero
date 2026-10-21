@@ -29,8 +29,16 @@ try {
     if(wrap==='r')await page.getByRole('button',{name:'Next opposing throw',exact:true}).click();
   }
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Local wound edges approximated'),{},{timeout:10000});
+  await page.keyboard.down('x');
+  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Open right driver with period'),{},{timeout:10000});
+  await page.keyboard.up('x');
+  assert.match(await page.locator('#exercise-readout').innerText(),/Release check: waiting/);
+  await page.keyboard.down('.');
+  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Release check: observing'),{},{timeout:10000});
+  await page.keyboard.up('.');
+  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Release check: passed'),{},{timeout:45000});
   assert.deepEqual(errors,[],'Browser runtime errors');
-  assert.match(await page.locator('#exercise-title').innerText(),/square-knot sequence complete/);
+  assert.match(await page.locator('#exercise-title').innerText(),/Release-and-hold check complete/);
   assert.match(await page.locator('#exercise-readout').innerText(),/2 \/ 2 opposing throws seated/);
   console.log(JSON.stringify({result:await page.locator('#exercise-title').innerText(),readout:await page.locator('#exercise-readout').innerText(),errors}));
 } finally {await browser.close();}

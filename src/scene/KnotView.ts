@@ -27,7 +27,9 @@ export class KnotView {
       this.shortSpan.update(simulation.short.points,this.root.matrixWorld);this.longSpan.update(simulation.long.points,this.root.matrixWorld);
     }
     const key=[knot.phase,knot.throws,knot.wrap.toFixed(3),knot.seating.toFixed(3),entry.x.toFixed(4),exit.x.toFixed(4),simulation.enabled,...right.root.matrixWorld.elements,...leftJaw.toArray(),...eye.toArray()].join(':');
-    if(key===this.stamp)return;this.stamp=key;
+    const liveEnd=simulation.enabled?simulation.long.points.at(-1)!:leftJaw;
+    const liveKey=key+':'+liveEnd.toArray().join(':');
+    if(liveKey===this.stamp)return;this.stamp=liveKey;
     const loop=knotLoop(knot,right.root.matrixWorld);
     const tail=knot.phase==='seating' || knot.phase==='between' || knot.phase==='complete'?rightJaw:knot.tail;
     const contact=knotTailContact(knot,entry,loop);
@@ -42,7 +44,8 @@ export class KnotView {
     points.push(...loop.points);
     if(simulation.enabled) {
       if(loop.points.length===0)points.push(loop.end);
-      const tailPoints=[leftJaw,leftJaw.clone().lerp(eye,0.5).add(new THREE.Vector3(0,-0.2,0.15)),eye.clone()];
+      const strandEnd=simulation.long.points.at(-1)!;
+      const tailPoints=[strandEnd.clone(),strandEnd.clone().lerp(eye,0.5).add(new THREE.Vector3(0,-0.2,0.15)),eye.clone()];
       this.continuation.geometry.dispose();this.continuation.geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tailPoints),40,0.012,6,false);
     } else points.push(loop.center.clone().lerp(leftJaw,0.5).add(new THREE.Vector3(0,-0.15*slack,0.08*slack)),leftJaw,
       leftJaw.clone().lerp(eye,0.5).add(new THREE.Vector3(0,-0.2,0.15)),eye.clone());
