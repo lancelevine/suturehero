@@ -37,8 +37,15 @@ try {
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Release check: observing'),{},{timeout:10000});
   await page.keyboard.up('.');
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Release check: passed'),{},{timeout:45000});
+  await page.getByRole('button',{name:'Position driver at released tail',exact:true}).click();
+  await page.keyboard.down(',');
+  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Hold Left arrow'),{},{timeout:10000});
+  await page.keyboard.up(',');await page.keyboard.down('ArrowLeft');
+  await page.waitForFunction(()=>Number(document.querySelector('#exercise-readout').textContent.match(/Pull load: ([0-9.]+)/)?.[1])>=0.25,{},{timeout:60000});
+  await page.keyboard.up('ArrowLeft');
+  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Gentle pull check complete'),{},{timeout:15000});
   assert.deepEqual(errors,[],'Browser runtime errors');
-  assert.match(await page.locator('#exercise-title').innerText(),/Release-and-hold check complete/);
+  assert.match(await page.locator('#exercise-title').innerText(),/Gentle pull check complete/);
   assert.match(await page.locator('#exercise-readout').innerText(),/2 \/ 2 opposing throws seated/);
   console.log(JSON.stringify({result:await page.locator('#exercise-title').innerText(),readout:await page.locator('#exercise-readout').innerText(),errors}));
 } finally {await browser.close();}

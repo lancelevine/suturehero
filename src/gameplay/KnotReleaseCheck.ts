@@ -30,7 +30,7 @@ export class KnotReleaseCheck {
   }
   get instruction() {
     if(this.state==='failed')return 'Release check detected loosening · Reset practice to try again';
-    if(this.state==='passed')return 'Release-and-hold check complete ✓ · Guided knot stayed seated';
+    if(this.state==='passed')return 'Release-and-hold check complete ✓ · Guided knot stayed seated · Click Position driver at released tail';
     if(this.state==='observing')return 'Release check · Hands off while the free ends settle';
     return `Guided square-knot sequence complete · ${this.leftReleased?'Open right driver with period':this.rightReleased?'Open left forceps with X':'Open forceps X and driver period'} for release check`;
   }
