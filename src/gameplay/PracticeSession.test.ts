@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { PracticeSession } from './PracticeSession';
 import { Instrument } from '../instruments/Instrument';
@@ -46,15 +46,16 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   for(const point of needle.points)expect(point.clone().applyMatrix4(needle.root.matrixWorld).y).toBeGreaterThan(0.43);
   expect(session.canBeginKnot).toBe(true); expect(session.knotAction()).toBe(true); expect(session.wound.closure).toBe(0);
   expect(grasp.holder).toBeNull(); expect(session.canBeginPass).toBe(false);
+  const longSeed=vi.spyOn(session.knotSlack.long,'reset'),shortSeed=vi.spyOn(session.knotSlack.short,'reset');
   command={translation:[0,0,0],rotation:[0,0,0],jaw:0};
   for(const direction of [1,-1]) {
     leftCommand={translation:[0,0,0],rotation:[0,0,direction],jaw:0};
     for(let i=0;i<50;i++)session.update(0.05);
     expect(session.knot.phase).toBe('tail');
-    expect(session.knotSlack.enabled).toBe(direction===1);
-    if(direction===1) {
+    expect(session.knotSlack.enabled).toBe(true);
+    {
       expect(session.knotSlack.material.overreach).toBe(false);
-      expect(session.knotSlack.short.length+session.knotSlack.long.length+session.knotSlack.material.loop).toBeCloseTo(session.knotSlack.material.total,12);
+      expect(session.knotSlack.short.length+session.knotSlack.long.length+session.knotSlack.material.loop+session.knotSlack.material.retained).toBeCloseTo(session.knotSlack.material.total,12);
     }
     if(direction===1)expect(session.knotSlack.short.points[0].distanceTo(session.wound.deformPoint(session.pass.entry))).toBeLessThan(1e-8);
     if(direction===-1)expect(session.wound.closure).toBeGreaterThan(0.8);
@@ -67,6 +68,8 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
     for(let i=0;i<40;i++)session.update(0.05);
     if(direction===1) {expect(session.knot.phase).toBe('between'); expect(session.wound.closure).toBeGreaterThan(0.75); expect(session.knotAction()).toBe(true);}
   }
+  expect(longSeed).toHaveBeenCalledTimes(1);expect(shortSeed).toHaveBeenCalledTimes(1);
+  expect(session.knotSlack.enabled).toBe(true);expect(session.knotSlack.material.retained).toBeGreaterThan(0);
   expect(session.knot.phase).toBe('complete'); expect(session.knot.throws).toBe(2); expect(session.wound.closure).toBeGreaterThan(0.95);
   session.reset(); expect(session.knotSlack.enabled).toBe(false); expect(session.wound.closure).toBe(0); expect(session.knot.phase).toBe('idle'); expect(session.pull.phase).toBe('waiting'); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
 });

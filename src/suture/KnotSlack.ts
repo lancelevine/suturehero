@@ -5,12 +5,15 @@ import { threadSurfaceAt } from './TissueThreadGuide';
 export interface KnotSlackFrame {
   enabled:boolean;
   loopLength?:number;
+  seating?:number;
+  seatedThrows?:number;
+  retainedLength?:number;
   shortStart:THREE.Vector3;
   shortEnd:THREE.Vector3;
   longStart:THREE.Vector3;
   longEnd:THREE.Vector3;
 }
-/** Two free spans for the first throw; the winding and knot topology remain guided. */
+/** Persistent free spans through both throws; the winding and knot topology remain guided. */
 export class KnotSlack {
   readonly material=new KnotMaterial();
   readonly short=new ThreadStrand(1.35,32);
@@ -26,7 +29,7 @@ export class KnotSlack {
   update(dt:number,frame:KnotSlackFrame) {
     this.enabled=frame.enabled;
     if(!this.enabled) {this.initialized=false;return;}
-    this.material.update(frame.loopLength??0,frame.shortStart.distanceTo(frame.shortEnd),frame.longStart.distanceTo(frame.longEnd));
+    this.material.update(frame.loopLength??0,frame.shortStart.distanceTo(frame.shortEnd),frame.longStart.distanceTo(frame.longEnd),{dt,seating:frame.seating??0,seatedThrows:frame.seatedThrows??0,retainedLength:frame.retainedLength??0});
     this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);
     if(!this.initialized) {
       this.seed(this.short,frame.shortStart,frame.shortEnd);this.seed(this.long,frame.longStart,frame.longEnd);this.initialized=true;
@@ -36,5 +39,5 @@ export class KnotSlack {
     this.availableSlack=Math.max(0,this.short.length-frame.shortStart.distanceTo(frame.shortEnd))+Math.max(0,this.long.length-frame.longStart.distanceTo(frame.longEnd));
   }
   get state() {if(this.material.overreach)return 'Thread at reach limit';return this.availableSlack>0.3?'Free spans slack':this.availableSlack>0.2?'Slack reducing':'Free spans nearly taut';}
-  reset() {this.enabled=false;this.initialized=false;this.availableSlack=0;this.material.update(0,0,0);this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);}
+  reset() {this.enabled=false;this.initialized=false;this.availableSlack=0;this.material.reset();this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);}
 }

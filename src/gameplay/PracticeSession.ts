@@ -1,5 +1,5 @@
 import { KnotSlack } from '../suture/KnotSlack';
-import { knotLoop, knotTailContact } from '../suture/knotGeometry';
+import { knotLoop, knotTailContact, SEATED_LOOP_LENGTH } from '../suture/knotGeometry';
 import { WoundApproximation } from '../tissue/WoundApproximation';
 import { GuidedKnot } from '../suture/GuidedKnot';
 import { PullThrough } from '../suture/PullThrough';
@@ -99,7 +99,10 @@ export class PracticeSession {
       const loop=knotLoop(this.knot,right.root.matrixWorld);
       const tail=this.knot.phase==='seating' || this.knot.phase==='between' || this.knot.phase==='complete'?rightJaw:this.knot.tail;
       this.knotSlack.update(step,{
-        enabled:this.knot.throws===0 || this.knot.phase==='between',
+        enabled:true,
+        seating:this.knot.seating,
+        seatedThrows:this.knot.phase==='complete'?1:this.knot.phase==='between'?0:this.knot.throws,
+        retainedLength:this.knot.throws>0 && this.knot.phase!=='between'?SEATED_LOOP_LENGTH:0,
         loopLength:loop.length,
         shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop),shortEnd:tail,
         longStart:loop.end,longEnd:leftJaw,

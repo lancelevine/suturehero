@@ -42,3 +42,14 @@ it('refreshes the wrap when the driver moves to the tail without changing knot p
   const path=thread.geometry.parameters.path as THREE.CatmullRomCurve3;
   expect(path.points.some(p=>p.distanceTo(expected)<1e-8)).toBe(true);
 });
+it('keeps the first seated mesh and geometry while the opposing throw forms and completes',()=>{
+  const knot=new GuidedKnot();knot.phase='between';knot.throws=1;knot.seating=1;knot.wrap=1;
+  const tools=[new Instrument('left',0),new Instrument('right',0)],view=new KnotView(),simulation=new KnotSlack();
+  const update=()=>view.update(knot,tools,new THREE.Vector3(0.27,0.43,0),new THREE.Vector3(-0.27,0.43,0),new THREE.Vector3(3,0.1,1),simulation);
+  update();const seated=view.root.children[4],first=seated.children[0] as THREE.Mesh;
+  const geometry=first.geometry;knot.nextThrow();knot.wrap=0.5;update();
+  expect(seated.children[0]).toBe(first);expect(first.geometry).toBe(geometry);
+  knot.throws=2;knot.phase='complete';knot.seating=1;update();
+  expect(seated.children).toHaveLength(2);expect(seated.children[0]).toBe(first);expect(first.geometry).toBe(geometry);
+  knot.reset();knot.begin();update();expect(seated.children).toHaveLength(0);
+});

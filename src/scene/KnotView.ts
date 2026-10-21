@@ -34,7 +34,8 @@ export class KnotView {
     const slack=1-knot.takeUp;
     const tailBend=tail.clone().lerp(contact,0.5).add(new THREE.Vector3(0,0.12*slack,0.18*slack));
     const prefix=[entry.clone(),new THREE.Vector3(0,0.15,0),exit.clone()];
-    if(contact.distanceToSquared(entry)>1e-12)prefix.unshift(contact);
+    if(knot.throws>0)prefix.unshift(new THREE.Vector3(0.06,0.47,0));
+    if(contact.distanceToSquared(prefix[0])>1e-12)prefix.unshift(contact);
     const points=simulation.enabled?prefix:[tail.clone(),tailBend,...prefix];
     // Retain the seated knot connection while the opposing throw is wrapped.
     if(knot.throws>0 && knot.phase!=='between' && knot.phase!=='complete')points.push(new THREE.Vector3(0.06,0.47,0));
@@ -50,8 +51,8 @@ export class KnotView {
     this.thread.geometry.dispose();this.thread.geometry=geometry;
     if(this.count!==knot.throws) {
       this.count=knot.throws;
-      for(const child of [...this.seated.children]) {this.seated.remove(child);(child as THREE.Mesh).geometry.dispose();}
-      for(let n=0;n<knot.throws;n++) {
+      while(this.seated.children.length>knot.throws) {const child=this.seated.children.at(-1) as THREE.Mesh;this.seated.remove(child);child.geometry.dispose();}
+      for(let n=this.seated.children.length;n<knot.throws;n++) {
         const crossing=Array.from({length:41},(_,i)=>{const a=i/40*Math.PI*2;return new THREE.Vector3(Math.cos(a)*0.06,0.47+n*0.025+Math.sin(a*2)*(n===0?1:-1)*0.012,Math.sin(a)*0.035);});
         const mesh=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(crossing),40,0.012,6,false),this.thread.material);mesh.castShadow=true;this.seated.add(mesh);
       }

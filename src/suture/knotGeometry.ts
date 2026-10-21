@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { tighteningPose } from './LoopTightening';
 import type { GuidedKnot } from './GuidedKnot';
+export const SEATED_LOOP_LENGTH=96*0.06*Math.sin(Math.PI/48);
 /** Shared assisted loop geometry keeps simulation anchors and rendering aligned. */
 export function knotLoop(knot:GuidedKnot,driverWorld:THREE.Matrix4) {
   const seating=knot.phase==='seating'?knot.seating:knot.phase==='between' || knot.phase==='complete'?1:0;
@@ -24,8 +25,9 @@ export function knotLoop(knot:GuidedKnot,driverWorld:THREE.Matrix4) {
 
 /** Assisted short-side routing: feed the tail into the loop as the throw seats. */
 export function knotTailContact(knot:GuidedKnot,entry:THREE.Vector3,loop?:ReturnType<typeof knotLoop>) {
-  if(knot.throws===0 && knot.phase==='seating' && loop?.points.length) {
-    return entry.clone().lerp(loop.points[0],THREE.MathUtils.smoothstep(knot.seating,0,0.3));
+  if(knot.phase==='seating' && loop?.points.length) {
+    const base=knot.throws>0?new THREE.Vector3(0.06,0.47,0):entry.clone();
+    return base.lerp(loop.points[0],THREE.MathUtils.smoothstep(knot.seating,0,0.3));
   }
   const seating=knot.throws>0?1:knot.phase==='seating'?knot.seating:0;
   return entry.clone().lerp(new THREE.Vector3(0.06,0.47,0),seating);
