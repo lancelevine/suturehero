@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright-core';
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
+try {
+  const page=await browser.newPage({viewport:{width:1440,height:1180}}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:'Free tying lab',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Forceps: holding'));
+  assert.equal(await page.locator('#begin-pass').isDisabled(),true);
+  await page.keyboard.down('d');await page.keyboard.down('PageUp');await page.keyboard.down('r');
+  await page.waitForTimeout(1200);
+  await page.keyboard.up('d');await page.keyboard.up('PageUp');await page.keyboard.up('r');
+  if(process.env.SUTURE_SCREENSHOT)await page.screenshot({path:process.env.SUTURE_SCREENSHOT});
+  await page.keyboard.down('x');
+  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Forceps: free'),{},{timeout:15000});
+  await page.keyboard.up('x');
+  assert.doesNotMatch(await page.locator('#exercise-readout').innerText(),/NaN|Infinity/);
+  for(const width of [760,1100,1440]) {
+    await page.setViewportSize({width,height:1180});await page.waitForTimeout(400);
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Free lab overflow');
+  }
+  await page.getByRole('button',{name:'Reset practice',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('#begin-pass').disabled);
+  assert.equal(await page.locator('#free-note').isVisible(),false);
+  await page.getByRole('button',{name:'Start guided pass',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('U advances'));
+  assert.deepEqual(errors,[]);console.log('Free lab: movement inputs, release, finite readout, resize and guided reset passed.');
+} finally {await browser.close();}
