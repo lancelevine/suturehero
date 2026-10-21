@@ -15,15 +15,18 @@ it('grasps only nearby material on jaw closure, follows full tool pose, releases
   right.openness=0.7;model.update(1/60,tools);expect(model.grips.has('right')).toBe(false);
   model.reset();expect(model.active).toBe(false);expect(model.grips.size).toBe(0);
 });
-it('does not award a scripted wrap when circling the driver with loose thread',()=>{
+it('lays and retains a contact wrap through actual forceps movement',()=>{
   const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools);
-  const left=tools[0],driver=tools[1];driver.root.position.set(0,1.4,-0.65);
+  const left=tools[0],driver=tools[1];driver.root.position.set(0,1.25,-0.65);
   for(let i=0;i<=480;i++) {
     const a=i/480*Math.PI*2;
-    left.root.position.set(-0.9*Math.cos(a),1.4+0.9*Math.sin(a),0.55);
+    left.root.position.set(-0.7*Math.cos(a),1.25+0.7*Math.sin(a),0.55);
     model.update(1/120,tools);
   }
-  expect(model.winding).toBe(0);
+  expect(Math.abs(model.winding)).toBeGreaterThan(0.75);
+  for(let i=0;i<240;i++)model.update(1/120,tools);
+  expect(model.long.measuredLength).toBeCloseTo(model.long.length,1);
+  expect(Math.abs(model.winding)).toBeGreaterThan(0.75);
   expect(model.long.points.every(p=>p.toArray().every(Number.isFinite))).toBe(true);
   expect(model.reachLimited).toBe(false);
 });
@@ -37,4 +40,15 @@ it('passes independent input commands through to both instruments without a knot
   expect(tools[1].root.position.y-starts[1].y).toBeCloseTo(0.075);
   expect(tools[0].root.quaternion.z).not.toBe(0);expect(session.knot.phase).toBe('idle');
   session.reset();expect(session.freeKnot.active).toBe(false);
+});
+it('settles without grasp/jaw conflict jitter while retaining slack',()=>{
+  const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools);
+  let largest=0,tail=0;
+  for(let i=0;i<1200;i++) {
+    const before=model.long.points.map(p=>p.clone());const b=model.short.points.map(p=>p.clone());model.update(1/120,tools);
+    if(i>=1080) {largest=Math.max(largest,...model.long.points.map((p,j)=>p.distanceTo(before[j])),...model.short.points.map((p,j)=>p.distanceTo(b[j])));tail+=model.long.points.reduce((s,p,j)=>s+p.distanceToSquared(before[j]),0);}
+  }
+  expect(largest).toBeLessThan(0.001);expect(tail).toBeLessThan(0.001);
+  expect(model.long.measuredLength).toBeCloseTo(model.long.length,1);
+  expect(model.long.points.at(-1)!.distanceTo(model.exit)).toBeLessThan(model.long.length);
 });

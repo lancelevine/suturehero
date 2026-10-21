@@ -28,3 +28,39 @@ it('bends a taut resolved strand around the shaft using contact rather than a ge
   expect(Math.abs(shaftWinding(strand.points,driver.root.matrixWorld))).toBeGreaterThan(0.2);
   expect(strand.measuredLength).toBeCloseTo(strand.length,1);
 });
+it('prevents a segment from crossing completely through the shaft between solver steps',()=>{
+  const driver=new Instrument('right',0);driver.root.position.set(0,1,0);driver.root.quaternion.identity();
+  const contact=new InstrumentThreadContact();contact.configure([driver]);
+  const previous=[new THREE.Vector3(-0.2,0.8,0.8),new THREE.Vector3(0.2,0.8,0.8)];
+  const points=previous.map(p=>p.clone().setY(1.2));
+  contact.resolve(points,previous,new Set());
+  expect(Math.max(...points.map(p=>p.y))).toBeLessThanOrEqual(0.915);
+  expect(points.every(p=>p.toArray().every(Number.isFinite))).toBe(true);
+});
+it('carries a stationary segment onto the incoming side when the shaft moves across it',()=>{
+  const driver=new Instrument('right',0);driver.root.position.set(0,0.8,0);driver.root.quaternion.identity();
+  const contact=new InstrumentThreadContact();contact.configure([driver]);driver.root.position.y=1.2;contact.configure([driver]);
+  const points=[new THREE.Vector3(-0.2,1,0.8),new THREE.Vector3(0.2,1,0.8)],previous=points.map(p=>p.clone());
+  contact.resolve(points,previous,new Set());
+  expect(Math.min(...points.map(p=>p.y))).toBeGreaterThanOrEqual(1.285);
+});
+it('exempts captured material only from its own jaws, retaining other instrument contact',()=>{
+  const left=new Instrument('left',0),right=new Instrument('right',0);
+  left.root.position.set(0,1,0.8);right.root.position.set(0,1,0);left.root.quaternion.identity();right.root.quaternion.identity();
+  const contact=new InstrumentThreadContact();contact.configure([left,right]);
+  const points=[new THREE.Vector3(-0.02,1,0.82),new THREE.Vector3(0.02,1,0.82)],previous=points.map(p=>p.clone());
+  const exemptions=new Map([['left',new Set([0,1])]]);
+  contact.resolve(points,previous,new Set(),undefined,exemptions);
+  expect(points.some(p=>Math.abs(p.y-1)>0.01)).toBe(true);
+});
+it('retains a material wrap around the shaft during settling instead of cutting through it',async()=>{
+  const {ThreadStrand}=await import('./ThreadStrand');const driver=new Instrument('right',0);
+  driver.root.position.set(0,1,0);driver.root.quaternion.identity();const contact=new InstrumentThreadContact();contact.configure([driver]);
+  const helix=Array.from({length:65},(_,i)=>new THREE.Vector3(0.1*Math.cos(i/64*Math.PI*2),1+0.1*Math.sin(i/64*Math.PI*2),1.25+i/64*0.5));
+  let length=0;for(let i=1;i<helix.length;i++)length+=helix[i].distanceTo(helix[i-1]);
+  const strand=new ThreadStrand(length,32);strand.reset(helix);
+  const pins=new Map([[0,helix[0]],[31,helix.at(-1)!]]);
+  for(let i=0;i<600;i++)strand.advance(1/120,pins,()=>0.1,contact.resolve);
+  expect(Math.abs(shaftWinding(strand.points,driver.root.matrixWorld))).toBeGreaterThan(0.85);
+  expect(strand.measuredLength).toBeCloseTo(strand.length,1);
+});

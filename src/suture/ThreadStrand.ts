@@ -29,7 +29,7 @@ export class ThreadStrand {
     this.points.forEach((p,i)=>{p.copy(points[i]);this.previous[i].copy(p);});
     this.accumulator=0;this.pinned.clear();
   }
-  advance(dt: number,anchors: ReadonlyMap<number,THREE.Vector3>,surfaceAt:(p:THREE.Vector3)=>number,toolContact?:(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>)=>void) {
+  advance(dt: number,anchors: ReadonlyMap<number,THREE.Vector3>,surfaceAt:(p:THREE.Vector3)=>number,toolContact?:(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>,time:{from:number;to:number;start?:readonly THREE.Vector3[]})=>void) {
     const step=1/120;
     this.accumulator+=Math.max(0,Math.min(dt,0.05));
     for(const index of this.pinned)if(!anchors.has(index))this.previous[index].copy(this.points[index]);
@@ -40,6 +40,7 @@ export class ThreadStrand {
     while(this.accumulator+1e-10>=step) {
       substep++;
       this.accumulator-=step;
+      const contactStart=toolContact?this.points.map(p=>p.clone()):undefined;
       for(let i=0;i<this.count;i++) {
         const p=this.points[i],prev=this.previous[i],anchor=anchors.get(i);
         if(anchor) {p.copy(starts.get(i)!).lerp(anchor,substep/steps);prev.copy(p);continue;}
@@ -48,6 +49,7 @@ export class ThreadStrand {
         prev.set(x,y,z);
       }
       for(let iteration=0;iteration<24;iteration++) {
+        if(iteration>0 && contactStart)this.points.forEach((p,i)=>contactStart[i].copy(p));
         // Alternate sweep direction to reduce directional solver bias.
         for(let n=0;n<this.count-1;n++) {
           const i=iteration%2===0?n:this.count-2-n;
@@ -59,7 +61,7 @@ export class ThreadStrand {
           if(wa)a.add(this.delta);if(wb)b.sub(this.delta);
         }
         if(iteration%6===5)this.contact.resolve(this.points,this.previous,this.pinned);
-        if(iteration%12===11)toolContact?.(this.points,this.previous,this.pinned);
+        toolContact?.(this.points,this.previous,this.pinned,{from:iteration===0?(substep-1)/steps:substep/steps,to:substep/steps,start:contactStart});
         for(let i=0;i<this.count;i++)if(!anchors.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
       }
       for(let i=0;i<this.count;i++)if(!anchors.has(i) && this.points[i].y<=surfaceAt(this.points[i])+0.0001) {

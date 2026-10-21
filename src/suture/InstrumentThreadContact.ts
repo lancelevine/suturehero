@@ -2,17 +2,19 @@ import * as THREE from 'three';
 import type { Instrument } from '../instruments/Instrument';
 import { closestSegments } from './StrandContact';
 import { THREAD_RADIUS } from './threadMaterial';
-interface Capsule {a:THREE.Vector3;b:THREE.Vector3;radius:number;bounds:THREE.Box3}
-/** Discrete segment/capsule contact. Instrument bodies remain kinematic. */
+interface Capsule {toolId:string;a:THREE.Vector3;b:THREE.Vector3;oldA:THREE.Vector3;oldB:THREE.Vector3;radius:number;bounds:THREE.Box3}
+/** Substep-interpolated, conservatively sampled swept segment/capsule contact. Instrument bodies remain kinematic. */
 export class InstrumentThreadContact {
   private capsules:Capsule[]=[];
   configure(tools:readonly Instrument[]) {
-    this.capsules=[];
+    const last=this.capsules;this.capsules=[];
     for(const tool of tools) {
       tool.root.updateWorldMatrix(true,false);
       const add=(a:THREE.Vector3,b:THREE.Vector3,radius:number)=>{
         a.applyMatrix4(tool.root.matrixWorld);b.applyMatrix4(tool.root.matrixWorld);
-        this.capsules.push({a,b,radius:radius+THREAD_RADIUS,bounds:new THREE.Box3().setFromPoints([a,b]).expandByScalar(radius+THREAD_RADIUS)});
+        const prior=last[this.capsules.length];
+        const oldA=prior?.toolId===tool.id?prior.a.clone():a.clone(),oldB=prior?.toolId===tool.id?prior.b.clone():b.clone();
+        this.capsules.push({toolId:tool.id,a,b,oldA,oldB,radius:radius+THREAD_RADIUS,bounds:new THREE.Box3().setFromPoints([a,b,oldA,oldB]).expandByScalar(radius+THREAD_RADIUS)});
       };
       if(tool.kind==='needle-driver')add(new THREE.Vector3(0,0,0.3),new THREE.Vector3(0,0,2.9),0.077);
       for(const side of [-1,1]) {
@@ -26,28 +28,65 @@ export class InstrumentThreadContact {
       }
     }
   }
-  resolve=(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>)=>{
-    const bounds=new THREE.Box3();
-    for(let i=0;i<points.length-1;i++) {
-      bounds.setFromPoints([points[i],points[i+1]]);
-      for(const capsule of this.capsules) {
-        if(!bounds.intersectsBox(capsule.bounds))continue;
-        const closest=closestSegments(points[i],points[i+1],capsule.a,capsule.b);
-        const normal=closest.p.clone().sub(closest.q),distance=normal.length();
+  resolve=(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>,time:{from:number;to:number;start?:readonly THREE.Vector3[]}={from:0,to:1},gripExemptions?:ReadonlyMap<string,ReadonlySet<number>>)=>{
+    const start=time.start??previous;
+    const correct=(index:number,normal:THREE.Vector3,depth:number)=>{
+      if(pinned.has(index) || depth<=0)return;
+      const velocity=points[index].clone().sub(previous[index]);
+      const correction=normal.clone().multiplyScalar(Math.min(0.5,depth));
+      points[index].add(correction);previous[index].add(correction);
+      // Remove inward velocity instead of letting it hammer the collider on
+      // every subsequent substep. Preserve tangential motion along the shaft.
+      const inward=velocity.dot(normal);if(inward<0)previous[index].addScaledVector(normal,inward);
+    };
+    for(const capsule of this.capsules) {
+      const a=capsule.oldA.clone().lerp(capsule.a,time.to),b=capsule.oldB.clone().lerp(capsule.b,time.to);
+      const oldA=capsule.oldA.clone().lerp(capsule.a,time.from),oldB=capsule.oldB.clone().lerp(capsule.b,time.from);
+      const exempt=gripExemptions?.get(capsule.toolId),axis=b.clone().sub(a);
+      const center=(point:THREE.Vector3)=>a.clone().addScaledVector(axis,THREE.MathUtils.clamp(point.clone().sub(a).dot(axis)/Math.max(1e-10,axis.lengthSq()),0,1));
+      for(let i=0;i<points.length;i++) {
+        if(pinned.has(i) || exempt?.has(i))continue;
+        const bounds=new THREE.Box3().setFromPoints([start[i],points[i]]);if(!bounds.intersectsBox(capsule.bounds))continue;
+        let c=center(points[i]),normal=points[i].clone().sub(c),distance=normal.length();
+        const oldAxis=oldB.clone().sub(oldA),fraction=THREE.MathUtils.clamp(start[i].clone().sub(oldA).dot(oldAxis)/Math.max(1e-10,oldAxis.lengthSq()),0,1);
+        const oldCenter=oldA.clone().addScaledVector(oldAxis,fraction),oldNormal=start[i].clone().sub(oldCenter);
+        if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<=0) {
+          const motion=start[i].distanceTo(points[i])+oldA.distanceTo(a);
+          const samples=Math.min(32,Math.max(1,Math.ceil(motion/(capsule.radius*0.35))));
+          for(let n=1;n<=samples;n++) {
+            const t=n/samples,point=start[i].clone().lerp(points[i],t),ca=oldA.clone().lerp(a,t),cb=oldB.clone().lerp(b,t),delta=cb.sub(ca);
+            const k=THREE.MathUtils.clamp(point.clone().sub(ca).dot(delta)/Math.max(1e-10,delta.lengthSq()),0,1);
+            if(point.distanceTo(ca.addScaledVector(delta,k))<capsule.radius) {
+              normal=oldNormal.normalize();c=a.clone().lerp(b,fraction);distance=points[i].clone().sub(c).dot(normal);break;
+            }
+          }
+        }
         if(distance>=capsule.radius)continue;
-        if(distance>1e-8)normal.divideScalar(distance);
-        else {
-          normal.crossVectors(capsule.b.clone().sub(capsule.a),points[i+1].clone().sub(points[i]));
-          if(normal.lengthSq()<1e-8)normal.subVectors(capsule.b,capsule.a).cross(new THREE.Vector3(0,1,0));
-          if(normal.lengthSq()<1e-8)normal.set(1,0,0);else normal.normalize();
+        if(normal.lengthSq()<1e-12)normal.set(1,0,0);else normal.normalize();
+        correct(i,normal,capsule.radius+0.002-distance);
+      }
+      // Segment interiors matter for sparse/temporarily stretched edges. Fine
+      // particles have enough radial clearance to keep their chords outside.
+      for(let i=0;i<points.length-1;i++) {
+        if(exempt?.has(i) || exempt?.has(i+1) || points[i].distanceTo(points[i+1])<capsule.radius*0.5)continue;
+        const bounds=new THREE.Box3().setFromPoints([start[i],start[i+1],points[i],points[i+1]]);if(!bounds.intersectsBox(capsule.bounds))continue;
+        let hit=closestSegments(points[i],points[i+1],a,b),normal=hit.p.clone().sub(hit.q),distance=normal.length();
+        const old=closestSegments(start[i],start[i+1],oldA,oldB),oldNormal=old.p.clone().sub(old.q);
+        if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<=0) {
+          const motion=Math.max(start[i].distanceTo(points[i]),start[i+1].distanceTo(points[i+1]))+oldA.distanceTo(a);
+          const samples=Math.min(32,Math.max(1,Math.ceil(motion/(capsule.radius*0.35))));
+          for(let n=1;n<=samples;n++) {
+            const t=n/samples,sweep=closestSegments(start[i].clone().lerp(points[i],t),start[i+1].clone().lerp(points[i+1],t),oldA.clone().lerp(a,t),oldB.clone().lerp(b,t));
+            if(sweep.p.distanceTo(sweep.q)<capsule.radius) {
+              normal=oldNormal.normalize();hit={...sweep,p:points[i].clone().lerp(points[i+1],sweep.s),q:a.clone().lerp(b,sweep.t)};
+              distance=hit.p.clone().sub(hit.q).dot(normal);break;
+            }
+          }
         }
-        const weights=[1-closest.s,closest.s];
-        const denominator=weights.reduce((sum,w,n)=>sum+(pinned.has(i+n)?0:w*w),0);
-        if(denominator<1e-10)continue;
-        for(let n=0;n<2;n++)if(!pinned.has(i+n)) {
-          const correction=normal.clone().multiplyScalar(Math.min(0.04,(capsule.radius-distance)*weights[n]/denominator));
-          points[i+n].add(correction);previous[i+n].add(correction);
-        }
+        if(distance>=capsule.radius)continue;
+        if(normal.lengthSq()<1e-12)normal.crossVectors(axis,points[i+1].clone().sub(points[i]));
+        if(normal.lengthSq()<1e-12)normal.set(1,0,0);else normal.normalize();
+        for(let n=0;n<2;n++)correct(i+n,normal,capsule.radius-points[i+n].clone().sub(hit.q).dot(normal));
       }
     }
   };

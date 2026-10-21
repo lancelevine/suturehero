@@ -53,11 +53,18 @@ export class FreeKnotPractice {
       const grip=this.grips.get(tool.id);if(grip)pins.get(grip.strand)!.set(grip.index,tool.root.localToWorld(grip.local.clone()));
     }
     this.contact.configure(tools);
-    for(const strand of [this.long,this.short])strand.advance(dt,pins.get(strand)!,threadSurfaceAt,this.contact.resolve);
+    for(const strand of [this.long,this.short]) {
+      // The captured neighborhood sits between the gripping jaws, not outside
+      // their coarse collision capsules. Other instruments still collide here.
+      const exemptions=new Map<string,Set<number>>();
+      for(const [id,grip] of this.grips)if(grip.strand===strand)exemptions.set(id,new Set([grip.index-2,grip.index-1,grip.index,grip.index+1,grip.index+2]));
+      strand.advance(dt,pins.get(strand)!,threadSurfaceAt,(p,previous,pinned,time)=>this.contact.resolve(p,previous,pinned,time,exemptions));
+    }
     const driver=tools.find(t=>t.kind==='needle-driver')!;
     this.winding=shaftWinding(this.long.points,driver.root.matrixWorld);
   }
   get reachLimited() {
+    if(this.long.measuredLength>this.long.length*1.04 || this.short.measuredLength>this.short.length*1.04)return true;
     for(const grip of this.grips.values()) {
       const start=grip.strand===this.long?this.exit:this.entry;
       if(start.distanceTo(grip.strand.points[grip.index])>grip.strand.restLength*grip.index+0.03)return true;
