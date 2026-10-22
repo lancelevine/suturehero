@@ -1,4 +1,4 @@
-export const MARKER_GROUPS = { needleDriver: [0, 1, 2], forceps: [3, 4, 5] } as const;
+export const MARKER_GROUPS = { needleDriver: [0, 1, 2], forceps: [3, 4, 5], scissors: [6, 7, 8] } as const;
 export type InstrumentName = keyof typeof MARKER_GROUPS;
 export interface MarkerObservation { id: number; corners: Array<{x:number;y:number}>; }
 export interface InstrumentObservation { name: InstrumentName; markers: MarkerObservation[]; center: {x:number;y:number}; }
