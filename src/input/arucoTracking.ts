@@ -12,7 +12,7 @@ export function groupMarkers(markers: MarkerObservation[]): InstrumentObservatio
   });
 }
 export async function openCamera(deviceId?:string):Promise<MediaStream> {
-  return navigator.mediaDevices.getUserMedia({audio:false,video:{deviceId:deviceId?{exact:deviceId}:undefined,width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}}});
+  return navigator.mediaDevices.getUserMedia({audio:false,video:{deviceId:deviceId?{exact:deviceId}:undefined,width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}}});
 }
 export async function availableCameras():Promise<MediaDeviceInfo[]> {
   return (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
