@@ -150,7 +150,7 @@ export class PracticeSession {
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
       this.freeKnot.entry.copy(this.wound.deformPoint(this.pass.entry));this.freeKnot.exit.copy(this.wound.deformPoint(this.pass.exit));
       this.freeKnot.update(step,this.instruments,this.eversion.held?new Set(['left']):undefined);
-      this.wound.update(this.freeKnot.sequence?.locked?1:this.freeKnot.sequence?.throws.length ? .85 :this.freeKnot.retainedThrow.active?this.freeKnot.retainedThrow.tightness*.85:0,step);
+      this.wound.update(this.freeKnot.closureLoad,step);
       this.updateEversion(step,!this.freeKnot.grips.has('left'));return;
     }
     if(this.knot.active) {

@@ -1,4 +1,6 @@
 import {postIsTaut} from '../suture/PostTension';
+import {KnotTissueSeat,stitchSupport} from '../suture/KnotTissueSeat';
+import {THREAD_RADIUS} from '../suture/threadMaterial';
 import {skinThreadContact} from '../tissue/SkinThreadContact';
 import {InferredKnotSequence} from '../suture/InferredKnotSequence';
 import {KnotTechniqueSequence,type KnotTechnique} from '../suture/KnotTechnique';
@@ -27,6 +29,9 @@ export class FreeKnotPractice {
   readonly earlierThrows:FreeThrow[]=[];
   sequence?:KnotTechniqueSequence|InferredKnotSequence;
   postTaut=false;
+  readonly tissueSeat=new KnotTissueSeat();
+  private get firstKnot(){return this.earlierThrows.find(t=>t.active)??(this.retainedThrow.active?this.retainedThrow:undefined);}
+  get closureLoad(){return this.tissueSeat.load*(this.sequence?.locked?1:.85);}
   readonly fragments:ThreadStrand[]=[];
   cutMessage='';
   get strands(){return [this.long,this.short,...this.fragments];}
@@ -48,6 +53,7 @@ export class FreeKnotPractice {
   tissueContact?:StrandObstacle;
   driverObstacle?:(radius:number)=>StrandObstacle;
   private recorded=false;
+  private seatingArmed=false;
   private feedback='';
   private get nextMaterialIndex(){return this.recorded?this.retainedThrow.last+2:this.earlierThrows.length?Math.max(...this.earlierThrows.map(t=>t.last))+2:1;}
   // Search free working material, not the tissue anchor or the held endpoint.
@@ -56,14 +62,15 @@ export class FreeKnotPractice {
   private get observationWraps(){return this.retainedThrow.phase==='retained'&&!this.recorded?this.retainedThrow.wraps:this.sequence?.requiredWraps??1;}
   get instruction(){return this.sequence?`${this.sequence.label} · ${this.sequence.throws.length} throws tightened · ${this.sequence.instruction}${this.sequence.sliding?' · Short post: '+(this.postTaut?'taut':'take up slack'):''}${this.feedback?' · '+this.feedback:''}`:'Free first throw';}
   get knotAtTissue(){
-    const knot=this.retainedThrow;if(!knot.active)return false;
-    const center=new THREE.Vector3();for(let i=knot.first;i<=knot.last;i++)center.add(this.long.points[i]);center.divideScalar(knot.last-knot.first+1);
-    const bite=this.entry.clone().lerp(this.exit,.5);
-    return Math.abs(center.y-bite.y)<=.1&&Math.hypot(center.x-bite.x,center.z-bite.z)<=.2;
+    if(!this.tissueSeat.contact||this.tissueSeat.load<.5||!this.retainedThrow.active)return false;
+    if(this.retainedThrow===this.firstKnot)return true;
+    const first=this.firstKnot!;
+    return this.long.points[this.retainedThrow.first].distanceTo(this.long.points[first.last])<.14;
   }
   get handlingHint(){
     const knot=this.retainedThrow;
-    if(knot.phase==='seated'&&!this.knotAtTissue)return 'Throw tightened · Bring the knot toward the tissue with gentle tension';
+    if(knot.phase==='seated'&&this.tissueSeat.contact&&this.tissueSeat.load<.5)return 'Knot touching tissue · Take up the remaining tissue-side slack';
+    if(knot.phase==='seated'&&!this.knotAtTissue)return knot.seatingRequested?'Seating throw · Keep the post taut and ease the working end toward the tissue':'Throw tightened · Lower both ends toward the stitch and keep gentle opposing tension';
     if(knot.phase==='retained'){
       if(![...this.grips.values()].some(g=>g.strand===this.long))return 'Throw retained · Regrasp the long strand with the forceps';
       if(![...this.grips.values()].some(g=>g.strand===this.short&&g.index>=this.short.count-4))return 'Throw retained · Regrasp the gold short end with the driver';
@@ -133,13 +140,37 @@ export class FreeKnotPractice {
     }
   }
   private constrainDriver(tool:Instrument,tools:readonly Instrument[]){
-    const floor=this.driverObstacle?this.threadFloorAt??this.surfaceAt:this.surfaceAt;
+    const base=this.driverObstacle?this.threadFloorAt??this.surfaceAt:this.surfaceAt;
+    const knot=this.tissueSeat.contact?this.firstKnot:undefined;
+    const bounds=knot?new THREE.Box3().setFromPoints(this.long.points.slice(knot.first,knot.last+1)).expandByScalar(.035):undefined;
+    const floor=(p:THREE.Vector3)=>{
+      let height=base(p);
+      // A shallow skin overlap still permits tail pickup away from the knot.
+      // Over a tissue-supported core, the metal must clear the thread instead
+      // of repeatedly squeezing it into the pad's indentation allowance.
+      if(knot&&bounds&&p.x>=bounds.min.x&&p.x<=bounds.max.x&&p.z>=bounds.min.z&&p.z<=bounds.max.z)for(let i=knot.first;i<=knot.last;i++){
+        const q=this.long.points[i];
+        if(Math.hypot(p.x-q.x,p.z-q.z)<.035)height=Math.max(height,q.y+THREAD_RADIUS+(this.driverObstacle?0:.04));
+      }
+      return height;
+    };
     let constrained=this.contact.constrainDriverToSurface(tool,floor,this.driverObstacle?0:.04);
     if(this.driverObstacle&&tool.kind==='needle-driver'){
       this.contact.configure(tools,true);constrained=this.contact.constrainDriverToObstacle(tool,this.driverObstacle)||constrained;
       constrained=this.contact.constrainDriverToSurface(tool,floor,0)||constrained;
     }
     return constrained;
+  }
+  private supportSeatedCore(knot:FreeThrow,pinsLong:ReadonlyMap<number,THREE.Vector3>,pinsShort:ReadonlyMap<number,THREE.Vector3>){
+    if(knot.phase!=='seated')return;
+    const support=(strand:ThreadStrand,index:number,pins:ReadonlyMap<number,THREE.Vector3>)=>{
+      const p=strand.points[index];
+      if(pins.has(index)||p.y<Math.min(this.entry.y,this.exit.y)-.08)return;
+      const lift=stitchSupport(p,this.entry,this.exit,this.surfaceAt)-p.y;
+      if(lift>0){strand.applyContactCorrection(index,new THREE.Vector3(0,lift,0));strand.dampMotion(index,index,.35);}
+    };
+    for(let i=knot.first;i<=knot.last;i++)support(this.long,i,pinsLong);
+    const coordinate=knot.shortMaterialCoordinate;support(this.short,Math.floor(coordinate),pinsShort);support(this.short,Math.ceil(coordinate),pinsShort);
   }
   private constrainHeldPair(tools:readonly Instrument[]){
     const held=(strand:ThreadStrand)=>tools.map(tool=>({tool,grip:this.grips.get(tool.id)})).find(item=>item.grip?.strand===strand);
@@ -192,6 +223,7 @@ export class FreeKnotPractice {
     for(const tool of tools)this.driverOnTissue=this.constrainDriver(tool,tools)||this.driverOnTissue;
     this.contact.configure(tools,true);
     const paired=[this.long,this.short].every(strand=>[...this.grips.values()].some(grip=>grip.strand===strand));
+    if(!paired)this.seatingArmed=false;
     for(const tool of tools) {
       const grip=this.grips.get(tool.id);if(!grip)continue;
       const target=tool.root.localToWorld(grip.local.clone());
@@ -264,10 +296,16 @@ export class FreeKnotPractice {
       }
       const validEvent=!this.sequence||!event||this.sequence.acceptsGeometry(event.wraps,event.direction);
       const driverSupportsLoop=(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>this.contact.supportsOpening(driver.id,points,normal);
+      const stitchHeight=(this.entry.y+this.exit.y)*.5;
+      const lowHands=longGrip!==undefined&&shortGrip!==undefined&&[this.long.points[longGrip],this.short.points[shortGrip]].every(p=>p.y<stitchHeight+.2&&p.y>stitchHeight-.1);
+      if(paired&&(this.retainedThrow.phase==='passed'||this.retainedThrow.phase==='retained'||this.retainedThrow.active&&!lowHands))this.seatingArmed=true;
+      const workingTaut=longGrip!==undefined&&this.retainedThrow.active&&this.long.points[this.retainedThrow.last].distanceTo(this.long.points[longGrip])>=this.long.materialLengthBetween(this.retainedThrow.last,longGrip)*.92;
+      this.retainedThrow.seatingRequested=this.seatingArmed&&this.earlierThrows.length===0&&this.retainedThrow.phase==='seated'&&this.tissueSeat.load<.99&&lowHands&&workingTaut&&this.postTaut;
       this.retainedThrow.sliding=!!this.sequence?.sliding&&this.postTaut;
       if(validEvent)this.retainedThrow.update(step,this.passage,this.long,this.short,driverSupportsLoop,longGrip,shortGrip);
       const constraints=[...this.earlierThrows,this.retainedThrow];
       for(const previous of this.earlierThrows){
+        previous.seatingRequested=false;
         previous.sliding=!!this.sequence?.sliding&&this.postTaut;
         if(previous.sliding)previous.update(step,this.passage,this.long,this.short,driverSupportsLoop,longGrip,shortGrip);
         else previous.advanceEngagement(step);
@@ -278,8 +316,10 @@ export class FreeKnotPractice {
         for(const constraint of activeConstraints)constraint.resolve(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!);
         for(const strand of this.strands)strand.projectContacts(subPins.get(strand)!,this.supportAt,(p,previous,pinned,start)=>this.contact.resolve(p,previous,pinned,{from:(n+1)/steps,to:(n+1)/steps,start},exemptions.get(strand)),iteration%2!==0);
         resolveStrandPair(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!);
+        for(const constraint of activeConstraints)this.supportSeatedCore(constraint,subPins.get(this.long)!,subPins.get(this.short)!);
       }
       this.retainedThrow.assessSeating(this.long,this.short);
+      this.tissueSeat.update(this.firstKnot,this.long,this.short,this.entry,this.exit,this.surfaceAt);
       if(this.sequence&&this.retainedThrow.phase==='seated'&&!this.recorded){
         if(this.sequence.seat({wraps:this.retainedThrow.wraps,direction:this.retainedThrow.direction,postHeld:this.postTaut})){
           this.recorded=true;this.passage.reset();this.feedback='';
@@ -311,5 +351,5 @@ export class FreeKnotPractice {
     }
     return false;
   }
-  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.sequence=undefined;this.recorded=false;this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
+  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.tissueSeat.reset();this.sequence=undefined;this.recorded=false;this.seatingArmed=false;this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
 }

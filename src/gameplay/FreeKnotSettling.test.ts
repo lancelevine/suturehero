@@ -5,11 +5,18 @@ import {WoundApproximation} from '../tissue/WoundApproximation';
 import {tractEntry,tractExit} from '../tissue/sutureTract';
 it('settles a seated surgeon throw while the wound closes, at irregular display frame intervals',async()=>{
  const wound=new WoundApproximation();wound.setDermalBites(new THREE.Vector3(.25,.31,0),new THREE.Vector3(-.25,.31,0));
- const {model,tools,throwOne,update}=createFreeTyingFixture('auto',(dt,model,tools)=>{
+ const {model,tools,throwOne,lowerAndPull,update}=createFreeTyingFixture('auto',(dt,model,tools)=>{
   model.entry.copy(wound.deformPoint(tractEntry()));model.exit.copy(wound.deformPoint(tractExit()));
-  model.update(dt,tools);wound.update(model.sequence!.throws.length?.85:model.retainedThrow.tightness*.85,dt);
+  model.update(dt,tools);wound.update(model.closureLoad,dt);
  });
  await throwOne(2,1);expect(model.sequence!.throws).toHaveLength(1);
+ expect(wound.closure).toBe(0);await lowerAndPull();
+ expect(model.knotAtTissue).toBe(true);expect(model.closureLoad).toBeGreaterThan(.75);expect(wound.closure).toBeGreaterThan(.75);
+ const firstThrow=model.retainedThrow,firstCoordinate=firstThrow.shortMaterialCoordinate,materialIndices=[firstThrow.first,firstThrow.last];
+ await throwOne(1,-1);
+ expect(model.sequence!.locked).toBe(true);expect(model.earlierThrows).toContain(firstThrow);
+ expect([firstThrow.first,firstThrow.last]).toEqual(materialIndices);expect(firstThrow.shortMaterialCoordinate).toBe(firstCoordinate);
+ expect(model.tissueSeat.contact).toBe(true);expect(wound.closure).toBeGreaterThan(.9);
  let largest=0,core=0;const first=model.retainedThrow.first,last=model.retainedThrow.last;
  for(let frame=0;frame<360;frame++){
   if(frame===120)tools.forEach(t=>t.openness=.7);

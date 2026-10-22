@@ -23,5 +23,13 @@ export function createFreeTyingFixture(technique:KnotTechnique|'auto',advance=(d
   const lp=left.root.position.clone(),rp=right.root.position.clone();
   for(let i=1;i<=600;i++){const t=Math.min(1,i/300);left.root.position.copy(lp);left.root.position.x-=2.3*t;right.root.position.copy(rp);right.root.position.x+=.65*t;advance(1/120,model,tools);if(i%120===0)await yieldWorker();}
  };
- return {model,tools,throwOne,update:(dt:number)=>advance(dt,model,tools)};
+ const lowerAndPull=async()=>{
+  const starts=tools.map(tool=>tool.root.position.clone());
+  for(let frame=1;frame<=720;frame++){
+   const t=Math.min(1,frame/360);
+   tools.forEach((tool,i)=>tool.root.position.copy(starts[i]).lerp(new THREE.Vector3(starts[i].x+(i?.5:-.8),model.entry.y+.05,model.entry.z+.05),t));
+   advance(1/120,model,tools);if(frame%120===0)await yieldWorker();
+  }
+ };
+ return {model,tools,throwOne,lowerAndPull,update:(dt:number)=>advance(dt,model,tools)};
 }

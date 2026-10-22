@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.28)
+## Current practice options (build 0.29)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Tissue seating in 0.29
+
+A tightened throw above the pad no longer closes the wound. Closure starts when the compact first throw bears near the stitch and slack has been taken up on both tissue-side arms; dermal purchase on both sides is still required. Retained bearing holds after release while the first throw stays supported, and an opposing lock increases closure only after that first throw has reached tissue. This is geometric approximation, not a calibrated tension measurement.
+
+To seat a first throw, keep both ends held, lower them toward the stitch plane and pull gently apart. Existing material feeds through the compact throw under tension, including a taut V that has no spare slack. Post movement is rate limited. A surgeon's double wrap stops feeding once seated and holds while the opposing throw is prepared. Releasing a hand cancels the seating action; simply regrasping low tails does not restart it.
+
+Compact cores have local support at the stitch surface, including a narrow bridge between microsurgery portals. The driver clears a supported core while shallow skin overlap remains available for nearby tail pickup. The badge distinguishes touching tissue with slack from bearing at tissue; the readout shows tissue purchase and whether wound edges are drawing together.
 
 ## Free knot capture and stability in 0.28
 
