@@ -15,7 +15,7 @@ export class TailPassage {
   reset(){this.indices=[];this.previous=undefined;this.crossed=false;this.crossing=undefined;this.state='Form a wrap around the driver';}
   update(points:readonly THREE.Vector3[],tip:THREE.Vector3,driver:THREE.Matrix4,holdingTail:boolean,minimumIndex=0,requiredWraps=1,shortPoints?:readonly THREE.Vector3[]){
     if(this.crossed&&requiredWraps!==0){this.state='Short tip passed through the opening · Knot not assessed';return;}
-    if(!this.indices.length||requiredWraps===0){
+    if(!this.crossed||requiredWraps===0){
       const inverse=driver.clone().invert();let run:number[]=[],angle=0,last=0;
       let best:number[]=[],bestAngle=0;
       const consider=()=>{if(Math.abs(angle)>Math.abs(bestAngle)&&Math.abs(angle)>=Math.PI*2*(Math.max(1,requiredWraps)-.2)){best=run.slice();bestAngle=angle;}};
@@ -29,7 +29,7 @@ export class TailPassage {
       }
       consider();
       const observedWraps=Math.max(1,Math.floor(Math.abs(bestAngle)/(Math.PI*2)+.2));
-      if(best.length&&(!this.indices.length||observedWraps>this.wraps)){
+      if(best.length&&(!this.crossed||observedWraps>this.wraps)){
         const angularStep=(a:number,b:number)=>{
           const p=points[a].clone().applyMatrix4(inverse),q=points[b].clone().applyMatrix4(inverse);
           const delta=Math.atan2(q.y,q.x)-Math.atan2(p.y,p.x);
@@ -45,7 +45,8 @@ export class TailPassage {
         const radii=best.map(radial).sort((a,b)=>a-b),limit=radii[Math.floor(radii.length/2)]*1.25;
         while(best.length>3&&radial(best[0])>limit)best.shift();
         while(best.length>3&&radial(best.at(-1)!)>limit)best.pop();
-        if(best[0]!==this.indices[0]||best.at(-1)!==this.indices.at(-1))this.previous=undefined;
+        const overlap=Math.min(best.at(-1)!,this.indices.at(-1)??-1)-Math.max(best[0],this.indices[0]??Infinity)+1;
+        if(observedWraps!==this.wraps||overlap<Math.min(best.length,this.indices.length)*.5)this.previous=undefined;
         this.indices=best;this.wraps=observedWraps;this.direction=Math.sign(bestAngle);
         if(this.crossing)this.crossing={...this.crossing,first:best[0],last:best.at(-1)!,wraps:this.wraps,direction:this.direction,normal:new THREE.Vector3(0,0,1).transformDirection(driver).multiplyScalar(this.direction)};
       }

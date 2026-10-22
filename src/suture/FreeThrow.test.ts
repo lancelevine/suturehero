@@ -60,3 +60,18 @@ it('does not tighten from rigid movement or a single held end, and resets retent
  f.long.points[63].x-=1;f.throwModel.update(1/120,f.passage,f.long,f.short,f.driver,63,undefined);expect(f.throwModel.last-f.throwModel.first).toBe(original);
  f.throwModel.reset();expect(f.throwModel.active).toBe(false);
 });
+it('explains driver clearance and a released tail, then clears the retry notice',()=>{
+ const f=fixture();f.throwModel.update(1/120,f.passage,f.long,f.short,f.driver,63,39);
+ expect(f.throwModel.phase).toBe('passed');expect(f.throwModel.instruction).toContain('driver working tip');
+ f.throwModel.update(1/120,f.passage,f.long,f.short,f.driver,63,undefined);
+ expect(f.throwModel.phase).toBe('idle');expect(f.throwModel.instruction).toContain('Short tail released');
+ expect(f.passage.passage).toBeUndefined();
+ for(let i=0;i<65;i++)f.throwModel.update(.05,f.passage,f.long,f.short,f.driver,63,undefined);
+ expect(f.throwModel.lastFailure).toBe('');
+});
+it('explains when the held tail moves back out before driver clearance',()=>{
+ const f=fixture();f.throwModel.update(1/120,f.passage,f.long,f.short,f.driver,63,39);
+ f.short.points.at(-1)!.z=.2;f.throwModel.update(1/120,f.passage,f.long,f.short,f.driver,63,39);
+ expect(f.throwModel.phase).toBe('idle');expect(f.throwModel.instruction).toContain('Tail moved back out');
+ expect(f.throwModel.active).toBe(false);
+});

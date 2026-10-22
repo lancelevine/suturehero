@@ -26,6 +26,12 @@ export class FreeThrow {
   private feedTime=0;
   private alternate=false;
   private retentionAge=0;
+  private notice='';
+  private noticeTime=0;
+  private captureHint='';
+  seatingHint='Pull the two held ends apart to tighten';
+  private longCorrections?:Float64Array;
+  private shortCorrections?:Float64Array;
   private normal=new THREE.Vector3(0,0,1);
   private postLimit(short:ThreadStrand,grip:number){
     // A collar cannot slide all the way into the closed driver jaws.
@@ -35,8 +41,13 @@ export class FreeThrow {
   get shortMaterialCoordinate(){return this.shortCoordinate;}
   get active(){return this.phase==='retained'||this.phase==='seated';}
   get tightness(){return this.active?THREE.MathUtils.clamp((this.initialSegments-(this.last-this.first))/Math.max(1,this.initialSegments-this.minimumSegments),0,1):0;}
-  get instruction(){return this.phase==='seated'?'One free throw seated · Retention is approximate':this.phase==='retained'?'Throw retained · Pull the two held ends apart to tighten':this.phase==='passed'?'Tail through · Pull it clear of the driver to capture the throw':'Form a wrap, grasp the short tail and pull it through';}
-  reset(){this.phase='idle';this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.feed=this.feedTime=this.retentionAge=0;}
+  get lastFailure(){return this.notice;}
+  get instruction(){return this.phase==='seated'?'One free throw seated · Retention is approximate':this.phase==='retained'?`Throw retained · ${this.seatingHint}`:this.phase==='passed'?`Tail through · ${this.captureHint||'Pull it clear of the driver to capture the throw'}`:this.notice||'Form a wrap, grasp the short tail and pull it through';}
+  advanceEngagement(dt:number){
+    this.longCorrections?.fill(0);this.shortCorrections?.fill(0);
+    if(this.active)this.retentionAge+=Math.max(0,Math.min(dt,.05));
+  }
+  reset(reason=''){this.phase='idle';this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.feed=this.feedTime=this.retentionAge=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;this.noticeTime=reason?3:0;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
   private nearest(short:ThreadStrand,point:THREE.Vector3,around?:number){
     let distance=Infinity,coordinate=0;
@@ -48,16 +59,19 @@ export class FreeThrow {
     return {coordinate,distance:Math.sqrt(distance)};
   }
   update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driver:THREE.Matrix4,longGrip:number|undefined,shortGrip:number|undefined){
+    this.noticeTime=Math.max(0,this.noticeTime-Math.max(0,dt));if(!this.noticeTime)this.notice='';
+    const wasActive=this.active;this.advanceEngagement(dt);
     if((this.phase==='idle'||this.phase==='passed'&&passage.passage&&passage.passage.wraps>this.wraps) && passage.passage){
       const event=passage.passage;
-      if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1)return;
+      if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1){this.notice='Leave free working thread beyond a complete wrap';this.noticeTime=3;return;}
+      this.notice='';this.captureHint='';
       this.passageVia=event.via;this.wraps=event.wraps;this.direction=event.direction;this.minimumSegments=this.wraps*6;
       this.first=event.first;this.last=event.last;this.initialSegments=this.last-this.first;this.exitSide=event.side;this.normal.copy(event.normal);this.phase='passed';
     }
     if(this.phase==='idle'||this.phase==='seated'&&!this.sliding){this.pullDistance=undefined;return;}
     const center=this.center(long),nearest=this.nearest(short,center,this.active?this.shortCoordinate:undefined);
     if(this.phase==='passed'){
-      if(shortGrip===undefined){this.reset();passage.reset();return;}
+      if(shortGrip===undefined){this.reset('Short tail released · Regrasp the gold end and pass it through the loop');passage.reset();return;}
       const liveNormal=new THREE.Vector3();
       for(let i=this.first;i<=this.last;i++)liveNormal.add(long.points[i].clone().sub(center).cross(long.points[i===this.last?this.first:i+1].clone().sub(center)));
       if(this.wraps===1&&liveNormal.lengthSq()>1e-8){
@@ -68,17 +82,18 @@ export class FreeThrow {
       const crossingCenter=center.clone();
       if(this.wraps>1){const axis=this.normal.clone().multiplyScalar(this.direction);let leading=Infinity;for(let i=this.first;i<=this.last;i++)leading=Math.min(leading,long.points[i].dot(axis));crossingCenter.addScaledVector(axis,leading-crossingCenter.dot(axis));}
       const side=short.points.at(-1)!.clone().sub(crossingCenter).dot(this.normal);
-      if(this.passageVia==='tip'&&side*this.exitSide< -0.02){this.reset();passage.reset();return;}
+      if(this.passageVia==='tip'&&side*this.exitSide< -0.02){this.reset('Tail moved back out · Pull the gold end completely through the loop');passage.reset();return;}
       const inverse=driver.clone().invert(),local=center.clone().applyMatrix4(inverse);
       let radius=0,depth=0;for(let i=this.first;i<=this.last;i++){
         const p=long.points[i].clone().applyMatrix4(inverse);radius=Math.max(radius,Math.hypot(p.x-local.x,p.y-local.y));depth=Math.max(depth,Math.abs(p.z-local.z));
       }
       const clear=local.z+depth< -0.07 || local.z-depth>3.4 || Math.hypot(local.x,local.y)>radius+0.16;
+      this.captureHint=clear?'Keep the short strand through the loop while pulling clear':'Slide the loop clear of the driver working tip';
       if(clear && nearest.coordinate<=short.count-2 && nearest.distance<Math.max(short.restLength*6*this.wraps,radius)){
         this.shortCoordinate=Math.min(nearest.coordinate,this.postLimit(short,shortGrip));this.phase='retained';this.pullDistance=undefined;
       }else return;
     }
-    this.retentionAge+=Math.max(0,Math.min(dt,.05));
+    if(!wasActive)this.advanceEngagement(dt);
     if((this.phase!=='seated'||this.sliding)&&longGrip!==undefined&&shortGrip!==undefined){
       const travel=.8*Math.max(0,Math.min(dt,.05))/short.restLength;
       const proximal=center.distanceTo(short.points[0]),distal=center.distanceTo(short.points[shortGrip]);
@@ -115,12 +130,16 @@ export class FreeThrow {
   }
   /** Read the converged coupled state, after tool/strand contact has solved. */
   assessSeating(long:ThreadStrand,short?:ThreadStrand){
-    if(this.last-this.first>this.minimumSegments||this.phase!=='retained'||this.feedFromWorkingEnd&&this.proximalSlack(long)>long.restLength*3)return;
-    if(this.feedFromWorkingEnd&&long.points[this.first].distanceTo(long.points[0])>long.materialLengthBetween(0,this.first)*1.05+.01)return;
-    if(short&&short.pointAt(this.shortCoordinate).distanceTo(short.points[0])>short.materialLengthBetween(0,this.shortCoordinate)*1.05+.01)return;
+    if(this.phase!=='retained')return;
+    this.seatingHint='Pull the two held ends apart to tighten';
+    if(this.last-this.first>this.minimumSegments)return;
+    if(this.feedFromWorkingEnd&&this.proximalSlack(long)>long.restLength*3){this.seatingHint='Take up the working-thread slack toward the tissue';return;}
+    if(this.feedFromWorkingEnd&&long.points[this.first].distanceTo(long.points[0])>long.materialLengthBetween(0,this.first)*1.05+.01){this.seatingHint='Ease the long-side pull; let the thread settle';return;}
+    if(short&&short.pointAt(this.shortCoordinate).distanceTo(short.points[0])>short.materialLengthBetween(0,this.shortCoordinate)*1.05+.01){this.seatingHint='Ease the short-side pull; let the post settle';return;}
     const center=this.center(long);let radius=0;
     for(let i=this.first;i<=this.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
     if(radius<0.08&&long.points[this.first].distanceTo(long.points[this.last])<0.04)this.phase='seated';
+    else this.seatingHint='Keep gentle opposing tension while the loop settles';
   }
   dampRetainedMotion(long:ThreadStrand,short:ThreadStrand){
     if(!this.active)return;
@@ -129,11 +148,19 @@ export class FreeThrow {
   }
   resolve(long:ThreadStrand,short:ThreadStrand,pinsLong:ReadonlyMap<number,THREE.Vector3>,pinsShort:ReadonlyMap<number,THREE.Vector3>){
     if(!this.active)return;
-    const engagement=this.phase==='seated'?1:THREE.MathUtils.clamp(this.retentionAge/.12,0,1);
+    const engagement=THREE.MathUtils.smoothstep(this.retentionAge,0,.3);
+    const settling=THREE.MathUtils.smoothstep(this.retentionAge,0,.6),stepBudget=.25+.75*settling*settling;
+    if(!this.longCorrections||this.longCorrections.length<long.count)this.longCorrections=new Float64Array(long.count);
+    if(!this.shortCorrections||this.shortCorrections.length<short.count)this.shortCorrections=new Float64Array(short.count);
     const move=(strand:ThreadStrand,index:number,delta:THREE.Vector3,pins:ReadonlyMap<number,THREE.Vector3>,limit=0.004)=>{
       // Engage a newly captured crossing over several physics steps rather
       // than snapping its neck and collar together in the first contact solve.
-      if(pins.has(index))return;delta.clampLength(0,limit).multiplyScalar(engagement);strand.applyContactCorrection(index,delta);
+      const spent=strand===long?this.longCorrections!:this.shortCorrections!,available=strand.restLength*stepBudget-spent[index];
+      if(pins.has(index)||available<=0)return;
+      // A per-iteration cap multiplies into a large impulse across contact
+      // sweeps. Share one correction budget across the entire physics step.
+      delta.clampLength(0,Math.min(limit,available)).multiplyScalar(engagement);
+      spent[index]+=delta.length();strand.applyContactCorrection(index,delta);
     };
     // The neck is a persistent material crossing, rather than an animated ring.
     const a=long.points[this.first],b=long.points[this.last],delta=b.clone().sub(a),distance=delta.length();

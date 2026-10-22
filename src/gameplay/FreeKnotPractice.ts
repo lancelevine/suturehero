@@ -51,7 +51,25 @@ export class FreeKnotPractice {
   private feedback='';
   private get nextMaterialIndex(){return this.recorded?this.retainedThrow.last+2:this.earlierThrows.length?Math.max(...this.earlierThrows.map(t=>t.last))+2:0;}
   private get observationWraps(){return this.retainedThrow.phase==='retained'&&!this.recorded?this.retainedThrow.wraps:this.sequence?.requiredWraps??1;}
-  get instruction(){return this.sequence?`${this.sequence.label} · ${this.sequence.throws.length} throws seated · ${this.sequence.instruction}${this.sequence.sliding?' · Short post: '+(this.postTaut?'taut':'take up slack'):''}${this.feedback?' · '+this.feedback:''}`:'Free first throw';}
+  get instruction(){return this.sequence?`${this.sequence.label} · ${this.sequence.throws.length} throws tightened · ${this.sequence.instruction}${this.sequence.sliding?' · Short post: '+(this.postTaut?'taut':'take up slack'):''}${this.feedback?' · '+this.feedback:''}`:'Free first throw';}
+  get knotAtTissue(){
+    const knot=this.retainedThrow;if(!knot.active)return false;
+    const center=new THREE.Vector3();for(let i=knot.first;i<=knot.last;i++)center.add(this.long.points[i]);center.divideScalar(knot.last-knot.first+1);
+    const bite=this.entry.clone().lerp(this.exit,.5);
+    return Math.abs(center.y-bite.y)<=.1&&Math.hypot(center.x-bite.x,center.z-bite.z)<=.2;
+  }
+  get handlingHint(){
+    const knot=this.retainedThrow;
+    if(knot.phase==='seated'&&!this.knotAtTissue)return 'Throw tightened · Bring the knot toward the tissue with gentle tension';
+    if(knot.phase==='retained'){
+      if(![...this.grips.values()].some(g=>g.strand===this.long))return 'Throw retained · Regrasp the long strand with the forceps';
+      if(![...this.grips.values()].some(g=>g.strand===this.short&&g.index>=this.short.count-4))return 'Throw retained · Regrasp the gold short end with the driver';
+      if(this.reachLimited)return 'Throw retained · Ease the pull; thread is at its reach limit';
+    }
+    if(knot.phase!=='idle'||knot.lastFailure)return knot.instruction;
+    if(this.passage.hasOpening&&this.gripLabel('right')==='short strand body')return 'Wrap detected · Move the driver grip to the gold short end';
+    return this.passage.hasOpening?this.passage.state:'Make a complete wrap around the driver · Then pull the gold end through';
+  }
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();
   private accumulator=0;
@@ -248,6 +266,7 @@ export class FreeKnotPractice {
       for(const previous of this.earlierThrows){
         previous.sliding=!!this.sequence?.sliding&&this.postTaut;
         if(previous.sliding)previous.update(step,this.passage,this.long,this.short,driver.root.matrixWorld,longGrip,shortGrip);
+        else previous.advanceEngagement(step);
       }
       const activeConstraints=constraints.filter(t=>t.active);
       const contactSweeps=activeConstraints.some(t=>t.phase!=='seated')?16:4;

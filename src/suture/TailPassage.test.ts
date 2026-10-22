@@ -73,3 +73,33 @@ it.each([{name:'working jaws',radius:.12,z:.12},{name:'fine jaws',radius:.04,z:.
   expect(observer.passage?.wraps).toBe(1);expect(observer.passage?.direction).toBe(direction);
  }
 });
+
+it('tracks the same wrap as material feeds off the held working end before passage',()=>{
+ const observer=new TailPassage();
+ const coil=(first:number,last:number)=>Array.from({length:60},(_,i)=>{
+  if(i<first)return new THREE.Vector3(.6,0,.2);
+  if(i>last)return new THREE.Vector3(.6,0,1.5);
+  const a=(i-first)/(last-first)*Math.PI*1.9;
+  return new THREE.Vector3(.12*Math.cos(a),.12*Math.sin(a),1);
+ });
+ observer.update(coil(20,59),new THREE.Vector3(0,0,.9),matrix,false,0,0);
+ expect(observer.hasOpening).toBe(true);
+ observer.update(coil(15,54),new THREE.Vector3(0,0,.9),matrix,true,0,0);
+ observer.update(coil(15,54),new THREE.Vector3(0,0,1.1),matrix,true,0,0);
+ expect(observer.passage?.first).toBe(15);expect(observer.passage?.last).toBe(54);
+ // After passage the crossing belongs to those material coordinates.
+ observer.update(coil(10,49),new THREE.Vector3(0,0,1.2),matrix,true,0,0);
+ expect(observer.passage?.first).toBe(15);expect(observer.passage?.last).toBe(54);
+});
+it.each([1,2])('accepts a late grasp and an off-center passage through an elliptical %i-turn opening',turns=>{
+ const observer=new TailPassage(),pose=new THREE.Matrix4().makeRotationY(.6).setPosition(.5,1,-.2);
+ const points=Array.from({length:80},(_,i)=>{
+  const a=i/79*Math.PI*2*(turns-.05);
+  return new THREE.Vector3(.14*Math.cos(a),.04*Math.sin(a),1+i/79*.08).applyMatrix4(pose);
+ });
+ const tip=(z:number)=>new THREE.Vector3(.015,0,z).applyMatrix4(pose);
+ observer.update(points,tip(.8),pose,false,0,0);
+ observer.update(points,tip(.8),pose,true,0,0);
+ observer.update(points,tip(1.3),pose,true,0,0);
+ expect(observer.passage?.wraps).toBe(turns);
+});

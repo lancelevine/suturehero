@@ -19,6 +19,7 @@ try {
   await page.getByRole('button',{name:'Free tying lab',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Forceps: holding'));
   assert.equal(await page.locator('#begin-pass').isDisabled(),true);
+  assert.match(await page.locator('#knot-state').innerText(),/No throw formed.*Make a complete wrap/s);
   await page.keyboard.down('m');
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Driver at tissue surface'),{},{timeout:15000});
   await page.waitForTimeout(300);await page.keyboard.up('m');

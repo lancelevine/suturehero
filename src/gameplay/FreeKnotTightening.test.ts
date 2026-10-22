@@ -1,7 +1,7 @@
 import {expect,it} from 'vitest';
 import {createFreeTyingFixture} from './test-support/freeTying';
 it('draws a retained free throw down without large self-contact kicks or overstretching the held path',async()=>{
- let maximum=0,samples=0,reachError=0;
+ let maximum=0,samples=0,reachError=0,formation=0,formedFrames=0;
  const {model,throwOne}=createFreeTyingFixture('auto',(dt,model,tools)=>{
   const retained=model.retainedThrow.phase==='retained',strands=model.strands,before=strands.map(s=>s.points.map(p=>p.clone()));
   model.update(dt,tools);
@@ -10,6 +10,7 @@ it('draws a retained free throw down without large self-contact kicks or overstr
    const budget=model.long.materialLengthBetween(knot.last,long.index)+model.short.materialLengthBetween(knot.shortMaterialCoordinate,short.index);
    reachError=Math.max(reachError,model.long.points[long.index].distanceTo(model.short.points[short.index])/budget-1);
   }
+  if(knot.active&&formedFrames++<120){for(let k=0;k<strands.length;k++)for(let i=1;i<strands[k].count-1;i++){if(held.some(g=>g.strand===strands[k]&&Math.abs(g.index-i)*strands[k].restLength<=.36))continue;const d=strands[k].points[i].distanceTo(before[k][i]);formation=Math.max(formation,d);}}
   if(retained&&knot.phase==='retained'){
    samples++;
    for(let k=0;k<strands.length;k++)for(let i=1;i<strands[k].count-1;i++){
@@ -23,5 +24,5 @@ it('draws a retained free throw down without large self-contact kicks or overstr
  expect(samples).toBeGreaterThan(30);expect(model.retainedThrow.phase).toBe('seated');
  // Material feeding advances one particle at a time; it must not kick free
  // thread across several segments or exceed the shared held-tail budget.
- expect(maximum).toBeLessThan(model.long.restLength*1.5);expect(reachError).toBeLessThan(.04);
+ expect(formation).toBeLessThan(model.short.restLength*1.1);expect(maximum).toBeLessThan(model.long.restLength);expect(reachError).toBeLessThan(.04);
 },180000);
