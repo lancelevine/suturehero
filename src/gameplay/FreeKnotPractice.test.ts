@@ -41,6 +41,7 @@ it('passes independent input commands through to both instruments without a knot
   expect(tools[0].root.quaternion.z).not.toBe(0);expect(session.knot.phase).toBe('idle');
   session.reset();expect(session.freeKnot.active).toBe(false);
 });
+// Simulates 1,200 physics frames; shared CI runners can exceed Vitest's 5-second default.
 it('settles without grasp/jaw conflict jitter while retaining slack',()=>{
   const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools);
   let largest=0,tail=0;
@@ -51,7 +52,7 @@ it('settles without grasp/jaw conflict jitter while retaining slack',()=>{
   expect(largest).toBeLessThan(0.001);expect(tail).toBeLessThan(0.001);
   expect(model.long.measuredLength).toBeCloseTo(model.long.length,1);
   expect(model.long.points.at(-1)!.distanceTo(model.exit)).toBeLessThan(model.long.length);
-});
+},20000);
 it('keeps the resting short tail broadly curved and reachable by jaws above the skin',()=>{
  const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools);
  for(let i=0;i<600;i++)model.update(1/120,tools);
