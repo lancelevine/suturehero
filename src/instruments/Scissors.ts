@@ -13,22 +13,41 @@ export class Scissors {
   if(style===this.style)return;this.style=style;
   this.root.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});this.root.clear();this.blades=[];this.build();this.pose();
  }
+ private mayoHalf(){
+  // One continuous plate from cutting blade through the shank and finger
+  // ring. The two plates pivot together at the screw, like real scissors.
+  const shape=new THREE.Shape();
+  shape.moveTo(-.025,-.47);
+  shape.bezierCurveTo(-.10,-.40,-.11,-.16,-.085,.02);
+  shape.quadraticCurveTo(-.055,.18,.02,.32);
+  shape.lineTo(.12,1.58);
+  shape.lineTo(.23+.28*Math.cos(-2.15),1.98+.34*Math.sin(-2.15));
+  shape.absellipse(.23,1.98,.28,.34,-2.15,-.99,true,0);
+  shape.lineTo(.25,1.55);shape.lineTo(.09,.28);
+  shape.quadraticCurveTo(.09,.12,.06,-.02);
+  shape.lineTo(.025,-.47);shape.closePath();
+  const hole=new THREE.Path();hole.absellipse(.23,1.98,.185,.245,0,Math.PI*2,false,0);shape.holes.push(hole);
+  const geometry=new THREE.ExtrudeGeometry(shape,{depth:.04,bevelEnabled:true,bevelSegments:1,bevelSize:.006,bevelThickness:.003,curveSegments:16});
+  geometry.rotateX(Math.PI/2);geometry.translate(0,.02,0);return geometry;
+ }
  private build(){
   const metal=this.metal,westcott=this.style==='westcott';
   for(const side of [-1,1]){
-   const half=new THREE.Group();half.position.set(0,side*.012,.25);
+   const half=new THREE.Group();half.position.set(0,side*(westcott?.012:.025),.25);
    if(westcott){
     const blade=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(side*.02,0,0),new THREE.Vector3(side*.035,0,-.18),new THREE.Vector3(side*.015,0,-.36)]),20,.018,6),metal);blade.scale.y=.4;half.add(blade);
     const spring=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(side*.02,0,.1),new THREE.Vector3(side*.12,0,1.1),new THREE.Vector3(side*.12,0,1.75),new THREE.Vector3(0,0,2.1)]),24,.025,8),metal);half.add(spring);
     const grip=new THREE.Mesh(new THREE.BoxGeometry(.075,.04,.6),metal);grip.position.set(side*.12,0,1.2);half.add(grip);
    }else{
-    const blade=new THREE.Mesh(new THREE.BoxGeometry(.055,.025,.43),metal);blade.position.set(side*.025,0,-.215);half.add(blade);
-    const shank=new THREE.Mesh(new THREE.BoxGeometry(.045,.045,1.8),metal);shank.position.set(side*.09,0,.9);half.add(shank);
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(.18,.035,8,24),metal);ring.rotation.x=Math.PI/2;ring.position.set(side*.22,0,2);half.add(ring);
+    const plate=new THREE.Mesh(this.mayoHalf(),metal);plate.scale.x=side;half.add(plate);
    }
    this.blades.push(half);this.root.add(half);
   }
-  const collar=new THREE.Mesh(new THREE.BoxGeometry(.13,.08,.12),this.accent);collar.position.z=1.4;this.root.add(collar);
+  if(!westcott){
+   const screw=new THREE.Mesh(new THREE.CylinderGeometry(.065,.065,.12,20),metal);screw.position.z=.25;this.root.add(screw);
+   const slot=new THREE.Mesh(new THREE.BoxGeometry(.075,.004,.012),this.accent);slot.position.set(0,.063,.25);this.root.add(slot);
+  }
+  if(westcott){const collar=new THREE.Mesh(new THREE.BoxGeometry(.13,.08,.12),this.accent);collar.position.z=1.4;this.root.add(collar);}
   this.root.name=westcott?'westcott-scissors':'mayo-scissors';this.root.traverse(o=>{if(o instanceof THREE.Mesh)o.castShadow=true;});
  }
  reset(){this.root.position.set(2.3,1.1,.2);this.root.quaternion.identity();this.openness=.8;this.closedLast=false;this.pose();}

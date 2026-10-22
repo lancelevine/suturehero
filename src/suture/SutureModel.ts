@@ -16,6 +16,7 @@ export class SutureModel {
   private thread: StrandMesh;
   private material = new THREE.MeshStandardMaterial({color:0xe0e9ed,metalness:0.95,roughness:0.2});
   constructor() {
+    this.strand.internalDamping=.3;
     this.root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(this.points),64,0.018*Math.sqrt(NEEDLE_RADIUS/.3),PRACTICE_SETUP.needle.tip==='cutting'?3:8,false),this.material));
     this.thread=new StrandMesh(this.strand.count);
     this.root.add(this.thread);

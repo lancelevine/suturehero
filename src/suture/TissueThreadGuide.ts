@@ -4,9 +4,9 @@ import { NEEDLE_ARC,NEEDLE_RADIUS } from './needleGeometry';
 import type { ThreadStrand } from './ThreadStrand';
 /** Sliding material coordinates through the existing circular tissue tract. */
 export class TissueThreadGuide {
-  private exteriorCount=3;
+  private exteriorCount=1;
   state='Thread following needle';
-  reset() {this.exteriorCount=3;this.state='Thread following needle';}
+  reset() {this.exteriorCount=1;this.state='Thread following needle';}
   anchors(strand:ThreadStrand,eye:THREE.Vector3,tipAngle:number|null,center:THREE.Vector3) {
     const pins=new Map<number,THREE.Vector3>([[0,eye.clone()]]);
     const eyeAngle=tipAngle===null?-1:tipAngle-NEEDLE_ARC;
@@ -18,11 +18,12 @@ export class TissueThreadGuide {
     if(eyeAngle>TRACT_SWEEP) {
       const exit=center.clone().add(new THREE.Vector3(-radius*Math.cos(TRACT_START),-radius*Math.sin(TRACT_START),0));
       const distance=exit.distanceTo(eye);
-      // A few spare segments preserve exterior slack. Hysteresis avoids index chatter.
-      const needed=Math.ceil(distance/rest)+2;
+      // Allocate material to the exposed span without forcing spare folds
+      // into the tiny gap when the eye first emerges from the tissue.
+      const needed=Math.max(1,Math.ceil(distance/rest));
       if(needed>this.exteriorCount)this.exteriorCount=needed;
-      else if(needed<this.exteriorCount-2)this.exteriorCount--;
-      offset=THREE.MathUtils.clamp(this.exteriorCount,2,strand.count-arcCount-6);
+      else if(distance<(this.exteriorCount-1.15)*rest)this.exteriorCount=needed;
+      offset=THREE.MathUtils.clamp(this.exteriorCount,1,strand.count-arcCount-6);
       pins.set(offset,exit);
       this.state=distance>offset*rest?'Thread at reach limit':'Thread sliding through tissue';
     } else this.state='Thread feeding through entry';

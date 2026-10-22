@@ -120,6 +120,44 @@ export class FreeKnotPractice {
     }
     return constrained;
   }
+  private constrainHeldPair(tools:readonly Instrument[]){
+    const held=(strand:ThreadStrand)=>tools.map(tool=>({tool,grip:this.grips.get(tool.id)})).find(item=>item.grip?.strand===strand);
+    const long=held(this.long),short=held(this.short);
+    if(!long?.grip||!short?.grip)return;
+    const knots=[...this.earlierThrows,this.retainedThrow].filter(k=>k.active);
+    if(!knots.length)return;
+    const longGrip=long.grip,shortGrip=short.grip;
+    const rootBudget=this.long.materialLengthBetween(0,longGrip.index)-knots.filter(k=>k.last<longGrip.index).reduce((sum,k)=>sum+this.long.materialLengthBetween(k.first,k.last),0);
+    const limit=(item:typeof long,anchor:THREE.Vector3,material:number)=>{
+      const point=item.tool.root.localToWorld(item.grip!.local.clone()),delta=point.sub(anchor),distance=delta.length(),radius=material*1.005;
+      if(distance>radius)item.tool.root.position.addScaledVector(delta,radius/distance-1);
+      item.tool.root.updateWorldMatrix(true,false);
+    };
+    let reach=Infinity,longShare=.5;
+    for(const knot of knots){
+      if(long.grip.index<=knot.last||short.grip.index<=knot.shortMaterialCoordinate)continue;
+      const a=this.long.materialLengthBetween(knot.last,long.grip.index),b=this.short.materialLengthBetween(knot.shortMaterialCoordinate,short.grip.index);
+      if(a+b<reach){reach=a+b;longShare=a/(a+b);}
+    }
+    // Both held tails share one finite path through the crossing. Limiting
+    // them against stale collar positions independently lets the tools and
+    // collar chase one another beyond the short post's total material.
+    for(let iteration=0;iteration<8;iteration++){
+      limit(long,this.exit,rootBudget);limit(short,this.entry,this.short.materialLengthBetween(0,shortGrip.index));
+      for(const knot of knots){
+        if(longGrip.index<=knot.last||shortGrip.index<=knot.shortMaterialCoordinate)continue;
+        const previousLoops=knots.filter(k=>k!==knot&&k.last<=knot.first).reduce((sum,k)=>sum+this.long.materialLengthBetween(k.first,k.last),0);
+        limit(long,this.entry,this.short.materialLengthBetween(0,knot.shortMaterialCoordinate)+this.long.materialLengthBetween(knot.last,longGrip.index));
+        limit(short,this.exit,this.long.materialLengthBetween(0,knot.first)-previousLoops+this.short.materialLengthBetween(knot.shortMaterialCoordinate,shortGrip.index));
+      }
+      const a=long.tool.root.localToWorld(long.grip.local.clone()),b=short.tool.root.localToWorld(short.grip.local.clone()),delta=b.sub(a),distance=delta.length();
+      if(distance>reach*1.005){
+        delta.multiplyScalar((distance-reach*1.005)/distance);
+        long.tool.root.position.addScaledVector(delta,longShare);short.tool.root.position.addScaledVector(delta,-(1-longShare));
+        long.tool.root.updateWorldMatrix(true,false);short.tool.root.updateWorldMatrix(true,false);
+      }
+    }
+  }
   update(dt:number,tools:readonly Instrument[],blockedGrips?:ReadonlySet<string>) {
     if(!this.active)return;
     for(const tool of tools) {
@@ -132,6 +170,7 @@ export class FreeKnotPractice {
     this.driverOnTissue=false;
     for(const tool of tools)this.driverOnTissue=this.constrainDriver(tool,tools)||this.driverOnTissue;
     this.contact.configure(tools,true);
+    const paired=[this.long,this.short].every(strand=>[...this.grips.values()].some(grip=>grip.strand===strand));
     for(const tool of tools) {
       const grip=this.grips.get(tool.id);if(!grip)continue;
       const target=tool.root.localToWorld(grip.local.clone());
@@ -141,7 +180,7 @@ export class FreeKnotPractice {
       };
       if(grip.strand===this.long||grip.strand===this.short){
         limitReach(grip.strand===this.long?this.exit:this.entry,grip.strand.materialLengthBetween(0,grip.index)*1.02);
-        for(const knot of [...this.earlierThrows,this.retainedThrow])if(knot.active){
+        for(const knot of [...this.earlierThrows,this.retainedThrow])if(knot.active&&!paired){
           const coordinate=grip.strand===this.long?knot.last:knot.shortMaterialCoordinate;
           if(grip.index>coordinate)limitReach(grip.strand.pointAt(coordinate),grip.strand.materialLengthBetween(coordinate,grip.index)*1.02);
         }
@@ -151,6 +190,7 @@ export class FreeKnotPractice {
       const allowed=this.contact.constrainGrip(tool.id,grip.strand.points[grip.index],target);
       tool.root.position.add(allowed.sub(target));tool.root.updateWorldMatrix(true,false);
     }
+    this.constrainHeldPair(tools);
     this.contact.configure(tools,true);
     for(const tool of tools)this.driverOnTissue=this.constrainDriver(tool,tools)||this.driverOnTissue;
     this.contact.configure(tools,true);
@@ -223,7 +263,7 @@ export class FreeKnotPractice {
           if(this.sequence.locked)for(const constraint of constraints)constraint.sliding=false;
         }else{this.retainedThrow.phase='retained';this.feedback='Hold the short post taut before seating';}
       }
-      for(const constraint of constraints)constraint.dampSeatedMotion(this.long,this.short);
+      for(const constraint of constraints)constraint.dampRetainedMotion(this.long,this.short);
       for(const grip of this.grips.values())grip.strand.dampMotion(grip.index-12,grip.index+12,.2);
       for(const strand of this.strands)strand.dampInternalMotion();
       this.accumulator-=step;

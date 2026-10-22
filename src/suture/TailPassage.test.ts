@@ -61,3 +61,15 @@ it('counts an added second wrap automatically before driver clearance',()=>{
  observer.update(coil(1.95),new THREE.Vector3(0,0,1.1),matrix,true,0,0);
  expect(observer.passage?.wraps).toBe(2);
 });
+
+it.each([{name:'working jaws',radius:.12,z:.12},{name:'fine jaws',radius:.04,z:.1},{name:'loose wrap',radius:.33,z:1}])('recognizes real passage through a $name opening in either direction and a tilted pose',({radius,z})=>{
+ const pose=new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(.4,-.7,.3)).setPosition(1,1.2,-.4);
+ for(const direction of [-1,1]){
+  const observer=new TailPassage();
+  const points=Array.from({length:48},(_,i)=>{const a=direction*i/47*Math.PI*1.9;return new THREE.Vector3(radius*Math.cos(a),radius*Math.sin(a),z).applyMatrix4(pose);});
+  const tip=(depth:number)=>new THREE.Vector3(radius*.25,0,z+depth).applyMatrix4(pose);
+  observer.update(points,tip(-.1),pose,true,0,0);
+  observer.update(points,tip(.1),pose,true,0,0);
+  expect(observer.passage?.wraps).toBe(1);expect(observer.passage?.direction).toBe(direction);
+ }
+});

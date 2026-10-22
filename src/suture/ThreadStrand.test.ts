@@ -1,4 +1,4 @@
-import {tractEntry,tractExit,TRACT_CENTER_Y} from '../tissue/sutureTract';
+import {tractEntry,tractExit,TRACT_CENTER_Y,TRACT_SWEEP} from '../tissue/sutureTract';
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { ThreadStrand } from './ThreadStrand';
@@ -59,9 +59,22 @@ it('relaxes alternating saw-tooth folds into broader slack without losing materi
  expect(strand.points[0].distanceTo(pins.get(0)!)).toBeLessThan(1e-9);
 });
 it('damps internal motion without slowing uniform free fall or changing material',()=>{
- const a=new ThreadStrand(1,20),b=new ThreadStrand(1,20),path=[new THREE.Vector3(0,2,0),new THREE.Vector3(1,2,0)];a.reset(path);b.reset(path);
+ const a=new ThreadStrand(1,20),b=new ThreadStrand(1,20),path=[new THREE.Vector3(0,2,0),new THREE.Vector3(1,2,0)];a.reset(path);b.reset(path);a.internalDamping=.3;
  for(let i=0;i<120;i++){
-  a.advance(1/120,new Map(),()=>-100);b.advance(1/120,new Map(),()=>-100);a.dampInternalMotion();
+  a.advance(1/120,new Map(),()=>-100);b.advance(1/120,new Map(),()=>-100);
  }
  expect(a.length).toBe(1);expect(a.points.every((p,i)=>p.distanceTo(b.points[i])<1e-9)).toBe(true);
+});
+
+it('does not pack spare exterior folds between an emerged eye and the tissue portal',()=>{
+ const s=new ThreadStrand(),guide=new TissueThreadGuide(),center=new THREE.Vector3(0,TRACT_CENTER_Y,0),exit=tractExit();
+ const tipAngle=NEEDLE_ARC+TRACT_SWEEP+.06;
+ const near=exit.clone().add(new THREE.Vector3(0,.02,0));
+ let pins=guide.anchors(s,near,tipAngle,center);
+ expect(pins.get(1)!.distanceTo(exit)).toBeLessThan(1e-9);
+ pins=guide.anchors(s,exit.clone().add(new THREE.Vector3(0,.4,0)),tipAngle,center);
+ const exitIndex=[...pins].find(([i,p])=>i>0&&p.distanceTo(exit)<1e-9)![0];
+ expect(exitIndex).toBe(Math.ceil(.4/s.restLength));
+ pins=guide.anchors(s,near,tipAngle,center);
+ expect(pins.get(1)!.distanceTo(exit)).toBeLessThan(1e-9);
 });

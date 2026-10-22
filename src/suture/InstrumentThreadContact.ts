@@ -159,7 +159,7 @@ export function shaftWinding(points:readonly THREE.Vector3[],driverWorld:THREE.M
   const inverse=driverWorld.clone().invert();let angle=0;
   for(let i=1;i<points.length;i++) {
     const a=points[i-1].clone().applyMatrix4(inverse),b=points[i].clone().applyMatrix4(inverse);
-    const near=(p:THREE.Vector3)=>p.z>=0.25 && p.z<=2.9 && Math.hypot(p.x,p.y)>=0.05 && Math.hypot(p.x,p.y)<=0.25;
+    const near=(p:THREE.Vector3)=>p.z>=-.07 && p.z<=2.9 && Math.hypot(p.x,p.y)>=.025 && Math.hypot(p.x,p.y)<=.4;
     if(!near(a)||!near(b))continue;
     const delta=Math.atan2(b.y,b.x)-Math.atan2(a.y,a.x);
     angle+=Math.atan2(Math.sin(delta),Math.cos(delta));

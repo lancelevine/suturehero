@@ -1,4 +1,5 @@
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
+import {THREAD_CONTACT_DISTANCE} from './threadMaterial';
 import * as THREE from 'three';
 import {ThreadStrand} from './ThreadStrand';
 import type {TailPassage} from './TailPassage';
@@ -24,12 +25,18 @@ export class FreeThrow {
   private feed=0;
   private feedTime=0;
   private alternate=false;
+  private retentionAge=0;
   private normal=new THREE.Vector3(0,0,1);
+  private postLimit(short:ThreadStrand,grip:number){
+    // A collar cannot slide all the way into the closed driver jaws.
+    // Preserve enough held post for the knot to clear the metal while seating.
+    return Math.max(1,Math.min(short.count-2,grip-Math.ceil(.2/short.restLength)));
+  }
   get shortMaterialCoordinate(){return this.shortCoordinate;}
   get active(){return this.phase==='retained'||this.phase==='seated';}
   get tightness(){return this.active?THREE.MathUtils.clamp((this.initialSegments-(this.last-this.first))/Math.max(1,this.initialSegments-this.minimumSegments),0,1):0;}
   get instruction(){return this.phase==='seated'?'One free throw seated · Retention is approximate':this.phase==='retained'?'Throw retained · Pull the two held ends apart to tighten':this.phase==='passed'?'Tail through · Pull it clear of the driver to capture the throw':'Form a wrap, grasp the short tail and pull it through';}
-  reset(){this.phase='idle';this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.feed=this.feedTime=0;}
+  reset(){this.phase='idle';this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.feed=this.feedTime=this.retentionAge=0;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
   private nearest(short:ThreadStrand,point:THREE.Vector3,around?:number){
     let distance=Infinity,coordinate=0;
@@ -68,16 +75,17 @@ export class FreeThrow {
       }
       const clear=local.z+depth< -0.07 || local.z-depth>3.4 || Math.hypot(local.x,local.y)>radius+0.16;
       if(clear && nearest.coordinate<=short.count-2 && nearest.distance<Math.max(short.restLength*6*this.wraps,radius)){
-        this.shortCoordinate=Math.min(nearest.coordinate,shortGrip-1);this.phase='retained';this.pullDistance=undefined;
+        this.shortCoordinate=Math.min(nearest.coordinate,this.postLimit(short,shortGrip));this.phase='retained';this.pullDistance=undefined;
       }else return;
     }
+    this.retentionAge+=Math.max(0,Math.min(dt,.05));
     if((this.phase!=='seated'||this.sliding)&&longGrip!==undefined&&shortGrip!==undefined){
       const travel=.8*Math.max(0,Math.min(dt,.05))/short.restLength;
       const proximal=center.distanceTo(short.points[0]),distal=center.distanceTo(short.points[shortGrip]);
       // Allocate actual material between the two arms. Repeatedly choosing
       // the nearest deformed particle made a stationary collar ratchet along
       // the post and leave impossible, overstretched spans behind it.
-      const maximum=Math.min(short.count-2,shortGrip-1);
+      const maximum=this.postLimit(short,shortGrip);
       const desired=THREE.MathUtils.clamp(shortGrip*proximal/Math.max(1e-9,proximal+distal),Math.min(maximum,proximal/short.restLength),maximum);
       this.shortCoordinate+=THREE.MathUtils.clamp(desired-this.shortCoordinate,-travel,travel);
     }
@@ -85,6 +93,13 @@ export class FreeThrow {
     if(longGrip===undefined||shortGrip===undefined){this.pullDistance=undefined;return;}
     const separation=long.points[longGrip].distanceTo(short.points[shortGrip]);
     if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*(this.feedFromWorkingEnd?1.3:.8)/PRACTICE_SETUP.suture.friction;
+    const heldMaterial=long.materialLengthBetween(this.last,longGrip)+short.materialLengthBetween(this.shortCoordinate,shortGrip);
+    if(this.phase==='retained'&&separation>=heldMaterial*.97){
+      // Taut held arms can draw material from the loop even while reach
+      // limits prevent further endpoint travel. Otherwise a valid crossing
+      // stalls precisely when both instruments put it under tension.
+      this.feed+=.4*Math.max(0,Math.min(dt,.05))/PRACTICE_SETUP.suture.friction;
+    }
     this.pullDistance=separation;this.feedTime+=Math.max(0,Math.min(dt,0.05));
     // Feed existing particles from the loop into its exterior arms; total
     // strand material and the grasped material indices remain unchanged.
@@ -107,15 +122,18 @@ export class FreeThrow {
     for(let i=this.first;i<=this.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
     if(radius<0.08&&long.points[this.first].distanceTo(long.points[this.last])<0.04)this.phase='seated';
   }
-  dampSeatedMotion(long:ThreadStrand,short:ThreadStrand){
-    if(this.phase!=='seated')return;
+  dampRetainedMotion(long:ThreadStrand,short:ThreadStrand){
+    if(!this.active)return;
     long.dampMotion(this.first-1,this.last+1,.35);
     short.dampMotion(this.shortCoordinate-2,this.shortCoordinate+2,.35);
   }
   resolve(long:ThreadStrand,short:ThreadStrand,pinsLong:ReadonlyMap<number,THREE.Vector3>,pinsShort:ReadonlyMap<number,THREE.Vector3>){
     if(!this.active)return;
+    const engagement=this.phase==='seated'?1:THREE.MathUtils.clamp(this.retentionAge/.12,0,1);
     const move=(strand:ThreadStrand,index:number,delta:THREE.Vector3,pins:ReadonlyMap<number,THREE.Vector3>,limit=0.004)=>{
-      if(pins.has(index))return;delta.clampLength(0,limit);strand.applyContactCorrection(index,delta);
+      // Engage a newly captured crossing over several physics steps rather
+      // than snapping its neck and collar together in the first contact solve.
+      if(pins.has(index))return;delta.clampLength(0,limit).multiplyScalar(engagement);strand.applyContactCorrection(index,delta);
     };
     // The neck is a persistent material crossing, rather than an animated ring.
     const a=long.points[this.first],b=long.points[this.last],delta=b.clone().sub(a),distance=delta.length();
@@ -132,5 +150,15 @@ export class FreeThrow {
     if(denominator<1e-9)return;
     for(let i=this.first;i<=this.last;i++)move(long,i,error.clone().multiplyScalar(w/denominator*0.4),pinsLong);
     for(let k=0;k<2;k++)move(short,index+k,error.clone().multiplyScalar(-weights[k]/denominator*0.4),pinsShort);
+    if(this.phase==='seated'||pinsLong.size>1&&pinsShort.size>1){
+      // Retained turns tighten around the post as material leaves the loop.
+      // Neck closure alone leaves an elongated folded loop that can stall
+      // forever; compact the existing particles with bounded corrections.
+      const collar=this.center(long),radius=Math.max(THREAD_CONTACT_DISTANCE*2,long.materialLengthBetween(this.first,this.last)/(Math.PI*2*this.wraps)+THREAD_CONTACT_DISTANCE);
+      for(let i=this.first;i<=this.last;i++){
+        const delta=collar.clone().sub(long.points[i]),distance=delta.length();
+        if(distance>radius)move(long,i,delta.multiplyScalar((distance-radius)/distance*.35),pinsLong);
+      }
+    }
   }
 }

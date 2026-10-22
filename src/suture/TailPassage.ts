@@ -21,13 +21,24 @@ export class TailPassage {
       const consider=()=>{if(Math.abs(angle)>Math.abs(bestAngle)&&Math.abs(angle)>=Math.PI*2*(Math.max(1,requiredWraps)-.2)){best=run.slice();bestAngle=angle;}};
       for(let i=minimumIndex;i<points.length;i++){
         const p=points[i].clone().applyMatrix4(inverse),r=Math.hypot(p.x,p.y),a=Math.atan2(p.y,p.x);
-        if(r>0.28||r<0.045||p.z<0.25||p.z>2.9){consider();run=[];angle=0;continue;}
+        // The working jaws extend forward of the shaft. Fine jaw wraps
+        // and loose loops around that metal are still valid openings.
+        if(r>0.4||r<0.025||p.z<-.07||p.z>2.9){consider();run=[];angle=0;continue;}
         if(run.length)angle+=Math.atan2(Math.sin(a-last),Math.cos(a-last));
         run.push(i);last=a;
       }
       consider();
       const observedWraps=Math.max(1,Math.floor(Math.abs(bestAngle)/(Math.PI*2)+.2));
       if(best.length&&(!this.indices.length||observedWraps>this.wraps)){
+        const angularStep=(a:number,b:number)=>{
+          const p=points[a].clone().applyMatrix4(inverse),q=points[b].clone().applyMatrix4(inverse);
+          const delta=Math.atan2(q.y,q.x)-Math.atan2(p.y,p.x);
+          return Math.abs(Math.atan2(Math.sin(delta),Math.cos(delta)));
+        };
+        // Straight radial arms can now lie inside the jaw/loose-wrap search
+        // volume. They do not wind around the driver or define its opening.
+        while(best.length>3&&angularStep(best[0],best[1])<.015)best.shift();
+        while(best.length>3&&angularStep(best.at(-2)!,best.at(-1)!)<.015)best.pop();
         // Trim the exterior arms: their radial spread does not describe the
         // opening supported by the shaft and can swamp its fitted geometry.
         const radial=(i:number)=>{const p=points[i].clone().applyMatrix4(inverse);return Math.hypot(p.x,p.y);};
@@ -52,7 +63,7 @@ export class TailPassage {
     // In a double wrap the distal turn reaches the held tip first. Remember
     // that passage while the remaining turn is still supported by the shaft.
     if(this.wraps>1){const leading=Math.min(...loop.map(p=>p.dot(axis)));center.addScaledVector(axis,leading-center.dot(axis));}
-    if(area<0.008){this.reset();return;}
+    if(area<Math.PI*(THREAD_RADIUS*2)**2){this.reset();return;}
     normal.copy(axis).multiplyScalar(this.direction);
     // The observed material bight can flatten or become elliptical while
     // leaving the jaws. Its projected winding still defines the live opening;

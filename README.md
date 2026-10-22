@@ -2,9 +2,9 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.26)
+## Current practice options (build 0.26.1)
 
-The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard.
+The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
 - **Skin:** thin, standard, or thick dermis, beneath a fixed epidermal layer and above fat. Dermal purchase carries the closure load; grasping the epidermis lifts its attached dermis.
 - **Microsurgery:** two hollow artery ends, a smaller artery, or nerve ends containing seven fascicle bundles each. The driver changes to a Castroviejo spring-handle form. A vessel wall or the nerve's outer sheath carries the stitch; this prototype supports one anterior-wall/sheath stitch, not a complete circumferential anastomosis or individual fascicle suturing.
@@ -20,6 +20,10 @@ Free knot retention remains an approximate material-crossing constraint, not a c
 Free tying limits physics catch-up to two fixed steps per display frame and reduces extra contact iterations once throws are seated. Material reach limits prevent dragging a captured knot beyond the available thread. Local velocity damping reduces idle chatter while preserving uniform strand motion. Sliding tension is measured between the collar and the held post, so slack below the knot does not block advancement.
 
 Microsurgery thread and driver contact follow the hollow tube wall, including its underside and cut face, rather than snapping to its upper surface. Skin thread approaching the pad from below meets its side instead of jumping to its top. Near an accessible short endpoint, a neighboring fold no longer steals a driver pickup.
+
+Build 0.26.1 uses two continuous, wider Mayo scissor halves with finger-ring holes and a central screw; Westcott scissors retain their spring-handle shape. Free throw capture engages gradually, with local damping during tightening as well as after seating. Both held ends respect the shared material paths through retained throws, including material spent in earlier coils. Sliding collars leave room to seat outside the closed jaws, and existing loop particles compact as material is drawn through. Passage detection includes working jaws, fine jaw openings, and loose wraps while still requiring actual held-tail passage.
+
+Build 0.26.1 also damps relative motion in the guided needle thread at each physics step. The bend solver respects the fixed tract curvature at its boundary, and the guide no longer packs spare exterior folds into the small gap as the needle eye emerges. Regression coverage includes the completed pass, forceps handoff, extraction, and subsequent settling in skin and microsurgery.
 
 ## Development
 

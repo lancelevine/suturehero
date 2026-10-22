@@ -5,6 +5,7 @@ export type StrandObstacle=(points:THREE.Vector3[],previous:THREE.Vector3[],pinn
 /** Position-based strand with a prescribed material length. Discrete self-contact, without force calibration. */
 export class ThreadStrand {
   tissueContact?:StrandObstacle;
+  internalDamping=0;
   readonly points: THREE.Vector3[];
   private previous: THREE.Vector3[];
   private materialLength:number;
@@ -113,6 +114,7 @@ export class ThreadStrand {
         this.previous[i].z=THREE.MathUtils.lerp(this.previous[i].z,this.points[i].z,0.18*PRACTICE_SETUP.suture.friction);
         this.previous[i].y=this.points[i].y;
       }
+      if(this.internalDamping>0)this.dampInternalMotion(this.internalDamping);
     }
     // Kinematic attachment remains exact even on a substep-free display frame.
     for(const [i,anchor] of anchors)this.points[i].copy(anchor);
@@ -130,6 +132,10 @@ export class ThreadStrand {
     // A soft angular limit suppresses zero-energy alternating folds without
     // smoothing the rendered centerline or changing the material budget.
     for(let i=1;i<this.count-1;i++){
+      // A fixed tissue tract prescribes its own curvature. Straightening
+      // across its final pinned segment fights the guide and kicks the
+      // first free particle away on every solver iteration.
+      if(anchors.has(i)&&(anchors.has(i-1)||anchors.has(i+1)))continue;
       const span=this.edgeRest(i-1)+this.edgeRest(i),minimum=span*.75;
       const a=this.points[i-1],b=this.points[i+1],delta=this.delta.subVectors(b,a),distance=delta.length();
       const wa=anchors.has(i-1)?0:1,wb=anchors.has(i+1)?0:1;
