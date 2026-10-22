@@ -2,6 +2,14 @@ import {expect,it} from 'vitest';
 import * as THREE from 'three';
 import {Instrument} from '../instruments/Instrument';
 import {InstrumentThreadContact,shaftWinding} from './InstrumentThreadContact';
+it.each(['standard','castro'] as const)('tracks a live opening on the %s driver jaws and releases it past the metal tip',style=>{
+  const driver=new Instrument('right',0);driver.setDriverStyle(style);driver.root.position.set(0,1,0);driver.root.quaternion.identity();driver.openness=.1;
+  const contact=new InstrumentThreadContact();contact.configure([driver]);
+  const loop=(z:number)=>Array.from({length:40},(_,i)=>{const a=i/39*Math.PI*1.95;return new THREE.Vector3(.1*Math.cos(a),1+.1*Math.sin(a),z);});
+  const normal=new THREE.Vector3(0,0,1);
+  expect(contact.supportsOpening(driver.id,loop(.1),normal)).toBe(true);
+  expect(contact.supportsOpening(driver.id,loop(-.2),normal)).toBe(false);
+});
 it('separates a segment crossing the shaft interior and preserves pins and velocities',()=>{
   const driver=new Instrument('right',0);driver.root.position.set(0,1,0);driver.root.quaternion.identity();
   const contact=new InstrumentThreadContact();contact.configure([driver]);

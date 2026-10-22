@@ -13,13 +13,14 @@ export class TailPassage {
   get passage(){return this.crossing;}
   get hasOpening(){return this.indices.length>0;}
   reset(){this.indices=[];this.previous=undefined;this.crossed=false;this.crossing=undefined;this.state='Form a wrap around the driver';}
-  update(points:readonly THREE.Vector3[],tip:THREE.Vector3,driver:THREE.Matrix4,holdingTail:boolean,minimumIndex=0,requiredWraps=1,shortPoints?:readonly THREE.Vector3[]){
+  update(points:readonly THREE.Vector3[],tip:THREE.Vector3,driver:THREE.Matrix4,holdingTail:boolean,minimumIndex=0,requiredWraps=1,shortPoints?:readonly THREE.Vector3[],maximumIndex=points.length-1){
+    if(!this.crossed&&this.indices.some(i=>i<minimumIndex||i>maximumIndex))this.reset();
     if(this.crossed&&requiredWraps!==0){this.state='Short tip passed through the opening · Knot not assessed';return;}
     if(!this.crossed||requiredWraps===0){
       const inverse=driver.clone().invert();let run:number[]=[],angle=0,last=0;
       let best:number[]=[],bestAngle=0;
       const consider=()=>{if(Math.abs(angle)>Math.abs(bestAngle)&&Math.abs(angle)>=Math.PI*2*(Math.max(1,requiredWraps)-.2)){best=run.slice();bestAngle=angle;}};
-      for(let i=minimumIndex;i<points.length;i++){
+      for(let i=minimumIndex;i<=Math.min(maximumIndex,points.length-1);i++){
         const p=points[i].clone().applyMatrix4(inverse),r=Math.hypot(p.x,p.y),a=Math.atan2(p.y,p.x);
         // The working jaws extend forward of the shaft. Fine jaw wraps
         // and loose loops around that metal are still valid openings.
@@ -45,6 +46,20 @@ export class TailPassage {
         const radii=best.map(radial).sort((a,b)=>a-b),limit=radii[Math.floor(radii.length/2)]*1.25;
         while(best.length>3&&radial(best[0])>limit)best.shift();
         while(best.length>3&&radial(best.at(-1)!)>limit)best.pop();
+        // A curved outgoing arm can remain in the shaft search volume and
+        // contribute a little angle. Keep the tightest material window that
+        // contains the observed turn(s), rather than capturing that entire arm.
+        const prefix=[0],sign=Math.sign(bestAngle);
+        for(let i=1;i<best.length;i++){
+          const p=points[best[i-1]].clone().applyMatrix4(inverse),q=points[best[i]].clone().applyMatrix4(inverse),delta=Math.atan2(q.y,q.x)-Math.atan2(p.y,p.x);
+          prefix.push(prefix.at(-1)!+sign*Math.atan2(Math.sin(delta),Math.cos(delta)));
+        }
+        const target=Math.min(prefix.at(-1)!,Math.PI*2*(observedWraps-.05));
+        let start=0,end=best.length-1;
+        for(let i=0;i<best.length;i++)for(let j=i+Math.max(7,observedWraps*6);j<best.length;j++){
+          if(j-i<end-start&&prefix[j]-prefix[i]>=target-1e-8){start=i;end=j;}
+        }
+        best=best.slice(start,end+1);
         const overlap=Math.min(best.at(-1)!,this.indices.at(-1)??-1)-Math.max(best[0],this.indices[0]??Infinity)+1;
         if(observedWraps!==this.wraps||overlap<Math.min(best.length,this.indices.length)*.5)this.previous=undefined;
         this.indices=best;this.wraps=observedWraps;this.direction=Math.sign(bestAngle);

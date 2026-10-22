@@ -3,10 +3,16 @@ import * as THREE from 'three';
 import type { Instrument } from '../instruments/Instrument';
 import { closestSegments } from './StrandContact';
 import { THREAD_RADIUS } from './threadMaterial';
+import {MaterialOpening} from './MaterialOpening';
 interface Capsule {toolId:string;driver:boolean;a:THREE.Vector3;b:THREE.Vector3;oldA:THREE.Vector3;oldB:THREE.Vector3;radius:number;bounds:THREE.Box3}
 /** Substep-interpolated, conservatively sampled swept segment/capsule contact. Instrument bodies remain kinematic. */
 export class InstrumentThreadContact {
   private capsules:Capsule[]=[];
+  /** Metal still occupying a passed loop delays retention until it slips free. */
+  supportsOpening(toolId:string,points:readonly THREE.Vector3[],normal:THREE.Vector3){
+    const opening=new MaterialOpening(points,normal);
+    return this.capsules.some(c=>c.toolId===toolId&&opening.intersectsCapsule(c.a,c.b,c.radius));
+  }
   configure(tools:readonly Instrument[],preserveSweep=false) {
     const last=this.capsules;this.capsules=[];
     for(const tool of tools) {

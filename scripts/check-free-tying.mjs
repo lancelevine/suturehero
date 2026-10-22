@@ -6,6 +6,7 @@ try {
   const page=await browser.newPage({viewport:{width:1440,height:1180}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
+  const build=await page.locator('.version').innerText();assert.match(build,/BUILD \d+\.\d+/);
   const evertSkin=async()=>{
     await page.getByRole('button',{name:'Position forceps at skin edge',exact:true}).click();
     await page.keyboard.down('z');await page.waitForFunction(()=>document.querySelector('#grasp-status').textContent.includes('holding skin edge'),{},{timeout:15000});await page.keyboard.up('z');
@@ -37,9 +38,11 @@ try {
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Forceps: free'),{},{timeout:15000});
   await page.keyboard.up('x');
   assert.doesNotMatch(await page.locator('#exercise-readout').innerText(),/NaN|Infinity/);
-  for(const width of [760,1100,1440]) {
+  for(const width of [390,760,1100,1440]) {
     await page.setViewportSize({width,height:1180});await page.waitForTimeout(400);
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Free lab overflow');
+    assert(await page.locator('.version').isVisible(),'Build number visible on mobile and desktop');
+    assert.equal(await page.locator('.version').innerText(),build);
   }
   await evertSkin();
   assert.match(await page.locator('#exercise-readout').innerText(),/Forceps: holding skin edge/);

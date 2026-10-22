@@ -3,6 +3,7 @@ import {THREAD_CONTACT_DISTANCE} from './threadMaterial';
 import * as THREE from 'three';
 import {ThreadStrand} from './ThreadStrand';
 import type {TailPassage} from './TailPassage';
+import {MaterialOpening} from './MaterialOpening';
 
 /** Material-space approximation of one retained instrument throw. No posed tools,
  * replacement thread mesh or calibrated knot-security/force claim. */
@@ -26,6 +27,9 @@ export class FreeThrow {
   private feedTime=0;
   private alternate=false;
   private retentionAge=0;
+  private passageAge=0;
+  private pendingPost?:number;
+  private clearanceMissTime=0;
   private notice='';
   private noticeTime=0;
   private captureHint='';
@@ -46,35 +50,28 @@ export class FreeThrow {
   advanceEngagement(dt:number){
     this.longCorrections?.fill(0);this.shortCorrections?.fill(0);
     if(this.active)this.retentionAge+=Math.max(0,Math.min(dt,.05));
+    if(this.phase==='passed')this.passageAge+=Math.max(0,Math.min(dt,.05));
   }
-  reset(reason=''){this.phase='idle';this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.feed=this.feedTime=this.retentionAge=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;this.noticeTime=reason?3:0;}
+  reset(reason=''){this.phase='idle';this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.clearanceMissTime=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;this.noticeTime=reason?3:0;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
-  private nearest(short:ThreadStrand,point:THREE.Vector3,around?:number){
-    let distance=Infinity,coordinate=0;
-    for(let i=1;i<short.count-1;i++){
-      if(around!==undefined && Math.abs(i-around)>3)continue;
-      const line=new THREE.Line3(short.points[i],short.points[i+1]),t=line.closestPointToPointParameter(point,true),near=line.at(t,new THREE.Vector3()),d=near.distanceToSquared(point);
-      if(d<distance){distance=d;coordinate=i+t;}
-    }
-    return {coordinate,distance:Math.sqrt(distance)};
-  }
-  update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driver:THREE.Matrix4,longGrip:number|undefined,shortGrip:number|undefined){
+  update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driverSupportsLoop:(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>boolean,longGrip:number|undefined,shortGrip:number|undefined){
     this.noticeTime=Math.max(0,this.noticeTime-Math.max(0,dt));if(!this.noticeTime)this.notice='';
     const wasActive=this.active;this.advanceEngagement(dt);
     if((this.phase==='idle'||this.phase==='passed'&&passage.passage&&passage.passage.wraps>this.wraps) && passage.passage){
       const event=passage.passage;
       if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1){this.reset('Leave free working thread beyond a complete wrap');passage.reset();return;}
       this.notice='';this.captureHint='';
+      this.passageAge=this.clearanceMissTime=0;this.pendingPost=undefined;
       this.passageVia=event.via;this.wraps=event.wraps;this.direction=event.direction;this.minimumSegments=this.wraps*6;
       this.first=event.first;this.last=event.last;this.initialSegments=this.last-this.first;this.exitSide=event.side;this.normal.copy(event.normal);this.phase='passed';
     }
     if(this.phase==='idle'||this.phase==='seated'&&!this.sliding){this.pullDistance=undefined;return;}
-    const center=this.center(long),nearest=this.nearest(short,center,this.active?this.shortCoordinate:undefined);
+    const center=this.center(long);
     if(this.phase==='passed'){
       if(shortGrip===undefined){this.reset('Short tail released · Regrasp the gold end and pass it through the loop');passage.reset();return;}
       const liveNormal=new THREE.Vector3();
       for(let i=this.first;i<=this.last;i++)liveNormal.add(long.points[i].clone().sub(center).cross(long.points[i===this.last?this.first:i+1].clone().sub(center)));
-      if(this.wraps===1&&liveNormal.lengthSq()>1e-8){
+      if(liveNormal.lengthSq()>1e-8){
         liveNormal.normalize();
         if(liveNormal.dot(this.normal)<0)liveNormal.negate();
         this.normal.copy(liveNormal);
@@ -83,15 +80,20 @@ export class FreeThrow {
       if(this.wraps>1){const axis=this.normal.clone().multiplyScalar(this.direction);let leading=Infinity;for(let i=this.first;i<=this.last;i++)leading=Math.min(leading,long.points[i].dot(axis));crossingCenter.addScaledVector(axis,leading-crossingCenter.dot(axis));}
       const side=short.points.at(-1)!.clone().sub(crossingCenter).dot(this.normal);
       if(this.passageVia==='tip'&&side*this.exitSide< -0.02){this.reset('Tail moved back out · Pull the gold end completely through the loop');passage.reset();return;}
-      const inverse=driver.clone().invert(),local=center.clone().applyMatrix4(inverse);
-      let radius=0,depth=0;for(let i=this.first;i<=this.last;i++){
-        const p=long.points[i].clone().applyMatrix4(inverse);radius=Math.max(radius,Math.hypot(p.x-local.x,p.y-local.y));depth=Math.max(depth,Math.abs(p.z-local.z));
-      }
-      const clear=local.z+depth< -0.07 || local.z-depth>3.4 || Math.hypot(local.x,local.y)>radius+0.16;
+      const loop=long.points.slice(this.first,this.last+1);
+      const opening=new MaterialOpening(loop,this.normal),crossing=opening.crossingCoordinate(short.points,THREAD_CONTACT_DISTANCE);
+      this.pendingPost=crossing??(this.pendingPost===undefined?undefined:opening.nearbyPlaneCrossing(short.points,this.pendingPost));
+      const clear=!driverSupportsLoop(loop,this.normal);
       this.captureHint=clear?'Keep the short strand through the loop while pulling clear':'Slide the loop clear of the driver working tip';
-      if(clear && nearest.coordinate<=short.count-2 && nearest.distance<Math.max(short.restLength*6*this.wraps,radius)){
-        this.shortCoordinate=Math.min(nearest.coordinate,this.postLimit(short,shortGrip));this.phase='retained';this.pullDistance=undefined;
-      }else return;
+      if(!clear){this.clearanceMissTime=0;return;}
+      if(crossing===undefined){
+        this.clearanceMissTime+=Math.max(0,Math.min(dt,.05));
+        // Let bounded rim contact converge across clearance, without attaching
+        // a nearby unthreaded strand or holding a tail that backed out axially.
+        if(this.pendingPost!==undefined&&this.clearanceMissTime<.1)return;
+        this.reset('Loop slipped off the short strand · Rewrap and pull the gold end through');passage.reset();return;
+      }
+      this.shortCoordinate=THREE.MathUtils.clamp(crossing,1,this.postLimit(short,shortGrip));this.phase='retained';this.pullDistance=undefined;
     }
     if(!wasActive)this.advanceEngagement(dt);
     if((this.phase!=='seated'||this.sliding)&&longGrip!==undefined&&shortGrip!==undefined){
@@ -147,9 +149,10 @@ export class FreeThrow {
     short.dampMotion(this.shortCoordinate-2,this.shortCoordinate+2,.35);
   }
   resolve(long:ThreadStrand,short:ThreadStrand,pinsLong:ReadonlyMap<number,THREE.Vector3>,pinsShort:ReadonlyMap<number,THREE.Vector3>){
-    if(!this.active)return;
-    const engagement=THREE.MathUtils.smoothstep(this.retentionAge,0,.3);
-    const settling=THREE.MathUtils.smoothstep(this.retentionAge,0,.6),stepBudget=.25+.75*settling*settling;
+    const pending=this.phase==='passed';
+    if(!this.active&&!pending)return;
+    const engagement=THREE.MathUtils.smoothstep(pending?this.passageAge:this.retentionAge,0,pending?.4:.3);
+    const settling=THREE.MathUtils.smoothstep(this.retentionAge,0,.6),stepBudget=pending?.15:.25+.75*settling*settling;
     if(!this.longCorrections||this.longCorrections.length<long.count)this.longCorrections=new Float64Array(long.count);
     if(!this.shortCorrections||this.shortCorrections.length<short.count)this.shortCorrections=new Float64Array(short.count);
     const move=(strand:ThreadStrand,index:number,delta:THREE.Vector3,pins:ReadonlyMap<number,THREE.Vector3>,limit=0.004)=>{
@@ -169,14 +172,20 @@ export class FreeThrow {
       delta.multiplyScalar((distance-0.022)/(distance*(wa+wb)));
       if(wa)move(long,this.first,delta.clone(),pinsLong,0.02);if(wb)move(long,this.last,delta.clone().negate(),pinsLong,0.02);
     }
-    const coordinate=THREE.MathUtils.clamp(this.shortCoordinate,1,short.count-2),index=Math.floor(coordinate),t=coordinate-index;
-    const contact=short.points[index].clone().lerp(short.points[index+1],t),center=this.center(long),error=contact.sub(center);
+    // Keep a threaded post inside the bight while metal still supports it.
+    // Only radial escape is blocked: no collar centering or compaction before
+    // clearance, and release/reversal still cancels the provisional crossing.
+    if(pending&&this.pendingPost===undefined)return;
+    const coordinate=THREE.MathUtils.clamp(pending?this.pendingPost!:this.shortCoordinate,1,short.count-2),index=Math.floor(coordinate),t=coordinate-index;
+    const contact=short.points[index].clone().lerp(short.points[index+1],t),center=this.center(long);
+    const error=pending?new MaterialOpening(long.points.slice(this.first,this.last+1),this.normal).inwardCorrection(contact,THREAD_CONTACT_DISTANCE).negate():contact.sub(center);
     const n=this.last-this.first+1,w=1/n,weights=[1-t,t];
     let denominator=0;for(let i=this.first;i<=this.last;i++)if(!pinsLong.has(i))denominator+=w*w;
     for(let k=0;k<2;k++)if(!pinsShort.has(index+k))denominator+=weights[k]*weights[k];
     if(denominator<1e-9)return;
     for(let i=this.first;i<=this.last;i++)move(long,i,error.clone().multiplyScalar(w/denominator*0.4),pinsLong);
     for(let k=0;k<2;k++)move(short,index+k,error.clone().multiplyScalar(-weights[k]/denominator*0.4),pinsShort);
+    if(pending)return;
     if(this.phase==='seated'||pinsLong.size>1&&pinsShort.size>1){
       // Retained turns tighten around the post as material leaves the loop.
       // Neck closure alone leaves an elongated folded loop that can stall

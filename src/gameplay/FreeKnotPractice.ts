@@ -49,7 +49,10 @@ export class FreeKnotPractice {
   driverObstacle?:(radius:number)=>StrandObstacle;
   private recorded=false;
   private feedback='';
-  private get nextMaterialIndex(){return this.recorded?this.retainedThrow.last+2:this.earlierThrows.length?Math.max(...this.earlierThrows.map(t=>t.last))+2:0;}
+  private get nextMaterialIndex(){return this.recorded?this.retainedThrow.last+2:this.earlierThrows.length?Math.max(...this.earlierThrows.map(t=>t.last))+2:1;}
+  // Search free working material, not the tissue anchor or the held endpoint.
+  // Including the grasp could mask a valid earlier turn with an unusable span.
+  private get maximumOpeningIndex(){return ([...this.grips.values()].find(g=>g.strand===this.long)?.index??this.long.count-1)-1;}
   private get observationWraps(){return this.retainedThrow.phase==='retained'&&!this.recorded?this.retainedThrow.wraps:this.sequence?.requiredWraps??1;}
   get instruction(){return this.sequence?`${this.sequence.label} · ${this.sequence.throws.length} throws tightened · ${this.sequence.instruction}${this.sequence.sliding?' · Short post: '+(this.postTaut?'taut':'take up slack'):''}${this.feedback?' · '+this.feedback:''}`:'Free first throw';}
   get knotAtTissue(){
@@ -248,7 +251,7 @@ export class FreeKnotPractice {
         resolveStrandPair(this.short,fragment,subPins.get(this.short)!,subPins.get(fragment)!,this.short.points.map(p=>p.clone()),fragment.points.map(p=>p.clone()));
       }
       const driver=tools.find(t=>t.kind==='needle-driver')!;
-      this.passage.update(this.long.points,this.short.points.at(-1)!,driver.root.matrixWorld,this.gripLabel(driver.id)==='short tail',this.nextMaterialIndex,this.observationWraps,this.short.points);
+      this.passage.update(this.long.points,this.short.points.at(-1)!,driver.root.matrixWorld,this.gripLabel(driver.id)==='short tail',this.nextMaterialIndex,this.observationWraps,this.short.points,this.maximumOpeningIndex);
       const longGrip=[...this.grips.values()].find(g=>g.strand===this.long)?.index;
       const shortGrip=[...this.grips.values()].find(g=>g.strand===this.short && g.index>=this.short.count-4)?.index;
       const postStart=this.retainedThrow.active?this.retainedThrow.shortMaterialCoordinate:0;
@@ -260,16 +263,17 @@ export class FreeKnotPractice {
         const minimum=this.retainedThrow.last+2;this.earlierThrows.push(this.retainedThrow);this.retainedThrow=new FreeThrow();this.retainedThrow.feedFromWorkingEnd=true;this.retainedThrow.minimumMaterialIndex=minimum;this.recorded=false;this.feedback='';
       }
       const validEvent=!this.sequence||!event||this.sequence.acceptsGeometry(event.wraps,event.direction);
+      const driverSupportsLoop=(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>this.contact.supportsOpening(driver.id,points,normal);
       this.retainedThrow.sliding=!!this.sequence?.sliding&&this.postTaut;
-      if(validEvent)this.retainedThrow.update(step,this.passage,this.long,this.short,driver.root.matrixWorld,longGrip,shortGrip);
+      if(validEvent)this.retainedThrow.update(step,this.passage,this.long,this.short,driverSupportsLoop,longGrip,shortGrip);
       const constraints=[...this.earlierThrows,this.retainedThrow];
       for(const previous of this.earlierThrows){
         previous.sliding=!!this.sequence?.sliding&&this.postTaut;
-        if(previous.sliding)previous.update(step,this.passage,this.long,this.short,driver.root.matrixWorld,longGrip,shortGrip);
+        if(previous.sliding)previous.update(step,this.passage,this.long,this.short,driverSupportsLoop,longGrip,shortGrip);
         else previous.advanceEngagement(step);
       }
-      const activeConstraints=constraints.filter(t=>t.active);
-      const contactSweeps=activeConstraints.some(t=>t.phase!=='seated')?16:4;
+      const activeConstraints=constraints.filter(t=>t.active||t.phase==='passed');
+      const contactSweeps=activeConstraints.some(t=>t.phase==='retained')?16:activeConstraints.some(t=>t.active)?4:2;
       if(activeConstraints.length)for(let iteration=0;iteration<contactSweeps;iteration++){
         for(const constraint of activeConstraints)constraint.resolve(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!);
         for(const strand of this.strands)strand.projectContacts(subPins.get(strand)!,this.supportAt,(p,previous,pinned,start)=>this.contact.resolve(p,previous,pinned,{from:(n+1)/steps,to:(n+1)/steps,start},exemptions.get(strand)),iteration%2!==0);
@@ -291,7 +295,7 @@ export class FreeKnotPractice {
 
     const driver=tools.find(t=>t.kind==='needle-driver')!;
     this.winding=shaftWinding(this.long.points,driver.root.matrixWorld);
-    this.passage.update(this.long.points,this.short.points.at(-1)!,driver.root.matrixWorld,this.gripLabel(driver.id)==='short tail',this.nextMaterialIndex,this.observationWraps,this.short.points);
+    this.passage.update(this.long.points,this.short.points.at(-1)!,driver.root.matrixWorld,this.gripLabel(driver.id)==='short tail',this.nextMaterialIndex,this.observationWraps,this.short.points,this.maximumOpeningIndex);
   }
   gripLabel(id:string) {
     const grip=this.grips.get(id);if(!grip)return 'free';

@@ -44,6 +44,28 @@ it('excludes material belonging to earlier throws from a new wrap',()=>{
  model.update(points,new THREE.Vector3(0,0,1.1),matrix,true,40);
  expect(model.passage).toBeUndefined();
 });
+it('finds a usable turn before the held working point instead of rejecting an entire longer run',()=>{
+ const model=new TailPassage(),points=Array.from({length:80},(_,i)=>{const a=i/79*Math.PI*2.4;return new THREE.Vector3(.12*Math.cos(a),.12*Math.sin(a),1);});
+ model.update(points,new THREE.Vector3(0,0,.9),matrix,true,1,0,undefined,77);
+ model.update(points,new THREE.Vector3(0,0,1.1),matrix,true,1,0,undefined,77);
+ expect(model.passage?.first).toBeGreaterThanOrEqual(1);expect(model.passage?.last).toBeLessThanOrEqual(77);expect(model.passage?.wraps).toBe(1);
+});
+it('captures the winding material instead of long curved arms that remain near the shaft',()=>{
+ const points=Array.from({length:61},(_,i)=>{
+  const a=(i<20?i/20*.2:i<=40?.2+(i-20)/20:1.2+(i-40)/20*.2)*Math.PI*2;
+  return new THREE.Vector3(.12*Math.cos(a),.12*Math.sin(a),i<20?.4+i*.02:i<=40?.8:.8+(i-40)*.02);
+ });
+ const model=new TailPassage();model.update(points,new THREE.Vector3(0,0,.7),matrix,true,0,0);
+ model.update(points,new THREE.Vector3(0,0,.9),matrix,true,0,0);
+ expect(model.passage?.wraps).toBe(1);expect(model.passage!.first).toBeGreaterThanOrEqual(19);expect(model.passage!.last).toBeLessThanOrEqual(41);
+});
+it('invalidates an unpassed opening when a regrasp leaves its material beyond the working hand',()=>{
+ const model=new TailPassage(),points=wrap();
+ model.update(points,new THREE.Vector3(0,0,.9),matrix,true);
+ expect(model.hasOpening).toBe(true);
+ model.update(points,new THREE.Vector3(0,0,1.1),matrix,true,0,0,undefined,5);
+ expect(model.hasOpening).toBe(false);expect(model.passage).toBeUndefined();
+});
 
 it('recognizes a held short strand already threaded through a newly formed wrap',()=>{
  const points=wrap();

@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.27.1)
+## Current practice options (build 0.28)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Free knot capture and stability in 0.28
+
+After observed tail passage, a gently engaged material neck and rim contact preserve the threaded bight while it slips off the driver. It does not compact the loop onto the instrument, and releasing or reversing the tail cancels this provisional support. Driver clearance now uses the actual shaft and jaw contact shapes, including Castro jaws, instead of a broad bounding box. Both single and double wraps follow the rotating material opening. The detector searches free material before the working grasp and selects the winding portion, excluding long curved outgoing arms.
+
+Retention uses the short strand's actual crossing through the opening rather than the nearest particle. A loop that has slipped off the short strand gives a retry notice. Additional coupled distance corrections preserve velocity so settling and material feeding do not launch the free arm. Existing strand length, tool pins and independent input remain intact.
+
+Regression coverage includes diagonal and rotated openings, narrow jaws, release/regrasp before the next throw, movement during capture and tightening, and retained material coordinates after a sliding start is locked. Retention remains a material-space approximation.
 
 ## Patch 0.27.1
 

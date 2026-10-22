@@ -119,13 +119,14 @@ export class ThreadStrand {
     // Kinematic attachment remains exact even on a substep-free display frame.
     for(const [i,anchor] of anchors)this.points[i].copy(anchor);
   }
-  private projectDistances(anchors:ReadonlyMap<number,THREE.Vector3>,reverse:boolean){
+  private projectDistances(anchors:ReadonlyMap<number,THREE.Vector3>,reverse:boolean,velocityDamping=0){
     for(let n=0;n<this.count-1;n++){
       const i=reverse?this.count-2-n:n,a=this.points[i],b=this.points[i+1];
       this.delta.subVectors(b,a);const distance=this.delta.length(),wa=anchors.has(i)?0:1,wb=anchors.has(i+1)?0:1;
       if(distance<1e-9 || wa+wb===0)continue;
       this.delta.multiplyScalar((distance-this.edgeRest(i))/(distance*(wa+wb)));
-      if(wa)a.add(this.delta);if(wb)b.sub(this.delta);
+      if(wa){a.add(this.delta);if(velocityDamping)this.previous[i].addScaledVector(this.delta,velocityDamping);}
+      if(wb){b.sub(this.delta);if(velocityDamping)this.previous[i+1].addScaledVector(this.delta,-velocityDamping);}
     }
   }
   private projectBends(anchors:ReadonlyMap<number,THREE.Vector3>){
@@ -153,7 +154,9 @@ export class ThreadStrand {
   /** Additional coupled contact sweeps, without another integration or reseeding. */
   projectContacts(anchors:ReadonlyMap<number,THREE.Vector3>,surfaceAt:(p:THREE.Vector3)=>number,toolContact:((points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>,start:readonly THREE.Vector3[])=>void)|undefined,reverse=false){
     const start=this.points.map(p=>p.clone()),pinned=new Set(anchors.keys());
-    this.projectDistances(anchors,reverse);this.projectBends(anchors);this.contact.resolve(this.points,this.previous,pinned);
+    // Coupled relaxation is a position correction, not a second integration.
+    // Preserve velocity so released material is not launched by solver motion.
+    this.projectDistances(anchors,reverse,1);this.projectBends(anchors);this.contact.resolve(this.points,this.previous,pinned);
     toolContact?.(this.points,this.previous,pinned,start);
     this.tissueContact?.(this.points,this.previous,pinned);
     for(let i=0;i<this.count;i++)if(!pinned.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
