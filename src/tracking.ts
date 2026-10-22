@@ -1,18 +1,18 @@
 import * as THREE from 'three';
 import {availableCameras,groupMarkers,openCamera,type MarkerObservation} from './input/arucoTracking';
-import {UnconfiguredDetector} from './input/arucoDetector';
+import {BrowserArucoDetector} from './input/arucoDetector';
 import './style.css';
 import './tracking.css';
 
 const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB</span><a href="./">← Return to practice</a></header>
-<main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Preview your webcam and test simulated instrument motion. Live ArUco recognition is the next integration step.</p>
+<main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers IDs 0–8. Outlines and IDs appear on the video.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
 <div class="tracking-actions"><label><input id="simulation" type="checkbox" checked> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Simulation: move the needle driver with arrow keys, forceps with W/A/S/D. Hold Shift for faster movement. This is a 2D movement demonstration, not 6-DOF optical tracking.</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Not configured</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 · Forceps IDs 3–5. Camera preview works now; physical marker detection and prism pose estimation are not yet enabled.</p></section></main>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 · Forceps IDs 3–5. Live 2D marker detection enabled. 3D pose estimation is not yet implemented.</p></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -20,13 +20,22 @@ const start=document.querySelector<HTMLButtonElement>('#start-camera')!;
 const stop=document.querySelector<HTMLButtonElement>('#stop-camera')!;
 const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
+const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
+const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
+const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
+const detector=new BrowserArucoDetector();
+const frameCanvas=document.createElement('canvas');
+const frameContext=frameCanvas.getContext('2d',{willReadFrequently:true})!;
+const overlayContext=overlay.getContext('2d')!;
+let observations:MarkerObservation[]=[];
+let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value;const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;start.disabled=false;stop.disabled=true;status.textContent='Camera stopped.';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
- try {await stopCamera();stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();start.disabled=true;stop.disabled=false;status.textContent='Camera preview running. ArUco detection not yet connected.';await refreshCameras();}
+ try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
 });
 stop.addEventListener('click',stopCamera);
@@ -44,10 +53,23 @@ driver.position.z=-.65;forceps.position.z=.65;
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>keys.clear());
 document.querySelector('#reset-sim')!.addEventListener('click',()=>{driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);});
-const detector=new UnconfiguredDetector(); // Replace with validated ArUco WASM detector in next milestone.
-const noMarkers:MarkerObservation[]=[];
-const observed=groupMarkers(noMarkers); // wiring contract exercised even without detector
-void detector;void observed;
+function drawDetections(){
+ const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
+ for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();overlayContext.strokeStyle=marker.id<3?'#ffc857':marker.id<6?'#61e3c4':'#8aa8ff';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ const groups=groupMarkers(observations);
+ markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
+ if(!simulation.checked){driverReadout.textContent=groups.find(g=>g.name==='needleDriver')?'Visible · 2D marker tracked':'Not visible';forcepsReadout.textContent=groups.find(g=>g.name==='forceps')?'Visible · 2D marker tracked':'Not visible';}
+}
+async function detectFrame(now:number){
+ if(!stream||!detectorReady||processing||!video.videoWidth||now-lastDetection<90)return;
+ lastDetection=now;processing=true;const session=cameraSession;
+ try{
+  const w=video.videoWidth,h=video.videoHeight;if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
+  frameContext.drawImage(video,0,0,w,h);const found=await detector.detect(frameContext.getImageData(0,0,w,h));
+  if(session===cameraSession){observations=found;drawDetections();}
+ }catch(e){status.textContent='Detection error: '+(e instanceof Error?e.message:String(e));detectorReady=false;}
+ finally{processing=false;}
+}
 const resize=new ResizeObserver(()=>{const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});resize.observe(mount);
 let last=performance.now();
 function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
@@ -57,9 +79,9 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  }
  driver.position.x=THREE.MathUtils.clamp(driver.position.x,-2,2);driver.position.z=THREE.MathUtils.clamp(driver.position.z,-2,2);
  forceps.position.x=THREE.MathUtils.clamp(forceps.position.x,-2,2);forceps.position.z=THREE.MathUtils.clamp(forceps.position.z,-2,2);
- document.querySelector('#driver-readout')!.textContent=simulation.checked?`Simulated · (${driver.position.x.toFixed(2)}, ${driver.position.z.toFixed(2)})`:'Waiting for tracker';
- document.querySelector('#forceps-readout')!.textContent=simulation.checked?`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`:'Waiting for tracker';
- if(video.videoWidth){overlay.width=video.videoWidth;overlay.height=video.videoHeight;}
+ if(simulation.checked)driverReadout.textContent=`Simulated · (${driver.position.x.toFixed(2)}, ${driver.position.z.toFixed(2)})`;
+ if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
+ void detectFrame(now);
  renderer.render(scene,camera);requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
