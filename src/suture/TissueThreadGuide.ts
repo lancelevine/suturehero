@@ -39,3 +39,6 @@ export function threadSurfaceAt(p:THREE.Vector3):number {
   if(Math.abs(p.x)<=3.5 && Math.abs(p.z)<=2.5)return 0.055;
   return -0.075;
 }
+
+/** Tray/floor support below a tissue obstacle with its own surface contact. */
+export function threadBaseAt(p:THREE.Vector3):number{return Math.abs(p.x)<=3.5&&Math.abs(p.z)<=2.5?.055:-.075;}

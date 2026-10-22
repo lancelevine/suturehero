@@ -3,7 +3,8 @@ import type {ThreadStrand} from './ThreadStrand';
 import {closestSegments} from './StrandContact';
 import {THREAD_CONTACT_DISTANCE} from './threadMaterial';
 /** Swept segment contact between the two exterior strands; not a knot solver. */
-export function resolveStrandPair(a:ThreadStrand,b:ThreadStrand,pinsA:ReadonlyMap<number,THREE.Vector3>,pinsB:ReadonlyMap<number,THREE.Vector3>,startA:readonly THREE.Vector3[],startB:readonly THREE.Vector3[]) {
+export function resolveStrandPair(a:ThreadStrand,b:ThreadStrand,pinsA:ReadonlyMap<number,THREE.Vector3>,pinsB:ReadonlyMap<number,THREE.Vector3>,startA?:readonly THREE.Vector3[],startB?:readonly THREE.Vector3[]) {
+  const swept=!!(startA&&startB);startA??=a.points;startB??=b.points;
   const radius=THREAD_CONTACT_DISTANCE;
   const boxes=b.points.slice(1).map((p,i)=>new THREE.Box3().setFromPoints([startB[i],startB[i+1],b.points[i],p]).expandByScalar(radius));
   const bounds=new THREE.Box3();
@@ -12,8 +13,10 @@ export function resolveStrandPair(a:ThreadStrand,b:ThreadStrand,pinsA:ReadonlyMa
     for(let j=0;j<b.count-1;j++) {
       if(!bounds.intersectsBox(boxes[j]))continue;
       let hit=closestSegments(a.points[i],a.points[i+1],b.points[j],b.points[j+1]);
+      let normal=hit.p.clone().sub(hit.q),distance=normal.length();
+      if(swept){
       const old=closestSegments(startA[i],startA[i+1],startB[j],startB[j+1]);
-      const oldNormal=old.p.clone().sub(old.q);let normal=hit.p.clone().sub(hit.q),distance=normal.length();
+      const oldNormal=old.p.clone().sub(old.q);
       if(oldNormal.length()>=radius && oldNormal.dot(normal)<=0) {
         const motion=Math.max(startA[i].distanceTo(a.points[i]),startA[i+1].distanceTo(a.points[i+1]))+Math.max(startB[j].distanceTo(b.points[j]),startB[j+1].distanceTo(b.points[j+1]));
         const samples=Math.min(32,Math.max(1,Math.ceil(motion/(radius*0.35))));
@@ -24,6 +27,7 @@ export function resolveStrandPair(a:ThreadStrand,b:ThreadStrand,pinsA:ReadonlyMa
             normal=oldNormal.normalize();distance=hit.p.clone().sub(hit.q).dot(normal);break;
           }
         }
+      }
       }
       if(distance>=radius)continue;
       if(normal.lengthSq()<1e-12)normal.crossVectors(a.points[i+1].clone().sub(a.points[i]),b.points[j+1].clone().sub(b.points[j]));

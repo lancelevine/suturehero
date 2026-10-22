@@ -1,8 +1,10 @@
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import { StrandContact } from './StrandContact';
 import * as THREE from 'three';
+export type StrandObstacle=(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>)=>void;
 /** Position-based strand with a prescribed material length. Discrete self-contact, without force calibration. */
 export class ThreadStrand {
+  tissueContact?:StrandObstacle;
   readonly points: THREE.Vector3[];
   private previous: THREE.Vector3[];
   private materialLength:number;
@@ -16,6 +18,30 @@ export class ThreadStrand {
     if(!Number.isFinite(length) || length<=0)throw new Error('Material length must be finite and positive.');
     if(this.edgeLengths)this.edgeLengths=this.edgeLengths.map(rest=>rest*length/this.materialLength);
     this.materialLength=length;
+  }
+  /** Material distance, including fractional edges left by cutting. */
+  materialLengthBetween(from:number,to:number){
+    const low=THREE.MathUtils.clamp(Math.min(from,to),0,this.count-1),high=THREE.MathUtils.clamp(Math.max(from,to),0,this.count-1);
+    let length=0;for(let i=Math.floor(low);i<Math.ceil(high);i++)length+=this.edgeRest(i)*(Math.min(high,i+1)-Math.max(low,i));
+    return length;
+  }
+  pointAt(coordinate:number,target=new THREE.Vector3()){
+    const q=THREE.MathUtils.clamp(coordinate,0,this.count-1),i=Math.min(this.count-2,Math.floor(q));return target.copy(this.points[i]).lerp(this.points[i+1],q-i);
+  }
+  /** Dissipate local residual velocity without moving or reseeding material. */
+  dampMotion(first:number,last:number,retention:number){
+    for(let i=Math.max(0,Math.floor(first));i<=Math.min(this.count-1,Math.ceil(last));i++)this.previous[i].lerp(this.points[i],1-retention);
+  }
+  private motionScratch?:Float64Array;
+  /** Viscous damping of relative particle motion, preserving bulk translation. */
+  dampInternalMotion(strength=.15){
+    const v=this.motionScratch??=new Float64Array(this.count*3);
+    for(let i=0;i<this.count;i++){v[i*3]=this.points[i].x-this.previous[i].x;v[i*3+1]=this.points[i].y-this.previous[i].y;v[i*3+2]=this.points[i].z-this.previous[i].z;}
+    for(let i=0;i<this.count-1;i++){
+      const x=(v[i*3]-v[(i+1)*3])*strength,y=(v[i*3+1]-v[(i+1)*3+1])*strength,z=(v[i*3+2]-v[(i+1)*3+2])*strength;
+      if(!this.pinned.has(i)){this.previous[i].x+=x;this.previous[i].y+=y;this.previous[i].z+=z;}
+      if(!this.pinned.has(i+1)){this.previous[i+1].x-=x;this.previous[i+1].y-=y;this.previous[i+1].z-=z;}
+    }
   }
   private accumulator=0;
   private pinned=new Set<number>();
@@ -78,6 +104,7 @@ export class ThreadStrand {
         this.projectBends(anchors);
         if(iteration%6===5)this.contact.resolve(this.points,this.previous,this.pinned);
         toolContact?.(this.points,this.previous,this.pinned,{from:iteration===0?(substep-1)/steps:substep/steps,to:substep/steps,start:contactStart});
+        this.tissueContact?.(this.points,this.previous,this.pinned);
         for(let i=0;i<this.count;i++)if(!anchors.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
       }
       for(let i=0;i<this.count;i++)if(!anchors.has(i) && this.points[i].y<=surfaceAt(this.points[i])+0.0001) {
@@ -122,6 +149,7 @@ export class ThreadStrand {
     const start=this.points.map(p=>p.clone()),pinned=new Set(anchors.keys());
     this.projectDistances(anchors,reverse);this.projectBends(anchors);this.contact.resolve(this.points,this.previous,pinned);
     toolContact?.(this.points,this.previous,pinned,start);
+    this.tissueContact?.(this.points,this.previous,pinned);
     for(let i=0;i<this.count;i++)if(!pinned.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
   }
   /** Shared contact constraints preserve particle velocity when separating overlap. */

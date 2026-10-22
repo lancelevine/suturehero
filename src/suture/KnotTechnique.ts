@@ -4,6 +4,7 @@ export interface ThrowRecord {wraps:number;direction:number;postHeld:boolean}
 export class KnotTechniqueSequence {
   readonly throws:ThrowRecord[]=[];
   constructor(readonly technique:KnotTechnique='surgeon'){}
+  get label(){return this.technique==='surgeon'?"Surgeon's start":'Sliding start';}
   get requiredWraps(){return this.technique==='surgeon' && !this.throws.length?2:1;}
   get requiredDirection(){
     if(!this.throws.length)return 0;

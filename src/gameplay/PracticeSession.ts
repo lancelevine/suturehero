@@ -26,10 +26,11 @@ export class PracticeSession {
     this.wound.initialGap=id==='microsurgery'?MICRO_TARGETS[target].gap:.1;
     this.eversion.edgeX=this.wound.initialGap/2;this.eversion.reset();
     this.pass.purchaseY=this.environment.purchaseY;this.wound.purchaseValidator=this.environment.loadBearing;
-    this.freeKnot.surfaceAt=this.environment.surfaceAt;this.knotSlack.surfaceAt=this.environment.surfaceAt;
+    this.freeKnot.surfaceAt=this.environment.surfaceAt;this.freeKnot.threadFloorAt=this.environment.threadFloorAt;this.freeKnot.tissueContact=this.environment.threadContact;this.freeKnot.driverObstacle=this.environment.driverObstacle;
+    this.knotSlack.surfaceAt=this.environment.threadFloorAt??this.environment.surfaceAt;this.knotSlack.tissueContact=this.environment.threadContact;
     for(const tool of this.instruments){tool.setDriverStyle(id==='microsurgery'?'castro':'standard');tool.minimumHeight=id==='microsurgery'?MICRO_FLOOR_Y+.05:.15;}
   }
-  beginFreeTying(technique?:KnotTechnique) {
+  beginFreeTying(technique?:KnotTechnique|'auto') {
     this.reset();
     if(this.grasp) {this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,0.1,1.2);}
     this.freeKnot.begin(this.instruments,technique);this.wound.setDermalBites(...this.pass.purchaseSites);
@@ -235,7 +236,7 @@ export class PracticeSession {
     }
     if(this.grasp) {
       const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
-      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,this.environment.surfaceAt);
+      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact);
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }

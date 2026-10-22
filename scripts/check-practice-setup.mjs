@@ -23,8 +23,13 @@ try {
  assert.match(await page.locator('#right-tool-name').innerText(),/Castroviejo/);
  await page.locator('#begin-pass').click();await prepareEversion(page);await page.keyboard.down('u');
  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});await page.keyboard.up('u');
- await page.locator('#free-tying').click();await page.locator('#knot-state').waitFor();assert.match(await page.locator('#knot-state').innerText(),/No throw formed/);
- await page.waitForTimeout(1500);await page.locator('#select-scissors').click();assert.match(await page.locator('#right-tool-name').innerText(),/Westcott/);
+ await page.locator('#free-tying').click();await page.locator('#knot-state').waitFor();
+ await page.waitForFunction(()=>document.querySelector('#guided-technique-field').hidden);
+ assert.match(await page.locator('#exercise-readout').innerText(),/Detecting knot start/);assert.match(await page.locator('#knot-state').innerText(),/No throw formed/);
+ // Wait for simulated frames: software rendering and bounded catch-up can
+ // advance less physics than a wall-clock delay implies.
+ await page.evaluate(async()=>{for(let i=0;i<240;i++)await new Promise(requestAnimationFrame);});
+ await page.locator('#select-scissors').click();assert.match(await page.locator('#right-tool-name').innerText(),/Westcott/);
  await page.locator('#position-scissors').click();await page.keyboard.down(',');
  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Suture cut'),{},{timeout:20000});await page.keyboard.up(',');
  assert.doesNotMatch(await page.locator('#exercise-readout').innerText(),/NaN|Infinity/);

@@ -41,13 +41,13 @@ export class FreeThrow {
     return {coordinate,distance:Math.sqrt(distance)};
   }
   update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driver:THREE.Matrix4,longGrip:number|undefined,shortGrip:number|undefined){
-    if(this.phase==='idle' && passage.passage){
+    if((this.phase==='idle'||this.phase==='passed'&&passage.passage&&passage.passage.wraps>this.wraps) && passage.passage){
       const event=passage.passage;
       if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1)return;
       this.passageVia=event.via;this.wraps=event.wraps;this.direction=event.direction;this.minimumSegments=this.wraps*6;
       this.first=event.first;this.last=event.last;this.initialSegments=this.last-this.first;this.exitSide=event.side;this.normal.copy(event.normal);this.phase='passed';
     }
-    if(this.phase==='idle')return;
+    if(this.phase==='idle'||this.phase==='seated'&&!this.sliding){this.pullDistance=undefined;return;}
     const center=this.center(long),nearest=this.nearest(short,center,this.active?this.shortCoordinate:undefined);
     if(this.phase==='passed'){
       if(shortGrip===undefined){this.reset();passage.reset();return;}
@@ -68,11 +68,20 @@ export class FreeThrow {
       }
       const clear=local.z+depth< -0.07 || local.z-depth>3.4 || Math.hypot(local.x,local.y)>radius+0.16;
       if(clear && nearest.coordinate<=short.count-2 && nearest.distance<Math.max(short.restLength*6*this.wraps,radius)){
-        this.shortCoordinate=nearest.coordinate;this.phase='retained';this.pullDistance=undefined;
+        this.shortCoordinate=Math.min(nearest.coordinate,shortGrip-1);this.phase='retained';this.pullDistance=undefined;
       }else return;
     }
-    if(this.phase!=='seated'||this.sliding)this.shortCoordinate=nearest.coordinate;
-    this.assessSeating(long);
+    if((this.phase!=='seated'||this.sliding)&&longGrip!==undefined&&shortGrip!==undefined){
+      const travel=.8*Math.max(0,Math.min(dt,.05))/short.restLength;
+      const proximal=center.distanceTo(short.points[0]),distal=center.distanceTo(short.points[shortGrip]);
+      // Allocate actual material between the two arms. Repeatedly choosing
+      // the nearest deformed particle made a stationary collar ratchet along
+      // the post and leave impossible, overstretched spans behind it.
+      const maximum=Math.min(short.count-2,shortGrip-1);
+      const desired=THREE.MathUtils.clamp(shortGrip*proximal/Math.max(1e-9,proximal+distal),Math.min(maximum,proximal/short.restLength),maximum);
+      this.shortCoordinate+=THREE.MathUtils.clamp(desired-this.shortCoordinate,-travel,travel);
+    }
+    this.assessSeating(long,short);
     if(longGrip===undefined||shortGrip===undefined){this.pullDistance=undefined;return;}
     const separation=long.points[longGrip].distanceTo(short.points[shortGrip]);
     if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*(this.feedFromWorkingEnd?1.3:.8)/PRACTICE_SETUP.suture.friction;
@@ -90,11 +99,18 @@ export class FreeThrow {
 
   }
   /** Read the converged coupled state, after tool/strand contact has solved. */
-  assessSeating(long:ThreadStrand){
+  assessSeating(long:ThreadStrand,short?:ThreadStrand){
     if(this.last-this.first>this.minimumSegments||this.phase!=='retained'||this.feedFromWorkingEnd&&this.proximalSlack(long)>long.restLength*3)return;
+    if(this.feedFromWorkingEnd&&long.points[this.first].distanceTo(long.points[0])>long.materialLengthBetween(0,this.first)*1.05+.01)return;
+    if(short&&short.pointAt(this.shortCoordinate).distanceTo(short.points[0])>short.materialLengthBetween(0,this.shortCoordinate)*1.05+.01)return;
     const center=this.center(long);let radius=0;
     for(let i=this.first;i<=this.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
     if(radius<0.08&&long.points[this.first].distanceTo(long.points[this.last])<0.04)this.phase='seated';
+  }
+  dampSeatedMotion(long:ThreadStrand,short:ThreadStrand){
+    if(this.phase!=='seated')return;
+    long.dampMotion(this.first-1,this.last+1,.35);
+    short.dampMotion(this.shortCoordinate-2,this.shortCoordinate+2,.35);
   }
   resolve(long:ThreadStrand,short:ThreadStrand,pinsLong:ReadonlyMap<number,THREE.Vector3>,pinsShort:ReadonlyMap<number,THREE.Vector3>){
     if(!this.active)return;

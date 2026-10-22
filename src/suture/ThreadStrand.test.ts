@@ -58,3 +58,10 @@ it('relaxes alternating saw-tooth folds into broader slack without losing materi
  expect(alignment()).toBeGreaterThan(before+0.6);expect(strand.measuredLength).toBeCloseTo(strand.length,1);
  expect(strand.points[0].distanceTo(pins.get(0)!)).toBeLessThan(1e-9);
 });
+it('damps internal motion without slowing uniform free fall or changing material',()=>{
+ const a=new ThreadStrand(1,20),b=new ThreadStrand(1,20),path=[new THREE.Vector3(0,2,0),new THREE.Vector3(1,2,0)];a.reset(path);b.reset(path);
+ for(let i=0;i<120;i++){
+  a.advance(1/120,new Map(),()=>-100);b.advance(1/120,new Map(),()=>-100);a.dampInternalMotion();
+ }
+ expect(a.length).toBe(1);expect(a.points.every((p,i)=>p.distanceTo(b.points[i])<1e-9)).toBe(true);
+});

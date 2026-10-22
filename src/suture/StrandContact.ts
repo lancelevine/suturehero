@@ -1,23 +1,27 @@
 import * as THREE from 'three';
 import { THREAD_CONTACT_DISTANCE } from './threadMaterial';
 /** Closest points on finite segments, including parallel and degenerate cases. */
-export function closestSegments(a:THREE.Vector3,b:THREE.Vector3,c:THREE.Vector3,d:THREE.Vector3) {
-  const ab=b.clone().sub(a),cd=d.clone().sub(c),r=a.clone().sub(c);
-  const aa=ab.lengthSq(),ee=cd.lengthSq(),f=cd.dot(r);let s=0,t=0;
-  if(aa<1e-12 && ee<1e-12)return {s,t,p:a.clone(),q:c.clone()};
-  if(aa<1e-12)t=THREE.MathUtils.clamp(f/ee,0,1);
+export interface SegmentHit {s:number;t:number;p:THREE.Vector3;q:THREE.Vector3}
+export function closestSegments(a:THREE.Vector3,b:THREE.Vector3,c:THREE.Vector3,d:THREE.Vector3,result:SegmentHit={s:0,t:0,p:new THREE.Vector3(),q:new THREE.Vector3()}) {
+  const ax=b.x-a.x,ay=b.y-a.y,az=b.z-a.z,cx=d.x-c.x,cy=d.y-c.y,cz=d.z-c.z;
+  const rx=a.x-c.x,ry=a.y-c.y,rz=a.z-c.z;
+  const aa=ax*ax+ay*ay+az*az,ee=cx*cx+cy*cy+cz*cz,f=cx*rx+cy*ry+cz*rz;
+  let s=0,t=0;
+  if(aa<1e-12&&ee<1e-12){}
+  else if(aa<1e-12)t=THREE.MathUtils.clamp(f/ee,0,1);
   else {
-    const cc=ab.dot(r);
+    const cc=ax*rx+ay*ry+az*rz;
     if(ee<1e-12)s=THREE.MathUtils.clamp(-cc/aa,0,1);
     else {
-      const bb=ab.dot(cd),denom=aa*ee-bb*bb;
+      const bb=ax*cx+ay*cy+az*cz,denom=aa*ee-bb*bb;
       if(denom>1e-12)s=THREE.MathUtils.clamp((bb*f-cc*ee)/denom,0,1);
       t=(bb*s+f)/ee;
-      if(t<0) {t=0;s=THREE.MathUtils.clamp(-cc/aa,0,1);}
-      else if(t>1) {t=1;s=THREE.MathUtils.clamp((bb-cc)/aa,0,1);}
+      if(t<0){t=0;s=THREE.MathUtils.clamp(-cc/aa,0,1);}
+      else if(t>1){t=1;s=THREE.MathUtils.clamp((bb-cc)/aa,0,1);}
     }
   }
-  return {s,t,p:a.clone().addScaledVector(ab,s),q:c.clone().addScaledVector(cd,t)};
+  result.s=s;result.t=t;result.p.set(a.x+ax*s,a.y+ay*s,a.z+az*s);result.q.set(c.x+cx*t,c.y+cy*t,c.z+cz*t);
+  return result;
 }
 /** Discrete segment self-contact. Adjacent segments are exempt from self-contact. */
 export class StrandContact {

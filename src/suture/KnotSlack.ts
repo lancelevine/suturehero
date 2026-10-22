@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { KnotMaterial } from './KnotMaterial';
-import { ThreadStrand } from './ThreadStrand';
+import { ThreadStrand,type StrandObstacle } from './ThreadStrand';
 import { threadSurfaceAt } from './TissueThreadGuide';
 export interface KnotSlackFrame {
   enabled:boolean;
@@ -24,6 +24,7 @@ export class KnotSlack {
   enabled=false;
   trimmed=false;
   surfaceAt=threadSurfaceAt;
+  tissueContact?:StrandObstacle;
   readonly fragments:ThreadStrand[]=[];
   private released={short:true,long:true};
   private detached=new Set<'short'|'long'>();
@@ -39,6 +40,7 @@ export class KnotSlack {
     }this.fragments.push(split.fragment);this.trimmed=true;return true;
   }
   advanceTrimmed(dt:number,holds?:{short?:THREE.Vector3;long?:THREE.Vector3}){
+    for(const strand of [this.short,this.long,...this.fragments])strand.tissueContact=this.tissueContact;
     for(const strand of [this.short,this.long])strand.advance(dt,new Map([[0,strand.points[0].clone()]]),this.surfaceAt);
     for(const strand of this.fragments){
       const side=this.heldOffcuts.get(strand),target=side?holds?.[side]:undefined;
@@ -67,6 +69,7 @@ export class KnotSlack {
     const shortPins=new Map([[0,frame.shortStart]]),longPins=new Map([[0,frame.longStart]]);
     if(!frame.releaseShort)shortPins.set(this.short.count-1,frame.shortEnd);
     if(!frame.releaseLong)longPins.set(this.long.count-1,frame.longEnd);
+    this.short.tissueContact=this.long.tissueContact=this.tissueContact;
     this.short.advance(dt,shortPins,this.surfaceAt);this.long.advance(dt,longPins,this.surfaceAt);
     this.availableSlack=Math.max(0,this.short.length-frame.shortStart.distanceTo(frame.shortEnd))+Math.max(0,this.long.length-frame.longStart.distanceTo(frame.longEnd));
   }

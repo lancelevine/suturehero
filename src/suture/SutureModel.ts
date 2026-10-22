@@ -1,5 +1,5 @@
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
-import { ThreadStrand } from './ThreadStrand';
+import { ThreadStrand,type StrandObstacle } from './ThreadStrand';
 import { TissueThreadGuide,threadSurfaceAt } from './TissueThreadGuide';
 import { StrandMesh } from '../scene/StrandMesh';
 import { NEEDLE_ARC, NEEDLE_RADIUS } from './needleGeometry';
@@ -37,9 +37,10 @@ export class SutureModel {
       tangent:new THREE.Vector3(-Math.sin(NEEDLE_ARC),0,Math.cos(NEEDLE_ARC)).transformDirection(this.root.matrixWorld),
     };
   }
-  advanceThread(dt:number,tipAngle:number|null,center:THREE.Vector3,surfaceAt=threadSurfaceAt) {
+  advanceThread(dt:number,tipAngle:number|null,center:THREE.Vector3,surfaceAt=threadSurfaceAt,tissueContact?:StrandObstacle) {
     this.root.updateWorldMatrix(true,false);
     const eye=this.points[0].clone().applyMatrix4(this.root.matrixWorld);
+    this.strand.tissueContact=tissueContact;
     this.strand.advance(dt,this.threadGuide.anchors(this.strand,eye,tipAngle,center),surfaceAt);
     this.thread.update(this.strand.points,this.root.matrixWorld);
   }

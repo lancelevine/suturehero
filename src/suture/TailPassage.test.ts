@@ -53,3 +53,11 @@ it('recognizes a held short strand already threaded through a newly formed wrap'
   expect(model.passage?.via).toBe(held&&x===0?'strand':undefined);
  }
 });
+it('counts an added second wrap automatically before driver clearance',()=>{
+ const observer=new TailPassage();
+ const coil=(turns:number)=>Array.from({length:100},(_,i)=>{const a=i/99*Math.PI*2*turns;return new THREE.Vector3(.12*Math.cos(a),.12*Math.sin(a),1);});
+ observer.update(coil(.95),new THREE.Vector3(0,0,.9),matrix,true,0,0);
+ observer.update(coil(1.95),new THREE.Vector3(0,0,.9),matrix,true,0,0);
+ observer.update(coil(1.95),new THREE.Vector3(0,0,1.1),matrix,true,0,0);
+ expect(observer.passage?.wraps).toBe(2);
+});

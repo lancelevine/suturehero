@@ -1,3 +1,4 @@
+import type {StrandObstacle} from './ThreadStrand';
 import * as THREE from 'three';
 import type { Instrument } from '../instruments/Instrument';
 import { closestSegments } from './StrandContact';
@@ -33,7 +34,7 @@ export class InstrumentThreadContact {
   }
   /** Permit shallow skin overlap while preserving an exterior thread gap.
    * Forceps jaws remain available for tissue grasps. */
-  constrainDriverToSurface(tool:Instrument,surfaceAt:(p:THREE.Vector3)=>number) {
+  constrainDriverToSurface(tool:Instrument,surfaceAt:(p:THREE.Vector3)=>number,overlap=.04) {
     if(tool.kind!=='needle-driver')return false;
     let lift=-Infinity;
     for(const capsule of this.capsules)if(capsule.toolId===tool.id){
@@ -43,11 +44,31 @@ export class InstrumentThreadContact {
         let surface=surfaceAt(center);
         // Include the capsule footprint when it straddles a pad/tray edge.
         for(const [x,z] of [[1,0],[-1,0],[0,1],[0,-1]])surface=Math.max(surface,surfaceAt(center.clone().add(new THREE.Vector3(x*capsule.radius,0,z*capsule.radius))));
-        lift=Math.max(lift,surface+capsule.radius+0.002-center.y-(surface>=0.4?0.04:0));
+        lift=Math.max(lift,surface+capsule.radius+0.002-center.y-(surface>=0.4?overlap:0));
       }
     }
     if(lift>0){tool.root.position.y+=lift;tool.root.updateWorldMatrix(true,false);}
     return lift>=-0.001;
+  }
+  /** Project a driver against profile-specific walls instead of a top-only height. */
+  constrainDriverToObstacle(tool:Instrument,obstacle:(radius:number)=>StrandObstacle){
+    if(tool.kind!=='needle-driver')return false;
+    const origin=tool.root.position.clone(),point=new THREE.Vector3(),old=new THREE.Vector3(),before=new THREE.Vector3(),deepest=new THREE.Vector3();
+    const points=[point],previous=[old],pins=new Set<number>();let changed=false;
+    for(let iteration=0;iteration<3;iteration++){
+      deepest.set(0,0,0);
+      for(const capsule of this.capsules)if(capsule.toolId===tool.id){
+        const project=obstacle(capsule.radius-THREAD_RADIUS+.002),steps=Math.ceil(capsule.a.distanceTo(capsule.b)/Math.max(.03,capsule.radius));
+        for(let i=0;i<=steps;i++){
+          const t=i/steps;point.copy(capsule.a).lerp(capsule.b,t).add(tool.root.position).sub(origin);before.copy(point);
+          old.copy(capsule.oldA).lerp(capsule.oldB,t);project(points,previous,pins);point.sub(before);
+          if(point.lengthSq()>deepest.lengthSq())deepest.copy(point);
+        }
+      }
+      if(deepest.lengthSq()<1e-12)break;
+      tool.root.position.add(deepest);changed=true;
+    }
+    if(changed)tool.root.updateWorldMatrix(true,false);return changed;
   }
   /** A small local indentation gives exterior wraps room below a driver
    * that is allowed to overlap skin. The tray/floor keep their full support. */

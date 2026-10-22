@@ -2,18 +2,24 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.25)
+## Current practice options (build 0.26)
 
-The setup bar selects skin or microsurgery, tissue target, needle, suture material, and starting knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard.
+The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard.
 
 - **Skin:** thin, standard, or thick dermis, beneath a fixed epidermal layer and above fat. Dermal purchase carries the closure load; grasping the epidermis lifts its attached dermis.
 - **Microsurgery:** two hollow artery ends, a smaller artery, or nerve ends containing seven fascicle bundles each. The driver changes to a Castroviejo spring-handle form. A vessel wall or the nerve's outer sheath carries the stitch; this prototype supports one anterior-wall/sheath stitch, not a complete circumferential anastomosis or individual fascicle suturing.
 - **Needles:** PS-2, CT-1, SH, FS-2, P-3, and BV-1, with different radii, arc lengths, and representative cutting/taper geometry. These are practice-scale profiles, not calibrated commercial dimensions. Guided paths preserve the selected needle radius and keep skin bites within the dermis.
 - **Sutures:** blue Prolene, black nylon, and violet Monocryl. They share the same solver, with modest differences in damping, bending, and sliding resistance. These coefficients are exploratory rather than measured material properties.
-- **Starting knots:** a surgeon's double first wrap followed by an opposing single throw; or two same-direction single throws on a taut short post, followed by an opposing locking throw. Guided mode assists these sequences; free mode detects actual supported wraps and short-thread passage, keeps earlier throws connected, and feeds existing material while tightening. Additional free throws alternate directions. A visible in-scene badge distinguishes a detected wrap, tail passage, retained throw, and seated throw.
+- **Starting knots:** a surgeon's double first wrap followed by an opposing single throw; or two same-direction single throws on a taut short post, followed by an opposing locking throw. Guided mode assists these selected sequences; free mode automatically identifies single, surgeon's, square, or sliding starts from the observed throws, without a technique selector. Free mode detects actual supported wraps and short-thread passage, keeps earlier throws connected, and feeds existing material while tightening. Additional free throws alternate directions. A visible in-scene badge distinguishes a detected wrap, tail passage, retained throw, and seated throw.
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Stability changes in 0.26
+
+Free tying limits physics catch-up to two fixed steps per display frame and reduces extra contact iterations once throws are seated. Material reach limits prevent dragging a captured knot beyond the available thread. Local velocity damping reduces idle chatter while preserving uniform strand motion. Sliding tension is measured between the collar and the held post, so slack below the knot does not block advancement.
+
+Microsurgery thread and driver contact follow the hollow tube wall, including its underside and cut face, rather than snapping to its upper surface. Skin thread approaching the pad from below meets its side instead of jumping to its top. Near an accessible short endpoint, a neighboring fold no longer steals a driver pickup.
 
 ## Development
 
