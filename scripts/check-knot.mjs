@@ -10,13 +10,14 @@ try {
   if(await page.locator('#close-up').getAttribute('aria-pressed')==='false')await page.locator('#close-up').click();
   await page.keyboard.down('u');
   await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000}).catch(async error=>{console.error(await page.locator('.exercise-feedback').innerText(),await page.locator('#grasp-status').innerText());throw error;});
-  await page.keyboard.up('u');
+  await page.keyboard.up('u');console.log('Guided needle emergence passed.');
   await page.keyboard.down('x');await page.waitForFunction(()=>!document.querySelector('#position-forceps').disabled,{},{timeout:15000});await page.keyboard.up('x');
   await page.locator('#grip-point').fill('85'); await page.locator('#grip-point').dispatchEvent('input');
   await page.getByRole('button',{name:'Position forceps',exact:true}).click();
   await page.keyboard.down('z'); await page.waitForFunction(()=>document.querySelector('#grasp-status').textContent.includes('grip ready'),{},{timeout:10000}); await page.keyboard.up('z');
   await page.keyboard.down('.'); await page.waitForFunction(()=>document.querySelector('#grasp-status').textContent.includes('Needle held · left'),{},{timeout:10000}); await page.keyboard.up('.');
   await page.keyboard.down('r'); await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('fully through'),{},{timeout:45000}); await page.keyboard.up('r');
+  console.log('Needle transfer and extraction passed.');
   await page.getByRole('button',{name:'Begin knot tying',exact:true}).click();
   for(const [wrap,first,second] of [['r','a','ArrowRight'],['y','d','ArrowLeft']]) {
     await page.keyboard.down(wrap);
@@ -28,7 +29,7 @@ try {
     await page.keyboard.up(',');
     await page.keyboard.down(first); await page.keyboard.down(second);
     await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('First throw seated') || document.querySelector('#exercise-title').textContent.includes('square-knot sequence complete'),{},{timeout:45000});
-    await page.keyboard.up(first); await page.keyboard.up(second);
+    await page.keyboard.up(first); await page.keyboard.up(second);console.log(`Guided ${wrap==='r'?'double first':'opposing'} throw seated.`);
     if(wrap==='r')await page.getByRole('button',{name:'Next opposing throw',exact:true}).click();
   }
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Local wound edges approximated'),{},{timeout:10000});
@@ -40,6 +41,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Release check: observing'),{},{timeout:10000});
   await page.keyboard.up('.');
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Release check: passed'),{},{timeout:45000});
+  console.log('Release-and-hold check passed.');
   await page.getByRole('button',{name:'Position driver at released tail',exact:true}).click();
   await page.keyboard.down(',');
   await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Hold Left arrow'),{},{timeout:10000});
@@ -49,6 +51,13 @@ try {
   await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Gentle pull check complete'),{},{timeout:15000});
   assert.deepEqual(errors,[],'Browser runtime errors');
   assert.match(await page.locator('#exercise-title').innerText(),/Gentle pull check complete/);
-  assert.match(await page.locator('#exercise-readout').innerText(),/2 \/ 2 opposing throws seated/);
+  assert.match(await page.locator('#exercise-readout').innerText(),/2 \/ 2 throws seated/);
+  await page.getByRole('button',{name:'Use scissors',exact:true}).click();
+  await page.getByRole('button',{name:'Position scissors at tail',exact:true}).click();
+  await page.keyboard.down(',');
+  await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Suture cut'),{},{timeout:15000});
+  await page.keyboard.up(',');
+  assert.match(await page.locator('#exercise-title').innerText(),/Tails trimmed/);
+  assert.deepEqual(errors,[],'Browser runtime errors after trimming');
   console.log(JSON.stringify({result:await page.locator('#exercise-title').innerText(),readout:await page.locator('#exercise-readout').innerText(),errors}));
 } finally {await browser.close();}

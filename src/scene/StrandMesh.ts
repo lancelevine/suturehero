@@ -1,3 +1,4 @@
+import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import { THREAD_RADIUS } from '../suture/threadMaterial';
 import * as THREE from 'three';
 /** Reuses tube buffers instead of allocating and disposing geometry every frame. */
@@ -13,7 +14,7 @@ export class StrandMesh extends THREE.Mesh<THREE.BufferGeometry,THREE.MeshStanda
       indices.push(a,b,c,b,d,c);
     }
     geometry.setIndex(indices);
-    super(geometry,new THREE.MeshStandardMaterial({color:0x315b9c,roughness:0.75}));
+    super(geometry,new THREE.MeshStandardMaterial({color:PRACTICE_SETUP.suture.color,roughness:0.75}));
     this.matrixAutoUpdate=false;this.castShadow=true;
   }
   update(points:readonly THREE.Vector3[],parentWorld:THREE.Matrix4) {

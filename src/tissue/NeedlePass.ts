@@ -5,6 +5,7 @@ import * as THREE from 'three';
 /** Assisted circular path only; no tissue forces, deformation, or thread solver. */
 export class NeedlePass {
   readonly radius=NEEDLE_RADIUS;
+  purchaseY=DERMAL_MIDPOINT;
   readonly entry=tractEntry();
   readonly exit=tractExit();
   readonly center=new THREE.Vector3(0,TRACT_CENTER_Y,0);
@@ -27,12 +28,16 @@ export class NeedlePass {
     this.angle=THREE.MathUtils.clamp(this.angle+THREE.MathUtils.clamp(drive,-1,1)*Math.max(0,Math.min(dt,0.05))*0.8,0,this.totalAngle);
     if(this.angle>=this.totalAngle) this.phase='complete';
   }
+  get purchaseSites():[THREE.Vector3|null,THREE.Vector3|null]{
+    const y=this.center.y-this.purchaseY;if(y<=0||y>=this.radius)return [null,null];
+    const x=Math.sqrt(this.radius*this.radius-y*y);return [new THREE.Vector3(x,this.purchaseY,0),new THREE.Vector3(-x,this.purchaseY,0)];
+  }
   /** Material purchase on each side, separate from the visible surface portals. */
   get dermalBites():[THREE.Vector3|null,THREE.Vector3|null] {
-    const depth=(this.center.y-DERMAL_MIDPOINT)/this.radius;
+    const depth=(this.center.y-this.purchaseY)/this.radius;
     if(depth<=0 || depth>=1)return [null,null];
     const entryAngle=Math.asin(depth),exitAngle=Math.PI-entryAngle;
-    const at=(angle:number)=>new THREE.Vector3(this.center.x+this.radius*Math.cos(angle),DERMAL_MIDPOINT,this.center.z);
+    const at=(angle:number)=>new THREE.Vector3(this.center.x+this.radius*Math.cos(angle),this.purchaseY,this.center.z);
     return [this.angle>=entryAngle-TRACT_START?at(entryAngle):null,this.angle>=exitAngle-TRACT_START?at(exitAngle):null];
   }
   get progress() { return this.angle/this.totalAngle; }

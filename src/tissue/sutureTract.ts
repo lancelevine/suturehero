@@ -1,10 +1,11 @@
+import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import * as THREE from 'three';
 import {NEEDLE_RADIUS} from '../suture/needleGeometry';
 import {TISSUE_LAYERS} from './anatomy';
 /** A shallow circular bite preserves the needle's radius, with its lowest
  * point inside the bottom of the dermis rather than in subcutaneous fat. */
 export const TRACT_SURFACE=0.43;
-export const TRACT_BOTTOM=TISSUE_LAYERS.dermis.bottom+0.01;
+export const TRACT_BOTTOM=Math.max((PRACTICE_SETUP.environment==='microsurgery'?.24:TISSUE_LAYERS.dermis.bottom)+0.01,TRACT_SURFACE-NEEDLE_RADIUS*.6);
 export const TRACT_CENTER_Y=TRACT_BOTTOM+NEEDLE_RADIUS;
 export const TRACT_START=Math.asin((TRACT_CENTER_Y-TRACT_SURFACE)/NEEDLE_RADIUS);
 export const TRACT_SWEEP=Math.PI-2*TRACT_START;

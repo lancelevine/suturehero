@@ -3,14 +3,15 @@ import * as THREE from 'three';
 /** Dermal purchase carries closure load; attached epidermis and fat follow passively. Not an elastic material model. */
 export class WoundApproximation {
   closure=0;
+  purchaseValidator:(point:THREE.Vector3|null)=>boolean=isDermalBite;
   private bites:[THREE.Vector3|null,THREE.Vector3|null]=[null,null];
   setDermalBites(entry:THREE.Vector3|null,exit:THREE.Vector3|null){
-    this.bites=[isDermalBite(entry)&&entry.x>0?entry.clone():null,isDermalBite(exit)&&exit.x<0?exit.clone():null];
+    this.bites=[entry&&this.purchaseValidator(entry)&&entry.x>0?entry.clone():null,exit&&this.purchaseValidator(exit)&&exit.x<0?exit.clone():null];
   }
   get dermalBiteCount(){return this.bites.filter(Boolean).length;}
   get hasDermalSupport(){return this.dermalBiteCount===2;}
 
-  readonly initialGap=0.1;
+  initialGap=0.1;
   readonly minimumGap=0.012;
   update(target: number,dt: number) {
     const clamped=this.hasDermalSupport?THREE.MathUtils.clamp(target,0,1):0;

@@ -44,3 +44,12 @@ it('excludes material belonging to earlier throws from a new wrap',()=>{
  model.update(points,new THREE.Vector3(0,0,1.1),matrix,true,40);
  expect(model.passage).toBeUndefined();
 });
+
+it('recognizes a held short strand already threaded through a newly formed wrap',()=>{
+ const points=wrap();
+ for(const held of [false,true])for(const x of [0,.4]){
+  const model=new TailPassage(),short=[new THREE.Vector3(x,0,.8),new THREE.Vector3(x,0,1.2)];
+  model.update(points,short.at(-1)!,matrix,held,0,1,short);
+  expect(model.passage?.via).toBe(held&&x===0?'strand':undefined);
+ }
+});

@@ -27,3 +27,18 @@ it('pauses for an open forceps and requires regrasp after driver release',()=>{
   expect(k.seating).toBeGreaterThan(0); k.update(idle,idle,0.1,0.7,0.05);
   expect(k.phase).toBe('tail'); expect(k.seating).toBe(0);
 });
+
+it('uses a double surgeon start or two same-direction sliding throws before locking',()=>{
+ for(const technique of ['surgeon','sliding'] as const){
+  const k=new GuidedKnot();k.begin(technique);const directions=technique==='surgeon'?[1,-1]:[1,1,-1];
+  for(const [index,direction] of directions.entries()){
+   expect(k.direction).toBe(direction);const wraps=index===0&&technique==='surgeon'?2:1;
+   expect(k.wraps).toBe(wraps);
+   for(let i=0;i<50*wraps;i++)k.update(roll(direction),idle,.1,.65,.05);
+   expect(k.phase).toBe('tail');k.positionTail();k.update(idle,idle,.1,.1,.05);seat(k,direction);
+   expect(k.sequence!.throws).toHaveLength(index+1);
+   if(index<directions.length-1)expect(k.nextThrow()).toBe(true);
+  }
+  expect(k.phase).toBe('complete');expect(k.sequence!.locked).toBe(true);
+ }
+});

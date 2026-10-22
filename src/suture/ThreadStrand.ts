@@ -1,3 +1,4 @@
+import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import { StrandContact } from './StrandContact';
 import * as THREE from 'three';
 /** Position-based strand with a prescribed material length. Discrete self-contact, without force calibration. */
@@ -5,23 +6,46 @@ export class ThreadStrand {
   readonly points: THREE.Vector3[];
   private previous: THREE.Vector3[];
   private materialLength:number;
+  private edgeLengths?:number[];
+  get count(){return this.points.length;}
+  private edgeRest(index:number){return this.edgeLengths?.[index]??this.restLength;}
   get length() {return this.materialLength;}
   get restLength() {return this.materialLength/(this.count-1);}
   /** Feed material without reseeding particles or discarding their motion. */
   setMaterialLength(length:number) {
     if(!Number.isFinite(length) || length<=0)throw new Error('Material length must be finite and positive.');
+    if(this.edgeLengths)this.edgeLengths=this.edgeLengths.map(rest=>rest*length/this.materialLength);
     this.materialLength=length;
   }
   private accumulator=0;
   private pinned=new Set<number>();
   private delta=new THREE.Vector3();
   private contact: StrandContact;
-  constructor(length=3.8,readonly count=80) {
+  constructor(length=3.8,count=80) {
     if(length<=0 || count<3)throw new Error('A strand needs positive length and at least three particles.');
     this.materialLength=length;
-    this.contact=new StrandContact(this.restLength*1.5);
     this.points=Array.from({length:count},()=>new THREE.Vector3());
+    this.contact=new StrandContact(this.restLength*1.5);
     this.previous=this.points.map(p=>p.clone());
+  }
+  /** Sever at a material coordinate, preserving both sides and their motion. */
+  splitAt(coordinate:number){
+    if(!Number.isFinite(coordinate)||coordinate<2||coordinate>this.count-3)return undefined;
+    const i=Math.floor(coordinate),t=coordinate-i,partial=t>1e-7;
+    const positions=this.points.map(p=>p.clone()),velocities=this.previous.map(p=>p.clone());
+    const rests=Array.from({length:this.count-1},(_,j)=>this.edgeRest(j));
+    const cut=positions[i].clone().lerp(positions[i+1],t),oldCut=velocities[i].clone().lerp(velocities[i+1],t);
+    const retained=positions.slice(0,i+1),retainedPrevious=velocities.slice(0,i+1);
+    if(partial){retained.push(cut.clone());retainedPrevious.push(oldCut.clone());}
+    const detached=[cut.clone(),...positions.slice(i+1)],detachedPrevious=[oldCut.clone(),...velocities.slice(i+1)];
+    const retainedRests=[...rests.slice(0,i),...(partial?[rests[i]*t]:[])];
+    const detachedRests=[rests[i]*(1-t),...rests.slice(i+1)];
+    const detachedLength=detachedRests.reduce((sum,rest)=>sum+rest,0);
+    const fragment=new ThreadStrand(detachedLength,detached.length);
+    fragment.points.forEach((p,j)=>p.copy(detached[j]));fragment.previous.forEach((p,j)=>p.copy(detachedPrevious[j]));fragment.edgeLengths=detachedRests;
+    this.points.splice(0,this.points.length,...retained);this.previous=retainedPrevious;this.edgeLengths=retainedRests;
+    this.materialLength=retainedRests.reduce((sum,rest)=>sum+rest,0);this.pinned=new Set([...this.pinned].filter(index=>index<this.count));
+    return {fragment,firstDetachedIndex:i+1,cut:cut.clone()};
   }
   reset(path: readonly THREE.Vector3[]) {
     const curve=new THREE.CatmullRomCurve3(path.map(p=>p.clone()));
@@ -45,7 +69,7 @@ export class ThreadStrand {
         const p=this.points[i],prev=this.previous[i],anchor=anchors.get(i);
         if(anchor) {p.copy(starts.get(i)!).lerp(anchor,substep/steps);prev.copy(p);continue;}
         const x=p.x,y=p.y,z=p.z;
-        p.addScaledVector(this.delta.subVectors(p,prev),0.986);p.y-=2.5*step*step;
+        p.addScaledVector(this.delta.subVectors(p,prev),PRACTICE_SETUP.suture.drag);p.y-=2.5*step*step;
         prev.set(x,y,z);
       }
       for(let iteration=0;iteration<24;iteration++) {
@@ -58,8 +82,8 @@ export class ThreadStrand {
       }
       for(let i=0;i<this.count;i++)if(!anchors.has(i) && this.points[i].y<=surfaceAt(this.points[i])+0.0001) {
         // Tangential surface drag, independent of how often the scene renders.
-        this.previous[i].x=THREE.MathUtils.lerp(this.previous[i].x,this.points[i].x,0.18);
-        this.previous[i].z=THREE.MathUtils.lerp(this.previous[i].z,this.points[i].z,0.18);
+        this.previous[i].x=THREE.MathUtils.lerp(this.previous[i].x,this.points[i].x,0.18*PRACTICE_SETUP.suture.friction);
+        this.previous[i].z=THREE.MathUtils.lerp(this.previous[i].z,this.points[i].z,0.18*PRACTICE_SETUP.suture.friction);
         this.previous[i].y=this.points[i].y;
       }
     }
@@ -71,23 +95,23 @@ export class ThreadStrand {
       const i=reverse?this.count-2-n:n,a=this.points[i],b=this.points[i+1];
       this.delta.subVectors(b,a);const distance=this.delta.length(),wa=anchors.has(i)?0:1,wb=anchors.has(i+1)?0:1;
       if(distance<1e-9 || wa+wb===0)continue;
-      this.delta.multiplyScalar((distance-this.restLength)/(distance*(wa+wb)));
+      this.delta.multiplyScalar((distance-this.edgeRest(i))/(distance*(wa+wb)));
       if(wa)a.add(this.delta);if(wb)b.sub(this.delta);
     }
   }
   private projectBends(anchors:ReadonlyMap<number,THREE.Vector3>){
     // A soft angular limit suppresses zero-energy alternating folds without
     // smoothing the rendered centerline or changing the material budget.
-    const minimum=this.restLength*1.5;
     for(let i=1;i<this.count-1;i++){
+      const span=this.edgeRest(i-1)+this.edgeRest(i),minimum=span*.75;
       const a=this.points[i-1],b=this.points[i+1],delta=this.delta.subVectors(b,a),distance=delta.length();
       const wa=anchors.has(i-1)?0:1,wb=anchors.has(i+1)?0:1;
-      if(distance>=this.restLength*2 || distance<1e-9 || wa+wb===0)continue;
+      if(distance>=span || distance<1e-9 || wa+wb===0)continue;
       // Also relax shallow alternating bends: the former sharp-angle limit
       // alone left a visibly corrugated resting tail. Contact still wins over
       // this weak straightening preference on wraps and seated loops.
-      const target=distance<minimum?minimum:this.restLength*2;
-      const stiffness=distance<minimum?0.2:0.015;
+      const target=distance<minimum?minimum:span;
+      const stiffness=distance<minimum?0.2:0.015*PRACTICE_SETUP.suture.bend;
       delta.multiplyScalar((target-distance)/distance*stiffness/(wa+wb));
       if(wa)this.applyContactCorrection(i-1,delta.clone().negate());
       if(wb)this.applyContactCorrection(i+1,delta);

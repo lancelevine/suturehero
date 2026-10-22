@@ -34,7 +34,7 @@ export class TissueThreadGuide {
     return pins;
   }
 }
-export function threadSurfaceAt(p:THREE.Vector3) {
+export function threadSurfaceAt(p:THREE.Vector3):number {
   if(Math.abs(p.x)<=2.68 && Math.abs(p.z)<=1.68)return 0.423;
   if(Math.abs(p.x)<=3.5 && Math.abs(p.z)<=2.5)return 0.055;
   return -0.075;

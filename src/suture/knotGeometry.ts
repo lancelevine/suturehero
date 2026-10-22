@@ -11,11 +11,11 @@ export function knotLoop(knot:GuidedKnot,driverWorld:THREE.Matrix4) {
   // The forceps orbit begins at -X and advances clockwise for the first throw.
   // Grow a helix behind that moving grip; even zero wrap retains its contact point.
   const points:THREE.Vector3[]=[];
-  const steps=Math.max(1,Math.ceil(fraction*48));
+  const steps=Math.max(1,Math.ceil(fraction*48*knot.wraps));
   const startAngle=Math.PI*(1-THREE.MathUtils.smoothstep(seating,0.3,1));
   for(let i=0;i<=(fraction>0?steps:0);i++) {
     const turn=fraction*i/steps;
-    const a=startAngle-turn*Math.PI*2*knot.direction;
+    const a=startAngle-turn*Math.PI*2*knot.direction*knot.wraps;
     points.push(center.clone().add(new THREE.Vector3(Math.cos(a)*pose.radius,Math.sin(a)*pose.radius,(turn-0.5)*pose.pitch).applyQuaternion(pose.rotation)));
   }
   let length=0;

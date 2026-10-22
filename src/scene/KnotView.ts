@@ -1,3 +1,4 @@
+import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {tissueTractPoints} from '../tissue/sutureTract';
 import { StrandMesh } from './StrandMesh';
 import { knotLoop, knotTailContact } from '../suture/knotGeometry';
@@ -8,7 +9,7 @@ import type { Instrument } from '../instruments/Instrument';
 /** Geometric thread poses illustrate stages; they do not certify knot security. */
 export class KnotView {
   readonly root=new THREE.Group();
-  private thread=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshStandardMaterial({color:0x355fb0,roughness:0.7}));
+  private thread=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshStandardMaterial({color:PRACTICE_SETUP.suture.color,roughness:0.7}));
   private shortSpan=new StrandMesh(32);
   private longSpan=new StrandMesh(36);
   private continuation=new THREE.Mesh(new THREE.BufferGeometry(),this.thread.material);
@@ -22,7 +23,10 @@ export class KnotView {
     const jaw=(tool:Instrument)=>{tool.root.updateWorldMatrix(true,false);return tool.root.localToWorld(new THREE.Vector3(0,0,0.05));};
     const leftJaw=jaw(left),rightJaw=jaw(right);
     this.tailMarker.visible=knot.phase==='tail';this.tailMarker.position.copy(knot.tail);
-    this.shortSpan.visible=this.longSpan.visible=this.continuation.visible=simulation.enabled;
+    for(const [key,strand] of [['shortSpan',simulation.short],['longSpan',simulation.long]] as const){
+      if(this[key].geometry.getAttribute('position').count!==strand.count*6){this.root.remove(this[key]);this[key].geometry.dispose();this[key].material.dispose();this[key]=new StrandMesh(strand.count);this.root.add(this[key]);}
+    }
+    this.shortSpan.visible=this.longSpan.visible=simulation.enabled;this.continuation.visible=simulation.enabled&&!simulation.trimmed;
     if(simulation.enabled) {
       this.root.updateWorldMatrix(true,false);
       this.shortSpan.update(simulation.short.points,this.root.matrixWorld);this.longSpan.update(simulation.long.points,this.root.matrixWorld);
@@ -50,14 +54,14 @@ export class KnotView {
       this.continuation.geometry.dispose();this.continuation.geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tailPoints),40,0.012,6,false);
     } else points.push(loop.center.clone().lerp(leftJaw,0.5).add(new THREE.Vector3(0,-0.15*slack,0.08*slack)),leftJaw,
       leftJaw.clone().lerp(eye,0.5).add(new THREE.Vector3(0,-0.2,0.15)),eye.clone());
-    (this.thread.material as THREE.MeshStandardMaterial).color.copy(new THREE.Color(0x4b79b5)).lerp(new THREE.Color(0x294a87),knot.takeUp);
+    (this.thread.material as THREE.MeshStandardMaterial).color.copy(new THREE.Color(PRACTICE_SETUP.suture.color)).multiplyScalar(1-.15*knot.takeUp);
     const geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,false,'centripetal'),128,0.012,6,false);
     this.thread.geometry.dispose();this.thread.geometry=geometry;
     if(this.count!==knot.throws) {
       this.count=knot.throws;
       while(this.seated.children.length>knot.throws) {const child=this.seated.children.at(-1) as THREE.Mesh;this.seated.remove(child);child.geometry.dispose();}
       for(let n=this.seated.children.length;n<knot.throws;n++) {
-        const crossing=Array.from({length:41},(_,i)=>{const a=i/40*Math.PI*2;return new THREE.Vector3(Math.cos(a)*0.06,0.47+n*0.025+Math.sin(a*2)*(n===0?1:-1)*0.012,Math.sin(a)*0.035);});
+        const crossing=Array.from({length:41},(_,i)=>{const a=i/40*Math.PI*2*knot.wrapsForThrow(n);return new THREE.Vector3(Math.cos(a)*0.06,0.47+n*0.025+Math.sin(a*2)*knot.directionForThrow(n)*0.012,Math.sin(a)*0.035);});
         const mesh=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(crossing),40,0.012,6,false),this.thread.material);mesh.castShadow=true;this.seated.add(mesh);
       }
     }

@@ -1,3 +1,4 @@
+import {TRACT_HALF_WIDTH} from './sutureTract';
 import { TISSUE_LAYERS } from './anatomy';
 import type { EdgeEversion } from './EdgeEversion';
 import { tissueSurface } from '../visuals/tissueSurfaces';
@@ -28,7 +29,7 @@ export class TissuePatch {
     mesh.position.set(side*1.36,(layer.top+layer.bottom)/2,0);group.add(mesh);
     this.surfaces.push({mesh,original:Float32Array.from(mesh.geometry.getAttribute('position').array)});
   }
-  for(const x of [-0.3,0.3]) {
+  for(const x of [-TRACT_HALF_WIDTH,TRACT_HALF_WIDTH]) {
     const target=new THREE.Mesh(new THREE.RingGeometry(0.075,0.095,32),new THREE.MeshBasicMaterial({color:0xf7e3b3,side:THREE.DoubleSide}));
     target.rotation.x=-Math.PI/2; target.position.set(x,0.417,0); group.add(target);
     this.markers.push({mesh:target,original:target.position.clone()});

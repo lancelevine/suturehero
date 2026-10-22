@@ -1,6 +1,19 @@
 # Suture Hero
 
-A browser-based surgical sandbox built with TypeScript and Three.js. This first increment provides a tissue pad, a reference curved needle and thread, and left spring forceps and a right needle driver. It is not a clinical training tool.
+A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
+
+## Current practice options (build 0.25)
+
+The setup bar selects skin or microsurgery, tissue target, needle, suture material, and starting knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard.
+
+- **Skin:** thin, standard, or thick dermis, beneath a fixed epidermal layer and above fat. Dermal purchase carries the closure load; grasping the epidermis lifts its attached dermis.
+- **Microsurgery:** two hollow artery ends, a smaller artery, or nerve ends containing seven fascicle bundles each. The driver changes to a Castroviejo spring-handle form. A vessel wall or the nerve's outer sheath carries the stitch; this prototype supports one anterior-wall/sheath stitch, not a complete circumferential anastomosis or individual fascicle suturing.
+- **Needles:** PS-2, CT-1, SH, FS-2, P-3, and BV-1, with different radii, arc lengths, and representative cutting/taper geometry. These are practice-scale profiles, not calibrated commercial dimensions. Guided paths preserve the selected needle radius and keep skin bites within the dermis.
+- **Sutures:** blue Prolene, black nylon, and violet Monocryl. They share the same solver, with modest differences in damping, bending, and sliding resistance. These coefficients are exploratory rather than measured material properties.
+- **Starting knots:** a surgeon's double first wrap followed by an opposing single throw; or two same-direction single throws on a taut short post, followed by an opposing locking throw. Guided mode assists these sequences; free mode detects actual supported wraps and short-thread passage, keeps earlier throws connected, and feeds existing material while tightening. Additional free throws alternate directions. A visible in-scene badge distinguishes a detected wrap, tail passage, retained throw, and seated throw.
+- **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
+
+Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
 
 ## Development
 
@@ -35,13 +48,14 @@ This is an assisted kinematic grasp prototype, not a contact simulation. Release
 ## Architecture
 
 - `input/`: device-independent commands and keyboard adapter. Future tracked controllers should supply target poses through a dedicated pose driver rather than translating tracking into keyboard events.
-- `instruments/`: instrument geometry, working-tip pivot, pose integration, jaw state, and sandbox bounds.
+- `instruments/`: instrument geometry, working-tip pivot, pose integration, jaw state, scissors and sandbox bounds.
+- `environments/` and `setup/`: tissue targets, purchase/support rules, skin thickness and needle/material profiles.
 - `tissue/`: tissue visualization; future material, collision, and deformation models belong here.
 - `suture/`: needle and grasp models, independent position-based thread strand, sliding tissue guides, and guided knot stages.
 - `gameplay/`: practice-session orchestration, decoupled from rendering and input bindings.
 - `scene/`: renderer, lighting, camera, and viewport resizing.
 
-The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Mechanical tissue deformation, calibrated thread mechanics, physical knot mechanics, haptics, and VR are not implemented. Guided passage and knot-tying stages use kinematic constraints. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
+The scene uses arbitrary sandbox units; physical calibration is not established. The current tool driver is kinematic and unconstrained except for workspace bounds. Calibrated tissue and thread mechanics, clinical knot-security assessment, haptics, and VR are not implemented. Guided passage and knot-tying stages use kinematic constraints. Realistic instrument motion is a long-term requirement: preserve full independent position, orientation, and jaw state, and add calibrated device adapters and mechanical constraints incrementally.
 
 Next playable milestones: refine needle grasp/contact mechanics, tissue entry/exit constraints, thread pull-through, then knot mechanics and completion criteria for one simple interrupted suture. Those features require their own validated simulation models; needle pickup is currently a kinematic proximity constraint.
 
@@ -261,4 +275,16 @@ Tail-passage detection now trims exterior arms and projects a shaft-supported he
 
 Guided needle and thread paths, and both knot views, share a shallow circular tract with a lowest point of 0.25, just inside the dermis (bottom 0.24). Raising the circle center and narrowing its surface bite preserves the needle's actual radius. Dermal purchase remains the closure-load criterion. The driver's identifying collar and legend are now red.
 
-Surgeon/sliding technique choices are held for the next increment while first-throw formation is verified in free practice. This remains an approximate single retained throw, not a clinical knot-security model.
+At build 0.24.2 this supported one retained throw. Build 0.25 adds surgeon/sliding starts and keeps earlier throws connected; see the current practice options above.
+
+## Additional browser checks
+
+With `npm run dev` running, set `SUTURE_TEST_URL` if using a port other than 5173, then run:
+
+```sh
+node scripts/check-practice-setup.mjs
+node scripts/check-free-tying.mjs
+node scripts/check-knot.mjs
+```
+
+These use local Chromium (override `CHROMIUM_PATH` as needed). Run the browser checks sequentially; software WebGL rendering is CPU intensive. `npm run test:layout` also checks repeated viewport resizing.

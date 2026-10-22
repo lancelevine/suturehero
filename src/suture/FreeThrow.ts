@@ -1,3 +1,4 @@
+import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import * as THREE from 'three';
 import {ThreadStrand} from './ThreadStrand';
 import type {TailPassage} from './TailPassage';
@@ -5,11 +6,20 @@ import type {TailPassage} from './TailPassage';
 /** Material-space approximation of one retained instrument throw. No posed tools,
  * replacement thread mesh or calibrated knot-security/force claim. */
 export class FreeThrow {
+  wraps=1;direction=0;sliding=false;
+  feedFromWorkingEnd=false;
+  minimumMaterialIndex=1;
+  private proximalSlack(long:ThreadStrand){
+    const anchor=Math.max(0,this.minimumMaterialIndex-1);
+    return (this.first-anchor)*long.restLength-long.points[this.first].distanceTo(long.points[anchor]);
+  }
   phase:'idle'|'passed'|'retained'|'seated'='idle';
   first=0;last=0;
   private initialSegments=0;
+  private minimumSegments=6;
   private shortCoordinate=0;
   private exitSide=1;
+  private passageVia:'tip'|'strand'='tip';
   private pullDistance?:number;
   private feed=0;
   private feedTime=0;
@@ -17,7 +27,7 @@ export class FreeThrow {
   private normal=new THREE.Vector3(0,0,1);
   get shortMaterialCoordinate(){return this.shortCoordinate;}
   get active(){return this.phase==='retained'||this.phase==='seated';}
-  get tightness(){return this.active?THREE.MathUtils.clamp((this.initialSegments-(this.last-this.first))/Math.max(1,this.initialSegments-6),0,1):0;}
+  get tightness(){return this.active?THREE.MathUtils.clamp((this.initialSegments-(this.last-this.first))/Math.max(1,this.initialSegments-this.minimumSegments),0,1):0;}
   get instruction(){return this.phase==='seated'?'One free throw seated · Retention is approximate':this.phase==='retained'?'Throw retained · Pull the two held ends apart to tighten':this.phase==='passed'?'Tail through · Pull it clear of the driver to capture the throw':'Form a wrap, grasp the short tail and pull it through';}
   reset(){this.phase='idle';this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.feed=this.feedTime=0;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
@@ -34,6 +44,7 @@ export class FreeThrow {
     if(this.phase==='idle' && passage.passage){
       const event=passage.passage;
       if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1)return;
+      this.passageVia=event.via;this.wraps=event.wraps;this.direction=event.direction;this.minimumSegments=this.wraps*6;
       this.first=event.first;this.last=event.last;this.initialSegments=this.last-this.first;this.exitSide=event.side;this.normal.copy(event.normal);this.phase='passed';
     }
     if(this.phase==='idle')return;
@@ -42,32 +53,36 @@ export class FreeThrow {
       if(shortGrip===undefined){this.reset();passage.reset();return;}
       const liveNormal=new THREE.Vector3();
       for(let i=this.first;i<=this.last;i++)liveNormal.add(long.points[i].clone().sub(center).cross(long.points[i===this.last?this.first:i+1].clone().sub(center)));
-      if(liveNormal.lengthSq()>1e-8){
+      if(this.wraps===1&&liveNormal.lengthSq()>1e-8){
         liveNormal.normalize();
         if(liveNormal.dot(this.normal)<0)liveNormal.negate();
         this.normal.copy(liveNormal);
       }
-      const side=short.points.at(-1)!.clone().sub(center).dot(this.normal);
-      if(side*this.exitSide< -0.02){this.reset();passage.reset();return;}
+      const crossingCenter=center.clone();
+      if(this.wraps>1){const axis=this.normal.clone().multiplyScalar(this.direction);let leading=Infinity;for(let i=this.first;i<=this.last;i++)leading=Math.min(leading,long.points[i].dot(axis));crossingCenter.addScaledVector(axis,leading-crossingCenter.dot(axis));}
+      const side=short.points.at(-1)!.clone().sub(crossingCenter).dot(this.normal);
+      if(this.passageVia==='tip'&&side*this.exitSide< -0.02){this.reset();passage.reset();return;}
       const inverse=driver.clone().invert(),local=center.clone().applyMatrix4(inverse);
       let radius=0,depth=0;for(let i=this.first;i<=this.last;i++){
         const p=long.points[i].clone().applyMatrix4(inverse);radius=Math.max(radius,Math.hypot(p.x-local.x,p.y-local.y));depth=Math.max(depth,Math.abs(p.z-local.z));
       }
       const clear=local.z+depth< -0.07 || local.z-depth>3.4 || Math.hypot(local.x,local.y)>radius+0.16;
-      if(clear && nearest.coordinate<=short.count-2 && nearest.distance<Math.max(short.restLength*6,radius)){
+      if(clear && nearest.coordinate<=short.count-2 && nearest.distance<Math.max(short.restLength*6*this.wraps,radius)){
         this.shortCoordinate=nearest.coordinate;this.phase='retained';this.pullDistance=undefined;
       }else return;
     }
-    if(this.phase!=='seated')this.shortCoordinate=nearest.coordinate;
+    if(this.phase!=='seated'||this.sliding)this.shortCoordinate=nearest.coordinate;
     this.assessSeating(long);
     if(longGrip===undefined||shortGrip===undefined){this.pullDistance=undefined;return;}
     const separation=long.points[longGrip].distanceTo(short.points[shortGrip]);
-    if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*0.8;
+    if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*(this.feedFromWorkingEnd?1.3:.8)/PRACTICE_SETUP.suture.friction;
     this.pullDistance=separation;this.feedTime+=Math.max(0,Math.min(dt,0.05));
     // Feed existing particles from the loop into its exterior arms; total
     // strand material and the grasped material indices remain unchanged.
-    if(this.last-this.first>6 && this.feed>=long.restLength && this.feedTime>=0.05){
-      if(this.alternate && this.first+1!==longGrip)this.first++;
+    if(this.feed>=long.restLength && this.feedTime>=0.05 && (this.last-this.first>this.minimumSegments || this.feedFromWorkingEnd&&this.first>this.minimumMaterialIndex&&this.proximalSlack(long)>long.restLength*2)){
+      if(this.feedFromWorkingEnd && this.first>this.minimumMaterialIndex && this.proximalSlack(long)>long.restLength*2){this.first--;this.last--;}
+      else if(this.feedFromWorkingEnd && this.last-1!==longGrip)this.last--;
+      else if(this.alternate && this.first+1!==longGrip)this.first++;
       else if(this.last-1!==longGrip)this.last--;
       else return;
       this.alternate=!this.alternate;this.feed-=long.restLength;this.feedTime=0;
@@ -76,7 +91,7 @@ export class FreeThrow {
   }
   /** Read the converged coupled state, after tool/strand contact has solved. */
   assessSeating(long:ThreadStrand){
-    if(this.last-this.first>6||this.phase!=='retained')return;
+    if(this.last-this.first>this.minimumSegments||this.phase!=='retained'||this.feedFromWorkingEnd&&this.proximalSlack(long)>long.restLength*3)return;
     const center=this.center(long);let radius=0;
     for(let i=this.first;i<=this.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
     if(radius<0.08&&long.points[this.first].distanceTo(long.points[this.last])<0.04)this.phase='seated';

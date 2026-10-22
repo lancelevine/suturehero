@@ -6,6 +6,8 @@ button:disabled{opacity:.45;cursor:default;background:transparent}.toolbar{flex-
 /* The renderer must never contribute an intrinsic minimum size to the layout. */
 .workspace,.control-grid article{min-width:0}#viewport{width:100%;contain:size layout}.toolbar>span{min-width:0;overflow-wrap:anywhere}.exercise-feedback>div{min-width:0}
 .knot-note{margin-top:14px;padding:15px 20px;background:#edf1f8;border:1px solid #d5dfec;border-radius:5px;font-size:11px;line-height:1.7;color:#687c98}
-
-@media(max-width:760px){header{gap:10px}.status{display:none}.version{margin-left:0;flex-shrink:0}}
-@media(max-width:400px){.brand{font-size:17px;letter-spacing:1.4px}.brand-icon{font-size:30px;margin-right:8px}.version{font-size:8px;padding:6px}}
+.practice-setup{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px;font-size:11px}.practice-setup label{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.practice-setup select{max-width:100%;font:inherit;color:#365e55;background:#fff;border:1px solid #dce5e0;border-radius:4px;padding:8px}.practice-setup small{flex-basis:100%;color:#718782;font-size:10px}.practice-setup label{min-width:0}
+.scissors-dot{background:#8394e8}#right-tool-name{font-weight:400}.legend{flex-wrap:wrap;right:16px}
+.practice-setup [hidden]{display:none}
+.knot-state{position:absolute;z-index:2;right:18px;top:18px;max-width:48%;padding:10px 12px;border:1px solid #769caa;border-radius:5px;background:#17313ee8;color:#e7f3f7;font-size:12px;line-height:1.4;pointer-events:none}.knot-state[hidden]{display:none}.knot-state[data-phase=seated]{background:#194d3eea;border-color:#8bd8b4;color:#dcffed}
+@media(max-width:760px){header{gap:10px}.status{display:none}.version{margin-left:0;flex-shrink:0}.knot-state{top:48px;right:10px;max-width:65%}}@media(max-width:400px){.brand{font-size:17px;letter-spacing:1.4px}.brand-icon{font-size:30px;margin-right:8px}.version{font-size:8px;padding:6px}}

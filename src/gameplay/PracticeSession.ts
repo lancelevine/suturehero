@@ -1,3 +1,7 @@
+import {MICRO_FLOOR_Y,MICRO_TARGETS} from '../environments/MicroTargets';
+import type {MicroTarget} from '../environments/MicroTargets';
+import {environments,createMicroEnvironment,type EnvironmentId} from '../environments/PracticeEnvironment';
+import type {KnotTechnique} from '../suture/KnotTechnique';
 import { EdgeEversion } from '../tissue/EdgeEversion';
 import { FreeKnotPractice } from './FreeKnotPractice';
 import { KnotLoadTest } from './KnotLoadTest';
@@ -15,10 +19,20 @@ import type { InputDevice } from '../input/types';
 import type { Instrument } from '../instruments/Instrument';
 export class PracticeSession {
   readonly freeKnot=new FreeKnotPractice();
-  beginFreeTying() {
+  environment=environments.skin;
+  selectedTechnique?:KnotTechnique;
+  setEnvironment(id:EnvironmentId,target:MicroTarget='artery'){
+    this.reset();this.environment=id==='microsurgery'?createMicroEnvironment(target):environments.skin;
+    this.wound.initialGap=id==='microsurgery'?MICRO_TARGETS[target].gap:.1;
+    this.eversion.edgeX=this.wound.initialGap/2;this.eversion.reset();
+    this.pass.purchaseY=this.environment.purchaseY;this.wound.purchaseValidator=this.environment.loadBearing;
+    this.freeKnot.surfaceAt=this.environment.surfaceAt;this.knotSlack.surfaceAt=this.environment.surfaceAt;
+    for(const tool of this.instruments){tool.setDriverStyle(id==='microsurgery'?'castro':'standard');tool.minimumHeight=id==='microsurgery'?MICRO_FLOOR_Y+.05:.15;}
+  }
+  beginFreeTying(technique?:KnotTechnique) {
     this.reset();
     if(this.grasp) {this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,0.1,1.2);}
-    this.freeKnot.begin(this.instruments);
+    this.freeKnot.begin(this.instruments,technique);this.wound.setDermalBites(...this.pass.purchaseSites);
   }
   readonly eversion=new EdgeEversion();
   private guidedEdge=false;
@@ -83,7 +97,7 @@ export class PracticeSession {
     this.grasp.update(this.instruments,true); return true;
   }
   get canBeginKnot() {return this.wound.hasDermalSupport && this.pull.phase==='complete' && !this.knot.active && !!this.grasp;}
-  get canKnotAction() {return (this.releaseCheck.state==='passed' && !this.loadTest.active) || this.canBeginKnot || this.knot.phase==='between' || (this.knot.phase==='tail' && !this.knot.tailPositioned);}
+  get canKnotAction() {return !this.knotSlack.trimmed && ((this.releaseCheck.state==='passed' && !this.loadTest.active) || this.canBeginKnot || this.knot.phase==='between' || (this.knot.phase==='tail' && !this.knot.tailPositioned));}
   knotAction() {
     if(this.releaseCheck.state==='passed' && this.loadTest.begin()) {
       const right=this.instruments.find(t=>t.id==='right')!;
@@ -96,7 +110,7 @@ export class PracticeSession {
     if(this.canBeginKnot && this.grasp) {
       this.grasp.release(); this.grasp.needle.setThreadVisible(false);
       this.grasp.needle.root.position.set(3.1,0.1,1.2); this.grasp.needle.root.quaternion.identity();
-      this.eversion.reset();this.knot.begin(); this.prepareKnotTools(); return true;
+      this.eversion.reset();this.knot.begin(this.selectedTechnique); this.prepareKnotTools(); return true;
     }
     if(this.knot.phase==='between') {this.knot.nextThrow(); this.prepareKnotTools(); return true;}
     if(this.knot.phase==='tail' && !this.knot.tailPositioned) {this.knot.positionTail();this.placeKnotTools();return true;}
@@ -126,9 +140,16 @@ export class PracticeSession {
   }
   update(dt: number) {
     const step=Math.max(0,Math.min(dt,0.05));
+    if(this.knotSlack.trimmed){
+      for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
+      const left=this.instruments.find(t=>t.id==='left')!,right=this.instruments.find(t=>t.id==='right')!;
+      this.knotSlack.advanceTrimmed(step,{short:right.openness<=.2?right.root.localToWorld(new THREE.Vector3(0,0,.05)):undefined,long:left.openness<=.2?left.root.localToWorld(new THREE.Vector3(0,0,.05)):undefined});return;
+    }
     if(this.freeKnot.active) {
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
+      this.freeKnot.entry.copy(this.wound.deformPoint(this.pass.entry));this.freeKnot.exit.copy(this.wound.deformPoint(this.pass.exit));
       this.freeKnot.update(step,this.instruments,this.eversion.held?new Set(['left']):undefined);
+      this.wound.update(this.freeKnot.sequence?.locked?1:this.freeKnot.sequence?.throws.length ? .85 :this.freeKnot.retainedThrow.active?this.freeKnot.retainedThrow.tightness*.85:0,step);
       this.updateEversion(step,!this.freeKnot.grips.has('left'));return;
     }
     if(this.knot.active) {
@@ -162,7 +183,7 @@ export class PracticeSession {
         holdMaterial:this.releaseCheck.anyReleased,
         seating:this.knot.seating,
         seatedThrows:this.knot.phase==='complete'?1:this.knot.phase==='between'?0:this.knot.throws,
-        retainedLength:this.knot.throws>0 && this.knot.phase!=='between'?SEATED_LOOP_LENGTH:0,
+        retainedLength:SEATED_LOOP_LENGTH*this.knot.retainedWraps,
         loopLength:loop.length,
         shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop),shortEnd:tail,
         longStart:loop.end,longEnd:leftJaw,
@@ -214,7 +235,7 @@ export class PracticeSession {
     }
     if(this.grasp) {
       const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
-      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center);
+      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,this.environment.surfaceAt);
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }

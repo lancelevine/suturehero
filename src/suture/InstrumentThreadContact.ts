@@ -16,15 +16,18 @@ export class InstrumentThreadContact {
         const oldA=prior?.toolId===tool.id?(preserveSweep?prior.oldA:prior.a).clone():a.clone(),oldB=prior?.toolId===tool.id?(preserveSweep?prior.oldB:prior.b).clone():b.clone();
         this.capsules.push({toolId:tool.id,driver:tool.kind==='needle-driver',a,b,oldA,oldB,radius:radius+THREAD_RADIUS,bounds:new THREE.Box3().setFromPoints([a,b,oldA,oldB]).expandByScalar(radius+THREAD_RADIUS)});
       };
-      if(tool.kind==='needle-driver')add(new THREE.Vector3(0,0,0.3),new THREE.Vector3(0,0,2.9),0.077);
+      if(tool.kind==='needle-driver'){
+        add(new THREE.Vector3(0,0,.3),new THREE.Vector3(0,0,tool.driverStyle==='castro'?1.35:2.9),tool.driverStyle==='castro'?.055:.077);
+        if(tool.driverStyle==='castro')for(const side of [-1,1])add(new THREE.Vector3(side*.07,0,1.35),new THREE.Vector3(side*.15,0,2.75),.05);
+      }
       for(const side of [-1,1]) {
         if(tool.kind==='forceps') {
           const at=(t:number)=>new THREE.Vector3(side*(tool.openness*0.18*(1-t)+0.085*Math.sin(Math.PI*t)+(0.045+0.05*Math.sin(Math.PI*t))/2),0,t*3.1);
           add(at(0),at(0.15),0.045);continue;
         }
-        const pivot=new THREE.Vector3(side*0.035,0,0.35);
+        const pivot=new THREE.Vector3(side*(tool.driverStyle==='castro'?.025:.035),0,0.35);
         const tip=new THREE.Vector3(0,0,-0.42).applyAxisAngle(new THREE.Vector3(0,1,0),side*tool.openness*0.35).add(pivot);
-        add(pivot,tip,0.04);
+        add(pivot,tip,tool.jawRadius);
       }
     }
   }
@@ -135,7 +138,7 @@ export function shaftWinding(points:readonly THREE.Vector3[],driverWorld:THREE.M
   const inverse=driverWorld.clone().invert();let angle=0;
   for(let i=1;i<points.length;i++) {
     const a=points[i-1].clone().applyMatrix4(inverse),b=points[i].clone().applyMatrix4(inverse);
-    const near=(p:THREE.Vector3)=>p.z>=0.25 && p.z<=2.9 && Math.hypot(p.x,p.y)>=0.07 && Math.hypot(p.x,p.y)<=0.25;
+    const near=(p:THREE.Vector3)=>p.z>=0.25 && p.z<=2.9 && Math.hypot(p.x,p.y)>=0.05 && Math.hypot(p.x,p.y)<=0.25;
     if(!near(a)||!near(b))continue;
     const delta=Math.atan2(b.y,b.x)-Math.atan2(a.y,a.x);
     angle+=Math.atan2(Math.sin(delta),Math.cos(delta));
