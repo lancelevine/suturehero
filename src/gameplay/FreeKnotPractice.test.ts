@@ -65,6 +65,7 @@ it('keeps the resting short tail broadly curved and reachable by jaws above the 
  const grip=model.grips.get('right')!;
  expect(grip.strand.points[grip.index].distanceTo(driver.root.localToWorld(grip.local.clone()))).toBeLessThan(1e-8);
  expect(grip.local.distanceTo(new THREE.Vector3(0,0,0.05))).toBeLessThanOrEqual(0.040001);
- expect(driver.root.position.y).toBeGreaterThan(0.51);
+ expect(driver.root.position.y).toBeGreaterThan(0.47);
+ expect(driver.root.position.y).toBeLessThan(0.50);
  expect(model.short.measuredLength).toBeCloseTo(model.short.length,1);
 });

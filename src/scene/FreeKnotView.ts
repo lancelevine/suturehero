@@ -1,3 +1,4 @@
+import {tissueTractPoints} from '../tissue/sutureTract';
 import * as THREE from 'three';
 import { StrandMesh } from './StrandMesh';
 import type { FreeKnotPractice } from '../gameplay/FreeKnotPractice';
@@ -7,7 +8,7 @@ export class FreeKnotView {
   private short=new StrandMesh(40);
   private tip=new THREE.Mesh(new THREE.SphereGeometry(0.026,12,8),new THREE.MeshStandardMaterial({color:0xffcc55,roughness:0.5}));
   constructor(model:FreeKnotPractice) {
-    const path=new THREE.CatmullRomCurve3([model.entry.clone(),new THREE.Vector3(0,0.15,0),model.exit.clone()]);
+    const path=new THREE.CatmullRomCurve3(tissueTractPoints(model.entry,model.exit));
     this.root.add(this.tip,this.long,this.short,new THREE.Mesh(new THREE.TubeGeometry(path,32,0.009,6),new THREE.MeshStandardMaterial({color:0x315b9c,roughness:0.75})));
   }
   update(model:FreeKnotPractice) {

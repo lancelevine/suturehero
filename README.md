@@ -252,3 +252,13 @@ A soft bending constraint discourages sharp alternating folds that produced saw-
 The free short tail starts in a broad arc matching its full 1.2-unit material length. Previously its much shorter seed path forced the distance solver to create small folds while expanding it. A weak straightening preference also acts below the earlier sharp-angle limit, alongside tool and strand contact.
 
 Driver pickup measures proximity from the jaw surface with the existing forgiving capture tolerance. Closing seats captured material at the jaw surface; it cannot remain floating below the grasp. Shaft-to-skin clearance stays in place to protect wraps. A free-session regression settles the actual short tail, bounds its bends, lowers an open driver to the resting tip, closes to capture it, and verifies attachment and material length.
+
+## First-throw handoff, shallow pickup and dermal depth (build 0.24.2)
+
+The driver can overlap skin by up to 0.04 scene units for pickup. A matching local thread-support indentation beneath its contact capsules preserves room for a wrap, rather than forcing the strand through the shaft. Tray and floor support remain unchanged. This is a bounded collision approximation; it does not deform the rendered tissue.
+
+Tail-passage detection now trims exterior arms and projects a shaft-supported helical opening along the shaft axis. It preserves the opening's material indices during passage. Retention engages shortly after clearance past the jaw tips, before the unsupported loop can sag out of its capture neighborhood. Stronger neck projection and additional coupled sweeps keep the crossing together during opposed pulling. Seating feedback is assessed after contact converges. A regression performs actual jaw pickup, forceps wrapping, driver pull-through, opposed tightening, and release without injecting a prepared loop or passage event.
+
+Guided needle and thread paths, and both knot views, share a shallow circular tract with a lowest point of 0.25, just inside the dermis (bottom 0.24). Raising the circle center and narrowing its surface bite preserves the needle's actual radius. Dermal purchase remains the closure-load criterion. The driver's identifying collar and legend are now red.
+
+Surgeon/sliding technique choices are held for the next increment while first-throw formation is verified in free practice. This remains an approximate single retained throw, not a clinical knot-security model.

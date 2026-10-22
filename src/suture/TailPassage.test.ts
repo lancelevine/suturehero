@@ -29,3 +29,18 @@ it('does not infer an opening from a straight strand or collapsed material',()=>
   const model=new TailPassage();model.update([new THREE.Vector3(0.1,0,1),new THREE.Vector3(0.1,0,2)],new THREE.Vector3(),matrix,true);
   expect(model.state).toContain('Form a wrap');
 });
+it('counts a double wrap and its direction without rejecting the twice-wound opening',()=>{
+ for(const direction of [-1,1]){
+  const model=new TailPassage();
+  const points=Array.from({length:80},(_,i)=>{const a=direction*i/79*Math.PI*3.9;return new THREE.Vector3(.12*Math.cos(a),.12*Math.sin(a),1);});
+  model.update(points,new THREE.Vector3(0,0,.9),matrix,true);
+  model.update(points,new THREE.Vector3(0,0,1.1),matrix,true);
+  expect(model.passage?.wraps).toBe(2);expect(model.passage?.direction).toBe(direction);
+ }
+});
+it('excludes material belonging to earlier throws from a new wrap',()=>{
+ const model=new TailPassage(),points=wrap();
+ model.update(points,new THREE.Vector3(0,0,.9),matrix,true,40);
+ model.update(points,new THREE.Vector3(0,0,1.1),matrix,true,40);
+ expect(model.passage).toBeUndefined();
+});

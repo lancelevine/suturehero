@@ -42,23 +42,24 @@ export class FreeThrow {
       if(shortGrip===undefined){this.reset();passage.reset();return;}
       const liveNormal=new THREE.Vector3();
       for(let i=this.first;i<=this.last;i++)liveNormal.add(long.points[i].clone().sub(center).cross(long.points[i===this.last?this.first:i+1].clone().sub(center)));
-      if(liveNormal.lengthSq()>1e-8)this.normal.copy(liveNormal.normalize());
+      if(liveNormal.lengthSq()>1e-8){
+        liveNormal.normalize();
+        if(liveNormal.dot(this.normal)<0)liveNormal.negate();
+        this.normal.copy(liveNormal);
+      }
       const side=short.points.at(-1)!.clone().sub(center).dot(this.normal);
       if(side*this.exitSide< -0.02){this.reset();passage.reset();return;}
       const inverse=driver.clone().invert(),local=center.clone().applyMatrix4(inverse);
       let radius=0,depth=0;for(let i=this.first;i<=this.last;i++){
         const p=long.points[i].clone().applyMatrix4(inverse);radius=Math.max(radius,Math.hypot(p.x-local.x,p.y-local.y));depth=Math.max(depth,Math.abs(p.z-local.z));
       }
-      const clear=local.z+depth< -0.14 || local.z-depth>3.4 || Math.hypot(local.x,local.y)>radius+0.16;
-      if(clear && nearest.coordinate<=short.count-4 && nearest.distance<Math.max(0.08,radius)){
+      const clear=local.z+depth< -0.07 || local.z-depth>3.4 || Math.hypot(local.x,local.y)>radius+0.16;
+      if(clear && nearest.coordinate<=short.count-2 && nearest.distance<Math.max(short.restLength*6,radius)){
         this.shortCoordinate=nearest.coordinate;this.phase='retained';this.pullDistance=undefined;
       }else return;
     }
     if(this.phase!=='seated')this.shortCoordinate=nearest.coordinate;
-    if(this.last-this.first<=6 && this.phase==='retained'){
-      let radius=0;for(let i=this.first;i<=this.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
-      if(radius<0.08 && long.points[this.first].distanceTo(long.points[this.last])<0.04)this.phase='seated';
-    }
+    this.assessSeating(long);
     if(longGrip===undefined||shortGrip===undefined){this.pullDistance=undefined;return;}
     const separation=long.points[longGrip].distanceTo(short.points[shortGrip]);
     if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*0.8;
@@ -73,17 +74,24 @@ export class FreeThrow {
     }
 
   }
+  /** Read the converged coupled state, after tool/strand contact has solved. */
+  assessSeating(long:ThreadStrand){
+    if(this.last-this.first>6||this.phase!=='retained')return;
+    const center=this.center(long);let radius=0;
+    for(let i=this.first;i<=this.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
+    if(radius<0.08&&long.points[this.first].distanceTo(long.points[this.last])<0.04)this.phase='seated';
+  }
   resolve(long:ThreadStrand,short:ThreadStrand,pinsLong:ReadonlyMap<number,THREE.Vector3>,pinsShort:ReadonlyMap<number,THREE.Vector3>){
     if(!this.active)return;
-    const move=(strand:ThreadStrand,index:number,delta:THREE.Vector3,pins:ReadonlyMap<number,THREE.Vector3>)=>{
-      if(pins.has(index))return;delta.clampLength(0,0.004);strand.applyContactCorrection(index,delta);
+    const move=(strand:ThreadStrand,index:number,delta:THREE.Vector3,pins:ReadonlyMap<number,THREE.Vector3>,limit=0.004)=>{
+      if(pins.has(index))return;delta.clampLength(0,limit);strand.applyContactCorrection(index,delta);
     };
     // The neck is a persistent material crossing, rather than an animated ring.
     const a=long.points[this.first],b=long.points[this.last],delta=b.clone().sub(a),distance=delta.length();
     const wa=pinsLong.has(this.first)?0:1,wb=pinsLong.has(this.last)?0:1;
     if(distance>0.022 && wa+wb){
-      delta.multiplyScalar((distance-0.022)/(distance*(wa+wb))*0.6);
-      if(wa)move(long,this.first,delta.clone(),pinsLong);if(wb)move(long,this.last,delta.clone().negate(),pinsLong);
+      delta.multiplyScalar((distance-0.022)/(distance*(wa+wb)));
+      if(wa)move(long,this.first,delta.clone(),pinsLong,0.02);if(wb)move(long,this.last,delta.clone().negate(),pinsLong,0.02);
     }
     const coordinate=THREE.MathUtils.clamp(this.shortCoordinate,1,short.count-2),index=Math.floor(coordinate),t=coordinate-index;
     const contact=short.points[index].clone().lerp(short.points[index+1],t),center=this.center(long),error=contact.sub(center);

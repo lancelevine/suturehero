@@ -1,3 +1,4 @@
+import {tractEntry,tractExit,TRACT_CENTER_Y} from '../tissue/sutureTract';
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { ThreadStrand } from './ThreadStrand';
@@ -30,16 +31,16 @@ it('gives the same result at different display rates and resets without retained
   a.points.forEach((p,i)=>expect(p.distanceTo(fresh.points[i])).toBeLessThan(1e-8));
 });
 it('feeds into the tract only after eye entry and slides material between exterior and tail',()=>{
-  const s=new ThreadStrand();const guide=new TissueThreadGuide();const center=new THREE.Vector3(0,0.43,0);
+  const s=new ThreadStrand();const guide=new TissueThreadGuide();const center=new THREE.Vector3(0,TRACT_CENTER_Y,0);
   const eye=new THREE.Vector3(0.3,0.6,0);
   expect(guide.anchors(s,eye,NEEDLE_ARC-0.1,center).size).toBe(1);
   let pins=guide.anchors(s,new THREE.Vector3(0,0.13,0),NEEDLE_ARC+Math.PI/2,center);
   expect(pins.size).toBeGreaterThan(1);
-  expect([...pins.values()].some(p=>p.distanceTo(new THREE.Vector3(0.3,0.43,0))<1e-7)).toBe(true);
+  expect([...pins.values()].some(p=>p.distanceTo(tractEntry())<1e-7)).toBe(true);
   pins=guide.anchors(s,new THREE.Vector3(-0.3,1.1,0),NEEDLE_ARC+Math.PI+0.1,center);
-  const exitIndex=[...pins].find(([i,p])=>i>0 && p.distanceTo(new THREE.Vector3(-0.3,0.43,0))<1e-7)![0];
+  const exitIndex=[...pins].find(([i,p])=>i>0 && p.distanceTo(tractExit())<1e-7)![0];
   const pulled=guide.anchors(s,new THREE.Vector3(-0.3,1.6,0),NEEDLE_ARC+Math.PI+0.1,center);
-  const nextExit=[...pulled].find(([i,p])=>i>0 && p.distanceTo(new THREE.Vector3(-0.3,0.43,0))<1e-7)![0];
+  const nextExit=[...pulled].find(([i,p])=>i>0 && p.distanceTo(tractExit())<1e-7)![0];
   expect(nextExit).toBeGreaterThan(exitIndex);expect(Math.max(...pulled.keys())).toBeLessThan(s.count-5);
   guide.anchors(s,new THREE.Vector3(-0.3,8,0),NEEDLE_ARC+Math.PI+0.1,center);expect(guide.state).toBe('Thread at reach limit');
   expect(threadSurfaceAt(new THREE.Vector3(1,0,1))).toBeGreaterThan(threadSurfaceAt(new THREE.Vector3(3,0,1)));

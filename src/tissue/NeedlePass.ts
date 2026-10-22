@@ -1,15 +1,16 @@
+import {tractEntry,tractExit,TRACT_CENTER_Y,TRACT_START,TRACT_SWEEP} from './sutureTract';
 import { DERMAL_MIDPOINT } from './anatomy';
 import { NEEDLE_ARC, NEEDLE_RADIUS, NEEDLE_EXPOSURE } from '../suture/needleGeometry';
 import * as THREE from 'three';
 /** Assisted circular path only; no tissue forces, deformation, or thread solver. */
 export class NeedlePass {
   readonly radius=NEEDLE_RADIUS;
-  readonly entry=new THREE.Vector3(0.3,0.43,0);
-  readonly exit=new THREE.Vector3(-0.3,0.43,0);
-  readonly center=new THREE.Vector3(0,0.43,0);
+  readonly entry=tractEntry();
+  readonly exit=tractExit();
+  readonly center=new THREE.Vector3(0,TRACT_CENTER_Y,0);
   phase: 'idle'|'passing'|'complete'|'interrupted'='idle';
   angle=0;
-  readonly totalAngle=Math.PI+NEEDLE_EXPOSURE;
+  readonly totalAngle=TRACT_SWEEP+NEEDLE_EXPOSURE;
   private startOrientation: THREE.Quaternion;
   constructor() {
     const a=NEEDLE_ARC;
@@ -32,11 +33,11 @@ export class NeedlePass {
     if(depth<=0 || depth>=1)return [null,null];
     const entryAngle=Math.asin(depth),exitAngle=Math.PI-entryAngle;
     const at=(angle:number)=>new THREE.Vector3(this.center.x+this.radius*Math.cos(angle),DERMAL_MIDPOINT,this.center.z);
-    return [this.angle>=entryAngle?at(entryAngle):null,this.angle>=exitAngle?at(exitAngle):null];
+    return [this.angle>=entryAngle-TRACT_START?at(entryAngle):null,this.angle>=exitAngle-TRACT_START?at(exitAngle):null];
   }
   get progress() { return this.angle/this.totalAngle; }
   get pose() {
-    const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,-1),this.angle).multiply(this.startOrientation);
+    const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,-1),this.angle+TRACT_START).multiply(this.startOrientation);
     return new THREE.Matrix4().compose(this.center,q,new THREE.Vector3(1,1,1));
   }
   reset() { this.phase='idle'; this.angle=0; }

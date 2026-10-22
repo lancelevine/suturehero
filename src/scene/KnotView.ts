@@ -1,3 +1,4 @@
+import {tissueTractPoints} from '../tissue/sutureTract';
 import { StrandMesh } from './StrandMesh';
 import { knotLoop, knotTailContact } from '../suture/knotGeometry';
 import type { KnotSlack } from '../suture/KnotSlack';
@@ -35,7 +36,7 @@ export class KnotView {
     const contact=knotTailContact(knot,entry,loop);
     const slack=1-knot.takeUp;
     const tailBend=tail.clone().lerp(contact,0.5).add(new THREE.Vector3(0,0.12*slack,0.18*slack));
-    const prefix=[entry.clone(),new THREE.Vector3(0,0.15,0),exit.clone()];
+    const prefix=tissueTractPoints(entry,exit);
     if(knot.throws>0)prefix.unshift(new THREE.Vector3(0.06,0.47,0));
     if(contact.distanceToSquared(prefix[0])>1e-12)prefix.unshift(contact);
     const points=simulation.enabled?prefix:[tail.clone(),tailBend,...prefix];

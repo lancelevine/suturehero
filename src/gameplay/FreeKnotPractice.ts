@@ -1,3 +1,4 @@
+import {tractEntry,tractExit} from '../tissue/sutureTract';
 import { FreeThrow } from '../suture/FreeThrow';
 import { TailPassage } from '../suture/TailPassage';
 import {resolveStrandPair} from '../suture/StrandPairContact';
@@ -12,8 +13,8 @@ export class FreeKnotPractice {
   active=false;
   readonly long=new ThreadStrand(2.1,64);
   readonly short=new ThreadStrand(1.2,40);
-  readonly entry=new THREE.Vector3(0.3,0.43,0);
-  readonly exit=new THREE.Vector3(-0.3,0.43,0);
+  readonly entry=tractEntry();
+  readonly exit=tractExit();
   readonly grips=new Map<string,Grip>();
   winding=0;
   driverOnTissue=false;
@@ -22,6 +23,7 @@ export class FreeKnotPractice {
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();
   private accumulator=0;
+  private supportAt=(point:THREE.Vector3)=>this.contact.supportAt(point,threadSurfaceAt);
   begin(tools:readonly Instrument[]) {
     this.reset();this.active=true;
     this.long.reset([this.exit,new THREE.Vector3(-0.7,0.65,0.2),new THREE.Vector3(-1.3,1.15,0.4)]);
@@ -105,7 +107,7 @@ export class FreeKnotPractice {
       for(const strand of [this.long,this.short]) {
         const map=new Map([...pins.get(strand)!].map(([index,target])=>[index,starts.get(strand)!.get(index)!.clone().lerp(target,(n+1)/steps)]));
         subPins.set(strand,map);
-        strand.advance(step,map,threadSurfaceAt,(p,previous,pinned,time)=>this.contact.resolve(p,previous,pinned,{...time,from:(n+time.from)/steps,to:(n+time.to)/steps},exemptions.get(strand)));
+        strand.advance(step,map,this.supportAt,(p,previous,pinned,time)=>this.contact.resolve(p,previous,pinned,{...time,from:(n+time.from)/steps,to:(n+time.to)/steps},exemptions.get(strand)));
       }
       resolveStrandPair(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!,beforeLong,beforeShort);
       const driver=tools.find(t=>t.kind==='needle-driver')!;
@@ -113,15 +115,16 @@ export class FreeKnotPractice {
       const longGrip=[...this.grips.values()].find(g=>g.strand===this.long)?.index;
       const shortGrip=[...this.grips.values()].find(g=>g.strand===this.short && g.index>=this.short.count-4)?.index;
       this.retainedThrow.update(step,this.passage,this.long,this.short,driver.root.matrixWorld,longGrip,shortGrip);
-      if(this.retainedThrow.active)for(let iteration=0;iteration<8;iteration++){
+      if(this.retainedThrow.active)for(let iteration=0;iteration<16;iteration++){
         this.retainedThrow.resolve(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!);
-        for(const strand of [this.long,this.short])strand.projectContacts(subPins.get(strand)!,threadSurfaceAt,(p,previous,pinned,start)=>this.contact.resolve(p,previous,pinned,{from:(n+1)/steps,to:(n+1)/steps,start},exemptions.get(strand)),iteration%2!==0);
+        for(const strand of [this.long,this.short])strand.projectContacts(subPins.get(strand)!,this.supportAt,(p,previous,pinned,start)=>this.contact.resolve(p,previous,pinned,{from:(n+1)/steps,to:(n+1)/steps,start},exemptions.get(strand)),iteration%2!==0);
         const pairLong=this.long.points.map(p=>p.clone()),pairShort=this.short.points.map(p=>p.clone());
         resolveStrandPair(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!,pairLong,pairShort);
       }
+      this.retainedThrow.assessSeating(this.long);
       this.accumulator-=step;
     }
-    if(steps===0)for(const strand of [this.long,this.short])strand.advance(0,pins.get(strand)!,threadSurfaceAt);
+    if(steps===0)for(const strand of [this.long,this.short])strand.advance(0,pins.get(strand)!,this.supportAt);
 
     const driver=tools.find(t=>t.kind==='needle-driver')!;
     this.winding=shaftWinding(this.long.points,driver.root.matrixWorld);

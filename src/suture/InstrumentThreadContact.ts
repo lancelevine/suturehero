@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Instrument } from '../instruments/Instrument';
 import { closestSegments } from './StrandContact';
 import { THREAD_RADIUS } from './threadMaterial';
-interface Capsule {toolId:string;a:THREE.Vector3;b:THREE.Vector3;oldA:THREE.Vector3;oldB:THREE.Vector3;radius:number;bounds:THREE.Box3}
+interface Capsule {toolId:string;driver:boolean;a:THREE.Vector3;b:THREE.Vector3;oldA:THREE.Vector3;oldB:THREE.Vector3;radius:number;bounds:THREE.Box3}
 /** Substep-interpolated, conservatively sampled swept segment/capsule contact. Instrument bodies remain kinematic. */
 export class InstrumentThreadContact {
   private capsules:Capsule[]=[];
@@ -14,7 +14,7 @@ export class InstrumentThreadContact {
         a.applyMatrix4(tool.root.matrixWorld);b.applyMatrix4(tool.root.matrixWorld);
         const prior=last[this.capsules.length];
         const oldA=prior?.toolId===tool.id?(preserveSweep?prior.oldA:prior.a).clone():a.clone(),oldB=prior?.toolId===tool.id?(preserveSweep?prior.oldB:prior.b).clone():b.clone();
-        this.capsules.push({toolId:tool.id,a,b,oldA,oldB,radius:radius+THREAD_RADIUS,bounds:new THREE.Box3().setFromPoints([a,b,oldA,oldB]).expandByScalar(radius+THREAD_RADIUS)});
+        this.capsules.push({toolId:tool.id,driver:tool.kind==='needle-driver',a,b,oldA,oldB,radius:radius+THREAD_RADIUS,bounds:new THREE.Box3().setFromPoints([a,b,oldA,oldB]).expandByScalar(radius+THREAD_RADIUS)});
       };
       if(tool.kind==='needle-driver')add(new THREE.Vector3(0,0,0.3),new THREE.Vector3(0,0,2.9),0.077);
       for(const side of [-1,1]) {
@@ -28,8 +28,8 @@ export class InstrumentThreadContact {
       }
     }
   }
-  /** Keep the free driver's metal and the exterior thread radius clear of
-   * the support surface. Forceps jaws remain available for tissue grasps. */
+  /** Permit shallow skin overlap while preserving an exterior thread gap.
+   * Forceps jaws remain available for tissue grasps. */
   constrainDriverToSurface(tool:Instrument,surfaceAt:(p:THREE.Vector3)=>number) {
     if(tool.kind!=='needle-driver')return false;
     let lift=-Infinity;
@@ -40,11 +40,26 @@ export class InstrumentThreadContact {
         let surface=surfaceAt(center);
         // Include the capsule footprint when it straddles a pad/tray edge.
         for(const [x,z] of [[1,0],[-1,0],[0,1],[0,-1]])surface=Math.max(surface,surfaceAt(center.clone().add(new THREE.Vector3(x*capsule.radius,0,z*capsule.radius))));
-        lift=Math.max(lift,surface+capsule.radius+0.002-center.y);
+        lift=Math.max(lift,surface+capsule.radius+0.002-center.y-(surface>=0.4?0.04:0));
       }
     }
     if(lift>0){tool.root.position.y+=lift;tool.root.updateWorldMatrix(true,false);}
     return lift>=-0.001;
+  }
+  /** A small local indentation gives exterior wraps room below a driver
+   * that is allowed to overlap skin. The tray/floor keep their full support. */
+  supportAt(point:THREE.Vector3,surfaceAt:(p:THREE.Vector3)=>number){
+    const surface=surfaceAt(point);
+    if(surface<0.4)return surface;
+    for(const capsule of this.capsules){
+      if(!capsule.driver)continue;
+      const a=capsule.a,b=capsule.b,dx=b.x-a.x,dz=b.z-a.z;
+      const t=THREE.MathUtils.clamp(((point.x-a.x)*dx+(point.z-a.z)*dz)/Math.max(1e-10,dx*dx+dz*dz),0,1);
+      const x=a.x+t*dx,z=a.z+t*dz,y=a.y+t*(b.y-a.y);
+      if(Math.hypot(point.x-x,point.z-z)<=capsule.radius+0.02 && y-capsule.radius<surface)
+        return Math.min(surface,Math.max(surface-0.04,y-capsule.radius-0.002));
+    }
+    return surface;
   }
   /** A held point cannot be kinematically pulled through the other instrument. */
   constrainGrip(toolId:string,start:THREE.Vector3,target:THREE.Vector3) {

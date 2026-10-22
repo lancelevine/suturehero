@@ -1,3 +1,4 @@
+import {TRACT_START,TRACT_SWEEP} from '../tissue/sutureTract';
 import * as THREE from 'three';
 import { NEEDLE_ARC,NEEDLE_RADIUS } from './needleGeometry';
 import type { ThreadStrand } from './ThreadStrand';
@@ -11,11 +12,11 @@ export class TissueThreadGuide {
     const eyeAngle=tipAngle===null?-1:tipAngle-NEEDLE_ARC;
     if(eyeAngle<=0) {this.state='Thread following needle';return pins;}
     const radius=NEEDLE_RADIUS,rest=strand.restLength;
-    const arc=Math.min(Math.PI,eyeAngle)*radius;
+    const arc=Math.min(TRACT_SWEEP,eyeAngle)*radius;
     const arcCount=Math.ceil(arc/rest);
     let offset=0;
-    if(eyeAngle>Math.PI) {
-      const exit=center.clone().add(new THREE.Vector3(-radius,0,0));
+    if(eyeAngle>TRACT_SWEEP) {
+      const exit=center.clone().add(new THREE.Vector3(-radius*Math.cos(TRACT_START),-radius*Math.sin(TRACT_START),0));
       const distance=exit.distanceTo(eye);
       // A few spare segments preserve exterior slack. Hysteresis avoids index chatter.
       const needed=Math.ceil(distance/rest)+2;
@@ -27,7 +28,7 @@ export class TissueThreadGuide {
     } else this.state='Thread feeding through entry';
     const steps=Math.min(arcCount,strand.count-offset-6);
     for(let i=offset===0?1:0;i<=steps;i++) {
-      const angle=Math.max(0,Math.min(Math.PI,eyeAngle)-(i/steps)*arc/radius);
+      const angle=TRACT_START+Math.max(0,Math.min(TRACT_SWEEP,eyeAngle)-(i/steps)*arc/radius);
       pins.set(offset+i,center.clone().add(new THREE.Vector3(Math.cos(angle)*radius,-Math.sin(angle)*radius,0)));
     }
     return pins;
