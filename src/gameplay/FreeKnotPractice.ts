@@ -1,3 +1,4 @@
+import {throwsAreStacked} from '../suture/KnotStack';
 import {postIsTaut} from '../suture/PostTension';
 import {KnotTissueSeat,stitchSupport} from '../suture/KnotTissueSeat';
 import {THREAD_RADIUS} from '../suture/threadMaterial';
@@ -31,7 +32,12 @@ export class FreeKnotPractice {
   postTaut=false;
   readonly tissueSeat=new KnotTissueSeat();
   private get firstKnot(){return this.earlierThrows.find(t=>t.active)??(this.retainedThrow.active?this.retainedThrow:undefined);}
-  get closureLoad(){return this.tissueSeat.load*(this.sequence?.locked?1:.85);}
+  get closureLoad(){return this.tissueSeat.load*(this.lockSeated?1:.85);}
+  get lockSeated(){
+    if(!this.sequence?.locked)return false;
+    const minimum=this.sequence.technique==='sliding'?3:2;
+    return this.sequence.throws.some((t,i)=>i>=minimum-1&&i<this.seatedThrowCount&&t.wraps===1&&t.direction!==this.sequence!.throws[i-1].direction);
+  }
   readonly fragments:ThreadStrand[]=[];
   cutMessage='';
   get strands(){return [this.long,this.short,...this.fragments];}
@@ -60,16 +66,25 @@ export class FreeKnotPractice {
   // Including the grasp could mask a valid earlier turn with an unusable span.
   private get maximumOpeningIndex(){return ([...this.grips.values()].find(g=>g.strand===this.long)?.index??this.long.count-1)-1;}
   private get observationWraps(){return this.retainedThrow.phase==='retained'&&!this.recorded?this.retainedThrow.wraps:this.sequence?.requiredWraps??1;}
-  get instruction(){return this.sequence?`${this.sequence.label} · ${this.sequence.throws.length} throws tightened · ${this.sequence.instruction}${this.sequence.sliding?' · Short post: '+(this.postTaut?'taut':'take up slack'):''}${this.feedback?' · '+this.feedback:''}`:'Free first throw';}
+  get instruction(){return this.sequence?`${this.sequence.label} · ${this.sequence.throws.length} throws tightened · ${(this.sequence.locked?(this.lockSeated?'Opposing lock seated · Alternate later throws':'Opposing throw formed · Lower and tighten it onto the existing knot'):this.sequence.instruction)}${this.sequence.sliding?' · Short post: '+(this.postTaut?'taut':'take up slack'):''}${this.feedback?' · '+this.feedback:''}`:'Free first throw';}
+  private get seatedThrowCount(){
+    if(!this.tissueSeat.contact||this.tissueSeat.load<.5)return 0;
+    const knots=[...this.earlierThrows,this.retainedThrow].filter(t=>t.active);
+    let count=0;
+    for(let i=0;i<knots.length;i++){
+      if(knots[i].phase!=='seated'||i>0&&!throwsAreStacked(knots[i-1],knots[i],this.long,this.short))break;
+      count++;
+    }
+    return count;
+  }
   get knotAtTissue(){
-    if(!this.tissueSeat.contact||this.tissueSeat.load<.5||!this.retainedThrow.active)return false;
-    if(this.retainedThrow===this.firstKnot)return true;
-    const first=this.firstKnot!;
-    return this.long.points[this.retainedThrow.first].distanceTo(this.long.points[first.last])<.14;
+    const knots=[...this.earlierThrows,this.retainedThrow].filter(t=>t.active);
+    return this.retainedThrow.active&&knots.length>0&&this.seatedThrowCount===knots.length;
   }
   get handlingHint(){
     const knot=this.retainedThrow;
     if(knot.phase==='seated'&&this.tissueSeat.contact&&this.tissueSeat.load<.5)return 'Knot touching tissue · Take up the remaining tissue-side slack';
+    if(knot.phase==='seated'&&this.earlierThrows.length&&!this.knotAtTissue)return knot.seatingRequested?'Seating next throw · Keep both ends taut and lower toward the existing knot':'Next throw tightened · Lower both ends and pull gently apart to seat it on the knot';
     if(knot.phase==='seated'&&!this.knotAtTissue)return knot.seatingRequested?'Seating throw · Keep the post taut and ease the working end toward the tissue':'Throw tightened · Lower both ends toward the stitch and keep gentle opposing tension';
     if(knot.phase==='retained'){
       if(![...this.grips.values()].some(g=>g.strand===this.long))return 'Throw retained · Regrasp the long strand with the forceps';
@@ -292,7 +307,7 @@ export class FreeKnotPractice {
       if(event&&this.sequence&&!this.sequence.acceptsGeometry(event.wraps,event.direction)){
         this.feedback=`Use ${this.sequence.requiredWraps} wrap(s)${this.sequence.requiredDirection?' in the requested direction':''}`;this.passage.reset();
       }else if(event&&this.recorded){
-        const minimum=this.retainedThrow.last+2;this.earlierThrows.push(this.retainedThrow);this.retainedThrow=new FreeThrow();this.retainedThrow.feedFromWorkingEnd=true;this.retainedThrow.minimumMaterialIndex=minimum;this.recorded=false;this.feedback='';
+        const minimum=this.retainedThrow.last+2;this.earlierThrows.push(this.retainedThrow);this.retainedThrow=new FreeThrow();this.retainedThrow.feedFromWorkingEnd=true;this.retainedThrow.minimumMaterialIndex=minimum;this.retainedThrow.minimumPostCoordinate=this.tissueSeat.contact?this.earlierThrows.at(-1)!.shortMaterialCoordinate+1:1;this.recorded=false;this.feedback='';
       }
       const validEvent=!this.sequence||!event||this.sequence.acceptsGeometry(event.wraps,event.direction);
       const driverSupportsLoop=(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>this.contact.supportsOpening(driver.id,points,normal);
@@ -300,7 +315,7 @@ export class FreeKnotPractice {
       const lowHands=longGrip!==undefined&&shortGrip!==undefined&&[this.long.points[longGrip],this.short.points[shortGrip]].every(p=>p.y<stitchHeight+.2&&p.y>stitchHeight-.1);
       if(paired&&(this.retainedThrow.phase==='passed'||this.retainedThrow.phase==='retained'||this.retainedThrow.active&&!lowHands))this.seatingArmed=true;
       const workingTaut=longGrip!==undefined&&this.retainedThrow.active&&this.long.points[this.retainedThrow.last].distanceTo(this.long.points[longGrip])>=this.long.materialLengthBetween(this.retainedThrow.last,longGrip)*.92;
-      this.retainedThrow.seatingRequested=this.seatingArmed&&this.earlierThrows.length===0&&this.retainedThrow.phase==='seated'&&this.tissueSeat.load<.99&&lowHands&&workingTaut&&this.postTaut;
+      this.retainedThrow.seatingRequested=this.seatingArmed&&this.retainedThrow.phase==='seated'&&(!this.earlierThrows.length?this.tissueSeat.load<.99:this.tissueSeat.contact&&!this.knotAtTissue)&&lowHands&&workingTaut&&this.postTaut;
       this.retainedThrow.sliding=!!this.sequence?.sliding&&this.postTaut;
       if(validEvent)this.retainedThrow.update(step,this.passage,this.long,this.short,driverSupportsLoop,longGrip,shortGrip);
       const constraints=[...this.earlierThrows,this.retainedThrow];

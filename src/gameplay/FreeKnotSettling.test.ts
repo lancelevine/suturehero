@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import {createFreeTyingFixture} from './test-support/freeTying';
 import {WoundApproximation} from '../tissue/WoundApproximation';
 import {tractEntry,tractExit} from '../tissue/sutureTract';
-it('settles a seated surgeon throw while the wound closes, at irregular display frame intervals',async()=>{
+it.each([false,true])('settles successive throws at irregular display intervals (regrasp: %s)',async(regrasp)=>{
  const wound=new WoundApproximation();wound.setDermalBites(new THREE.Vector3(.25,.31,0),new THREE.Vector3(-.25,.31,0));
  const {model,tools,throwOne,lowerAndPull,update}=createFreeTyingFixture('auto',(dt,model,tools)=>{
   model.entry.copy(wound.deformPoint(tractEntry()));model.exit.copy(wound.deformPoint(tractExit()));
@@ -13,8 +13,18 @@ it('settles a seated surgeon throw while the wound closes, at irregular display 
  expect(wound.closure).toBe(0);await lowerAndPull();
  expect(model.knotAtTissue).toBe(true);expect(model.closureLoad).toBeGreaterThan(.75);expect(wound.closure).toBeGreaterThan(.75);
  const firstThrow=model.retainedThrow,firstCoordinate=firstThrow.shortMaterialCoordinate,materialIndices=[firstThrow.first,firstThrow.last];
+ if(regrasp){
+ tools[1].openness=.7;for(let i=0;i<120;i++)update(1/120);
+ expect(model.tissueSeat.contact).toBe(true);
+ tools[1].root.position.copy(model.short.points.at(-1)!);tools[1].root.position.z-=.05;update(1/120);
+ tools[1].openness=.1;update(1/120);expect(model.gripLabel('right')).toBe('short tail');
+ expect([firstThrow.first,firstThrow.last]).toEqual(materialIndices);
+ }
  await throwOne(1,-1);
  expect(model.sequence!.locked).toBe(true);expect(model.earlierThrows).toContain(firstThrow);
+ await lowerAndPull();
+ expect(model.knotAtTissue).toBe(true);expect(model.lockSeated).toBe(true);
+ expect(model.instruction).toContain('Opposing lock seated');
  expect([firstThrow.first,firstThrow.last]).toEqual(materialIndices);expect(firstThrow.shortMaterialCoordinate).toBe(firstCoordinate);
  expect(model.tissueSeat.contact).toBe(true);expect(wound.closure).toBeGreaterThan(.9);
  let largest=0,core=0;const first=model.retainedThrow.first,last=model.retainedThrow.last;

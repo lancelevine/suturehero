@@ -12,6 +12,7 @@ export class FreeThrow {
   seatingRequested=false;
   feedFromWorkingEnd=false;
   minimumMaterialIndex=1;
+  minimumPostCoordinate=1;
   private proximalSlack(long:ThreadStrand){
     const anchor=Math.max(0,this.minimumMaterialIndex-1);
     return (this.first-anchor)*long.restLength-long.points[this.first].distanceTo(long.points[anchor]);
@@ -99,13 +100,14 @@ export class FreeThrow {
     if(!wasActive)this.advanceEngagement(dt);
     if((this.phase!=='seated'||this.sliding||this.seatingRequested)&&longGrip!==undefined&&shortGrip!==undefined){
       const travel=.8*Math.max(0,Math.min(dt,.05))/short.restLength;
-      const proximal=center.distanceTo(short.points[0]),distal=center.distanceTo(short.points[shortGrip]);
+      const postAnchor=Math.max(0,this.minimumPostCoordinate-1);
+      const proximal=center.distanceTo(short.pointAt(postAnchor)),distal=center.distanceTo(short.points[shortGrip]);
       // Allocate actual material between the two arms. Repeatedly choosing
       // the nearest deformed particle made a stationary collar ratchet along
       // the post and leave impossible, overstretched spans behind it.
       const maximum=this.postLimit(short,shortGrip);
-      const minimum=Math.min(maximum,proximal/short.restLength);
-      let desired=THREE.MathUtils.clamp(shortGrip*proximal/Math.max(1e-9,proximal+distal),minimum,maximum);
+      const minimum=Math.min(maximum,Math.max(this.minimumPostCoordinate,postAnchor+proximal/short.restLength));
+      let desired=THREE.MathUtils.clamp(postAnchor+(shortGrip-postAnchor)*proximal/Math.max(1e-9,proximal+distal),minimum,maximum);
       // A tightened sliding start advances toward tissue. Do not creep back
       // up a stationary post merely to redistribute slack; still repair a
       // genuinely overextended proximal span if its material requires it.
