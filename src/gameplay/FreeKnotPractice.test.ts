@@ -52,3 +52,19 @@ it('settles without grasp/jaw conflict jitter while retaining slack',()=>{
   expect(model.long.measuredLength).toBeCloseTo(model.long.length,1);
   expect(model.long.points.at(-1)!.distanceTo(model.exit)).toBeLessThan(model.long.length);
 });
+it('keeps the resting short tail broadly curved and reachable by jaws above the skin',()=>{
+ const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools);
+ for(let i=0;i<600;i++)model.update(1/120,tools);
+ let minimum=1;
+ for(let i=1;i<model.short.count-1;i++)minimum=Math.min(minimum,model.short.points[i].clone().sub(model.short.points[i-1]).normalize().dot(model.short.points[i+1].clone().sub(model.short.points[i]).normalize()));
+ expect(minimum).toBeGreaterThan(0.85);
+ const driver=tools[1],tip=model.short.points.at(-1)!.clone();
+ driver.root.position.copy(tip).sub(new THREE.Vector3(0,0,0.05));driver.openness=0.7;model.update(1/120,tools);
+ driver.openness=0.1;model.update(1/120,tools);
+ expect(model.gripLabel('right')).toBe('short tail');
+ const grip=model.grips.get('right')!;
+ expect(grip.strand.points[grip.index].distanceTo(driver.root.localToWorld(grip.local.clone()))).toBeLessThan(1e-8);
+ expect(grip.local.distanceTo(new THREE.Vector3(0,0,0.05))).toBeLessThanOrEqual(0.040001);
+ expect(driver.root.position.y).toBeGreaterThan(0.51);
+ expect(model.short.measuredLength).toBeCloseTo(model.short.length,1);
+});

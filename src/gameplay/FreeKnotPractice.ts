@@ -25,7 +25,13 @@ export class FreeKnotPractice {
   begin(tools:readonly Instrument[]) {
     this.reset();this.active=true;
     this.long.reset([this.exit,new THREE.Vector3(-0.7,0.65,0.2),new THREE.Vector3(-1.3,1.15,0.4)]);
-    this.short.reset([this.entry,new THREE.Vector3(0.6,0.5,-0.15),new THREE.Vector3(0.9,0.45,-0.4)]);
+    // Lay out the full short-side material in a broad arc. A compressed
+    // seed path makes distance constraints manufacture tiny zigzags at rest.
+    const radius=0.8;
+    this.short.reset(Array.from({length:17},(_,i)=>{
+      const angle=i/16*this.short.length/radius;
+      return this.entry.clone().add(new THREE.Vector3(radius*Math.sin(angle),0,radius*(Math.cos(angle)-1)));
+    }));
     for(const tool of tools) {
       tool.root.quaternion.identity();tool.openness=tool.id==='left'?0.1:0.65;
       tool.root.position.copy(tool.id==='left'?this.long.points.at(-1)!:new THREE.Vector3(0,1.1,-0.65));
@@ -42,11 +48,22 @@ export class FreeKnotPractice {
     for(const strand of [this.long,this.short])for(let i=1;i<strand.count-1;i++) {
       const a=strand.points[i],b=strand.points[i+1],delta=b.clone().sub(a);
       const t=THREE.MathUtils.clamp(jaw.clone().sub(a).dot(delta)/Math.max(1e-10,delta.lengthSq()),0,1);
-      const distance=jaw.distanceTo(a.clone().addScaledVector(delta,t)),index=i+(t>=0.5?1:0);
+      // Measure from the jaw surface, rather than its center. The shaft's
+      // skin clearance otherwise leaves a resting tail just out of reach.
+      const distance=Math.max(0,jaw.distanceTo(a.clone().addScaledVector(delta,t))-(tool.kind==='needle-driver'?0.04:0)),index=i+(t>=0.5?1:0);
       if(distance>0.085 || [...this.grips.values()].some(g=>g.strand===strand && g.index===index))continue;
       if(!best || distance<best.distance)best={strand,index,distance};
     }
-    if(best)this.grips.set(tool.id,{strand:best.strand,index:best.index,local:tool.root.worldToLocal(best.strand.points[best.index].clone())});
+    if(best){
+      const local=tool.root.worldToLocal(best.strand.points[best.index].clone());
+      if(tool.kind==='needle-driver'){
+        // Closing seats nearby material at the jaw surface, rather than
+        // keeping a captured point floating below the metal.
+        const center=new THREE.Vector3(0,0,0.05);
+        local.sub(center).clampLength(0,0.04).add(center);
+      }
+      this.grips.set(tool.id,{strand:best.strand,index:best.index,local});
+    }
   }
   update(dt:number,tools:readonly Instrument[],blockedGrips?:ReadonlySet<string>) {
     if(!this.active)return;

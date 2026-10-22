@@ -80,10 +80,15 @@ export class ThreadStrand {
     // smoothing the rendered centerline or changing the material budget.
     const minimum=this.restLength*1.5;
     for(let i=1;i<this.count-1;i++){
-      const a=this.points[i-1],b=this.points[i+1],delta=b.clone().sub(a),distance=delta.length();
+      const a=this.points[i-1],b=this.points[i+1],delta=this.delta.subVectors(b,a),distance=delta.length();
       const wa=anchors.has(i-1)?0:1,wb=anchors.has(i+1)?0:1;
-      if(distance>=minimum || distance<1e-9 || wa+wb===0)continue;
-      delta.multiplyScalar((minimum-distance)/distance*0.2/(wa+wb));
+      if(distance>=this.restLength*2 || distance<1e-9 || wa+wb===0)continue;
+      // Also relax shallow alternating bends: the former sharp-angle limit
+      // alone left a visibly corrugated resting tail. Contact still wins over
+      // this weak straightening preference on wraps and seated loops.
+      const target=distance<minimum?minimum:this.restLength*2;
+      const stiffness=distance<minimum?0.2:0.015;
+      delta.multiplyScalar((target-distance)/distance*stiffness/(wa+wb));
       if(wa)this.applyContactCorrection(i-1,delta.clone().negate());
       if(wb)this.applyContactCorrection(i+1,delta);
     }
