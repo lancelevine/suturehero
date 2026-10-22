@@ -4,7 +4,7 @@ import type {MarkerObservation} from './arucoTracking';
  * generateImageMarker and encoded as row-major white=1 bits. */
 export const MARKER_CODES = [0xb532,0x0f9a,0x332d,0x9946,0x549e,0x79cd,0x9e2e,0xc4f2,0xfeda];
 
-interface LegacyDetector {detect(frame:ImageData):MarkerObservation[]}
+interface LegacyDetector {detect(frame:ImageData):MarkerObservation[];candidates?:unknown[];polys?:unknown[]}
 interface LegacyAR {DICTIONARIES:Record<string,{nBits:number;tau:number;codeList:number[]}>;Detector:new(options:{dictionaryName:string;maxHammingDistance:number})=>LegacyDetector}
 declare global {interface Window {AR?:LegacyAR}}
 const LIB_BASE='https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
@@ -25,14 +25,21 @@ export function loadArucoLibrary():Promise<void>{
  })().catch(error=>{loadPromise=undefined;throw error});
 }
 export interface ArucoDetector {detect(frame:ImageData):Promise<MarkerObservation[]>;dispose?():void}
+export interface DetectorDiagnostics {candidateCount:number|null;rawMarkerCount:number;recognizedCount:number;rejectedCount:number;durationMs:number;note:string}
 export class BrowserArucoDetector implements ArucoDetector {
  private detector:LegacyDetector|null=null;
+ diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting for first frame'};
  async initialize():Promise<void>{
   await loadArucoLibrary();
   this.detector=new window.AR!.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:1});
  }
  async detect(frame:ImageData):Promise<MarkerObservation[]>{
   if(!this.detector)throw new Error('ArUco detector not initialized');
-  return this.detector.detect(frame).filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
+  const start=performance.now();
+  const raw=this.detector.detect(frame);
+  const recognized=raw.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
+  const candidates=Array.isArray(this.detector.candidates)?this.detector.candidates:Array.isArray(this.detector.polys)?this.detector.polys:null;
+  this.diagnostics={candidateCount:candidates?.length??null,rawMarkerCount:raw.length,recognizedCount:recognized.length,rejectedCount:Math.max(0,raw.length-recognized.length),durationMs:performance.now()-start,note:candidates===null?'Candidate count unavailable from detector library':candidates.length===0?'No candidate quadrilaterals found':recognized.length===0?'Candidates found but no requested marker ID decoded':'Markers recognized'};
+  return recognized;
  }
 }
