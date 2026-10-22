@@ -63,7 +63,7 @@ export class FreeThrow {
     const wasActive=this.active;this.advanceEngagement(dt);
     if((this.phase==='idle'||this.phase==='passed'&&passage.passage&&passage.passage.wraps>this.wraps) && passage.passage){
       const event=passage.passage;
-      if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1){this.notice='Leave free working thread beyond a complete wrap';this.noticeTime=3;return;}
+      if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1){this.reset('Leave free working thread beyond a complete wrap');passage.reset();return;}
       this.notice='';this.captureHint='';
       this.passageVia=event.via;this.wraps=event.wraps;this.direction=event.direction;this.minimumSegments=this.wraps*6;
       this.first=event.first;this.last=event.last;this.initialSegments=this.last-this.first;this.exitSide=event.side;this.normal.copy(event.normal);this.phase='passed';

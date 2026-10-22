@@ -75,3 +75,21 @@ it('explains when the held tail moves back out before driver clearance',()=>{
  expect(f.throwModel.phase).toBe('idle');expect(f.throwModel.instruction).toContain('Tail moved back out');
  expect(f.throwModel.active).toBe(false);
 });
+it('rearms capture after an unusable crossing so a corrected wrap works without resetting practice',()=>{
+ const f=fixture(),observer=new TailPassage(),model=new FreeThrow();
+ for(let i=0;i<f.long.count;i++){
+  const a=i/19*Math.PI*1.9,target=i<20?v(.1*Math.cos(a),.65+.1*Math.sin(a),.45):v(-.6-i*.005,.65,.2);
+  f.long.applyContactCorrection(i,target.sub(f.long.points[i]));
+ }
+ observer.update(f.long.points,v(0,.65,.35),f.driver,true,0,0);
+ observer.update(f.long.points,v(0,.65,.9),f.driver,true,0,0);
+ expect(observer.passage?.first).toBe(0);
+ model.update(1/120,observer,f.long,f.short,f.driver,63,39);
+ expect(model.phase).toBe('idle');expect(model.instruction).toContain('Leave free working thread');
+ expect(observer.passage).toBeUndefined();
+ const corrected=fixture();f.long.points.forEach((p,i)=>p.copy(corrected.long.points[i]));
+ observer.update(f.long.points,v(0,.65,.35),f.driver,true,0,0);
+ observer.update(f.long.points,v(0,.65,.9),f.driver,true,0,0);
+ model.update(1/120,observer,f.long,f.short,f.driver,63,39);
+ expect(model.phase).toBe('passed');expect(model.first).toBeGreaterThan(0);
+});
