@@ -45,6 +45,7 @@ export class FreeThrow {
     return Math.max(1,Math.min(short.count-2,grip-Math.ceil(.2/short.restLength)));
   }
   get shortMaterialCoordinate(){return this.shortCoordinate;}
+  get protectedPostCoordinate(){return this.active?this.shortCoordinate:this.pendingPost??0;}
   get active(){return this.phase==='retained'||this.phase==='seated';}
   get tightness(){return this.active?THREE.MathUtils.clamp((this.initialSegments-(this.last-this.first))/Math.max(1,this.initialSegments-this.minimumSegments),0,1):0;}
   get lastFailure(){return this.notice;}
@@ -97,7 +98,7 @@ export class FreeThrow {
       }
       this.shortCoordinate=THREE.MathUtils.clamp(crossing,1,this.postLimit(short,shortGrip));this.phase='retained';this.pullDistance=undefined;
     }
-    if(!wasActive)this.advanceEngagement(dt);
+    if(!wasActive&&this.active)this.advanceEngagement(dt);
     if((this.phase!=='seated'||this.sliding||this.seatingRequested)&&longGrip!==undefined&&shortGrip!==undefined){
       const travel=.8*Math.max(0,Math.min(dt,.05))/short.restLength;
       const postAnchor=Math.max(0,this.minimumPostCoordinate-1);

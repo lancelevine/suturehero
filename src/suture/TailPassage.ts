@@ -10,9 +10,12 @@ export class TailPassage {
   private crossing?:{first:number;last:number;normal:THREE.Vector3;side:number;wraps:number;direction:number;via:'tip'|'strand'};
   private wraps=0;
   private direction=0;
+  private notice='';
+  private missHint='';
+  get lastFailure(){return this.notice;}
   get passage(){return this.crossing;}
   get hasOpening(){return this.indices.length>0;}
-  reset(){this.indices=[];this.previous=undefined;this.crossed=false;this.crossing=undefined;this.state='Form a wrap around the driver';}
+  reset(){this.indices=[];this.previous=undefined;this.crossed=false;this.crossing=undefined;this.notice='';this.missHint='';this.state='Form a wrap around the driver';}
   update(points:readonly THREE.Vector3[],tip:THREE.Vector3,driver:THREE.Matrix4,holdingTail:boolean,minimumIndex=0,requiredWraps=1,shortPoints?:readonly THREE.Vector3[],maximumIndex=points.length-1){
     if(!this.crossed&&this.indices.some(i=>i<minimumIndex||i>maximumIndex))this.reset();
     if(this.crossed&&requiredWraps!==0){this.state='Short tip passed through the opening · Knot not assessed';return;}
@@ -61,13 +64,13 @@ export class TailPassage {
         }
         best=best.slice(start,end+1);
         const overlap=Math.min(best.at(-1)!,this.indices.at(-1)??-1)-Math.max(best[0],this.indices[0]??Infinity)+1;
-        if(observedWraps!==this.wraps||overlap<Math.min(best.length,this.indices.length)*.5)this.previous=undefined;
-        this.indices=best;this.wraps=observedWraps;this.direction=Math.sign(bestAngle);
+        if(observedWraps!==this.wraps||overlap<Math.min(best.length,this.indices.length)*.5){this.previous=undefined;this.missHint='';}
+        this.notice='';this.indices=best;this.wraps=observedWraps;this.direction=Math.sign(bestAngle);
         if(this.crossing)this.crossing={...this.crossing,first:best[0],last:best.at(-1)!,wraps:this.wraps,direction:this.direction,normal:new THREE.Vector3(0,0,1).transformDirection(driver).multiplyScalar(this.direction)};
       }
     }
     if(this.crossed){this.state='Short tip passed through the opening · Knot not assessed';return;}
-    if(!this.indices.length){this.previous=undefined;this.state='Form a wrap around the driver';return;}
+    if(!this.indices.length){this.previous=undefined;this.state=this.notice||'Form a wrap around the driver';return;}
     const loop=this.indices.map(i=>points[i]);
     const center=new THREE.Vector3();loop.forEach(p=>center.add(p));center.divideScalar(loop.length);
     const normal=new THREE.Vector3();for(let i=0;i<loop.length;i++)normal.add(loop[i].clone().sub(center).cross(loop[(i+1)%loop.length].clone().sub(center)));
@@ -79,7 +82,9 @@ export class TailPassage {
     // In a double wrap the distal turn reaches the held tip first. Remember
     // that passage while the remaining turn is still supported by the shaft.
     if(this.wraps>1){const leading=Math.min(...loop.map(p=>p.dot(axis)));center.addScaledVector(axis,leading-center.dot(axis));}
-    if(area<Math.PI*(THREAD_RADIUS*2)**2){this.reset();return;}
+    if(area<Math.PI*(THREAD_RADIUS*2)**2){
+      this.reset();this.notice='Wrap collapsed before tail passage · Rewrap the driver';this.state=this.notice;return;
+    }
     normal.copy(axis).multiplyScalar(this.direction);
     // The observed material bight can flatten or become elliptical while
     // leaving the jaws. Its projected winding still defines the live opening;
@@ -99,12 +104,13 @@ export class TailPassage {
       }
       return winding!==0&&clearance>THREAD_RADIUS*2;
     };
-    const cross=(via:'tip'|'strand')=>{this.crossed=true;this.crossing={first:this.indices[0],last:this.indices.at(-1)!,normal:normal.clone(),side:Math.sign(side)||1,wraps:this.wraps,direction:this.direction,via};};
+    const cross=(via:'tip'|'strand')=>{this.missHint='';this.crossed=true;this.crossing={first:this.indices[0],last:this.indices.at(-1)!,normal:normal.clone(),side:Math.sign(side)||1,wraps:this.wraps,direction:this.direction,via};};
     const old=this.previous;
     if(holdingTail&&old&&old.side*side<0&&Math.abs(side)>=0.012){
       const fraction=old.side/(old.side-side);
       const relative=old.tip.clone().sub(old.center).lerp(tip.clone().sub(center),fraction);
       if(insideOpening(relative))cross('tip');
+      else this.missHint='Tail missed the opening · Bring the gold tip through the middle of the wrap';
     }
     // Grasp-before-wrap can put the short strand through the opening without
     // its endpoint ever crossing a newly observed plane. Test actual material.
@@ -113,8 +119,8 @@ export class TailPassage {
       if(sa*sb>0||Math.abs(sa-sb)<.001)continue;
       if(insideOpening(a.lerp(b,sa/(sa-sb)))){cross('strand');break;}
     }
-    if(!holdingTail)this.previous=undefined;
+    if(!holdingTail){this.previous=undefined;this.missHint='';}
     else if(Math.abs(side)>=0.012)this.previous={tip:tip.clone(),center,side};
-    this.state=this.crossed?'Short tip passed through the opening · Knot not assessed':holdingTail?'Short tail held · Move its gold tip through the live opening':'Wrap opening detected · Grasp the gold short tip';
+    this.state=this.crossed?'Short tip passed through the opening · Knot not assessed':holdingTail?this.missHint||'Short tail held · Move its gold tip through the live opening':'Wrap opening detected · Grasp the gold short tip';
   }
 }

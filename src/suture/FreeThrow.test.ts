@@ -149,3 +149,18 @@ it('rearms capture after an unusable crossing so a corrected wrap works without 
  model.update(1/120,observer,f.long,f.short,f.supportsLoop,63,39);
  expect(model.phase).toBe('passed');expect(model.first).toBeGreaterThan(0);
 });
+it.each([1/60,1/120])('gently engages provisional contact during the first tenth of a second (dt %f)',dt=>{
+ const f=fixture();f.throwModel.update(dt,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ for(let i=0;i<Math.round(.1/dt);i++)f.throwModel.update(dt,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.phase).toBe('passed');
+ const before=f.long.points.map(p=>p.clone());
+ f.throwModel.resolve(f.long,f.short,new Map([[0,f.long.points[0]]]),new Map([[0,f.short.points[0]]]));
+ const largest=Math.max(...f.long.points.map((p,i)=>p.distanceTo(before[i])));
+ expect(largest).toBeGreaterThan(0);expect(largest).toBeLessThan(f.long.restLength*.03);
+});
+it('exposes the actual provisional post for cut protection before driver clearance',()=>{
+ const f=fixture();f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.phase).toBe('passed');expect(f.throwModel.protectedPostCoordinate).toBeGreaterThan(1);
+ expect(f.throwModel.protectedPostCoordinate).toBeLessThan(f.short.count-1);
+ f.throwModel.reset();expect(f.throwModel.protectedPostCoordinate).toBe(0);
+});

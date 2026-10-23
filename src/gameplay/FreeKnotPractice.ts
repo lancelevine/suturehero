@@ -45,13 +45,13 @@ export class FreeKnotPractice {
   get trimHint(){return this.lockSeated||this.trimmedTails.size?`Tails trimmed: ${this.trimmedTails.size}/2`:'';}
   get strands(){return [this.long,this.short,...this.fragments];}
   minimumCut(strand:ThreadStrand){
-    const knots=[...this.earlierThrows,this.retainedThrow].filter(t=>t.active);
+    const knots=[...this.earlierThrows,this.retainedThrow].filter(t=>t.active||t.phase==='passed');
     if(strand===this.long)return Math.max(2,...knots.map(t=>t.last+3));
-    if(strand===this.short)return Math.max(2,...knots.map(t=>Math.ceil(t.shortMaterialCoordinate)+3));
+    if(strand===this.short)return Math.max(2,...knots.map(t=>Math.ceil(t.protectedPostCoordinate)+3));
     return 2;
   }
   cut(strand:ThreadStrand,coordinate:number){
-    if(coordinate<this.minimumCut(strand)){this.cutMessage='Too close to the retained knot · Leave a tail';return false;}
+    if(coordinate<this.minimumCut(strand)){this.cutMessage='Too close to the loop or knot · Leave a tail';return false;}
     const split=strand.splitAt(coordinate);
     if(!split){this.cutMessage='Place thread between the blade edges, away from its endpoint';return false;}
     for(const grip of this.grips.values())if(grip.strand===strand&&grip.index>=split.firstDetachedIndex){grip.strand=split.fragment;grip.index-=split.firstDetachedIndex-1;}
@@ -103,7 +103,7 @@ export class FreeKnotPractice {
     }
     if(knot.phase!=='idle'||knot.lastFailure)return knot.instruction;
     if(this.passage.hasOpening&&this.gripLabel('right')==='short strand body')return 'Wrap detected · Move the driver grip to the gold short end';
-    return this.passage.hasOpening?this.passage.state:'Make a complete wrap around the driver · Then pull the gold end through';
+    return this.passage.hasOpening?this.passage.state:this.passage.lastFailure||'Make a complete wrap around the driver · Then pull the gold end through';
   }
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();

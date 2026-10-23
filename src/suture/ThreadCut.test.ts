@@ -52,3 +52,11 @@ it('offers each untrimmed tail once and clears trim progress on restart',()=>{
  expect(model.trimHint).toContain('2/2');
  model.begin(tools);expect(model.trimmedTails.size).toBe(0);expect(model.nextTrimTarget).toBe(model.long);
 });
+it('protects a provisionally captured long-thread loop before it becomes a retained throw',()=>{
+ const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools);
+ model.retainedThrow.phase='passed';model.retainedThrow.first=10;model.retainedThrow.last=24;
+ const count=model.long.count;
+ expect(model.cut(model.long,20)).toBe(false);expect(model.long.count).toBe(count);
+ expect(model.retainedThrow.phase).toBe('passed');expect(model.minimumCut(model.long)).toBe(27);
+ expect(model.cut(model.long,35)).toBe(true);expect(model.long.count).toBeGreaterThan(model.retainedThrow.last);
+});

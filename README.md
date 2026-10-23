@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.31)
+## Current practice options (build 0.32)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Capture and retry feedback in 0.32
+
+A collapsed opening now gives a persistent rewrap hint. Partly opened bights stay eligible for actual material passage. A live bight moving sideways off the shaft remains eligible for actual tail passage. A missed opening gives a persistent retry hint while the tail stays held; releasing or successfully passing the tip clears it.
+
+Provisional thread contact now ramps with elapsed physics time rather than advancing twice per step. A passed loop and its observed short-post material are protected from scissors while waiting for driver clearance, before full retention. The existing material strands, independent instruments and automatic knot-start detection remain in use.
+
+Regression coverage includes off-center passage through tilted fine-jaw openings, outside misses, rolled and tilted instruments with real wrap/pull-through motion, collapsed openings, sideways clearance, and gentle provisional contact at 60 and 120 Hz. These remain geometric capture and retention approximations.
 
 ## Sliding starts and trimming in 0.31
 

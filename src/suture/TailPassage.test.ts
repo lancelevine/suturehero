@@ -125,3 +125,42 @@ it.each([1,2])('accepts a late grasp and an off-center passage through an ellipt
  observer.update(points,tip(1.3),pose,true,0,0);
  expect(observer.passage?.wraps).toBe(turns);
 });
+it('discards a collapsed opening and keeps retry feedback until a new wrap forms',()=>{
+ const observer=new TailPassage();
+ observer.update(wrap(),new THREE.Vector3(0,0,.9),matrix,true,0,0);
+ const partial=Array.from({length:48},(_,i)=>new THREE.Vector3(-.12+i/47*.24,0,1));
+ observer.update(partial,new THREE.Vector3(0,0,1.1),matrix,true,0,0);
+ expect(observer.hasOpening).toBe(false);expect(observer.passage).toBeUndefined();expect(observer.state).toContain('Rewrap');
+ observer.update(partial,new THREE.Vector3(0,0,1.2),matrix,true,0,0);
+ expect(observer.lastFailure).toContain('Wrap collapsed');
+ observer.update(wrap(),new THREE.Vector3(0,0,.9),matrix,true,0,0);
+ expect(observer.lastFailure).toBe('');
+ observer.update(wrap(),new THREE.Vector3(0,0,1.1),matrix,true,0,0);
+ expect(observer.passage).toBeDefined();
+});
+it.each([-1,1])('accepts an off-center tip-jaw passage but rejects a nearby outside crossing (direction %i)',direction=>{
+ const pose=new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(.7,-.4,.5)).setPosition(.5,1,-.2);
+ const points=Array.from({length:64},(_,i)=>{const a=direction*i/63*Math.PI*1.9;return new THREE.Vector3(.08*Math.cos(a),.045*Math.sin(a),.08).applyMatrix4(pose);});
+ for(const x of [.035,.11]){
+  const observer=new TailPassage(),tip=(z:number)=>new THREE.Vector3(x,.005,z).applyMatrix4(pose);
+  observer.update(points,tip(-.05),pose,true,0,0);
+  observer.update(points,tip(.2),pose,true,0,0);
+  expect(!!observer.passage).toBe(x<.08);
+ }
+});
+it('keeps a missed-passage hint visible until retry, release or reset',()=>{
+ const observer=new TailPassage(),points=wrap(),tip=(z:number)=>new THREE.Vector3(.3,0,z);
+ observer.update(points,tip(.9),matrix,true,0,0);
+ observer.update(points,tip(1.1),matrix,true,0,0);
+ expect(observer.passage).toBeUndefined();expect(observer.state).toContain('Tail missed');
+ observer.update(points,tip(1.2),matrix,true,0,0);expect(observer.state).toContain('Tail missed');
+ observer.update(points,tip(1.2),matrix,false,0,0);expect(observer.state).toContain('Grasp');
+ observer.reset();expect(observer.lastFailure).toBe('');expect(observer.state).toContain('Form a wrap');
+});
+it('keeps a live material opening when it leaves the shaft sideways before passage',()=>{
+ const observer=new TailPassage(),points=wrap(),shift=new THREE.Vector3(.65,0,0),tip=(z:number)=>new THREE.Vector3(.65,0,z);
+ observer.update(points,new THREE.Vector3(0,0,.9),matrix,true,0,0);
+ const moved=points.map(p=>p.clone().add(shift));
+ observer.update(moved,tip(.9),matrix,true,0,0);expect(observer.hasOpening).toBe(true);expect(observer.passage).toBeUndefined();
+ observer.update(moved,tip(1.1),matrix,true,0,0);expect(observer.passage).toBeDefined();
+});
