@@ -50,7 +50,7 @@ export class BrowserArucoDetector implements ArucoDetector {
   let scale=1;
   let pass='Original';
   let contrast='Unmodified';
-  if(original.length===0&&fullCandidates.length===0){
+  if(original.length===0){
    const w=Math.max(1,Math.round(frame.width/2)),h=Math.max(1,Math.round(frame.height/2));
    this.reducedCanvas.width=w;this.reducedCanvas.height=h;
    const source=document.createElement('canvas');source.width=frame.width;source.height=frame.height;
@@ -68,11 +68,22 @@ export class BrowserArucoDetector implements ArucoDetector {
     for(let i=0;i<reduced.data.length;i+=4){const y=Math.round(.299*reduced.data[i]+.587*reduced.data[i+1]+.114*reduced.data[i+2]);const v=Math.max(0,Math.min(255,Math.round((y-low)*factor)));reduced.data[i]=v;reduced.data[i+1]=v;reduced.data[i+2]=v;}
     contrast=`Stretched ${low}–${high}`;
    }else contrast='Low dynamic range';
-   raw=this.detector.detect(reduced);
+   const fallbackRaw=this.detector.detect(reduced);
    const secondCandidates=Array.isArray(this.detector.candidates)?this.detector.candidates:Array.isArray(this.detector.polys)?this.detector.polys:null;
-   candidates=secondCandidates?[...secondCandidates]:[];
-   scale=frame.width/w;
-   pass='Half-resolution contrast';
+   const fallbackCandidates=secondCandidates?[...secondCandidates]:[];
+   const ratio=frame.width/w;
+   const scaled=(m:MarkerObservation):MarkerObservation=>({...m,corners:m.corners.map(p=>({x:p.x*ratio,y:p.y*ratio}))});
+   raw=[...original,...fallbackRaw.map(scaled)];
+   // Preserve original full-resolution candidates; background squares must not
+   // prevent the small-marker fallback or erase previous observations.
+   const toFull=(c:unknown):unknown=>{
+    const vertices=Array.isArray(c)?c:(c as {corners?:unknown})?.corners;
+    if(!Array.isArray(vertices))return c;
+    return vertices.map(p=>Array.isArray(p)?[p[0]*ratio,p[1]*ratio]:{x:p.x*ratio,y:p.y*ratio});
+   };
+   candidates=[...fullCandidates,...fallbackCandidates.map(toFull)];
+   scale=1;
+   pass='Original + half-resolution contrast';
   }
   const recognized=raw.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4).map(m=>({...m,corners:m.corners.map(p=>({x:p.x*scale,y:p.y*scale}))}));
   const cornersOf=(candidate:unknown):Array<{x:number;y:number}>|null=>{
