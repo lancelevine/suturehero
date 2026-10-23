@@ -41,3 +41,14 @@ it('keeps a guided offcut in the closed driver across repeated cuts until releas
  expect(tip.points.at(-1)!.y).toBeLessThan(.6);
  slack.reset();expect(slack.short.count).toBe(32);expect(slack.fragments).toHaveLength(0);expect(slack.trimmed).toBe(false);
 });
+
+it('offers each untrimmed tail once and clears trim progress on restart',()=>{
+ const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools);
+ expect(model.nextTrimTarget).toBe(model.long);
+ expect(model.cut(model.long,model.minimumCut(model.long)-.1)).toBe(false);
+ expect(model.trimmedTails.size).toBe(0);
+ expect(model.cut(model.long,35.5)).toBe(true);expect(model.nextTrimTarget).toBe(model.short);
+ expect(model.cut(model.short,20.5)).toBe(true);expect(model.nextTrimTarget).toBeUndefined();
+ expect(model.trimHint).toContain('2/2');
+ model.begin(tools);expect(model.trimmedTails.size).toBe(0);expect(model.nextTrimTarget).toBe(model.long);
+});

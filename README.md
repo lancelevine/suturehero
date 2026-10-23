@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.30)
+## Current practice options (build 0.31)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,12 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Sliding starts and trimming in 0.31
+
+Two same-direction single throws can draw down together along the taut short post. The second throw's material boundary follows the first throw as it advances; it cannot feed through the earlier core. Once the base bears at the stitch, it holds while the next throw seats and while the opposing lock is prepared. This remains an approximate material constraint, not a calibrated slip-knot or security model.
+
+Driver clearance now covers the seated stack, including upper throws. The optional **Position scissors at tail** assist selects the untrimmed long tail first and the short tail after a successful cut. The readout tracks cuts on both attached tails; cutting a detached offcut does not count again. Protected material around every retained throw remains uncuttable, and reset clears trimming progress.
 
 ## Between throws in 0.30
 
