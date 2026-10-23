@@ -29,6 +29,8 @@ export interface DetectorDiagnostics {candidateCount:number|null;rawMarkerCount:
 export class BrowserArucoDetector implements ArucoDetector {
  private detector:LegacyDetector|null=null;
  private reducedCanvas=document.createElement('canvas');
+ private sourceCanvas=document.createElement('canvas');
+ private sourceContext=this.sourceCanvas.getContext('2d')!;
  private reducedContext=this.reducedCanvas.getContext('2d',{willReadFrequently:true})!;
  candidateCorners:Array<Array<{x:number;y:number}>>=[];
  diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting for first frame',pass:'—',contrast:'—'};
@@ -53,9 +55,9 @@ export class BrowserArucoDetector implements ArucoDetector {
   if(original.length===0){
    const w=Math.max(1,Math.round(frame.width/2)),h=Math.max(1,Math.round(frame.height/2));
    this.reducedCanvas.width=w;this.reducedCanvas.height=h;
-   const source=document.createElement('canvas');source.width=frame.width;source.height=frame.height;
-   source.getContext('2d')!.putImageData(frame,0,0);
-   this.reducedContext.drawImage(source,0,0,w,h);
+   this.sourceCanvas.width=frame.width;this.sourceCanvas.height=frame.height;
+   this.sourceContext.putImageData(frame,0,0);
+   this.reducedContext.drawImage(this.sourceCanvas,0,0,w,h);
    const reduced=this.reducedContext.getImageData(0,0,w,h);
    // Stretch grayscale contrast based on the sampled luminance range.
    const histogram=new Uint32Array(256);
@@ -82,6 +84,33 @@ export class BrowserArucoDetector implements ArucoDetector {
     return vertices.map(p=>Array.isArray(p)?[p[0]*ratio,p[1]*ratio]:{x:p.x*ratio,y:p.y*ratio});
    };
    candidates=[...fullCandidates,...fallbackCandidates.map(toFull)];
+   // Third pass: locally adaptive binarization, independent of room lighting.
+   // Integral image provides constant-time mean intensity per neighborhood.
+   if(fallbackRaw.length===0){
+    const gray=new Uint8Array(w*h),integral=new Float64Array((w+1)*(h+1));
+    for(let y=0;y<h;y++){
+     let rowSum=0;
+     for(let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      const g=Math.round(.299*reduced.data[i]+.587*reduced.data[i+1]+.114*reduced.data[i+2]);
+      gray[y*w+x]=g;rowSum+=g;
+      integral[(y+1)*(w+1)+x+1]=integral[y*(w+1)+x+1]+rowSum;
+     }
+    }
+    const radius=12;
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+     const x0=Math.max(0,x-radius),x1=Math.min(w,x+radius+1),y0=Math.max(0,y-radius),y1=Math.min(h,y+radius+1);
+     const sum=integral[y1*(w+1)+x1]-integral[y0*(w+1)+x1]-integral[y1*(w+1)+x0]+integral[y0*(w+1)+x0];
+     const v=gray[y*w+x]>sum/((x1-x0)*(y1-y0))-7?255:0;
+     const i=(y*w+x)*4;reduced.data[i]=v;reduced.data[i+1]=v;reduced.data[i+2]=v;
+    }
+    const adaptiveRaw=this.detector.detect(reduced);
+    const adaptiveCandidates=Array.isArray(this.detector.candidates)?this.detector.candidates:Array.isArray(this.detector.polys)?this.detector.polys:null;
+    raw.push(...adaptiveRaw.map(scaled));
+    if(adaptiveCandidates)candidates.push(...adaptiveCandidates.map(toFull));
+    pass='Original + contrast + adaptive';
+    contrast+=' · local mean threshold';
+   }
    scale=1;
    pass='Original + half-resolution contrast';
   }
