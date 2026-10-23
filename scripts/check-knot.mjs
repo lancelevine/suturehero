@@ -58,6 +58,12 @@ try {
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Suture cut'),{},{timeout:15000});
   await page.keyboard.up(',');
   assert.match(await page.locator('#exercise-title').innerText(),/Tails trimmed/);
+  assert.match(await page.locator('#stitch-quality').innerText(),/Tails trimmed: 1\/2/);
+  await page.getByRole('button',{name:'Position scissors at tail',exact:true}).click();
+  await page.keyboard.down(',');
+  await page.waitForFunction(()=>document.querySelector('#stitch-quality').textContent.includes('Tails trimmed: 2/2'),{},{timeout:15000});
+  await page.keyboard.up(',');
+  assert.match(await page.locator('#stitch-stage').innerText(),/Stitch exercise complete/);
   assert.deepEqual(errors,[],'Browser runtime errors after trimming');
   console.log(JSON.stringify({result:await page.locator('#exercise-title').innerText(),readout:await page.locator('#exercise-readout').innerText(),errors}));
 } finally {await browser.close();}

@@ -11,3 +11,9 @@ button:disabled{opacity:.45;cursor:default;background:transparent}.toolbar{flex-
 .practice-setup [hidden]{display:none}
 .knot-state{position:absolute;z-index:2;right:18px;top:18px;max-width:48%;padding:10px 12px;border:1px solid #769caa;border-radius:5px;background:#17313ee8;color:#e7f3f7;font-size:12px;line-height:1.4;pointer-events:none}.knot-state[hidden]{display:none}.knot-state[data-phase=seated]{background:#194d3eea;border-color:#8bd8b4;color:#dcffed}
 @media(max-width:760px){header{gap:10px}.status{display:none}.version{margin-left:0;flex-shrink:0}.knot-state{top:48px;right:10px;max-width:65%}}@media(max-width:400px){.brand{font-size:17px;letter-spacing:1.4px}.brand-icon{font-size:30px;margin-right:8px}.version{font-size:8px;padding:6px}}
+
+.stitch-summary{margin-top:14px;padding:14px 18px;border:1px solid #ceddd6;border-radius:5px;background:#f4f8f5;min-width:0;overflow-wrap:anywhere}.stitch-summary h3{margin:0 0 8px;font-size:13px;color:#315b50}.stitch-summary h3[data-complete=true]{color:#20804e}.stitch-summary p{margin:0;font-size:11px;line-height:1.7;color:#536d63}.tension-arms{display:flex;flex-wrap:wrap;gap:16px;margin:8px 0}.tension-arms label{display:flex;align-items:center;gap:8px;font-size:11px}.tension-arms b{font-weight:500;min-width:60px}.tension-arms meter{width:90px;accent-color:#4f9a75}.tension-arms meter[data-state=excessive]{accent-color:#c65348}#tension-panel{margin-top:10px;font-size:11px}#tension-panel[hidden]{display:none}#tension-cue{display:block;color:#536d63}
+
+.tension-arms meter[data-state=excessive]::-webkit-meter-optimum-value{background:#c65348}.tension-arms meter[data-state=slack]::-webkit-meter-optimum-value,.tension-arms meter[data-state=released]::-webkit-meter-optimum-value{background:#a4b4ae}.tension-arms meter[data-state=excessive]::-moz-meter-bar{background:#c65348}
+
+.steps .done{color:#4f8b6c}.steps .done b{border-color:#92b7a0;background:#edf5ee}

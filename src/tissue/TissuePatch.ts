@@ -12,6 +12,7 @@ export class TissuePatch {
   private markers: {mesh: THREE.Mesh;original: THREE.Vector3}[]=[];
   private lastClosure=NaN;
   private lastEversion=-1;
+  private lastResponse=-1;
   constructor() {
   const group=this.root;
   const skinMaps=skinSurface();
@@ -37,7 +38,8 @@ export class TissuePatch {
   group.traverse(object=>{if(object instanceof THREE.Mesh) { object.receiveShadow=true; object.castShadow=true; }});
   }
   update(model: WoundApproximation,eversion?:EdgeEversion) {
-    if(model.closure===this.lastClosure && (eversion?.revision??0)===this.lastEversion)return;
+    if((model.response?.revision??0)===this.lastResponse && model.closure===this.lastClosure && (eversion?.revision??0)===this.lastEversion)return;
+    this.lastResponse=model.response?.revision??0;
     this.lastEversion=eversion?.revision??0;
     this.lastClosure=model.closure;
     const point=new THREE.Vector3();

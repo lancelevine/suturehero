@@ -23,6 +23,8 @@ export class KnotSlack {
   long=new ThreadStrand(1.35,36);
   enabled=false;
   trimmed=false;
+  readonly trimmedTails=new Set<ThreadStrand>();
+  get nextTrimTarget(){return [this.short,this.long].find(s=>!this.trimmedTails.has(s)&&s.count>6);}
   surfaceAt=threadSurfaceAt;
   tissueContact?:StrandObstacle;
   readonly fragments:ThreadStrand[]=[];
@@ -32,6 +34,7 @@ export class KnotSlack {
   cut(strand:ThreadStrand,coordinate:number){
     if(coordinate<3)return false;
     const split=strand.splitAt(coordinate);if(!split)return false;
+    if(strand===this.long||strand===this.short)this.trimmedTails.add(strand);
     const side=strand===this.short?'short':strand===this.long?'long':this.heldOffcuts.get(strand);
     if(side){
       const alreadyHeld=this.heldOffcuts.delete(strand);
@@ -74,5 +77,5 @@ export class KnotSlack {
     this.availableSlack=Math.max(0,this.short.length-frame.shortStart.distanceTo(frame.shortEnd))+Math.max(0,this.long.length-frame.longStart.distanceTo(frame.longEnd));
   }
   get state() {if(this.trimmed)return 'Tails trimmed · Knot retained';if(this.releasedEnds)return this.releasedEnds===2?'Both thread ends released':'One thread end released';if(this.material.overreach)return 'Thread at reach limit';return this.availableSlack>0.3?'Free spans slack':this.availableSlack>0.2?'Slack reducing':'Free spans nearly taut';}
-  reset() {this.heldOffcuts.clear();this.detached.clear();this.released={short:true,long:true};this.trimmed=false;this.fragments.length=0;this.short=new ThreadStrand(1.35,32);this.long=new ThreadStrand(1.35,36);this.enabled=false;this.initialized=false;this.availableSlack=0;this.releasedEnds=0;this.material.reset();this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);}
+  reset() {this.trimmedTails.clear();this.heldOffcuts.clear();this.detached.clear();this.released={short:true,long:true};this.trimmed=false;this.fragments.length=0;this.short=new ThreadStrand(1.35,32);this.long=new ThreadStrand(1.35,36);this.enabled=false;this.initialized=false;this.availableSlack=0;this.releasedEnds=0;this.material.reset();this.short.setMaterialLength(this.material.short);this.long.setMaterialLength(this.material.long);}
 }

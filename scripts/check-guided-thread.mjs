@@ -21,11 +21,17 @@ try {
   await page.keyboard.down('r');await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('fully through'),{},{timeout:45000});await page.keyboard.up('r');
   assert.doesNotMatch(await page.locator('#exercise-readout').innerText(),/NaN|Infinity/);
   if(!setup){
-   await page.locator('#free-tying').click();
+   assert.equal(await page.locator('#begin-free-knot').isDisabled(),false);
+   await page.locator('#begin-free-knot').click();
+   await page.waitForFunction(()=>document.querySelector('#stitch-stage').textContent.includes('Tie and seat'));
+   assert.equal(await page.locator('#begin-free-knot').isDisabled(),true);
+   assert.equal(await page.locator('#knot-action').isDisabled(),true);
+   assert(await page.locator('#tension-panel').isVisible());
    await page.evaluate(async()=>{for(let i=0;i<240;i++)await new Promise(requestAnimationFrame);});
    await page.locator('#select-scissors').click();assert.match(await page.locator('#right-tool-name').innerText(),/Mayo/);
    await page.locator('#position-scissors').click();await page.keyboard.down(',');
-   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Suture cut'),{},{timeout:20000});await page.keyboard.up(',');
+   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Long tail cut'),{},{timeout:20000});await page.keyboard.up(',');
+   assert.match(await page.locator('#stitch-quality').innerText(),/Tails trimmed: 1\/2/);
   }
   assert.deepEqual(errors,[]);console.log(`${setup?'Microsurgery BV-1':'Skin and Mayo cutting'}: guided emergence, handoff, and extraction passed.`);await page.close();
  }

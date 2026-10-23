@@ -1,3 +1,4 @@
+import {StrandTension,limitSlackTakeUp} from '../suture/StrandTension';
 import {throwsAreStacked} from '../suture/KnotStack';
 import {postIsTaut} from '../suture/PostTension';
 import {KnotTissueSeat,stitchSupport} from '../suture/KnotTissueSeat';
@@ -23,6 +24,9 @@ export class FreeKnotPractice {
   readonly entry=tractEntry();
   readonly exit=tractExit();
   readonly grips=new Map<string,Grip>();
+  readonly tension={long:new StrandTension(),short:new StrandTension()};
+  get pullDemand(){return Math.max(this.tension.long.demand,this.tension.short.demand);}
+  get tensionHint(){return `Long: ${this.tension.long.state} · Short: ${this.tension.short.state}${this.pullDemand>.45?' · Ease the pull':this.tension.long.state==='gentle'&&this.tension.short.state==='gentle'?' · Gentle opposing tension':''}`;}
   winding=0;
   driverOnTissue=false;
   readonly passage=new TailPassage();
@@ -105,10 +109,11 @@ export class FreeKnotPractice {
     if(this.passage.hasOpening&&this.gripLabel('right')==='short strand body')return 'Wrap detected · Move the driver grip to the gold short end';
     return this.passage.hasOpening?this.passage.state:this.passage.lastFailure||'Make a complete wrap around the driver · Then pull the gold end through';
   }
+  private gripRequests=new Map<string,{strand:ThreadStrand;index:number;request:THREE.Vector3;limiting:boolean}>();
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();
   private accumulator=0;
-  private skinTopAt=()=>.423;
+  private skinTopAt=(p:THREE.Vector3)=>this.surfaceAt(p);
   private skinContact=skinThreadContact(point=>this.contact.supportAt(point,this.skinTopAt));
   private supportAt=(point:THREE.Vector3)=>(this.threadFloorAt??threadBaseAt)(point);
   begin(tools:readonly Instrument[],technique?:KnotTechnique|'auto') {
@@ -235,6 +240,11 @@ export class FreeKnotPractice {
       }
     }
   }
+  private heldArm(strand:ThreadStrand,index:number){
+    const coordinates=[...this.earlierThrows,this.retainedThrow].filter(k=>k.active).map(k=>strand===this.long?k.last:k.shortMaterialCoordinate).filter(c=>c<index);
+    const start=Math.max(0,...coordinates);
+    return {anchor:strand.pointAt(start),material:strand.materialLengthBetween(start,index)};
+  }
   update(dt:number,tools:readonly Instrument[],blockedGrips?:ReadonlySet<string>) {
     if(!this.active)return;
     for(const tool of tools) {
@@ -254,9 +264,19 @@ export class FreeKnotPractice {
       // Regrasping must not reallocate its post merely to reach raised tools.
       if(this.sequence?.sliding)for(const knot of [...this.earlierThrows,this.retainedThrow].filter(t=>t.active).slice(0,this.seatedThrowCount))this.groundedThrows.add(knot);
     }
+    for(const id of this.gripRequests.keys())if(!this.grips.has(id))this.gripRequests.delete(id);
+    const demands=new Map<ThreadStrand,number>();
     for(const tool of tools) {
       const grip=this.grips.get(tool.id);if(!grip)continue;
       const target=tool.root.localToWorld(grip.local.clone());
+      if(grip.strand===this.long||grip.strand===this.short){
+        const arm=this.heldArm(grip.strand,grip.index);
+        demands.set(grip.strand,Math.max(0,target.distanceTo(arm.anchor)-arm.material)/grip.strand.restLength);
+        const raw=target.clone(),old=this.gripRequests.get(tool.id),same=old?.strand===grip.strand&&old.index===grip.index;
+        const limiting=!!same&&((old.limiting&&raw.distanceTo(grip.strand.points[grip.index])>grip.strand.restLength*3)||raw.distanceTo(old.request)>grip.strand.restLength*3);
+        if(limiting)limitSlackTakeUp(grip.strand.points[grip.index],target,arm.anchor,arm.material,grip.strand.restLength,dt);
+        this.gripRequests.set(tool.id,{strand:grip.strand,index:grip.index,request:raw,limiting});
+      }
       const limitReach=(anchor:THREE.Vector3,length:number)=>{
         const delta=target.clone().sub(anchor),distance=delta.length();
         if(distance>length)target.copy(anchor).addScaledVector(delta,length/distance);
@@ -371,6 +391,11 @@ export class FreeKnotPractice {
     }
     if(steps===0)for(const strand of this.strands)strand.advance(0,pins.get(strand)!,this.supportAt);
 
+    for(const [strand,feedback] of [[this.long,this.tension.long],[this.short,this.tension.short]] as const){
+      const grip=[...this.grips.values()].find(g=>g.strand===strand);
+      const arm=grip?this.heldArm(strand,grip.index):undefined;
+      feedback.update(dt,grip&&arm?strand.points[grip.index].distanceTo(arm.anchor)/Math.max(arm.material,1e-9):0,demands.get(strand)??0,!!grip);
+    }
     const driver=tools.find(t=>t.kind==='needle-driver')!;
     this.winding=shaftWinding(this.long.points,driver.root.matrixWorld);
     this.passage.update(this.long.points,this.short.points.at(-1)!,driver.root.matrixWorld,this.gripLabel(driver.id)==='short tail',this.nextMaterialIndex,this.observationWraps,this.short.points,this.maximumOpeningIndex);
@@ -389,5 +414,5 @@ export class FreeKnotPractice {
     }
     return false;
   }
-  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.trimmedTails.clear();this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.tissueSeat.reset();this.sequence=undefined;this.recorded=false;this.seatingArmed=false;this.groundedThrows.clear();this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
+  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.trimmedTails.clear();this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.tissueSeat.reset();this.sequence=undefined;this.recorded=false;this.seatingArmed=false;this.groundedThrows.clear();this.tension.long.reset();this.tension.short.reset();this.gripRequests.clear();this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
 }

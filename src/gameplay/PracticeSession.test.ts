@@ -105,6 +105,10 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   expect(session.loadTest.stage).toBe('passed');expect(session.loadTest.slip).toBe(0);
   expect(session.knotSlack.short.length+session.knotSlack.long.length+session.knotSlack.material.loop+session.knotSlack.material.retained).toBeCloseTo(session.knotSlack.material.total,12);
   expect(session.releaseCheck.state).toBe('passed');
+  expect(session.stitchAssessment.complete).toBe(false);expect(session.stitchAssessment.stage).toContain('Trim both');
+  expect(session.knotSlack.cut(session.knotSlack.short,8.5)).toBe(true);expect(session.stitchAssessment.complete).toBe(false);
+  expect(session.knotSlack.cut(session.knotSlack.long,8.5)).toBe(true);expect(session.stitchAssessment.complete).toBe(true);
+  expect(session.stitchAssessment.feedback.join(' ')).toContain('symmetric');
   session.reset();expect(session.loadTest.active).toBe(false); expect(session.releaseCheck.state).toBe('waiting');expect(session.releaseCheck.anyReleased).toBe(false);expect(session.knotSlack.enabled).toBe(false); expect(session.wound.closure).toBe(0); expect(session.knot.phase).toBe('idle'); expect(session.pull.phase).toBe('waiting'); expect(session.pass.phase).toBe('idle'); expect(grasp.holder).toBeNull();
 });
 it('transfers thread and reopens the wound under excessive guided pull without creating material',()=>{
@@ -146,4 +150,30 @@ it('supports skin eversion before starting, and in the free lab without taking a
   left.root.position.y+=0.15;session.update(0.01);expect(session.eversion.ready).toBe(true);expect(session.freeKnot.grips.has('left')).toBe(false);
   left.openness=0.7;session.update(0.01);expect(session.eversion.held).toBe(false);session.reset();
  }
+});
+it('continues from an extracted stitch into free tying without replacing its tissue purchase',()=>{
+ const tools=[new Instrument('left',0),new Instrument('right',0)],needle=new SutureModel(),grasp=new NeedleGrasp(needle);
+ const s=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},tools,grasp);
+ expect(s.continueFreeTying()).toBe(false);
+ s.pass.phase='complete';s.pull.phase='complete';s.wound.setDermalBites(...s.pass.purchaseSites);
+ const bites=s.wound.purchaseSites.map(p=>p?.toArray());
+ expect(s.continueFreeTying()).toBe(true);expect(s.canBeginKnot).toBe(false);expect(s.continueFreeTying()).toBe(false);expect(s.wound.purchaseSites.map(p=>p?.toArray())).toEqual(bites);
+ expect(s.pass.phase).toBe('complete');expect(s.pull.phase).toBe('complete');expect(s.stitchAssessment.stage).toContain('Tie and seat');
+ expect(s.stitchAssessment.complete).toBe(false);s.reset();expect(s.freeKnot.active).toBe(false);expect(s.freeReleaseProgress).toBe(0);
+ s.beginFreeTying('auto');expect(s.stitchAssessment.stage).toContain('Preplaced stitch');expect(s.stitchAssessment.complete).toBe(false);
+});
+
+it('counts a free release hold only while both primary strands are released and the knot stays seated',()=>{
+ const tools=[new Instrument('left',0),new Instrument('right',0)];
+ const s=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},tools);
+ s.beginFreeTying('auto');s.wound.closure=1;
+ vi.spyOn(s.freeKnot,'update').mockImplementation(()=>{});
+ const seat=vi.spyOn(s.freeKnot,'lockSeated','get').mockReturnValue(true);
+ vi.spyOn(s.freeKnot,'closureLoad','get').mockReturnValue(1);
+ const grip=s.freeKnot.grips.get('left')!;
+ for(let i=0;i<100;i++)s.update(1/60);expect(s.freeReleaseProgress).toBe(0);
+ s.freeKnot.grips.clear();for(let i=0;i<100;i++)s.update(1/60);expect(s.freeReleaseProgress).toBe(1);
+ s.freeKnot.grips.set('left',grip);s.update(1/60);expect(s.freeReleaseProgress).toBe(0);
+ s.freeKnot.grips.clear();seat.mockReturnValue(false);for(let i=0;i<100;i++)s.update(1/60);expect(s.freeReleaseProgress).toBe(0);
+ s.reset();expect(s.freeReleaseProgress).toBe(0);
 });
