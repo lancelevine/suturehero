@@ -130,7 +130,7 @@ export class FreeThrow {
     // Small reversal cycles must not pump slack out of the loop. Rearm
     // after a meaningful inward reposition, allowing a fresh tightening pull.
     const reversal=Math.min(long.restLength,short.restLength)*.25;
-    this.pullDistance=separation<heldMaterial*.9&&this.pullDistance!==undefined&&separation>=this.pullDistance-reversal?Math.max(this.pullDistance,separation):separation;this.feedTime+=Math.max(0,Math.min(dt,0.05));
+    this.pullDistance=this.pullDistance!==undefined&&separation>=this.pullDistance-reversal?Math.max(this.pullDistance,separation):separation;this.feedTime+=Math.max(0,Math.min(dt,0.05));
     // Feed existing particles from the loop into its exterior arms; total
     // strand material and the grasped material indices remain unchanged.
     const drawProximal=this.feedFromWorkingEnd&&this.first>this.minimumMaterialIndex&&(this.proximalSlack(long)>long.restLength*2||this.seatingRequested);

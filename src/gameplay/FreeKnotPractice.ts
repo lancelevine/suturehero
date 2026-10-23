@@ -351,11 +351,11 @@ export class FreeKnotPractice {
       const lowHands=longGrip!==undefined&&shortGrip!==undefined&&[this.long.points[longGrip],this.short.points[shortGrip]].every(p=>p.y<stitchHeight+.2&&p.y>stitchHeight-.1);
       if(paired&&(this.retainedThrow.phase==='passed'||this.retainedThrow.phase==='retained'||this.retainedThrow.active&&!lowHands))this.seatingArmed=true;
       const workingTaut=longGrip!==undefined&&this.retainedThrow.active&&this.long.points[this.retainedThrow.last].distanceTo(this.long.points[longGrip])>=this.long.materialLengthBetween(this.retainedThrow.last,longGrip)*.92;
-      // A captured opposing lock can leave a curved short arm after regrasp.
+      // A surgeon's captured opposing lock can leave a curved short arm after regrasp.
       // Requested post load must be able to start draw-down; requiring an
       // already straight post here can deadlock against the paired reach limit.
-      // Unlocked sliding starts still require actual post tautness.
-      const postLoaded=this.postTaut||!!this.sequence?.locked&&this.tension.short.demand>.45;
+      // Sliding starts must keep actual post tautness through their lock.
+      const postLoaded=this.postTaut||!!this.sequence?.locked&&this.sequence.technique==='surgeon'&&this.tension.short.demand>.45;
       this.retainedThrow.seatingRequested=!this.groundedThrows.has(this.retainedThrow)&&this.seatingArmed&&this.retainedThrow.phase==='seated'&&(!this.earlierThrows.length?this.tissueSeat.load<.99:this.tissueSeat.contact&&!this.knotAtTissue)&&lowHands&&workingTaut&&postLoaded;
       if(this.earlierThrows.length&&(this.sequence?.sliding||this.tissueSeat.contact)){
         const previous=this.earlierThrows.at(-1)!;
