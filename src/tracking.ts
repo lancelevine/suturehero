@@ -11,7 +11,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers IDs 0–8. Outlines and IDs appear on the video.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
-<p class="tracking-message"><span style="color:#d49a00;font-weight:bold">Yellow</span> = candidate square · <span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
+<label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><p class="tracking-message"><span style="color:#d49a00;font-weight:bold">Yellow</span> = candidate square · <span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
 <div class="tracking-stats" aria-label="Live camera diagnostics">
 <div><strong>Camera resolution</strong><span id="diag-resolution">Not started</span></div>
@@ -35,6 +35,23 @@ const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
 const detector=new BrowserArucoDetector();
+const thresholdToggle=document.querySelector<HTMLInputElement>('#show-threshold')!;
+const thresholdPreview=document.querySelector<HTMLCanvasElement>('#threshold-preview')!;
+const thresholdContext=thresholdPreview.getContext('2d')!;
+thresholdToggle.addEventListener('change',()=>{thresholdPreview.style.display=thresholdToggle.checked?'block':'none';});
+function renderThreshold(frame:ImageData){
+ const w=Math.max(1,Math.round(frame.width/2)),h=Math.max(1,Math.round(frame.height/2));
+ thresholdPreview.width=w;thresholdPreview.height=h;
+ const source=document.createElement('canvas');source.width=frame.width;source.height=frame.height;source.getContext('2d')!.putImageData(frame,0,0);
+ thresholdContext.drawImage(source,0,0,w,h);
+ const output=thresholdContext.getImageData(0,0,w,h),hist=new Uint32Array(256),gray=new Uint8Array(w*h);
+ for(let i=0;i<gray.length;i++){const j=i*4;const v=Math.round(.299*output.data[j]+.587*output.data[j+1]+.114*output.data[j+2]);gray[i]=v;hist[v]++;}
+ let sum=0;for(let i=0;i<256;i++)sum+=i*hist[i];let back=0,weightedBack=0,best=-1,threshold=127;
+ for(let i=0;i<256;i++){back+=hist[i];if(!back)continue;const front=gray.length-back;if(!front)break;weightedBack+=i*hist[i];const delta=weightedBack/back-(sum-weightedBack)/front;const variance=back*front*delta*delta;if(variance>best){best=variance;threshold=i;}}
+ for(let i=0;i<gray.length;i++){const v=gray[i]>threshold?255:0;const j=i*4;output.data[j]=v;output.data[j+1]=v;output.data[j+2]=v;output.data[j+3]=255;}
+ thresholdContext.putImageData(output,0,0);
+}
+
 const diag=(name:string)=>document.querySelector<HTMLElement>('#diag-'+name)!;
 let framesAnalyzed=0;
 const frameCanvas=document.createElement('canvas');
@@ -79,7 +96,7 @@ async function detectFrame(now:number){
  lastDetection=now;processing=true;const session=cameraSession;
  try{
   const w=video.videoWidth,h=video.videoHeight;if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
-  frameContext.drawImage(video,0,0,w,h);const found=await detector.detect(frameContext.getImageData(0,0,w,h));
+  frameContext.drawImage(video,0,0,w,h);const frame=frameContext.getImageData(0,0,w,h);if(thresholdToggle.checked)renderThreshold(frame);const found=await detector.detect(frame);
   if(session===cameraSession){observations=found;framesAnalyzed++;diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
  }catch(e){status.textContent='Detection error: '+(e instanceof Error?e.message:String(e));detectorReady=false;diag('note').textContent='Detector threw an error';}
  finally{processing=false;}
