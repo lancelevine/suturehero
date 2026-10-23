@@ -18,7 +18,7 @@ it('seats a sliding start, regrasps, adds its lock and trims both tails without 
  tools.forEach(t=>t.openness=.1);update(1/120);
  expect(model.gripLabel('left')).toBe('long strand');expect(model.gripLabel('right')).toBe('short tail');
  await throwOne(1,-1);await lowerAndPull();
- expect(model.lockSeated).toBe(true);expect(model.sequence!.throws).toHaveLength(3);
+ expect(model.lockSeated,`${model.instruction} | ${model.handlingHint} | ${model.tissueSeat.load} | ${[...model.earlierThrows,model.retainedThrow].map(k=>[k.phase,k.first,k.last,k.shortMaterialCoordinate]).join(';')}`).toBe(true);expect(model.sequence!.throws).toHaveLength(3);
  expect([first.first,first.last]).toEqual(indices);expect(first.shortMaterialCoordinate).toBe(post);
  const knots=[...model.earlierThrows,model.retainedThrow],coordinates=knots.map(k=>k.shortMaterialCoordinate);
  for(const strand of [model.long,model.short]){
@@ -34,6 +34,6 @@ it('seats a sliding start, regrasps, adds its lock and trims both tails without 
   if(frame>=180)for(const knot of knots)for(let i=knot.first;i<=knot.last;i++)lateMotion=Math.max(lateMotion,before[i].distanceTo(model.long.points[i]));
   if(frame%60===0)await new Promise(resolve=>setTimeout(resolve,0));
  }
- expect(model.lockSeated).toBe(true);expect(lateMotion).toBeLessThan(.008);
+ expect(model.lockSeated,`${model.instruction} | ${model.handlingHint} | ${model.tissueSeat.load} | ${[...model.earlierThrows,model.retainedThrow].map(k=>[k.phase,k.first,k.last,k.shortMaterialCoordinate]).join(';')}`).toBe(true);expect(lateMotion).toBeLessThan(.008);
  expect(knots.map(k=>k.shortMaterialCoordinate)).toEqual(coordinates);
 },180000);

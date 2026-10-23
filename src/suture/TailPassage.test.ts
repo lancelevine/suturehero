@@ -164,3 +164,30 @@ it('keeps a live material opening when it leaves the shaft sideways before passa
  observer.update(moved,tip(.9),matrix,true,0,0);expect(observer.hasOpening).toBe(true);expect(observer.passage).toBeUndefined();
  observer.update(moved,tip(1.1),matrix,true,0,0);expect(observer.passage).toBeDefined();
 });
+it.each([1,2])('follows a detached, tilted %i-turn bight instead of the empty driver axis',turns=>{
+ const observer=new TailPassage();
+ const coil=Array.from({length:80},(_,i)=>{const a=i/79*Math.PI*2*(turns-.05);return new THREE.Vector3(.12*Math.cos(a),.12*Math.sin(a),1);});
+ observer.update(coil,new THREE.Vector3(0,0,.8),matrix,true,0,0);
+ const pose=new THREE.Matrix4().makeTranslation(.7,0,1).multiply(new THREE.Matrix4().makeRotationY(Math.PI/2)).multiply(new THREE.Matrix4().makeTranslation(0,0,-1));
+ const moved=coil.map(p=>p.clone().applyMatrix4(pose));
+ observer.update(moved,new THREE.Vector3(0,0,.8).applyMatrix4(pose),matrix,true,0,0);
+ expect(observer.hasOpening).toBe(true);expect(observer.passage).toBeUndefined();
+ observer.update(moved,new THREE.Vector3(0,0,1.2).applyMatrix4(pose),matrix,true,0,0);
+ expect(observer.passage?.wraps).toBe(turns);
+});
+it.each([.03,.3])('tests moving-frame passage at radius %f without cutting across a rotating opening',x=>{
+ const observer=new TailPassage(),points=wrap();
+ observer.update(points,new THREE.Vector3(x,0,.9),matrix,true,0,0);
+ const pose=new THREE.Matrix4().makeRotationZ(Math.PI);
+ observer.update(points.map(p=>p.clone().applyMatrix4(pose)),new THREE.Vector3(x,0,1.1).applyMatrix4(pose),pose,true,0,0);
+ expect(!!observer.passage).toBe(x<.12);
+});
+
+it('rejects an outside tail during driver departure and material-frame rotation',()=>{
+ const observer=new TailPassage(),points=wrap().map(p=>p.clone().applyMatrix4(new THREE.Matrix4().makeRotationZ(Math.PI)));
+ const tip=(z:number)=>new THREE.Vector3(.3,0,z);
+ observer.update(points,tip(.9),matrix,true,0,0);
+ const pose=new THREE.Matrix4().makeTranslation(.7,0,1).multiply(new THREE.Matrix4().makeRotationY(.8)).multiply(new THREE.Matrix4().makeTranslation(0,0,-1));
+ observer.update(points.map(p=>p.clone().applyMatrix4(pose)),tip(1.1).applyMatrix4(pose),matrix,true,0,0);
+ expect(observer.hasOpening).toBe(true);expect(observer.passage).toBeUndefined();
+});

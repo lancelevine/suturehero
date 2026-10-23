@@ -116,13 +116,16 @@ it('does not tighten from rigid movement or a single held end, and resets retent
  f.long.points[63].x-=1;f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,undefined);expect(f.throwModel.last-f.throwModel.first).toBe(original);
  f.throwModel.reset();expect(f.throwModel.active).toBe(false);
 });
-it('explains driver clearance and a released tail, then clears the retry notice',()=>{
+it('explains driver clearance and preserves recovery instructions until a fresh wrap',()=>{
  const f=fixture();f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
  expect(f.throwModel.phase).toBe('passed');expect(f.throwModel.instruction).toContain('driver working tip');
  f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,undefined);
  expect(f.throwModel.phase).toBe('idle');expect(f.throwModel.instruction).toContain('Short tail released');
  expect(f.passage.passage).toBeUndefined();
  for(let i=0;i<65;i++)f.throwModel.update(.05,f.passage,f.long,f.short,f.supportsLoop,63,undefined);
+ expect(f.throwModel.lastFailure).toContain('Short tail released');
+ f.passage.update(f.long.points,v(0,.65,.35),f.driver,true);
+ f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
  expect(f.throwModel.lastFailure).toBe('');
 });
 it('explains when the held tail moves back out before driver clearance',()=>{
@@ -163,4 +166,20 @@ it('exposes the actual provisional post for cut protection before driver clearan
  expect(f.throwModel.phase).toBe('passed');expect(f.throwModel.protectedPostCoordinate).toBeGreaterThan(1);
  expect(f.throwModel.protectedPostCoordinate).toBeLessThan(f.short.count-1);
  f.throwModel.reset();expect(f.throwModel.protectedPostCoordinate).toBe(0);
+});
+it('does not pump slack out of a retained loop from repeated small hand oscillations',()=>{
+ const f=fixture();f.driver.makeTranslation(0,.65,1.2);f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.phase).toBe('retained');
+ const indices=[f.throwModel.first,f.throwModel.last],end=f.long.points[63].clone();
+ for(let frame=0;frame<480;frame++){
+  f.long.points[63].copy(end).add(v(.003*Math.sin(frame*.3),0,0));
+  f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ }
+ expect([f.throwModel.first,f.throwModel.last]).toEqual(indices);
+ // Deliberate backoff and a new outward pull must still draw material.
+ f.long.points[63].copy(end).add(v(.15,0,0));
+ f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ f.long.points[63].copy(end);
+ f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.last-f.throwModel.first).toBeLessThan(indices[1]-indices[0]);
 });

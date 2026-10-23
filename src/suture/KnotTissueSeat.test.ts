@@ -37,3 +37,15 @@ it('bridges only the local stitch seam while preserving the environment surface 
   expect(stitchSupport(v(0,.44,.4),entry,exit,()=>-.445)).toBeCloseTo(-.445);
   expect(stitchSupport(v(.2,.44),entry,exit,()=>.45)).toBe(.45);
 });
+it('keeps bearing through small lateral contact jitter but releases a genuinely displaced knot',()=>{
+ const f=fixture();f.update();expect(f.seat.load).toBe(1);
+ for(const z of [.139,.145,.138,.151,.142]){
+  for(let i=8;i<=14;i++)f.long.points[i].z=z;
+  f.update();expect(f.seat.contact).toBe(true);expect(f.seat.load).toBe(1);
+ }
+ for(let i=8;i<=14;i++)f.long.points[i].z=.2;
+ f.update();expect(f.seat.contact).toBe(false);expect(f.seat.load).toBe(0);
+ // The wider exit band cannot acquire a new knot outside the entry band.
+ for(let i=8;i<=14;i++)f.long.points[i].z=.15;
+ f.update();expect(f.seat.contact).toBe(false);
+});

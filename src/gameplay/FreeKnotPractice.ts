@@ -69,6 +69,7 @@ export class FreeKnotPractice {
   private recorded=false;
   private seatingArmed=false;
   private groundedThrows=new Set<FreeThrow>();
+  private bearingTime=0;
   private feedback='';
   private get nextMaterialIndex(){return this.recorded?this.retainedThrow.last+2:this.earlierThrows.length?Math.max(...this.earlierThrows.map(t=>t.last))+2:1;}
   // Search free working material, not the tissue anchor or the held endpoint.
@@ -350,7 +351,12 @@ export class FreeKnotPractice {
       const lowHands=longGrip!==undefined&&shortGrip!==undefined&&[this.long.points[longGrip],this.short.points[shortGrip]].every(p=>p.y<stitchHeight+.2&&p.y>stitchHeight-.1);
       if(paired&&(this.retainedThrow.phase==='passed'||this.retainedThrow.phase==='retained'||this.retainedThrow.active&&!lowHands))this.seatingArmed=true;
       const workingTaut=longGrip!==undefined&&this.retainedThrow.active&&this.long.points[this.retainedThrow.last].distanceTo(this.long.points[longGrip])>=this.long.materialLengthBetween(this.retainedThrow.last,longGrip)*.92;
-      this.retainedThrow.seatingRequested=!this.groundedThrows.has(this.retainedThrow)&&this.seatingArmed&&this.retainedThrow.phase==='seated'&&(!this.earlierThrows.length?this.tissueSeat.load<.99:this.tissueSeat.contact&&!this.knotAtTissue)&&lowHands&&workingTaut&&this.postTaut;
+      // A captured opposing lock can leave a curved short arm after regrasp.
+      // Requested post load must be able to start draw-down; requiring an
+      // already straight post here can deadlock against the paired reach limit.
+      // Unlocked sliding starts still require actual post tautness.
+      const postLoaded=this.postTaut||!!this.sequence?.locked&&this.tension.short.demand>.45;
+      this.retainedThrow.seatingRequested=!this.groundedThrows.has(this.retainedThrow)&&this.seatingArmed&&this.retainedThrow.phase==='seated'&&(!this.earlierThrows.length?this.tissueSeat.load<.99:this.tissueSeat.contact&&!this.knotAtTissue)&&lowHands&&workingTaut&&postLoaded;
       if(this.earlierThrows.length&&(this.sequence?.sliding||this.tissueSeat.contact)){
         const previous=this.earlierThrows.at(-1)!;
         this.retainedThrow.minimumMaterialIndex=previous.last+2;
@@ -377,7 +383,10 @@ export class FreeKnotPractice {
       this.tissueSeat.update(this.firstKnot,this.long,this.short,this.entry,this.exit,this.surfaceAt);
       // Once a throw bears in the seated stack, preserve its material collar
       // through regrasping; transient contact loss must not restart feeding.
-      if(this.sequence?.sliding&&this.tissueSeat.load>=.99)for(const knot of constraints.filter(t=>t.active).slice(0,this.seatedThrowCount))this.groundedThrows.add(knot);
+      // Let the tissue portals finish moving before freezing a sliding post.
+      // A single full-load substep can occur before closure creates new slack.
+      this.bearingTime=this.tissueSeat.contact&&this.tissueSeat.load>=.99?this.bearingTime+step:0;
+      if(this.sequence?.sliding&&this.bearingTime>=.3)for(const knot of constraints.filter(t=>t.active).slice(0,this.seatedThrowCount))this.groundedThrows.add(knot);
       if(this.sequence&&this.retainedThrow.phase==='seated'&&!this.recorded){
         if(this.sequence.seat({wraps:this.retainedThrow.wraps,direction:this.retainedThrow.direction,postHeld:this.postTaut})){
           this.recorded=true;this.passage.reset();this.feedback='';
@@ -414,5 +423,5 @@ export class FreeKnotPractice {
     }
     return false;
   }
-  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.trimmedTails.clear();this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.tissueSeat.reset();this.sequence=undefined;this.recorded=false;this.seatingArmed=false;this.groundedThrows.clear();this.tension.long.reset();this.tension.short.reset();this.gripRequests.clear();this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
+  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.trimmedTails.clear();this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.tissueSeat.reset();this.sequence=undefined;this.recorded=false;this.seatingArmed=false;this.groundedThrows.clear();this.bearingTime=0;this.tension.long.reset();this.tension.short.reset();this.gripRequests.clear();this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
 }

@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.33)
+## Current practice options (build 0.34)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Knot reliability batch in 0.34
+
+A detached wrap now follows its own material plane instead of the empty driver's axis. Tail passage is tested in the moving opening frame, so rotating an outside tail around a loop does not falsely count as passing through it. Supported helical wraps retain the shaft projection until departure; collapsed material still requires a rewrap.
+
+In slack arms, loop take-up ignores small reversal cycles, while deliberate backoff rearms a fresh pull. Repeated small oscillations in slack arms no longer accumulate into unintended tightening; genuinely taut arms can still feed material through a retained throw. A sliding post requires sustained tissue bearing before its material allocation freezes, allowing closure-induced slack to settle first. A captured opposing lock can begin draw-down under requested post load after regrasping, avoiding a deadlock between post straightness and the paired material reach limit; unlocked sliding starts still require actual post tautness. Tissue bearing uses a small entry/exit tolerance band to avoid repeated loss of closure at a contact boundary, while genuine lifting or displacement still removes load. Failed-capture instructions remain available until a fresh wrap or retry replaces them.
+
+Regression coverage includes detached tilted single/double loops, rotating outside tails, stationary hand oscillation, a stronger driver tilt, successive throws, regrasping, sliding starts, release and cutting. Retention remains a geometric approximation, not a complete topological knot solver or a clinical security model.
 
 ## Tension, tissue response and the full stitch in 0.33
 

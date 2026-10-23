@@ -33,7 +33,6 @@ export class FreeThrow {
   private pendingPost?:number;
   private clearanceMissTime=0;
   private notice='';
-  private noticeTime=0;
   private captureHint='';
   seatingHint='Pull the two held ends apart to tighten';
   private longCorrections?:Float64Array;
@@ -55,10 +54,12 @@ export class FreeThrow {
     if(this.active)this.retentionAge+=Math.max(0,Math.min(dt,.05));
     if(this.phase==='passed')this.passageAge+=Math.max(0,Math.min(dt,.05));
   }
-  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.clearanceMissTime=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;this.noticeTime=reason?3:0;}
+  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.clearanceMissTime=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
   update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driverSupportsLoop:(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>boolean,longGrip:number|undefined,shortGrip:number|undefined){
-    this.noticeTime=Math.max(0,this.noticeTime-Math.max(0,dt));if(!this.noticeTime)this.notice='';
+    // Keep recovery instructions until a fresh opening or successful retry,
+    // rather than erasing the reason while the user is repositioning.
+    if(this.phase==='idle'&&passage.hasOpening&&!passage.lastFailure)this.notice='';
     const wasActive=this.active;this.advanceEngagement(dt);
     if((this.phase==='idle'||this.phase==='passed'&&passage.passage&&passage.passage.wraps>this.wraps) && passage.passage){
       const event=passage.passage;
@@ -118,15 +119,18 @@ export class FreeThrow {
     this.assessSeating(long,short);
     if(longGrip===undefined||shortGrip===undefined){this.pullDistance=undefined;return;}
     const separation=long.points[longGrip].distanceTo(short.points[shortGrip]);
-    if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*(this.feedFromWorkingEnd?1.3:.8)/PRACTICE_SETUP.suture.friction;
     const heldMaterial=long.materialLengthBetween(this.last,longGrip)+short.materialLengthBetween(this.shortCoordinate,shortGrip);
+    if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*(this.feedFromWorkingEnd?1.3:.8)/PRACTICE_SETUP.suture.friction;
     if(this.phase==='retained'&&separation>=heldMaterial*.97||this.seatingRequested){
       // Taut held arms can draw material from the loop even while reach
       // limits prevent further endpoint travel. Otherwise a valid crossing
       // stalls precisely when both instruments put it under tension.
       this.feed+=.4*Math.max(0,Math.min(dt,.05))/PRACTICE_SETUP.suture.friction;
     }
-    this.pullDistance=separation;this.feedTime+=Math.max(0,Math.min(dt,0.05));
+    // Small reversal cycles must not pump slack out of the loop. Rearm
+    // after a meaningful inward reposition, allowing a fresh tightening pull.
+    const reversal=Math.min(long.restLength,short.restLength)*.25;
+    this.pullDistance=separation<heldMaterial*.9&&this.pullDistance!==undefined&&separation>=this.pullDistance-reversal?Math.max(this.pullDistance,separation):separation;this.feedTime+=Math.max(0,Math.min(dt,0.05));
     // Feed existing particles from the loop into its exterior arms; total
     // strand material and the grasped material indices remain unchanged.
     const drawProximal=this.feedFromWorkingEnd&&this.first>this.minimumMaterialIndex&&(this.proximalSlack(long)>long.restLength*2||this.seatingRequested);

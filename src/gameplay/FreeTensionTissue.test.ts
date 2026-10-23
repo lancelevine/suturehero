@@ -16,7 +16,7 @@ it('seats a real throw against responding skin and settles after release without
  await throwOne(1,1);await lowerAndPull();
  expect(model.retainedThrow.active).toBe(true);expect(wound.closure).toBeGreaterThan(.6);expect(wound.response.eversion).toBeGreaterThan(.004);
  expect(wound.response.pucker).toBeGreaterThan(.005);
- await throwOne(1,-1);await lowerAndPull();expect(model.lockSeated).toBe(true);
+ await throwOne(1,-1);await lowerAndPull();expect(model.lockSeated,`${model.instruction} | ${model.handlingHint} | ${model.tissueSeat.load} | ${[...model.earlierThrows,model.retainedThrow].map(k=>[k.phase,k.first,k.last,k.shortMaterialCoordinate]).join(';')}`).toBe(true);
  tools.forEach(t=>t.openness=.7);let motion=0;
  for(let i=0;i<240;i++){
   const before=model.long.points.map(p=>p.clone());update(1/60);

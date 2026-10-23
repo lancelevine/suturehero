@@ -5,7 +5,7 @@ import * as THREE from 'three';
 export class TailPassage {
   state='Form a wrap around the driver';
   private indices:number[]=[];
-  private previous?:{tip:THREE.Vector3;center:THREE.Vector3;side:number};
+  private previous?:{projected:THREE.Vector2;side:number};
   private crossed=false;
   private crossing?:{first:number;last:number;normal:THREE.Vector3;side:number;wraps:number;direction:number;via:'tip'|'strand'};
   private wraps=0;
@@ -19,6 +19,7 @@ export class TailPassage {
   update(points:readonly THREE.Vector3[],tip:THREE.Vector3,driver:THREE.Matrix4,holdingTail:boolean,minimumIndex=0,requiredWraps=1,shortPoints?:readonly THREE.Vector3[],maximumIndex=points.length-1){
     if(!this.crossed&&this.indices.some(i=>i<minimumIndex||i>maximumIndex))this.reset();
     if(this.crossed&&requiredWraps!==0){this.state='Short tip passed through the opening · Knot not assessed';return;}
+    let shaftOpening=false;
     if(!this.crossed||requiredWraps===0){
       const inverse=driver.clone().invert();let run:number[]=[],angle=0,last=0;
       let best:number[]=[],bestAngle=0;
@@ -33,6 +34,7 @@ export class TailPassage {
       }
       consider();
       const observedWraps=Math.max(1,Math.floor(Math.abs(bestAngle)/(Math.PI*2)+.2));
+      shaftOpening=best.length>0;
       if(best.length&&(!this.crossed||observedWraps>this.wraps)){
         const angularStep=(a:number,b:number)=>{
           const p=points[a].clone().applyMatrix4(inverse),q=points[b].clone().applyMatrix4(inverse);
@@ -78,6 +80,11 @@ export class TailPassage {
     // is the winding projected perpendicular to the shaft, not a fitted plane
     // tilted by the outgoing arms.
     const axis=new THREE.Vector3(0,0,1).transformDirection(driver);
+    // After leaving the metal, follow the actual material bight. Continuing
+    // to project onto an unrelated driver axis can erase a valid tilted loop.
+    if(!shaftOpening&&normal.lengthSq()>1e-12){
+      axis.copy(normal).normalize().multiplyScalar(this.direction);
+    }
     const area=Math.abs(normal.dot(axis))/2;
     // In a double wrap the distal turn reaches the held tip first. Remember
     // that passage while the remaining turn is still supported by the shaft.
@@ -91,6 +98,7 @@ export class TailPassage {
     // a circular-diameter test discards valid wraps just before tail passage.
     const side=tip.clone().sub(center).dot(normal);
     const openingAxis=loop[0].clone().sub(center).projectOnPlane(normal).normalize(),other=normal.clone().cross(openingAxis);
+    const relativeTip=tip.clone().sub(center),projected=new THREE.Vector2(relativeTip.dot(openingAxis),relativeTip.dot(other));
     const polygon=loop.map(p=>{const v=p.clone().sub(center);return new THREE.Vector2(v.dot(openingAxis),v.dot(other));});
     const insideOpening=(relative:THREE.Vector3)=>{
       const x=relative.dot(openingAxis),y=relative.dot(other);let winding=0,clearance=Infinity;
@@ -108,7 +116,10 @@ export class TailPassage {
     const old=this.previous;
     if(holdingTail&&old&&old.side*side<0&&Math.abs(side)>=0.012){
       const fraction=old.side/(old.side-side);
-      const relative=old.tip.clone().sub(old.center).lerp(tip.clone().sub(center),fraction);
+      // Interpolate in the opening's moving frame. World-space interpolation
+      // cuts across a rotating rim and can falsely capture an outside tail.
+      const crossing=old.projected.clone().lerp(projected,fraction);
+      const relative=openingAxis.clone().multiplyScalar(crossing.x).addScaledVector(other,crossing.y);
       if(insideOpening(relative))cross('tip');
       else this.missHint='Tail missed the opening · Bring the gold tip through the middle of the wrap';
     }
@@ -120,7 +131,7 @@ export class TailPassage {
       if(insideOpening(a.lerp(b,sa/(sa-sb)))){cross('strand');break;}
     }
     if(!holdingTail){this.previous=undefined;this.missHint='';}
-    else if(Math.abs(side)>=0.012)this.previous={tip:tip.clone(),center,side};
+    else if(Math.abs(side)>=0.012)this.previous={projected,side};
     this.state=this.crossed?'Short tip passed through the opening · Knot not assessed':holdingTail?this.missHint||'Short tail held · Move its gold tip through the live opening':'Wrap opening detected · Grasp the gold short tip';
   }
 }

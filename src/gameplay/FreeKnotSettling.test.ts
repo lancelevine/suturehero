@@ -23,7 +23,7 @@ it.each([false,true])('settles successive throws at irregular display intervals 
  await throwOne(1,-1);
  expect(model.sequence!.locked).toBe(true);expect(model.earlierThrows).toContain(firstThrow);
  await lowerAndPull();
- expect(model.knotAtTissue).toBe(true);expect(model.lockSeated).toBe(true);
+ expect(model.knotAtTissue,`${model.instruction} | ${model.handlingHint}`).toBe(true);expect(model.lockSeated).toBe(true);
  expect(model.instruction).toContain('Opposing lock seated');
  expect([firstThrow.first,firstThrow.last]).toEqual(materialIndices);expect(firstThrow.shortMaterialCoordinate).toBe(firstCoordinate);
  expect(model.tissueSeat.contact).toBe(true);expect(wound.closure).toBeGreaterThan(.9);

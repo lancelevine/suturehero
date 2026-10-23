@@ -28,3 +28,10 @@ it.each([
  expect(model.long.length).toBe(3.5);expect(model.short.length).toBe(1.2);
  expect(model.long.points.every(p=>p.toArray().every(Number.isFinite))).toBe(true);
 },180000);
+
+it('rejects a steep diagonal pull that loses the actual short post instead of inventing retention',async()=>{
+ const {model,throwOne}=createFreeTyingFixture('auto',undefined,{radius:.4,depth:.3,pullSide:.2,rotation:[.6,.4,.3]});
+ await throwOne(1,1);
+ expect(model.retainedThrow.active).toBe(false);expect(model.retainedThrow.lastFailure).toContain('Loop slipped off');
+ expect(model.sequence!.throws).toHaveLength(0);expect(model.long.length+model.short.length).toBe(4.7);
+},180000);

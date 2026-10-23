@@ -29,10 +29,13 @@ export class KnotTissueSeat {
     }
     center.divideScalar(knot.last-knot.first+1);
     const a=new THREE.Vector3(entry.x,0,entry.z),b=new THREE.Vector3(exit.x,0,exit.z),p=new THREE.Vector3(center.x,0,center.z);
-    const near=new THREE.Line3(a,b).closestPointToPoint(p,true,new THREE.Vector3()).distanceTo(p)<=.14;
+    const near=new THREE.Line3(a,b).closestPointToPoint(p,true,new THREE.Vector3()).distanceTo(p)<=(this.contact?.16:.14);
     let radius=0;for(let i=knot.first;i<=knot.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
     this.clearance=bottom;
-    this.contact=near&&radius<.085&&penetration>=-.012&&bottom<=(this.contact?.028:.015);
+    // Use a slightly wider exit band once bearing is established. Solver
+    // jitter at an entry threshold must not toggle closure on every substep;
+    // a genuine lift, lateral departure or penetration still releases load.
+    this.contact=near&&radius<(this.contact?.095:.085)&&penetration>=(this.contact?-.018:-.012)&&bottom<=(this.contact?.028:.015);
     if(!this.contact){this.load=0;return;}
     const longSlack=Math.max(0,long.materialLengthBetween(0,knot.first)-exit.distanceTo(long.points[knot.first]));
     const shortSlack=Math.max(0,short.materialLengthBetween(0,knot.shortMaterialCoordinate)-entry.distanceTo(short.pointAt(knot.shortMaterialCoordinate)));
