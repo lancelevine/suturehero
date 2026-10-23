@@ -252,7 +252,7 @@ export class FreeKnotPractice {
       this.seatingArmed=false;
       // Releasing a seated start ends draw-down, including partial bearing.
       // Regrasping must not reallocate its post merely to reach raised tools.
-      for(const knot of [...this.earlierThrows,this.retainedThrow].filter(t=>t.active).slice(0,this.seatedThrowCount))this.groundedThrows.add(knot);
+      if(this.sequence?.sliding)for(const knot of [...this.earlierThrows,this.retainedThrow].filter(t=>t.active).slice(0,this.seatedThrowCount))this.groundedThrows.add(knot);
     }
     for(const tool of tools) {
       const grip=this.grips.get(tool.id);if(!grip)continue;
@@ -357,7 +357,7 @@ export class FreeKnotPractice {
       this.tissueSeat.update(this.firstKnot,this.long,this.short,this.entry,this.exit,this.surfaceAt);
       // Once a throw bears in the seated stack, preserve its material collar
       // through regrasping; transient contact loss must not restart feeding.
-      if(this.tissueSeat.load>=.99)for(const knot of constraints.filter(t=>t.active).slice(0,this.seatedThrowCount))this.groundedThrows.add(knot);
+      if(this.sequence?.sliding&&this.tissueSeat.load>=.99)for(const knot of constraints.filter(t=>t.active).slice(0,this.seatedThrowCount))this.groundedThrows.add(knot);
       if(this.sequence&&this.retainedThrow.phase==='seated'&&!this.recorded){
         if(this.sequence.seat({wraps:this.retainedThrow.wraps,direction:this.retainedThrow.direction,postHeld:this.postTaut})){
           this.recorded=true;this.passage.reset();this.feedback='';
