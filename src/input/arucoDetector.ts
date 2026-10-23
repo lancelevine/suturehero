@@ -28,6 +28,7 @@ export interface ArucoDetector {detect(frame:ImageData):Promise<MarkerObservatio
 export interface DetectorDiagnostics {candidateCount:number|null;rawMarkerCount:number;recognizedCount:number;rejectedCount:number;durationMs:number;note:string}
 export class BrowserArucoDetector implements ArucoDetector {
  private detector:LegacyDetector|null=null;
+ candidateCorners:Array<Array<{x:number;y:number}>>=[];
  diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting for first frame'};
  async initialize():Promise<void>{
   await loadArucoLibrary();
@@ -39,6 +40,9 @@ export class BrowserArucoDetector implements ArucoDetector {
   const raw=this.detector.detect(frame);
   const recognized=raw.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
   const candidates=Array.isArray(this.detector.candidates)?this.detector.candidates:Array.isArray(this.detector.polys)?this.detector.polys:null;
+  // js-aruco2 exposes candidate quadrilaterals as arrays of {x,y} vertices.
+  // Ignore malformed entries rather than drawing misleading outlines.
+  this.candidateCorners=(candidates??[]).filter((candidate):candidate is Array<{x:number;y:number}>=>Array.isArray(candidate)&&candidate.length===4&&candidate.every(point=>point!==null&&typeof point==='object'&&Number.isFinite((point as {x?:number}).x)&&Number.isFinite((point as {y?:number}).y))).map(candidate=>candidate.map(point=>({x:point.x,y:point.y})));
   this.diagnostics={candidateCount:candidates?.length??null,rawMarkerCount:raw.length,recognizedCount:recognized.length,rejectedCount:Math.max(0,raw.length-recognized.length),durationMs:performance.now()-start,note:candidates===null?'Candidate count unavailable from detector library':candidates.length===0?'No candidate quadrilaterals found':recognized.length===0?'Candidates found but no requested marker ID decoded':'Markers recognized'};
   return recognized;
  }
