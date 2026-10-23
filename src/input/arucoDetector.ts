@@ -42,7 +42,18 @@ export class BrowserArucoDetector implements ArucoDetector {
   const candidates=Array.isArray(this.detector.candidates)?this.detector.candidates:Array.isArray(this.detector.polys)?this.detector.polys:null;
   // js-aruco2 exposes candidate quadrilaterals as arrays of {x,y} vertices.
   // Ignore malformed entries rather than drawing misleading outlines.
-  this.candidateCorners=(candidates??[]).filter((candidate):candidate is Array<{x:number;y:number}>=>Array.isArray(candidate)&&candidate.length===4&&candidate.every(point=>point!==null&&typeof point==='object'&&Number.isFinite((point as {x?:number}).x)&&Number.isFinite((point as {y?:number}).y))).map(candidate=>candidate.map(point=>({x:point.x,y:point.y})));
+  const cornersOf=(candidate:unknown):Array<{x:number;y:number}>|null=>{
+   const object=candidate as {corners?:unknown;points?:unknown;vertices?:unknown}|null;
+   const vertices=Array.isArray(candidate)?candidate:object?.corners??object?.points??object?.vertices;
+   if(!Array.isArray(vertices)||vertices.length!==4)return null;
+   const corners=vertices.map((point:unknown)=>{
+    if(Array.isArray(point)&&point.length>=2&&Number.isFinite(point[0])&&Number.isFinite(point[1]))return {x:point[0] as number,y:point[1] as number};
+    if(point&&typeof point==='object'){const p=point as {x?:number;y?:number};if(Number.isFinite(p.x)&&Number.isFinite(p.y))return {x:p.x!,y:p.y!};}
+    return null;
+   });
+   return corners.every(Boolean)?corners as Array<{x:number;y:number}>:null;
+  };
+  this.candidateCorners=(candidates??[]).map(cornersOf).filter((corners):corners is Array<{x:number;y:number}>=>corners!==null);
   this.diagnostics={candidateCount:candidates?.length??null,rawMarkerCount:raw.length,recognizedCount:recognized.length,rejectedCount:Math.max(0,raw.length-recognized.length),durationMs:performance.now()-start,note:candidates===null?'Candidate count unavailable from detector library':candidates.length===0?'No candidate quadrilaterals found':recognized.length===0?'Candidates found but no requested marker ID decoded':'Markers recognized'};
   return recognized;
  }
