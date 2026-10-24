@@ -32,7 +32,7 @@ const start=document.querySelector<HTMLButtonElement>('#start-camera')!;
 const stop=document.querySelector<HTMLButtonElement>('#stop-camera')!;
 const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
-simulation.addEventListener('change',()=>{liveTargets.clear();previousRawPositions.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
+simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -84,7 +84,7 @@ const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=350;
-const previousRawPositions=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;time:number}>();
+const stationaryStates=new Map<'needleDriver'|'forceps',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
 const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let stream:MediaStream|null=null;
@@ -141,18 +141,33 @@ function updateLiveTargets(){
    const distance=previous.position.distanceTo(position);
    // Reject isolated gross pose spikes, but allow the next observation to recover naturally.
    if(distance>1.1&&elapsed<.22)continue;
-   // Use raw frame-to-frame velocity, not the lagging filtered position, to distinguish
-   // deliberate motion from small stationary camera noise.
-   const lastRaw=previousRawPositions.get(name);
-   const rawDt=lastRaw?Math.max(.016,(now-lastRaw.time)/1000):elapsed;
-   const rawSpeed=lastRaw?lastRaw.position.distanceTo(position)/rawDt:distance/elapsed;
-   const deadband=.022;
-   const rate=rawSpeed<.12?2.5:rawSpeed<.6?6:rawSpeed<1.5?15:30;
-   const blend=distance<deadband&&rawSpeed<.2?0:1-Math.exp(-elapsed*rate);
-   position.lerpVectors(previous.position,position,blend);
-   quaternion.slerpQuaternions(previous.quaternion,quaternion,switched?0:1-Math.exp(-elapsed*5));
+   // A hysteretic stationary lock prevents sensor noise from becoming visible motion.
+   // Compare against a fixed anchor, not the previous noisy frame, to avoid drift.
+   let state=stationaryStates.get(name);
+   if(!state){state={anchor:previous.position.clone(),moving:false,pending:0};stationaryStates.set(name,state);}
+   const fromAnchor=state.anchor.distanceTo(position);
+   const enterMovement=.095,stopMovement=.035;
+   if(!state.moving){
+    if(fromAnchor>enterMovement){state.pending++;}
+    else state.pending=0;
+    // Large intentional motions unlock immediately; smaller motions need two frames.
+    if(fromAnchor>.19||state.pending>=2){state.moving=true;state.pending=0;}
+   }else{
+    // Relock only after the instrument has settled near its filtered position.
+    if(distance<stopMovement){state.pending++;}
+    else state.pending=0;
+    if(state.pending>=3){state.moving=false;state.pending=0;state.anchor=previous.position.clone();}
+   }
+   if(!state.moving){
+    position.copy(state.anchor);
+   }else{
+    // Follow real movement promptly without adding another slow filter stage.
+    const blend=1-Math.exp(-elapsed*26);
+    position.lerpVectors(previous.position,position,blend);
+    state.anchor.copy(position);
+   }
+   quaternion.slerpQuaternions(previous.quaternion,quaternion,switched||!state.moving?0:1-Math.exp(-elapsed*8));
   }
-  previousRawPositions.set(name,{position:new THREE.Vector3(x,y,z),time:now});
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
