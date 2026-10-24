@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {availableCameras,groupMarkers,openCamera,type MarkerObservation} from './input/arucoTracking';
 import {BrowserArucoDetector} from './input/arucoDetector';
+import {estimateMarkerPose} from './input/markerPose';
 import './style.css';
 import './tracking.css';
 
@@ -23,7 +24,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 </div>
 <div class="tracking-actions"><label><input id="simulation" type="checkbox" checked> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Simulation: move the needle driver with arrow keys, forceps with W/A/S/D. Hold Shift for faster movement. This is a 2D movement demonstration, not 6-DOF optical tracking.</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 · Forceps IDs 3–5. Live 2D marker detection enabled. 3D pose estimation is not yet implemented.</p></section></main>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 · Forceps IDs 3–5. Experimental single-face 3D pose estimation enabled. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Multi-face prism fusion is not yet implemented.</p></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -111,7 +112,15 @@ function drawDetections(){
  for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();overlayContext.strokeStyle='#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  const groups=groupMarkers(observations);
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
- if(!simulation.checked){driverReadout.textContent=groups.find(g=>g.name==='needleDriver')?'Visible · 2D marker tracked':'Not visible';forcepsReadout.textContent=groups.find(g=>g.name==='forceps')?'Visible · 2D marker tracked':'Not visible';}
+ if(!simulation.checked){
+  const readout=(ids:readonly number[])=>{
+   const poses=observations.filter(m=>ids.includes(m.id)).map(m=>estimateMarkerPose(m,overlay.width,overlay.height)).filter((p):p is NonNullable<typeof p>=>!!p).sort((a,b)=>a.reprojectionError-b.reprojectionError);
+   const p=poses[0];if(!p)return 'Not visible';
+   const v=p.position;const e=new THREE.Euler().setFromQuaternion(p.quaternion,'XYZ');const deg=(r:number)=>(r*180/Math.PI).toFixed(0);
+   return `ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
+  };
+  driverReadout.textContent=readout([0,1,2]);forcepsReadout.textContent=readout([3,4,5]);
+ }
 }
 async function detectFrame(now:number){
  if(!stream||!detectorReady||processing||!video.videoWidth||now-lastDetection<90)return;
