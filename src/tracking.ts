@@ -34,9 +34,9 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div><strong>Detection time</strong><span id="diag-time">—</span></div><div><strong>Detection pass</strong><span id="diag-pass">—</span></div><div><strong>Image contrast</strong><span id="diag-contrast">—</span></div>
 <div><strong>Detection status</strong><span id="diag-note">Waiting for camera</span></div>
 </div>
-</div></details><details class="tracking-details"><summary>Camera Settings · Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Exposure and gain depend on browser and camera support.</p><div id="camera-settings-controls"></div></div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
+</div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 6–8 (temporary) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main><section class="tracking-settings-footer"><details class="tracking-details"><summary>Camera Settings · Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Exposure and gain depend on browser and camera support.</p><div id="camera-settings-controls"></div></div></details></section>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -49,7 +49,7 @@ const trackingModeInfo=document.querySelector<HTMLElement>('#tracking-mode-info'
 const lockDepth=document.querySelector<HTMLInputElement>('#lock-depth')!;
 lockDepth.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{
- liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();
+ liveTargets.clear();stationaryStates.clear();rotationStates.clear();prismFaceOffsets.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: both feeds detect markers, but stereo fusion and metric depth require calibration. Camera 1 still drives the instruments.';
@@ -250,6 +250,9 @@ let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=650;
 const rotationStates=new Map<'needleDriver'|'forceps',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
+// Learned face-to-face transforms from simultaneous marker sightings.
+// Do not assume printed face orientation from nominal prism dimensions alone.
+const prismFaceOffsets=new Map<'needleDriver'|'forceps',Map<number,THREE.Quaternion>>();
 const depthStates=new Map<'needleDriver'|'forceps',number>();
 const stationaryStates=new Map<'needleDriver'|'forceps',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
 const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
@@ -305,6 +308,18 @@ function updateLiveTargets(){
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
   const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<6))||candidates[0];if(!chosen)continue;
   const {marker,pose}=chosen;
+  // Learn how each V5 prism face is oriented relative to the selected face.
+  // Two faces visible in the same frame provide an empirical rigid-body transform.
+  const offsets=prismFaceOffsets.get(name)??new Map<number,THREE.Quaternion>();
+  prismFaceOffsets.set(name,offsets);
+  if(!offsets.has(pose.id))offsets.set(pose.id,new THREE.Quaternion());
+  for(const other of candidates){
+   if(other.pose.id===pose.id||other.pose.reprojectionError>5)continue;
+   if(!offsets.has(other.pose.id)){
+    const selectedOffset=offsets.get(pose.id)!;
+    offsets.set(other.pose.id,other.pose.quaternion.clone().invert().multiply(pose.quaternion).multiply(selectedOffset).normalize());
+   }
+  }
   const cx=marker.corners.reduce((v,p)=>v+p.x,0)/4,cy=marker.corners.reduce((v,p)=>v+p.y,0)/4;
   // Screen coordinates control horizontal/vertical movement; marker size estimates depth.
   const x=THREE.MathUtils.clamp((cx/overlay.width-.5)*7,-2.6,2.6);
@@ -322,11 +337,20 @@ function updateLiveTargets(){
   // Relative orientation avoids imposing an arbitrary marker-face orientation on the instrument.
   // On face changes, rebase the new face to the last displayed orientation.
   let rotation=rotationStates.get(name);
-  if(!rotation||rotation.face!==pose.id){
-   rotation={face:pose.id,rawAnchor:pose.quaternion.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
+  const corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)!).normalize();
+  if(!rotation){
+   rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
+   rotationStates.set(name,rotation);
+  }else if(rotation.face!==pose.id){
+   // Unknown face transforms retain the previous output without a sudden snap.
+   if(!offsets.has(pose.id)){
+    rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
+   }else{
+    rotation.face=pose.id;
+   }
    rotationStates.set(name,rotation);
   }
-  const delta=pose.quaternion.clone().multiply(rotation.rawAnchor.clone().invert());
+  const delta=corrected.clone().multiply(rotation.rawAnchor.clone().invert());
   const desired=delta.multiply(rotation.outputAnchor).normalize();
   const quaternion=previous?.quaternion.clone()??desired.clone();
   if(previous&&now-previous.lastSeen<600){
@@ -365,7 +389,7 @@ function updateLiveTargets(){
    // rejecting those frames previously made large rotations appear frozen.
    const angle=previous.quaternion.angleTo(desired);
    const deadband=THREE.MathUtils.degToRad(1.5);
-   if(!switched&&angle>deadband){
+   if(angle>deadband){
     const maxStep=THREE.MathUtils.degToRad(220)*elapsed;
     const smooth=1-Math.exp(-elapsed*12);
     quaternion.slerp(desired,Math.min(smooth,maxStep/Math.max(angle,1e-6)));
