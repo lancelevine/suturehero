@@ -1,4 +1,4 @@
-import {prepareEversion} from './guided-eversion.mjs';
+import {prepareEversion,advanceGuidedPass} from './guided-eversion.mjs';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
@@ -32,9 +32,8 @@ try {
   await prepareEversion(page);
   if(process.env.SUTURE_TEST_BITES){await page.waitForFunction(()=>document.querySelector('#bite-controls').disabled);assert.equal(await page.locator('#right-bite').isDisabled(),true);}
   if(await page.locator('#close-up').getAttribute('aria-pressed')==='false')await page.locator('#close-up').click();
-  await page.keyboard.down('u');
-  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000}).catch(async error=>{console.error(await page.locator('.exercise-feedback').innerText(),await page.locator('#grasp-status').innerText());throw error;});
-  await page.keyboard.up('u');console.log('Guided needle emergence passed.');
+  await advanceGuidedPass(page);
+  console.log('Guided needle emergence passed.');
   await page.keyboard.down('x');await page.waitForFunction(()=>!document.querySelector('#position-forceps').disabled,{},{timeout:15000});await page.keyboard.up('x');
   await page.locator('#grip-point').fill('85'); await page.locator('#grip-point').dispatchEvent('input');
   await page.getByRole('button',{name:'Position forceps',exact:true}).click();
@@ -108,7 +107,7 @@ try {
     for(const width of [320,390,1440]){await page.setViewportSize({width,height:1180});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert(await page.locator('.version').isVisible());}
     if(process.env.SUTURE_SCREENSHOT)await page.locator('#viewport').screenshot({path:process.env.SUTURE_SCREENSHOT});
     await page.getByRole('button',{name:'Start guided pass',exact:true}).click();await prepareEversion(page);
-    await page.keyboard.down('u');await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});await page.keyboard.up('u');
+    await advanceGuidedPass(page);
     assert.equal(await page.locator('#course-review li').count(),1);
     await page.locator('#reset').click();await page.waitForFunction(()=>document.querySelector('#course-status').textContent==='One-stitch practice');
     assert.equal(await page.locator('#course-review').isVisible(),false);assert.equal(await page.locator('#free-tying').isDisabled(),false);

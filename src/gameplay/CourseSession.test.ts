@@ -1,3 +1,4 @@
+import {alignOppositeEdge} from './test-support/oppositeEdge';
 import {expect,it} from 'vitest';
 import * as THREE from 'three';
 import {PracticeSession} from './PracticeSession';
@@ -16,7 +17,7 @@ it.each([false,true])('completes three real passes, knots and cuts without repla
   expect(s.canAdvanceStitch).toBe(false);expect(s.advanceStitch()).toBe(false);
   expect(s.beginPass()).toBe(true);expect(s.positionForceps()).toBe(true);tools[0].openness=.1;s.update(.01);
   left.translation=[0,1,0];tick(2);left=idle();expect(s.setBiteWidths(1,1)).toBe(false);expect(s.beginPass()).toBe(true);
-  right.rotation=[0,0,1];tick(100);right=idle();expect(s.pass.phase).toBe('complete');
+  right.rotation=[0,0,1];tick(100);alignOppositeEdge(s,tools);tick(100);right=idle();expect(s.pass.phase).toBe('complete');
   tools[0].openness=.7;s.update(.01);expect(s.positionForceps()).toBe(true);s.update(.01);tools[0].openness=.1;s.update(.01);tools[1].openness=.7;s.update(.01);
   left.rotation=[0,0,1];tick(70);left=idle();expect(s.pull.phase).toBe('complete');expect(s.knotAction()).toBe(true);
   for(const direction of [1,-1]){

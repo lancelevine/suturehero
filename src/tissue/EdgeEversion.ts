@@ -24,7 +24,7 @@ export class EdgeEversion {
   get lift(){return this.target.y-this.anchor.y;}
   get ready(){return this.held && this.lift>=0.09 && this.lift<=0.3 && this.angle>=0.2&&(!this.tractionEnabled||this.traction.state==='gentle');}
   get instruction(){return this.tractionEnabled&&this.traction.state==='slipped'?'Skin grasp slipped · Open X, position forceps at the edge, then close Z':this.held&&this.tractionEnabled&&this.traction.state==='slipping'?'Grasp slipping · Ease the pull toward the skin edge':this.held&&this.tractionEnabled&&this.traction.state==='stretching'?'Skin stretching · Reduce the forceps pull':!this.held?'Position forceps at the right skin edge · Close Z to grasp the skin edge':this.ready?'Skin edge everted · Stop lifting, then click Begin needle pass':'Skin edge held · Hold E briefly to lift and evert · Shift slows movement';}
-  begin(){this.reset();this.active=true;}
+  begin(side=1){this.reset();this.anchor.x=side*this.edgeX;this.target.copy(this.anchor);this.active=true;}
   update(pose:TissueGripPose,dt:number,allowGrasp=true,guidedSite=false){
     if(this.held && pose.openness>=0.45){this.held=false;this.traction.release();}
     if(!this.held && allowGrasp && pose.openness<=0.2 && this.previousOpen>0.2){

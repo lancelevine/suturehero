@@ -1,3 +1,4 @@
+import {alignOppositeEdge} from './test-support/oppositeEdge';
 import { expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { PracticeSession } from './PracticeSession';
@@ -23,7 +24,7 @@ it('runs placement, needle pass, forceps handoff, extraction and reset',()=>{
   expect(session.beginPass()).toBe(false);
   const before=right.root.position.clone();
   command={...command,rotation:[0,0,1]};
-  for(let i=0;i<100 && session.pass.phase==='passing';i++)session.update(0.05);
+  for(let i=0;i<100 && session.pass.phase==='passing';i++){session.update(0.05);alignOppositeEdge(session,[left,right]);}
   expect(session.pass.phase).toBe('complete'); expect(grasp.holder).toBe(right);
   expect(right.root.position.distanceTo(before)).toBeGreaterThan(0.1);
   expect(needle.getTipPose().position.y).toBeGreaterThan(session.pass.exit.y);
@@ -190,4 +191,19 @@ it.each([false,true])('recovers a slipped skin grasp and retains feedback (shall
  expect(s.positionForceps()).toBe(true);left.openness=.1;s.update(.01);left.root.position.y+=.15;s.update(.01);s.update(.05);
  expect(s.pass.angle).toBeGreaterThan(angle);expect(s.stitchAssessment.feedback).toContain('Skin grasp slips: 1');
  s.reset();expect(s.stitchAssessment.feedback.join(' ')).not.toContain('Skin grasp slips');
+});
+it('pauses at the first side until the opposite edge is grasped, lifted and drawn flush',()=>{
+ const needle=new SutureModel(),tools=[new Instrument('left',0),new Instrument('right',0)],scene=new THREE.Scene();scene.add(needle.root,...tools.map(t=>t.root));
+ const command:ToolCommand={translation:[0,0,0],rotation:[0,0,1],jaw:0},idle:ToolCommand={translation:[0,0,0],rotation:[0,0,0],jaw:0};
+ const s=new PracticeSession({sample:id=>id==='right'?command:idle,dispose:()=>{}},tools,new NeedleGrasp(needle)),tick=(n:number)=>{for(let i=0;i<n;i++)s.update(.05);};
+ s.beginPass();s.positionForceps();tools[0].openness=.1;s.update(.01);tools[0].root.position.y+=.15;s.update(.01);expect(s.beginPass()).toBe(true);
+ tick(100);expect(s.oppositeEdgeRequired).toBe(true);expect(s.pass.angle).toBeCloseTo(s.pass.firstSideAngle,10);expect(s.pass.phase).toBe('passing');
+ const angle=s.pass.angle,driver=tools[1].root.position.clone(),rotation=tools[1].root.quaternion.clone();tick(100);
+ expect(s.pass.angle).toBe(angle);expect(tools[1].root.position.distanceTo(driver)).toBeLessThan(1e-10);expect(tools[1].root.quaternion.angleTo(rotation)).toBeLessThan(1e-7);
+ expect(s.canPositionForceps).toBe(false);tools[0].openness=.7;tick(14);expect(s.eversion.anchor.x).toBeLessThan(0);
+ expect(s.positionForceps()).toBe(true);tools[0].openness=.1;s.update(.01);tools[0].root.position.y+=.15;tick(4);
+ expect(s.eversion.ready).toBe(true);expect(s.oppositeEdgeReady).toBe(false);expect(s.pass.angle).toBe(angle);
+ tools[0].root.position.x+=.045;tick(3);expect(s.oppositeEdgeReady).toBe(true);expect(s.pass.angle).toBeGreaterThan(angle);
+ tools[0].openness=.7;s.update(.01);const paused=s.pass.angle;tick(3);expect(s.pass.angle).toBe(paused);
+ alignOppositeEdge(s,tools);tick(100);expect(s.pass.phase).toBe('complete');s.reset();expect(s.oppositeEdgeRequired).toBe(false);
 });

@@ -1,3 +1,4 @@
+import {alignOppositeEdge} from './test-support/oppositeEdge';
 import {expect,it} from 'vitest';
 import {Instrument} from '../instruments/Instrument';
 import {SutureModel} from '../suture/SutureModel';
@@ -14,7 +15,7 @@ it.each(['skin','microsurgery'] as const)('settles the tail and exposed thread t
  session.beginPass();session.positionForceps();tools[0].openness=.1;session.update(.01);
  left={...REST_COMMAND,translation:[0,1,0]};session.update(.05);session.update(.05);left=REST_COMMAND;
  expect(session.beginPass()).toBe(true);right={...REST_COMMAND,rotation:[0,0,1]};
- for(let i=0;i<200&&session.pass.phase==='passing';i++)session.update(.05);
+ for(let i=0;i<200&&session.pass.phase==='passing';i++){session.update(.05);alignOppositeEdge(session,tools);}
  expect(session.pass.phase).toBe('complete');
  const material=needle.strand.length;
  const settle=()=>{

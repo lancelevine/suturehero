@@ -1,4 +1,4 @@
-import {prepareEversion} from './guided-eversion.mjs';
+import {prepareEversion,advanceGuidedPass} from './guided-eversion.mjs';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
@@ -10,7 +10,7 @@ try {
   await page.locator('#graphics-quality').selectOption('low');
   for(const width of [320,375,1440]){await page.setViewportSize({width,height:1180});assert(await page.locator('.version').isVisible());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
   await page.getByRole('button',{name:'Start guided pass',exact:true}).click();await prepareEversion(page);
-  await page.keyboard.down('u');await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});await page.keyboard.up('u');
+  await advanceGuidedPass(page);
   await page.locator('#graphics-quality').selectOption('standard');await page.locator('#graphics-quality').selectOption('low');
   assert.match(await page.locator('#exercise-title').innerText(),/Needle emerged/);assert.match(page.url(),/graphics=low/);
   await page.keyboard.down('x');await page.waitForFunction(()=>!document.querySelector('#position-forceps').disabled,{},{timeout:15000});await page.keyboard.up('x');

@@ -48,6 +48,14 @@ export class NeedleGrasp {
     this.relative.copy(tool.root.matrixWorld).invert().multiply(this.needle.root.matrixWorld);
     this.holder=tool; this.heldPoint=point?.clone()??null;
   }
+  /** Place a guided needle from its fixed attachment, without accumulating pose corrections. */
+  placeHeldNeedle(pose:THREE.Matrix4){
+    if(!this.holder)return;
+    const world=pose.clone().multiply(this.relative.clone().invert()),root=this.holder.root;
+    if(root.parent){root.parent.updateWorldMatrix(true,false);world.premultiply(root.parent.matrixWorld.clone().invert());}
+    world.decompose(root.position,root.quaternion,root.scale);
+    root.quaternion.normalize();root.updateWorldMatrix(true,false);
+  }
   update(tools: readonly Instrument[], allowHandoff=false) {
     this.candidate=null; this.candidatePoint=null;
     if(this.holder) {

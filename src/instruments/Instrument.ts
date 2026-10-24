@@ -66,12 +66,14 @@ export class Instrument {
     this.root.rotation.set(-0.45,this.id==='left'?-0.55:0.55,0);
     this.openness=0.65; this.updateJaws();
   }
-  update(command: ToolCommand, dt: number) {
+  update(command: ToolCommand, dt: number, poseLocked=false) {
+    if(!poseLocked){
     const delta = new THREE.Vector3(...command.translation);
     if(delta.lengthSq()>1) delta.normalize();
     this.root.position.addScaledVector(delta,dt*1.5);
     this.root.position.clamp(new THREE.Vector3(-4,this.minimumHeight,-3),new THREE.Vector3(4,4,4));
     this.root.rotateX(command.rotation[0]*dt); this.root.rotateY(command.rotation[1]*dt); this.root.rotateZ(command.rotation[2]*dt);
+    }
     this.openness=THREE.MathUtils.clamp(this.openness+command.jaw*dt,0,1); this.updateJaws();
   }
   private updateJaws() { this.forcepsArms?.update(this.openness); this.jaws.forEach((jaw,i)=>{jaw.rotation.y=(i===0?1:-1)*this.openness*0.35;}); }

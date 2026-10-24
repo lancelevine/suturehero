@@ -34,10 +34,10 @@ export class NeedlePass {
     this.startOrientation=new THREE.Quaternion().setFromRotationMatrix(target.multiply(source.invert()));
   }
   begin() { if(this.phase==='idle' || this.phase==='interrupted') { this.angle=0; this.phase='passing'; } }
-  update(drive: number, held: boolean, dt: number) {
+  update(drive: number, held: boolean, dt: number,limit=this.totalAngle) {
     if(this.phase!=='passing') return;
     if(!held) { this.phase='interrupted'; return; }
-    this.angle=THREE.MathUtils.clamp(this.angle+THREE.MathUtils.clamp(drive,-1,1)*Math.max(0,Math.min(dt,0.05))*0.8,0,this.totalAngle);
+    this.angle=THREE.MathUtils.clamp(this.angle+THREE.MathUtils.clamp(drive,-1,1)*Math.max(0,Math.min(dt,0.05))*0.8,0,Math.min(this.totalAngle,limit));
     if(this.angle>=this.totalAngle) this.phase='complete';
   }
   get purchaseSites():[THREE.Vector3|null,THREE.Vector3|null]{
@@ -52,6 +52,7 @@ export class NeedlePass {
     const at=(angle:number)=>new THREE.Vector3(this.center.x+this.radius*Math.cos(angle),this.purchaseY,this.center.z);
     return [this.angle>=entryAngle-this.startAngle?at(entryAngle):null,this.angle>=exitAngle-this.startAngle?at(exitAngle):null];
   }
+  get firstSideAngle(){return Math.acos(THREE.MathUtils.clamp((.05-this.center.x)/this.radius,-1,1))-this.startAngle;}
   get progress() { return this.angle/this.totalAngle; }
   get pose() {
     const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,-1),this.angle+this.startAngle).multiply(this.startOrientation);

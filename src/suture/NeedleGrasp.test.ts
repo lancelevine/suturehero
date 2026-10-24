@@ -83,3 +83,15 @@ it('selects distinct body attachment points and keeps the selected point through
   const actual=grasp.heldPoint!.clone().applyMatrix4(needle.root.matrixWorld);
   expect(actual.distanceTo(left.root.localToWorld(new THREE.Vector3(0,0,0.05)))).toBeLessThan(1e-8);
 });
+it('keeps repeated absolute guided poses stable even below the free-motion floor',()=>{
+ const {needle,right,grasp}=setup();right.openness=.1;grasp.attach(right);
+ const pose=new THREE.Matrix4().compose(new THREE.Vector3(.2,.05,-.1),new THREE.Quaternion().setFromEuler(new THREE.Euler(.4,.7,1)),new THREE.Vector3(1,1,1));
+ grasp.placeHeldNeedle(pose);grasp.update([right]);const root=right.root.matrixWorld.clone();
+ for(let i=0;i<1000;i++){
+  right.update({translation:[1,1,1],rotation:[1,1,1],jaw:0},.05,true);
+  grasp.placeHeldNeedle(pose);grasp.update([right]);
+ }
+ needle.root.updateWorldMatrix(true,false);right.root.updateWorldMatrix(true,false);
+ for(let i=0;i<16;i++){expect(needle.root.matrixWorld.elements[i]).toBeCloseTo(pose.elements[i],10);expect(right.root.matrixWorld.elements[i]).toBeCloseTo(root.elements[i],10);}
+ expect(right.root.scale.distanceTo(new THREE.Vector3(1,1,1))).toBeLessThan(1e-10);
+});

@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.41)
+## Current practice options (build 0.42)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,12 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Two-edge guided skin pass in 0.42
+
+After the needle traverses the first skin edge, the guided skin pass now pauses at the wound-facing side. Open the forceps with X to release the right edge. Once it relaxes, **Position forceps at opposite edge** places the open jaws at the left edge; manual positioning is also supported. Close Z, lift gently with E, then pull inward with D until the opposite edge is flush. Shift slows movement. U resumes the driver's curved advance only while that edge remains supported. Releasing or slipping pauses the pass and allows recovery. Open X after emergence before transferring the needle.
+
+The guided needle driver now takes an absolute pose from its fixed needle attachment each frame. Guided and handoff poses bypass free-motion position clamping while jaws still respond. This removes accumulated corrective transforms and competing pose constraints. The opposite-edge maneuver is a geometric teaching sequence; it does not add puncture forces or a new input device. Microsurgery keeps its existing one-wall pass.
 
 ## Skin cross-section and depth closure in 0.41
 

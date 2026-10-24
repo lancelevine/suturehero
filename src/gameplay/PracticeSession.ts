@@ -66,11 +66,23 @@ export class PracticeSession {
   }
   readonly eversion=new EdgeEversion();
   private guidedEdge=false;
+  oppositeEdgeRequired=false;
+  get oppositeEdgeReady(){return this.eversion.anchor.x<0&&this.eversion.ready&&this.eversion.target.x-this.eversion.anchor.x>=.025&&Math.abs(this.eversion.target.z)<.12;}
+  get guidedPassReady(){return this.oppositeEdgeRequired?this.oppositeEdgeReady:this.eversion.ready;}
+  get oppositeEdgeInstruction(){
+    const edge=this.eversion;
+    if(edge.anchor.x>0)return edge.held?'First side passed · Open X to release the right skin edge':'First side passed · Let the edge relax, then position forceps at the opposite edge';
+    if(!edge.held)return 'Opposite edge · Position forceps at the left skin edge, then close Z';
+    if(!edge.ready)return 'Opposite edge held · Lift E gently to match the edges';
+    if(!this.oppositeEdgeReady)return 'Opposite edge held · Pull inward with D until flush · Shift slows movement';
+    return 'Opposite edge aligned · Hold U to advance the needle driver';
+  }
   get preparingEdge(){return this.guidedEdge && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
   private updateEversion(dt:number,allowGrasp=true){
     const forceps=this.instruments.find(t=>t.kind==='forceps');if(!forceps)return;
     forceps.root.updateWorldMatrix(true,false);
-    this.eversion.update({jaw:forceps.root.localToWorld(new THREE.Vector3(0,0,0.05)),rotation:forceps.root.getWorldQuaternion(new THREE.Quaternion()),openness:forceps.openness},dt,allowGrasp && this.grasp?.holder!==forceps && !this.grasp?.findGrip(forceps,this.pass.phase==='complete'),this.preparingEdge || this.pass.phase==='passing');
+    const guidedSite=this.preparingEdge||this.pass.phase==='passing';
+    this.eversion.update({jaw:forceps.root.localToWorld(new THREE.Vector3(0,0,0.05)),rotation:forceps.root.getWorldQuaternion(new THREE.Quaternion()),openness:forceps.openness},dt,allowGrasp && this.grasp?.holder!==forceps && (guidedSite||!this.grasp?.findGrip(forceps,this.pass.phase==='complete')),guidedSite);
     if(this.environment.id==='skin'){this.handlingPeak=Math.max(this.handlingPeak,this.eversion.traction.peakLoad);this.handlingSlips+=this.eversion.slipSerial-this.observedSlipSerial;this.observedSlipSerial=this.eversion.slipSerial;}
     if(this.environment.id==='skin'&&this.eversion.held&&this.eversion.traction.state==='gentle'&&Math.abs(this.eversion.anchor.z)<.45)this.tissueResponse.prepare(this.eversion.anchor.x,this.eversion.angle);
   }
@@ -151,7 +163,7 @@ export class PracticeSession {
     if(!this.guidedEdge){this.guidedEdge=true;this.grasp.reset();this.placement.reset();this.eversion.begin();return true;}
     const driver=this.instruments.find(tool=>tool.kind==='needle-driver');
     if(!driver) return false;
-    this.wound.setDermalBites(null,null);this.grasp.reset(); this.pull.reset(); this.placement.reset(); this.pass.begin();
+    this.oppositeEdgeRequired=false;this.wound.setDermalBites(null,null);this.grasp.reset(); this.pull.reset(); this.placement.reset(); this.pass.begin();
     const needle=this.grasp.needle;
     this.pass.pose.decompose(needle.root.position,needle.root.quaternion,needle.root.scale);
     needle.root.updateWorldMatrix(true,false);
@@ -165,6 +177,7 @@ export class PracticeSession {
   get positioningSkin(){return !this.knot.active && (this.preparingEdge || this.freeKnot.active || this.pass.phase==='idle' || this.pass.phase==='passing' || this.pull.phase==='complete');}
   get canPositionForceps() {
     if(this.course.finished)return false;
+    if(this.oppositeEdgeRequired&&this.pass.phase==='passing'&&this.eversion.anchor.x>0)return false;
     if(this.knot.active)return false;
     return this.positioningSkin?!this.eversion.held && !this.freeKnot.grips.has('left') && this.grasp?.holder?.kind!=='forceps':!!this.grasp && !this.eversion.held && this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp.holder?.kind!=='forceps';
   }
@@ -218,16 +231,11 @@ export class PracticeSession {
     for(const tool of this.instruments) tool.root.position.copy(tool.id==='left'?this.knot.leftPosition:this.knot.rightPosition);
   }
   private applyPassPose(pose=this.pass.pose) {
-    const holder=this.grasp?.holder;
-    if(!holder || !this.grasp) return;
-    const needle=this.grasp.needle.root;
-    needle.updateWorldMatrix(true,false); holder.root.updateWorldMatrix(true,false);
-    const delta=pose.multiply(needle.matrixWorld.clone().invert());
-    const toolWorld=delta.multiply(holder.root.matrixWorld);
-    if(holder.root.parent) { holder.root.parent.updateWorldMatrix(true,false); toolWorld.premultiply(holder.root.parent.matrixWorld.clone().invert()); }
-    toolWorld.decompose(holder.root.position,holder.root.quaternion,holder.root.scale);
+    if(!this.grasp?.holder)return;
+    this.grasp.placeHeldNeedle(pose);
     this.grasp.update(this.eversion.held?this.instruments.filter(t=>t.kind!=='forceps'):this.instruments,this.pass.phase==='complete');
   }
+
   update(dt: number) {
     const step=Math.max(0,Math.min(dt,0.05));
     if(this.course.finished){for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);return;}
@@ -300,20 +308,23 @@ export class PracticeSession {
     for(const tool of this.instruments) {
       const command=this.input.sample(tool.id);
       if(waitingForHandoff && tool===this.grasp?.holder) {
-        tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step);
+        tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step,true);
       } else if(extracting && tool===this.grasp?.holder) {
         turn=command.rotation[2];
-        tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step);
+        tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step,true);
       } else if(constrained && tool===this.grasp?.holder) {
         drive=command.rotation[2];
-        tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step);
+        tool.update({...command,translation:[0,0,0],rotation:[0,0,0]},step,true);
       } else tool.update(command,step);
     }
     this.updateEversion(step);
     const needleTools=this.eversion.held?this.instruments.filter(t=>t.kind!=='forceps'):this.instruments;
     this.grasp?.update(needleTools,this.pass.phase==='complete');
     if(constrained) {
-      this.pass.update(this.eversion.ready?drive:0,this.grasp?.holder?.kind==='needle-driver',step);
+      if(this.oppositeEdgeRequired&&this.eversion.anchor.x>0&&!this.eversion.held&&this.eversion.target.distanceTo(this.eversion.anchor)<.01)this.eversion.begin(-1);
+      const staged=this.environment.id==='skin';
+      this.pass.update(this.guidedPassReady?drive:0,this.grasp?.holder?.kind==='needle-driver',step,staged&&!this.oppositeEdgeRequired?this.pass.firstSideAngle:this.pass.totalAngle);
+      if(staged&&!this.oppositeEdgeRequired&&this.pass.angle>=this.pass.firstSideAngle-1e-8)this.oppositeEdgeRequired=true;
       this.wound.setDermalBites(...this.pass.dermalBites);
       if(this.pass.phase==='passing' || this.pass.phase==='complete') this.applyPassPose();
       if(this.pass.phase==='interrupted') this.placement.reset();
@@ -335,5 +346,5 @@ export class PracticeSession {
     }
   }
   reset(){this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
-  private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
+  private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.oppositeEdgeRequired=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }
