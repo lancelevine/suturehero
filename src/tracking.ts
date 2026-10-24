@@ -251,7 +251,7 @@ const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=650;
-const rotationStates=new Map<'needleDriver'|'forceps'|'scissors'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
+const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
 // Learned face-to-face transforms from simultaneous marker sightings.
 // Do not assume printed face orientation from nominal prism dimensions alone.
 const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
@@ -416,7 +416,7 @@ function updateLiveTargets(){
 }
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
- for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();overlayContext.strokeStyle='#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&observations.filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;overlayContext.strokeStyle=overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
