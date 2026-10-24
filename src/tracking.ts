@@ -11,6 +11,7 @@ declare const __SUTUREHERO_REVISION__: string;
 const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers IDs 0–8. Outlines and IDs appear on the video.</p>
+<div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · stable 2D</option><option value="stereo">2 cameras · experimental</option></select></div><p class="tracking-message" id="tracking-mode-info">1 camera: tracks movement across the image with fixed depth. Rotation is approximate. Two-camera stereo tracking is not calibrated yet.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
@@ -42,6 +43,14 @@ const start=document.querySelector<HTMLButtonElement>('#start-camera')!;
 const stop=document.querySelector<HTMLButtonElement>('#stop-camera')!;
 const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
+const trackingMode=document.querySelector<HTMLSelectElement>('#tracking-mode')!;
+const trackingModeInfo=document.querySelector<HTMLElement>('#tracking-mode-info')!;
+trackingMode.addEventListener('change',()=>{
+ liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();
+ trackingModeInfo.textContent=trackingMode.value==='mono'
+  ?'1 camera: fixed depth eliminates forward/backward jitter. Movement and approximate rotation use camera 1.'
+  :'2 cameras: both feeds detect markers, but stereo fusion and metric depth require calibration. Camera 1 still drives the instruments.';
+});
 simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
@@ -272,7 +281,7 @@ function updateLiveTargets(){
   // low-pass filter and reject isolated jumps rather than mapping raw Z directly.
   const rawZ=THREE.MathUtils.clamp((pose.position.z-180)/180,-1.8,1.8);
   const previousZ=depthStates.get(name);
-  const z=previousZ===undefined?rawZ:previousZ+THREE.MathUtils.clamp(rawZ-previousZ,-.08,.08)*.12;
+  const z=trackingMode.value==='mono'?(name==='needleDriver'?-.65:.65):(previousZ===undefined?rawZ:previousZ+THREE.MathUtils.clamp(rawZ-previousZ,-.08,.08)*.12);
   depthStates.set(name,z);
   const position=new THREE.Vector3(x,y,z);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
