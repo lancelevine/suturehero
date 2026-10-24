@@ -32,7 +32,7 @@ const start=document.querySelector<HTMLButtonElement>('#start-camera')!;
 const stop=document.querySelector<HTMLButtonElement>('#stop-camera')!;
 const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
-simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
+simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationLocks.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -85,6 +85,7 @@ let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=350;
 const rotationStates=new Map<'needleDriver'|'forceps',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
+const rotationLocks=new Map<'needleDriver'|'forceps',{anchor:THREE.Quaternion;pending:number}>();
 const stationaryStates=new Map<'needleDriver'|'forceps',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
 const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
@@ -92,7 +93,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value;const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationLocks.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
@@ -156,12 +157,12 @@ function updateLiveTargets(){
    let state=stationaryStates.get(name);
    if(!state){state={anchor:previous.position.clone(),moving:false,pending:0};stationaryStates.set(name,state);}
    const fromAnchor=state.anchor.distanceTo(position);
-   const enterMovement=.095,stopMovement=.035;
+   const enterMovement=.15,stopMovement=.055;
    if(!state.moving){
     if(fromAnchor>enterMovement){state.pending++;}
     else state.pending=0;
     // Large intentional motions unlock immediately; smaller motions need two frames.
-    if(fromAnchor>.19||state.pending>=2){state.moving=true;state.pending=0;}
+    if(fromAnchor>.32||state.pending>=3){state.moving=true;state.pending=0;}
    }else{
     // Relock only after the instrument has settled near its filtered position.
     if(distance<stopMovement){state.pending++;}
@@ -176,10 +177,20 @@ function updateLiveTargets(){
     position.lerpVectors(previous.position,position,blend);
     state.anchor.copy(position);
    }
-   // Rotation uses its own deadband and filtering, independent of translation lock.
-   const angle=previous.quaternion.angleTo(desired);
-   if(!switched&&angle>THREE.MathUtils.degToRad(.8)&&angle<THREE.MathUtils.degToRad(55)){
-    quaternion.slerp(desired,1-Math.exp(-elapsed*16));
+   // Anchor rotation separately from position: frame-to-frame deadbands still
+   // accumulate visible drift when the marker is motionless.
+   let lock=rotationLocks.get(name);
+   if(!lock){lock={anchor:previous.quaternion.clone(),pending:0};rotationLocks.set(name,lock);}
+   const angle=lock.anchor.angleTo(desired);
+   const unlockAngle=THREE.MathUtils.degToRad(4);
+   if(!switched&&angle>unlockAngle&&angle<THREE.MathUtils.degToRad(55))lock.pending++;
+   else lock.pending=0;
+   if(!switched&&(angle>THREE.MathUtils.degToRad(12)||lock.pending>=2)){
+    quaternion.slerp(desired,1-Math.exp(-elapsed*22));
+    lock.anchor.copy(quaternion);
+    lock.pending=0;
+   }else{
+    quaternion.copy(lock.anchor);
    }
   }
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
