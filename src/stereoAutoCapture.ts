@@ -1,3 +1,4 @@
+export {};
 // Timed stereo capture workflow. Runs separately from marker detection.
 const capture = document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!;
 const exportButton = document.querySelector<HTMLButtonElement>('#export-stereo-pairs')!;
