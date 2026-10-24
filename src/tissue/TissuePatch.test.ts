@@ -30,3 +30,16 @@ it('updates the layered mesh for eversion even when wound closure stays constant
   expect(top('epidermis-left')).toBeCloseTo(resting,6);
   edge.reset();pad.update(wound,edge);expect(top('epidermis-right')).toBeCloseTo(resting,6);
 });
+it('preserves closure at earlier sites and recenters the pad while a fresh stitch remains open',()=>{
+ const pad=new TissuePatch(),wound=new WoundApproximation(),sites=[{siteZ:-.75,closure:1,initialGap:.1,eversion:.015,pucker:0}];
+ pad.update(wound,undefined,sites,0);
+ const mesh=pad.root.getObjectByName('epidermis-right') as THREE.Mesh,positions=mesh.geometry.getAttribute('position');
+ let near=Infinity,gap=.1;
+ for(let i=0;i<positions.count;i++){
+  const x=positions.getX(i)+mesh.position.x,z=positions.getZ(i)+mesh.position.z;
+  if(Math.abs(z+.75)<near&&x<.1){near=Math.abs(z+.75);gap=x*2;}
+ }
+ expect(gap).toBeLessThan(.03);expect(wound.closure).toBe(0);
+ pad.update(wound,undefined,sites,.75);expect(pad.root.position.z).toBe(-.75);
+ pad.update(wound);expect(pad.root.position.z).toBeCloseTo(0);
+});

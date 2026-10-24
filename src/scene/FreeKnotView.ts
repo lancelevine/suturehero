@@ -11,6 +11,7 @@ export class FreeKnotView {
   private route='';
   private tip=new THREE.Mesh(new THREE.SphereGeometry(0.026,12,8),new THREE.MeshStandardMaterial({color:0xffcc55,roughness:0.5}));
   constructor(model:FreeKnotPractice) {
+    this.tip.name='short-tip-marker';
     const path=new THREE.CatmullRomCurve3(tissueTractPoints(model.entry,model.exit));
     this.buried=new THREE.Mesh(new THREE.TubeGeometry(path,32,0.009,6),new THREE.MeshStandardMaterial({color:PRACTICE_SETUP.suture.color,roughness:.75}));this.root.add(this.tip,this.long,this.short,this.buried);
   }

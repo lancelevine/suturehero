@@ -1,3 +1,5 @@
+import {StitchCourse} from './StitchCourse';
+import {retainedSurfaceLift} from '../tissue/StitchField';
 import {StitchTissueResponse} from '../tissue/StitchTissueResponse';
 import {assessStitch} from './StitchAssessment';
 import {MICRO_FLOOR_Y,MICRO_TARGETS} from '../environments/MicroTargets';
@@ -20,6 +22,7 @@ import type { NeedleGrasp } from '../suture/NeedleGrasp';
 import type { InputDevice } from '../input/types';
 import type { Instrument } from '../instruments/Instrument';
 export class PracticeSession {
+  readonly course=new StitchCourse();
   readonly tissueResponse=new StitchTissueResponse();
   readonly freeKnot=new FreeKnotPractice();
   private freeFromPass=false;
@@ -37,6 +40,7 @@ export class PracticeSession {
     for(const tool of this.instruments){tool.setDriverStyle(id==='microsurgery'?'castro':'standard');tool.minimumHeight=id==='microsurgery'?MICRO_FLOOR_Y+.05:.15;}
   }
   beginFreeTying(technique?:KnotTechnique|'auto') {
+    if(this.course.active)return;
     this.reset();
     if(this.grasp) {this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,0.1,1.2);}
     this.freeKnot.entry.copy(this.wound.deformPoint(this.pass.entry));this.freeKnot.exit.copy(this.wound.deformPoint(this.pass.exit));
@@ -69,7 +73,27 @@ export class PracticeSession {
   readonly wound=new WoundApproximation();
   private configureTissueResponse(){
     this.wound.response=this.environment.id==='skin'?this.tissueResponse:undefined;
-    this.freeKnot.surfaceAt=p=>this.environment.surfaceAt(p)+(this.environment.id==='skin'&&Math.abs(p.x)<=2.68&&Math.abs(p.z)<=1.68?this.wound.surfaceLiftAt(p):0);
+    this.freeKnot.padOffsetZ=this.course.siteZ;this.eversion.padOffsetZ=this.course.siteZ;
+    this.freeKnot.surfaceAt=p=>{
+      if(this.environment.id!=='skin')return this.environment.surfaceAt(p);
+      const z=p.z+this.course.siteZ;
+      const onPad=Math.abs(p.x)<=2.68&&Math.abs(z)<=1.68;
+      const base=onPad?.423:Math.abs(p.x)<=3.5&&Math.abs(p.z)<=2.5?.055:-.075;
+      return base+(onPad?Math.max(this.wound.surfaceLiftAt(p),retainedSurfaceLift(p.x,z,this.course.tissueSites)):0);
+    };
+    this.knotSlack.surfaceAt=this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt;
+  }
+  startCourse(){
+    if(this.environment.id!=='skin'||!this.grasp||this.course.active&&!this.course.finished)return false;
+    this.reset();this.course.begin();this.configureTissueResponse();return true;
+  }
+  get canAdvanceStitch(){return this.course.active&&!this.course.finished&&this.stitchAssessment.complete;}
+  advanceStitch(){
+    if(!this.canAdvanceStitch)return false;
+    const free=this.freeKnot.active,threads=free?[this.freeKnot.long,this.freeKnot.short]:[this.knotSlack.long,this.knotSlack.short];
+    if(!this.course.record(true,{closure:this.wound.closure,initialGap:this.wound.initialGap,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker},this.stitchAssessment.feedback,threads.map(s=>s.points)))return false;
+    if(this.course.advance()){this.resetCurrent();this.configureTissueResponse();}
+    return true;
   }
   get stitchAssessment(){
     const free=this.freeKnot,isFree=free.active,lab=isFree&&!this.freeFromPass;
@@ -84,7 +108,7 @@ export class PracticeSession {
   get selectedGripPoint() { return this.grasp?.needle.getPointAt(this.gripFraction)??new THREE.Vector3(); }
   constructor(private input: InputDevice, readonly instruments: readonly Instrument[], readonly grasp?: NeedleGrasp) {this.configureTissueResponse();}
   get canBeginPass() {
-    return !this.freeKnot.active && !this.knot.active && !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted') && (!this.guidedEdge || this.eversion.ready);
+    return !this.course.finished && !this.freeKnot.active && !this.knot.active && !!this.grasp && (this.pass.phase==='idle' || this.pass.phase==='interrupted') && (!this.guidedEdge || this.eversion.ready);
   }
   beginPass() {
     if(!this.canBeginPass || !this.grasp) return false;
@@ -104,6 +128,7 @@ export class PracticeSession {
   }
   get positioningSkin(){return !this.knot.active && (this.preparingEdge || this.freeKnot.active || this.pass.phase==='idle' || this.pass.phase==='passing' || this.pull.phase==='complete');}
   get canPositionForceps() {
+    if(this.course.finished)return false;
     if(this.knot.active)return false;
     return this.positioningSkin?!this.eversion.held && !this.freeKnot.grips.has('left') && this.grasp?.holder?.kind!=='forceps':!!this.grasp && !this.eversion.held && this.pass.phase==='complete' && this.pull.phase==='waiting' && this.grasp.holder?.kind!=='forceps';
   }
@@ -125,8 +150,9 @@ export class PracticeSession {
     this.grasp.update(this.instruments,true); return true;
   }
   get canBeginKnot() {return !this.freeKnot.active && this.wound.hasDermalSupport && this.pull.phase==='complete' && !this.knot.active && !!this.grasp;}
-  get canKnotAction() {return !this.knotSlack.trimmed && ((this.releaseCheck.state==='passed' && !this.loadTest.active) || this.canBeginKnot || this.knot.phase==='between' || (this.knot.phase==='tail' && !this.knot.tailPositioned));}
+  get canKnotAction() {return !this.course.finished && (!this.knotSlack.trimmed && ((this.releaseCheck.state==='passed' && !this.loadTest.active) || this.canBeginKnot || this.knot.phase==='between' || (this.knot.phase==='tail' && !this.knot.tailPositioned)));}
   knotAction() {
+    if(this.course.finished)return false;
     if(this.releaseCheck.state==='passed' && this.loadTest.begin()) {
       const right=this.instruments.find(t=>t.id==='right')!;
       this.loadGrip.copy(this.knotSlack.short.points.at(-1)!);
@@ -168,6 +194,7 @@ export class PracticeSession {
   }
   update(dt: number) {
     const step=Math.max(0,Math.min(dt,0.05));
+    if(this.course.finished){for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);return;}
     if(this.knotSlack.trimmed){
       this.wound.update(this.wound.closure,step);
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
@@ -266,10 +293,11 @@ export class PracticeSession {
     }
     if(this.grasp) {
       const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
-      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact);
+      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset() {this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
+  reset(){this.course.reset();this.resetCurrent();this.configureTissueResponse();}
+  private resetCurrent() {this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }

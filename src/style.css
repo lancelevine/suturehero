@@ -17,3 +17,4 @@ button:disabled{opacity:.45;cursor:default;background:transparent}.toolbar{flex-
 .tension-arms meter[data-state=excessive]::-webkit-meter-optimum-value{background:#c65348}.tension-arms meter[data-state=slack]::-webkit-meter-optimum-value,.tension-arms meter[data-state=released]::-webkit-meter-optimum-value{background:#a4b4ae}.tension-arms meter[data-state=excessive]::-moz-meter-bar{background:#c65348}
 
 .steps .done{color:#4f8b6c}.steps .done b{border-color:#92b7a0;background:#edf5ee}
+.course-controls{margin:16px 0;padding:16px 20px;border:1px solid var(--border,#dce5e2);border-radius:12px;background:#f6faf8;min-width:0}.course-controls>div{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.course-controls strong{margin-right:auto;color:#245a48}.course-controls p,.course-controls li{font-size:12px;line-height:1.7;color:#64756d}.course-controls ol{padding-left:20px;overflow-wrap:anywhere}.course-controls button{white-space:normal}

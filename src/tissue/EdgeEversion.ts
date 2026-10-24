@@ -5,6 +5,7 @@ export interface TissueGripPose {jaw:THREE.Vector3;rotation:THREE.Quaternion;ope
  * Prescribed deformation, not an elastic tissue or tissue-damage solver. */
 export class EdgeEversion {
   edgeX=.05;
+  padOffsetZ=0;
   readonly anchor=new THREE.Vector3(0.05,(TISSUE_LAYERS.epidermis.bottom+TISSUE_LAYERS.epidermis.top)/2,0);
   readonly target=this.anchor.clone();
   active=false;
@@ -22,7 +23,7 @@ export class EdgeEversion {
     if(this.held && pose.openness>=0.45)this.held=false;
     if(!this.held && allowGrasp && pose.openness<=0.2 && this.previousOpen>0.2){
       const resting=this.target.distanceTo(this.anchor)<0.01 && this.angle<0.02;
-      const candidate=guidedSite || !resting?this.target.clone():new THREE.Vector3(pose.jaw.x<0?-this.edgeX:this.edgeX,(TISSUE_LAYERS.epidermis.bottom+TISSUE_LAYERS.epidermis.top)/2,THREE.MathUtils.clamp(pose.jaw.z,-1.55,1.55));
+      const candidate=guidedSite || !resting?this.target.clone():new THREE.Vector3(pose.jaw.x<0?-this.edgeX:this.edgeX,(TISSUE_LAYERS.epidermis.bottom+TISSUE_LAYERS.epidermis.top)/2,THREE.MathUtils.clamp(pose.jaw.z,-1.55-this.padOffsetZ,1.55-this.padOffsetZ));
       if(pose.jaw.distanceTo(candidate)<0.09){
         if(resting && !guidedSite){this.anchor.copy(candidate);this.target.copy(candidate);this.angle=0;this.revision++;}
         this.held=true;this.active=true;this.local.copy(this.target).sub(pose.jaw).applyQuaternion(pose.rotation.clone().invert());this.initialRotation.copy(pose.rotation);

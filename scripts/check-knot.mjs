@@ -5,6 +5,7 @@ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH ??
 try {
   const page=await browser.newPage({viewport:{width:1440,height:1180}}); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   await page.goto(process.env.SUTURE_TEST_URL ?? 'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
+  if(process.env.SUTURE_TEST_COURSE){await page.locator('#start-course').click();assert.match(await page.locator('#course-status').innerText(),/Stitch 1 \/ 3/);assert.equal(await page.locator('#next-stitch').isDisabled(),true);}
   await page.getByRole('button',{name:'Start guided pass'}).click();
   await prepareEversion(page);
   if(await page.locator('#close-up').getAttribute('aria-pressed')==='false')await page.locator('#close-up').click();
@@ -64,6 +65,21 @@ try {
   await page.waitForFunction(()=>document.querySelector('#stitch-quality').textContent.includes('Tails trimmed: 2/2'),{},{timeout:15000});
   await page.keyboard.up(',');
   assert.match(await page.locator('#stitch-stage').innerText(),/Stitch exercise complete/);
+  if(process.env.SUTURE_TEST_COURSE){
+    await page.locator('#next-stitch').click();
+    await page.waitForFunction(()=>document.querySelector('#course-status').textContent.includes('Stitch 2 / 3'));
+    assert.equal(await page.locator('#course-review li').count(),1);
+    assert.match(await page.locator('#stitch-stage').innerText(),/Evert and pass/);
+    assert.equal(await page.locator('#next-stitch').isDisabled(),true);
+    assert.equal(await page.locator('#free-tying').isDisabled(),true);
+    for(const width of [320,390,1440]){await page.setViewportSize({width,height:1180});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert(await page.locator('.version').isVisible());}
+    if(process.env.SUTURE_SCREENSHOT)await page.locator('#viewport').screenshot({path:process.env.SUTURE_SCREENSHOT});
+    await page.getByRole('button',{name:'Start guided pass',exact:true}).click();await prepareEversion(page);
+    await page.keyboard.down('u');await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});await page.keyboard.up('u');
+    assert.equal(await page.locator('#course-review li').count(),1);
+    await page.locator('#reset').click();await page.waitForFunction(()=>document.querySelector('#course-status').textContent==='One-stitch practice');
+    assert.equal(await page.locator('#course-review').isVisible(),false);assert.equal(await page.locator('#free-tying').isDisabled(),false);
+  }
   assert.deepEqual(errors,[],'Browser runtime errors after trimming');
   console.log(JSON.stringify({result:await page.locator('#exercise-title').innerText(),readout:await page.locator('#exercise-readout').innerText(),errors}));
 } finally {await browser.close();}

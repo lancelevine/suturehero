@@ -114,8 +114,9 @@ export class FreeKnotPractice {
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();
   private accumulator=0;
+  padOffsetZ=0;
   private skinTopAt=(p:THREE.Vector3)=>this.surfaceAt(p);
-  private skinContact=skinThreadContact(point=>this.contact.supportAt(point,this.skinTopAt));
+  private skinContact=skinThreadContact(point=>this.contact.supportAt(point,this.skinTopAt),()=>this.padOffsetZ);
   private supportAt=(point:THREE.Vector3)=>(this.threadFloorAt??threadBaseAt)(point);
   begin(tools:readonly Instrument[],technique?:KnotTechnique|'auto') {
     this.reset();this.active=true;

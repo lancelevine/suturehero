@@ -1,3 +1,4 @@
+import {retainedShift,retainedLift,type TissueSite} from './StitchField';
 import {TRACT_HALF_WIDTH} from './sutureTract';
 import { TISSUE_LAYERS } from './anatomy';
 import type { EdgeEversion } from './EdgeEversion';
@@ -11,6 +12,8 @@ export class TissuePatch {
   private surfaces: {mesh: THREE.Mesh<THREE.BoxGeometry>;original: Float32Array}[]=[];
   private markers: {mesh: THREE.Mesh;original: THREE.Vector3}[]=[];
   private lastClosure=NaN;
+  private lastSites:readonly TissueSite[]|undefined;
+  private lastSiteZ=NaN;
   private lastEversion=-1;
   private lastResponse=-1;
   constructor() {
@@ -37,8 +40,10 @@ export class TissuePatch {
   }
   group.traverse(object=>{if(object instanceof THREE.Mesh) { object.receiveShadow=true; object.castShadow=true; }});
   }
-  update(model: WoundApproximation,eversion?:EdgeEversion) {
-    if((model.response?.revision??0)===this.lastResponse && model.closure===this.lastClosure && (eversion?.revision??0)===this.lastEversion)return;
+  update(model: WoundApproximation,eversion?:EdgeEversion,sites:readonly TissueSite[]=EMPTY_SITES,siteZ=0) {
+    this.root.position.z=-siteZ;
+    if(this.lastSites===sites && this.lastSiteZ===siteZ && (model.response?.revision??0)===this.lastResponse && model.closure===this.lastClosure && (eversion?.revision??0)===this.lastEversion)return;
+    this.lastSites=sites;this.lastSiteZ=siteZ;
     this.lastResponse=model.response?.revision??0;
     this.lastEversion=eversion?.revision??0;
     this.lastClosure=model.closure;
@@ -47,11 +52,19 @@ export class TissuePatch {
       const position=mesh.geometry.getAttribute('position');
       for(let i=0;i<position.count;i++) {
         point.set(original[i*3]+mesh.position.x,original[i*3+1]+mesh.position.y,original[i*3+2]+mesh.position.z);
-        model.deformPoint(point,point);eversion?.deformPoint(point,point);point.sub(mesh.position); position.setXYZ(i,point.x,point.y,point.z);
+        const x=point.x,y=point.y,z=point.z;
+        point.z-=siteZ;model.deformPoint(point,point);eversion?.deformPoint(point,point);point.z=z;
+        for(const site of sites){
+          point.x=Math.sign(x)*Math.min(Math.abs(point.x),Math.max(.006,Math.abs(x)-retainedShift(x,z,site)));
+          point.y=Math.max(point.y,y+retainedLift(x,y,z,site));
+        }
+        point.sub(mesh.position);position.setXYZ(i,point.x,point.y,point.z);
       }
       position.needsUpdate=true;mesh.geometry.computeVertexNormals();mesh.geometry.computeBoundingSphere();
     }
-    for(const {mesh,original} of this.markers){model.deformPoint(original,mesh.position);eversion?.deformPoint(mesh.position,mesh.position);}
+    for(const {mesh,original} of this.markers){model.deformPoint(original,mesh.position);eversion?.deformPoint(mesh.position,mesh.position);mesh.position.z+=siteZ;}
   }
 }
 export function createTissuePatch() {return new TissuePatch().root;}
+
+const EMPTY_SITES:readonly TissueSite[]=Object.freeze([]);

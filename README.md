@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.34)
+## Current practice options (build 0.35)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Three-stitch skin session in 0.35
+
+Choose **Start 3-stitch session** beneath the workspace to place three interrupted stitches along the skin incision. Complete the guided pass and extraction at each site, then use either guided knot tying or **Tie freely after pass**. After the seated knot passes its release hold and both primary tails are cut, **Save & next stitch** preserves it and prepares a fresh needle at the next site. **Finish session** saves the third stitch. Each completed stitch keeps its quality review.
+
+The pad recenters on each active site. Saved thread geometry and local dermal closure remain in place, with independent copies of strand coordinates and tissue state. Completed stitches are static for this milestone: they cannot be regrasped or cut, and do not run additional physics or interact with the current suture. Overlapping local closure profiles share displacement rather than adding enough deformation to cross the incision. This remains a bounded geometric tissue approximation.
+
+**Reset practice**, starting a new session, or changing setup clears the session. The separate preplaced **Free tying lab** is disabled during a session; free tying after a completed needle pass remains available. Multi-stitch sessions currently apply to the skin pad; microsurgery remains a one-stitch exercise.
 
 ## Knot reliability batch in 0.34
 

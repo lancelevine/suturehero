@@ -15,11 +15,13 @@ export class StitchTissueResponse {
  }
  liftAt(point:THREE.Vector3){return this.lift(point.x,point.y,point.z);}
  surfaceLiftAt(point:THREE.Vector3){return this.lift(point.x,TISSUE_LAYERS.epidermis.top,point.z);}
- private lift(x:number,y:number,z:number){
-  if((this.eversion===0&&this.pucker===0)||Math.abs(x)>.8||Math.abs(z)>.9)return 0;
-  const depth=THREE.MathUtils.smoothstep(y,TISSUE_LAYERS.dermis.bottom,TISSUE_LAYERS.epidermis.top);
-  const across=Math.exp(-(((Math.abs(x)-.05)/.2)**2)),along=Math.exp(-((z/.45)**2));
-  return depth*across*along*(this.eversion+(this.pucker?this.pucker*Math.sin(z*14)**2:0));
- }
+ private lift(x:number,y:number,z:number){return stitchLift(x,y,z,this.eversion,this.pucker);}
  reset(){this.prepared=[0,0];this.eversion=this.pucker=this.peakDemand=0;this.revision++;}
+}
+
+export function stitchLift(x:number,y:number,z:number,eversion:number,pucker:number){
+ if((eversion===0&&pucker===0)||Math.abs(x)>.8||Math.abs(z)>.9)return 0;
+ const depth=THREE.MathUtils.smoothstep(y,TISSUE_LAYERS.dermis.bottom,TISSUE_LAYERS.epidermis.top);
+ const across=Math.exp(-(((Math.abs(x)-.05)/.2)**2)),along=Math.exp(-((z/.45)**2));
+ return depth*across*along*(eversion+(pucker?pucker*Math.sin(z*14)**2:0));
 }
