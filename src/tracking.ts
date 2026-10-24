@@ -26,7 +26,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 </section>
 <label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
-<div class="tracking-stats" aria-label="Live camera diagnostics">
+<details class="tracking-details"><summary>Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Hold a tracked prism at the near boundary and click Set Near, then repeat at the far boundary.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
 <div><strong>Camera resolution</strong><span id="diag-resolution">Not started</span></div>
 <div><strong>Frames analyzed</strong><span id="diag-frames">0</span></div>
 <div><strong>Candidate squares</strong><span id="diag-candidates">—</span></div><div><strong>Outlines drawn</strong><span id="diag-outlines">—</span></div>
@@ -36,7 +36,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 </div>
 </div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D, scissors I/J/K/L (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><details class="tracking-details"><summary>Virtual View Controls &amp; Diagnostics</summary><div class="tracking-details-body"><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>V5 prism faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p><div class="tracking-tuning"><label>Rotation sensitivity <input id="rotation-sensitivity" type="range" min="0.5" max="8" step="0.5" value="3"><output id="rotation-sensitivity-value">3°</output></label><label>Depth sensitivity <input id="depth-sensitivity" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="depth-sensitivity-value">1.5×</output></label><p class="tracking-message" id="tracking-filter-diagnostics">Raw and filtered depth/rotation diagnostics appear during tracking.</p></div></div></details></section></main><section class="tracking-settings-footer"><details class="tracking-details"><summary>Camera Settings · Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Exposure and gain depend on browser and camera support.</p><div id="camera-settings-controls"></div></div></details></section>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><details class="tracking-details"><summary>Virtual View Controls &amp; Diagnostics</summary><div class="tracking-details-body"><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>V5 prism faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p><div class="tracking-tuning"><label>Rotation sensitivity <input id="rotation-sensitivity" type="range" min="0.5" max="8" step="0.5" value="3"><output id="rotation-sensitivity-value">3°</output></label><label>Depth sensitivity <input id="depth-sensitivity" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="depth-sensitivity-value">1.5×</output></label><p class="tracking-message" id="tracking-filter-diagnostics">Raw and filtered depth/rotation diagnostics appear during tracking.</p></div></div></details></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -52,6 +52,8 @@ const depthSensitivity=document.querySelector<HTMLInputElement>('#depth-sensitiv
 const rotationSensitivityValue=document.querySelector<HTMLOutputElement>('#rotation-sensitivity-value')!;
 const depthSensitivityValue=document.querySelector<HTMLOutputElement>('#depth-sensitivity-value')!;
 const filterDiagnostics=document.querySelector<HTMLElement>('#tracking-filter-diagnostics')!;
+const workingDepthInput=document.querySelector<HTMLInputElement>('#working-depth-mm')!;
+const depthRangeStatus=document.querySelector<HTMLElement>('#depth-range-status')!;
 rotationSensitivity.addEventListener('input',()=>{rotationSensitivityValue.textContent=`${rotationSensitivity.value}°`;rotationFilterStates.clear();});
 depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent=`${depthSensitivity.value}×`;depthStates.clear();});
 lockDepth.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
@@ -263,6 +265,16 @@ const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;ra
 // Do not assume printed face orientation from nominal prism dimensions alone.
 const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
+let depthNearMm:number|null=null,depthFarMm:number|null=null;
+const depthHistory=new Map<'needleDriver'|'forceps'|'scissors',number[]>();
+const poseHistory=new Map<'needleDriver'|'forceps'|'scissors',THREE.Quaternion[]>();
+const depthSamples=new Map<'needleDriver'|'forceps'|'scissors',number>();
+function depthRangeLabel(){const range=Math.max(50,Number(workingDepthInput.value)||400);depthRangeStatus.textContent=`Near: ${depthNearMm?.toFixed(0)??'unset'} mm · Far: ${depthFarMm?.toFixed(0)??'unset'} mm · working range: ${range} mm. ${depthNearMm===null?'Set Near first.':depthFarMm===null?'Set Far next.':'Calibrated.'}`;}
+function resetDepthFilters(){depthStates.clear();stationaryStates.clear();depthHistory.clear();}
+workingDepthInput.addEventListener('change',()=>{depthFarMm=null;resetDepthFilters();depthRangeLabel();});
+document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined){depthRangeStatus.textContent='No tracked prism visible. Start camera and show a marker.';return;}depthNearMm=z;depthFarMm=null;resetDepthFilters();depthRangeLabel();});
+document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined||depthNearMm===null){depthRangeStatus.textContent='Set Near first with a tracked marker visible.';return;}if(z<=depthNearMm+20){depthRangeStatus.textContent='Far must be at least 20 mm farther from camera than Near.';return;}depthFarMm=z;workingDepthInput.value=String(Math.round(z-depthNearMm));resetDepthFilters();depthRangeLabel();});
+document.querySelector('#reset-depth-range')!.addEventListener('click',()=>{depthNearMm=null;depthFarMm=null;workingDepthInput.value='400';resetDepthFilters();depthRangeLabel();});
 const rotationFilterStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Quaternion;pending:number;moving:boolean}>();
 const filterMeasurements=new Map<'needleDriver'|'forceps'|'scissors',{rawZ:number;filteredZ:number;angle:number;locked:boolean}>();
 const stationaryStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
@@ -326,7 +338,8 @@ function updateLiveTargets(){
   candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
   const previous=liveTargets.get(name);
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
-  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<6))||candidates[0];if(!chosen)continue;
+  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];if(!chosen)continue;
+  if(chosen.pose.reprojectionError>8)continue;
   const {marker,pose}=chosen;
   // Learn how each V5 prism face is oriented relative to the selected face.
   // Two faces visible in the same frame provide an empirical rigid-body transform.
@@ -340,25 +353,34 @@ function updateLiveTargets(){
   for(const other of candidates){
    if(other.pose.id===pose.id||other.pose.reprojectionError>5)continue;
    if(!offsets.has(other.pose.id)){
-    const selectedOffset=offsets.get(pose.id)!;
-    offsets.set(other.pose.id,other.pose.quaternion.clone().invert().multiply(pose.quaternion).multiply(selectedOffset).normalize());
+    const selectedOffset=offsets.get(pose.id);
+    if(selectedOffset)offsets.set(other.pose.id,other.pose.quaternion.clone().invert().multiply(pose.quaternion).multiply(selectedOffset).normalize());
    }
   }
   const cx=marker.corners.reduce((v,p)=>v+p.x,0)/4,cy=marker.corners.reduce((v,p)=>v+p.y,0)/4;
-  // Screen coordinates control horizontal/vertical movement; marker size estimates depth.
-  const x=THREE.MathUtils.clamp((cx/overlay.width-.5)*7,-2.6,2.6);
-  const y=THREE.MathUtils.clamp((.5-cy/overlay.height)*4+0.55,.15,2.8);
-  // Single-marker depth is very noisy without calibrated intrinsics. Use a strong
-  // low-pass filter and reject isolated jumps rather than mapping raw Z directly.
-  const rawZ=THREE.MathUtils.clamp((pose.position.z-180)/180,-1.8,1.8);
+  // Monocular translation in camera coordinates. Intrinsics remain approximate.
+  // Map the physical depth interval to the entire usable virtual Z range.
+  const rawDistance=pose.position.z;
+  const samples=depthHistory.get(name)??[];
+  samples.push(rawDistance);if(samples.length>5)samples.shift();depthHistory.set(name,samples);
+  const sorted=[...samples].sort((a,b)=>a-b);
+  const measuredDistance=sorted[Math.floor(sorted.length/2)];
+  depthSamples.set(name,measuredDistance);
+  const near=depthNearMm??Math.max(30,measuredDistance-200);
+  const range=depthFarMm!==null&&depthNearMm!==null?depthFarMm-depthNearMm:Math.max(50,Number(workingDepthInput.value)||400);
+  const depthFraction=THREE.MathUtils.clamp((measuredDistance-near)/range,0,1);
+  const rawZ=-2.3+depthFraction*4.6;
   const previousZ=depthStates.get(name);
   const lockedDepth=trackingMode.value==='mono'&&lockDepth.checked;
   const baseline=name==='needleDriver'?-.65:name==='forceps'?.15:1.05;
-  const scaledZ=rawZ*Number(depthSensitivity.value);
-  const depthDelta=previousZ===undefined?0:scaledZ-previousZ;
-  const depthAlpha=Math.abs(depthDelta)>.2?.55:.14;
-  const z=lockedDepth?baseline:previousZ===undefined?scaledZ:previousZ+THREE.MathUtils.clamp(depthDelta,-.4,.4)*depthAlpha;
+  const desiredZ=THREE.MathUtils.clamp(rawZ*Number(depthSensitivity.value),-2.3,2.3);
+  const depthDelta=previousZ===undefined?0:desiredZ-previousZ;
+  const depthAlpha=Math.abs(depthDelta)>.12?.65:.25;
+  const z=lockedDepth?baseline:previousZ===undefined?desiredZ:previousZ+depthDelta*depthAlpha;
   depthStates.set(name,z);
+  // Perspective-correct camera-space X/Y, scaled against the same depth reference.
+  const x=THREE.MathUtils.clamp(pose.position.x/Math.max(near+range*.5,1)*7,-2.6,2.6);
+  const y=THREE.MathUtils.clamp(-pose.position.y/Math.max(near+range*.5,1)*4+.55,.15,2.8);
   const position=new THREE.Vector3(x,y,z);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
   const switched=!!previous&&previous.id!==pose.id;
@@ -367,7 +389,12 @@ function updateLiveTargets(){
   // On face changes, rebase the new face to the last displayed orientation.
   let rotation=rotationStates.get(name);
   const hasFaceOffset=offsets.has(pose.id);
-  const corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)??new THREE.Quaternion()).normalize();
+  let corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)??new THREE.Quaternion()).normalize();
+  // Fuse visible faces only when their relative transforms have been learned.
+  const validFaces=candidates.filter(c=>c.pose.reprojectionError<3&&offsets.has(c.pose.id));
+  if(validFaces.length>1){const fused=validFaces.map(c=>c.pose.quaternion.clone().multiply(offsets.get(c.pose.id)!).normalize());const reference=previous?.quaternion??fused[0];fused.sort((a,b)=>a.angleTo(reference)-b.angleTo(reference));if(fused[0].angleTo(fused[1])<THREE.MathUtils.degToRad(18))corrected=fused[0].clone().slerp(fused[1],.5);}
+  const history=poseHistory.get(name)??[];history.push(corrected.clone());if(history.length>7)history.shift();poseHistory.set(name,history);
+  if(history.length>=5){const reference=history[history.length-2];const consistent=history.filter(q=>q.angleTo(reference)<THREE.MathUtils.degToRad(15));if(consistent.length>=3){const mean=consistent[0].clone();for(let i=1;i<consistent.length;i++)mean.slerp(consistent[i],1/(i+1));if(corrected.angleTo(mean)>THREE.MathUtils.degToRad(35))corrected=mean;}}
   if(!rotation){
    rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
    rotationStates.set(name,rotation);
@@ -438,9 +465,9 @@ function updateLiveTargets(){
      else filter.pending=0;
     }
    }
-   filterMeasurements.set(name,{rawZ,filteredZ:z,angle:THREE.MathUtils.radToDeg(instantaneous),locked:!filter.moving});
+   filterMeasurements.set(name,{rawZ:measuredDistance,filteredZ:z,angle:THREE.MathUtils.radToDeg(instantaneous),locked:!filter.moving});
   }
-  if(!previous)filterMeasurements.set(name,{rawZ,filteredZ:z,angle:0,locked:false});
+  if(!previous)filterMeasurements.set(name,{rawZ:measuredDistance,filteredZ:z,angle:0,locked:false});
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
@@ -458,7 +485,7 @@ function drawDetections(){
    return `${age>130?'Last seen · ':''}ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
   };
   driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
-  filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: raw Z ${m.rawZ.toFixed(2)} · filtered Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':'tracking'}`:`${name}: waiting`;}).join(' | ');
+  filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':'tracking'}`:`${name}: waiting`;}).join(' | ');
   faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=observations.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
  }
 }
