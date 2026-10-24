@@ -332,7 +332,7 @@ export class PracticeSession {
     this.grasp?.update(needleTools,this.pass.phase==='complete');
     if(constrained) {
       if(this.oppositeEdgeRequired&&this.eversion.anchor.x>0&&!this.eversion.held&&this.eversion.target.distanceTo(this.eversion.anchor)<.01)this.eversion.begin(-1);
-      if(this.oppositeEdgeRequired&&this.eversion.anchor.x<0)this.eversion.opposingEdgeX=this.tissuePoint(new THREE.Vector3(.05,TISSUE_LAYERS.epidermis.top,0)).x;
+      if(this.oppositeEdgeRequired&&this.eversion.anchor.x<0)this.eversion.opposingEdgeX=p=>.05-fieldShift(.05,p.z+this.course.siteZ,this.tissueField,p.y);
       const staged=this.environment.id==='skin';
       this.pass.update(this.guidedPassReady?drive:0,this.grasp?.holder?.kind==='needle-driver',step,staged&&!this.oppositeEdgeRequired?this.pass.firstSideAngle:this.pass.totalAngle);
       if(staged&&!this.oppositeEdgeRequired&&this.pass.angle>=this.pass.firstSideAngle-1e-8)this.oppositeEdgeRequired=true;

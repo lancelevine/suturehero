@@ -52,3 +52,14 @@ it('bounds deformation after a discontinuous pull and leaves the disabled respon
  for(let i=0;i<60;i++)vessel.update(pose(vessel.anchor.clone().add(new THREE.Vector3(0,.3,0)),.1),1/60);
  expect(vessel.held).toBe(true);expect(vessel.slipSerial).toBe(0);
 });
+it('keeps opposite-edge apposition clear of neighboring closure along the incision',()=>{
+ const edge=new EdgeEversion();edge.begin(-1);
+ edge.update({jaw:edge.anchor.clone(),rotation:new THREE.Quaternion(),openness:.1},0,true,true);
+ edge.opposingEdgeX=p=>p.z<0?.006:.05;
+ edge.update({jaw:edge.anchor.clone().add(new THREE.Vector3(.1,.01,0)),rotation:new THREE.Quaternion(),openness:.1},.05,true,true);
+ for(const z of [-.3,0,.3]){
+  const original=new THREE.Vector3(-.05,.41,z),moved=edge.deformPoint(original),right=z<0?.006:.05;
+  expect(moved.x).toBeLessThanOrEqual(right-.012+1e-8);
+ }
+ edge.reset();expect(edge.opposingEdgeX).toBeUndefined();
+});
