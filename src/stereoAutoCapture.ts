@@ -3,7 +3,7 @@ export {};
 const capture = document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!;
 const exportButton = document.querySelector<HTMLButtonElement>('#export-stereo-pairs')!;
 const clearButton = document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!;
-const status = document.querySelector<HTMLElement>('#stereo-calibration-status')!;
+const calibrationStatusElement = document.querySelector<HTMLElement>('#stereo-calibration-status')!;
 const video1 = document.querySelector<HTMLVideoElement>('#camera-video')!;
 const video2 = document.querySelector<HTMLVideoElement>('#camera-video-2')!;
 const camera1 = document.querySelector<HTMLSelectElement>('#camera-select')!;
@@ -25,7 +25,7 @@ function ready(){
   && !!video1.srcObject && !!video2.srcObject;
 }
 function update(message:string){
- status.textContent=message;
+ calibrationStatusElement.textContent=message;
  exportButton.disabled=pairs.length===0;
  capture.textContent=active?'Stop auto capture':'Auto capture 20 pairs';
  clearButton.disabled=active;
