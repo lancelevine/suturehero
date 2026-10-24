@@ -36,7 +36,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 </div>
 </div></details><details class="tracking-details"><summary>Camera Settings · Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Exposure and gain depend on browser and camera support.</p><div id="camera-settings-controls"></div></div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 6–8 (temporary) · Forceps IDs 3–5. Experimental relative 3D rotation tracking enabled. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 6–8 (temporary) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -303,7 +303,7 @@ function updateLiveTargets(){
   candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
   const previous=liveTargets.get(name);
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
-  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];if(!chosen)continue;
+  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<6))||candidates[0];if(!chosen)continue;
   const {marker,pose}=chosen;
   const cx=marker.corners.reduce((v,p)=>v+p.x,0)/4,cy=marker.corners.reduce((v,p)=>v+p.y,0)/4;
   // Screen coordinates control horizontal/vertical movement; marker size estimates depth.
@@ -359,10 +359,16 @@ function updateLiveTargets(){
     position.lerpVectors(previous.position,position,blend);
     state.anchor.copy(position);
    }
-   // Rotation uses its own deadband and filtering, independent of translation lock.
+   // Rotation is independent of translation: allow deliberate rolling, pitching,
+   // and yawing even when the instrument remains at a fixed position.
+   // Cap angular velocity instead of discarding changes above 25 degrees:
+   // rejecting those frames previously made large rotations appear frozen.
    const angle=previous.quaternion.angleTo(desired);
-   if(!switched&&angle>THREE.MathUtils.degToRad(3)&&angle<THREE.MathUtils.degToRad(25)){
-    quaternion.slerp(desired,1-Math.exp(-elapsed*7));
+   const deadband=THREE.MathUtils.degToRad(1.5);
+   if(!switched&&angle>deadband){
+    const maxStep=THREE.MathUtils.degToRad(220)*elapsed;
+    const smooth=1-Math.exp(-elapsed*12);
+    quaternion.slerp(desired,Math.min(smooth,maxStep/Math.max(angle,1e-6)));
    }
   }
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
