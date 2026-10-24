@@ -108,8 +108,12 @@ function updateStereoMatches(){
  stereoStatus.textContent='Stereo: '+(delta<=250?'':'frames not synchronized · ')+(matches.length?'shared marker IDs '+matches.join(', '):'no shared marker IDs')+' · frame offset '+Math.round(delta)+' ms · calibration required for 3D';
 }
 
+const CAMERA_STORAGE_PRIMARY='suturehero-camera-primary';
+const CAMERA_STORAGE_SECONDARY='suturehero-camera-secondary';
+function savedCamera(key:string){try{return localStorage.getItem(key)||'';}catch{return '';}}
+function rememberCamera(key:string,value:string){try{if(value)localStorage.setItem(key,value);else localStorage.removeItem(key);}catch{/* Storage may be disabled */}}
 async function refreshSecondCameraList(){
- const current=select2.value;
+ const current=select2.value||savedCamera(CAMERA_STORAGE_SECONDARY);
  const devices=await availableCameras();
  select2.innerHTML='<option value="">Choose second camera</option>';
  devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
@@ -136,7 +140,7 @@ start2.addEventListener('click',async()=>{
  }catch(error){status2.textContent='Second camera error: '+String(error);await stopSecondCamera();}
 });
 stop2.addEventListener('click',()=>{void stopSecondCamera();});
-select2.addEventListener('change',()=>{if(stream2)void stopSecondCamera();});
+select2.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_SECONDARY,select2.value);if(stream2)void stopSecondCamera();});
 async function detectSecondFrame(now:number){
  if(!stream2||!ready2||processing2||!video2.videoWidth||now-lastDetection2<110)return;
  lastDetection2=now;processing2=true;const currentSession=session2;
@@ -211,7 +215,7 @@ const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quate
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let stream:MediaStream|null=null;
 async function refreshCameras(){
- try {const current=select.value;const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
+ try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
 async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
@@ -219,7 +223,7 @@ start.addEventListener('click',async()=>{
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
 });
 stop.addEventListener('click',stopCamera);
-select.addEventListener('change',()=>{if(stream)void stopCamera();});
+select.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_PRIMARY,select.value);if(stream)void stopCamera();});
 void refreshCameras();
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x15242c);
 const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,3.7,6);camera.lookAt(0,0,0);
