@@ -81,12 +81,14 @@ const frameCanvas=document.createElement('canvas');
 const frameContext=frameCanvas.getContext('2d',{willReadFrequently:true})!;
 const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
+const lastPoseById=new Map<number,{pose:NonNullable<ReturnType<typeof estimateMarkerPose>>;time:number}>();
+const poseHoldMs=350;
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value;const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];lastPoseById.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
@@ -114,10 +116,15 @@ function drawDetections(){
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
   const readout=(ids:readonly number[])=>{
-   const poses=observations.filter(m=>ids.includes(m.id)).map(m=>estimateMarkerPose(m,overlay.width,overlay.height)).filter((p):p is NonNullable<typeof p>=>!!p).sort((a,b)=>a.reprojectionError-b.reprojectionError);
+   const time=performance.now();
+   const fresh=observations.filter(m=>ids.includes(m.id)).map(m=>estimateMarkerPose(m,overlay.width,overlay.height)).filter((p):p is NonNullable<typeof p>=>!!p);
+   for(const pose of fresh)lastPoseById.set(pose.id,{pose,time});
+   const poses=fresh.length?fresh:lastPoseById.size?[...lastPoseById.values()].filter(item=>ids.includes(item.pose.id)&&time-item.time<poseHoldMs).map(item=>item.pose):[];
+   poses.sort((a,b)=>a.reprojectionError-b.reprojectionError);
    const p=poses[0];if(!p)return 'Not visible';
+   const held=!fresh.length;
    const v=p.position;const e=new THREE.Euler().setFromQuaternion(p.quaternion,'XYZ');const deg=(r:number)=>(r*180/Math.PI).toFixed(0);
-   return `ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
+   return `${held?'Last seen · ':''}ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
   };
   driverReadout.textContent=readout([0,1,2]);forcepsReadout.textContent=readout([3,4,5]);
  }
