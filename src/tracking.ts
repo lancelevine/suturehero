@@ -15,6 +15,12 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
+<section class="tracking-panel" style="margin-top:12px;padding:14px">
+ <div class="eyebrow">STEREO CALIBRATION · CAPTURE</div>
+ <p class="tracking-message">Checkerboard: <strong>8 × 8 squares · 7 × 7 inner corners · 37 mm squares</strong>. Hold the entire board in view of both cameras. Capture 20–30 varied poses, including corners of the workspace and tilted angles. Keep both cameras fixed.</p>
+ <div class="tracking-actions"><button id="capture-stereo-pair">Capture checkerboard pair</button><button id="export-stereo-pairs" disabled>Export captures</button><button id="clear-stereo-pairs">Clear captures</button></div>
+ <p class="tracking-message" id="stereo-calibration-status">0 pairs captured. This stage records paired images; calibration solving and triangulation are not enabled yet.</p>
+</section>
 <label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#d49a00;font-weight:bold">Yellow</span> = candidate square · <span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
 <div class="tracking-stats" aria-label="Live camera diagnostics">
@@ -154,6 +160,42 @@ async function detectSecondFrame(now:number){
  finally{processing2=false;}
 }
 void refreshSecondCameraList().catch(()=>{status2.textContent='Connect both USB cameras and allow camera access.';});
+
+
+interface CalibrationPair {time:string;first:{width:number;height:number;image:string};second:{width:number;height:number;image:string};frameDeltaMs:number|null}
+const calibrationPairs:CalibrationPair[]=[];
+const calibrationStatus=document.querySelector<HTMLElement>('#stereo-calibration-status')!;
+const exportCalibration=document.querySelector<HTMLButtonElement>('#export-stereo-pairs')!;
+function updateCalibrationStatus(message=''){
+ calibrationStatus.textContent=calibrationPairs.length+' pairs captured (target 20–30). '+message+' Paired images only; camera calibration is not solved yet.';
+ exportCalibration.disabled=calibrationPairs.length===0;
+}
+function captureCalibrationImage(source:HTMLVideoElement){
+ const canvas=document.createElement('canvas');canvas.width=source.videoWidth;canvas.height=source.videoHeight;
+ canvas.getContext('2d')!.drawImage(source,0,0,canvas.width,canvas.height);
+ return {width:canvas.width,height:canvas.height,image:canvas.toDataURL('image/jpeg',.82)};
+}
+document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!.addEventListener('click',()=>{
+ if(!stream||!stream2||video.readyState<2||video2.readyState<2){
+  updateCalibrationStatus('Start both cameras before capturing.');return;
+ }
+ // Capture consecutively in one event handler, minimizing (but not eliminating) frame skew.
+ const first=captureCalibrationImage(video),second=captureCalibrationImage(video2);
+ calibrationPairs.push({time:new Date().toISOString(),first,second,frameDeltaMs:observationsAt&&secondaryObservationsAt?Math.round(Math.abs(observationsAt-secondaryObservationsAt)):null});
+ updateCalibrationStatus('Captured pair '+calibrationPairs.length+'. Move and tilt the board for the next pair.');
+});
+document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!.addEventListener('click',()=>{
+ if(calibrationPairs.length&&!window.confirm('Discard all calibration captures from this session?'))return;
+ calibrationPairs.length=0;updateCalibrationStatus('Captures cleared.');
+});
+exportCalibration.addEventListener('click',()=>{
+ if(!calibrationPairs.length)return;
+ const payload={format:'suturehero-stereo-captures-v1',board:{squaresX:8,squaresY:8,innerCornersX:7,innerCornersY:7,squareSizeMm:37},camera1:select.value,camera2:select2.value,pairs:calibrationPairs};
+ const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download='suturehero-stereo-calibration-'+new Date().toISOString().slice(0,10)+'.json';link.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ updateCalibrationStatus('Exported '+calibrationPairs.length+' pairs.');
+});
 
 const diag=(name:string)=>document.querySelector<HTMLElement>('#diag-'+name)!;
 let framesAnalyzed=0;
