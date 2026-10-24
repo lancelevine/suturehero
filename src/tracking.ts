@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {availableCameras,groupMarkers,openCamera,type MarkerObservation} from './input/arucoTracking';
+import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import {BrowserArucoDetector} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
 import './style.css';
@@ -22,9 +22,9 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div><strong>Detection time</strong><span id="diag-time">—</span></div><div><strong>Detection pass</strong><span id="diag-pass">—</span></div><div><strong>Image contrast</strong><span id="diag-contrast">—</span></div>
 <div><strong>Detection status</strong><span id="diag-note">Waiting for camera</span></div>
 </div>
-<div class="tracking-actions"><label><input id="simulation" type="checkbox" checked> Simulated input</label><button id="reset-sim">Reset positions</button></div>
-<p class="tracking-message">Simulation: move the needle driver with arrow keys, forceps with W/A/S/D. Hold Shift for faster movement. This is a 2D movement demonstration, not 6-DOF optical tracking.</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 · Forceps IDs 3–5. Experimental single-face 3D pose estimation enabled. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Multi-face prism fusion is not yet implemented.</p></section></main>`;
+<div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
+<p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D (Shift = faster).</p>
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 6–8 (temporary) · Forceps IDs 3–5. Experimental single-face 3D pose estimation enabled. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Virtual instrument movement is an approximate visualization; calibrated multi-face prism fusion is not yet implemented.</p></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -32,6 +32,7 @@ const start=document.querySelector<HTMLButtonElement>('#start-camera')!;
 const stop=document.querySelector<HTMLButtonElement>('#stop-camera')!;
 const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
+simulation.addEventListener('change',()=>{liveTargets.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -81,12 +82,15 @@ const frameCanvas=document.createElement('canvas');
 const frameContext=frameCanvas.getContext('2d',{willReadFrequently:true})!;
 const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
+let observationsAt=0;
+const trackingHoldMs=350;
+const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value;const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
@@ -106,20 +110,45 @@ driver.position.z=-.65;forceps.position.z=.65;
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>keys.clear());
 document.querySelector('#reset-sim')!.addEventListener('click',()=>{driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);});
+/** Map webcam coordinates to the virtual scene. This is a visual mapping, not calibrated world-space tracking. */
+function updateLiveTargets(){
+ if(!overlay.width||!overlay.height)return;
+ const now=observationsAt||performance.now();
+ for(const name of ['needleDriver','forceps'] as const){
+  const ids:readonly number[]=MARKER_GROUPS[name];
+  const candidates=observations.filter(m=>ids.includes(m.id)).map(marker=>{
+   const pose=estimateMarkerPose(marker,overlay.width,overlay.height);
+   return pose?{marker,pose}:null;
+  }).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item!==null);
+  candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
+  const chosen=candidates[0];if(!chosen)continue;
+  const {marker,pose}=chosen;
+  const cx=marker.corners.reduce((v,p)=>v+p.x,0)/4,cy=marker.corners.reduce((v,p)=>v+p.y,0)/4;
+  // Screen coordinates control horizontal/vertical movement; marker size estimates depth.
+  const x=THREE.MathUtils.clamp((cx/overlay.width-.5)*7,-2.6,2.6);
+  const y=THREE.MathUtils.clamp((.5-cy/overlay.height)*4+0.55,.15,2.8);
+  const z=THREE.MathUtils.clamp((pose.position.z-180)/180,-1.8,1.8);
+  const position=new THREE.Vector3(x,y,z);
+  // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
+  const quaternion=pose.quaternion.clone();
+  liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
+ }
+}
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  for(const pts of detector.candidateCorners){overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();overlayContext.strokeStyle='#ffdb32';overlayContext.lineWidth=4;overlayContext.stroke();}
  for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();overlayContext.strokeStyle='#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
- const groups=groupMarkers(observations);
+ updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
-  const readout=(ids:readonly number[])=>{
-   const poses=observations.filter(m=>ids.includes(m.id)).map(m=>estimateMarkerPose(m,overlay.width,overlay.height)).filter((p):p is NonNullable<typeof p>=>!!p).sort((a,b)=>a.reprojectionError-b.reprojectionError);
-   const p=poses[0];if(!p)return 'Not visible';
-   const v=p.position;const e=new THREE.Euler().setFromQuaternion(p.quaternion,'XYZ');const deg=(r:number)=>(r*180/Math.PI).toFixed(0);
-   return `ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
+  const readout=(name:'needleDriver'|'forceps')=>{
+   const target=liveTargets.get(name);if(!target)return 'Not visible';
+   const age=performance.now()-target.lastSeen;if(age>trackingHoldMs)return 'Not visible';
+   const p=target.pose,v=p.position,e=new THREE.Euler().setFromQuaternion(p.quaternion,'XYZ');
+   const deg=(r:number)=>(r*180/Math.PI).toFixed(0);
+   return `${age>130?'Last seen · ':''}ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
   };
-  driverReadout.textContent=readout([0,1,2]);forcepsReadout.textContent=readout([3,4,5]);
+  driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');
  }
 }
 async function detectFrame(now:number){
@@ -128,13 +157,23 @@ async function detectFrame(now:number){
  try{
   const w=video.videoWidth,h=video.videoHeight;if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
   frameContext.drawImage(video,0,0,w,h);const frame=frameContext.getImageData(0,0,w,h);if(thresholdToggle.checked)renderThreshold(frame);if(cropToggle.checked)renderCrop(frame);const found=await detector.detect(frame);
-  if(session===cameraSession){observations=found;framesAnalyzed++;diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
+  if(session===cameraSession){observations=found;observationsAt=performance.now();framesAnalyzed++;diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
  }catch(e){status.textContent='Detection error: '+(e instanceof Error?e.message:String(e));detectorReady=false;diag('note').textContent='Detector threw an error';}
  finally{processing=false;}
 }
 const resize=new ResizeObserver(()=>{const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});resize.observe(mount);
 let last=performance.now();
 function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
+ if(!simulation.checked){
+  for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps]] as const){
+   const target=liveTargets.get(name);
+   if(target&&now-target.lastSeen<trackingHoldMs){
+    const blend=1-Math.exp(-dt*12);
+    mesh.position.lerp(target.position,blend);
+    mesh.quaternion.slerp(target.quaternion,blend);
+   }
+  }
+ }
  if(simulation.checked){const speed=(keys.has('shift')?2:1)*dt;
   driver.position.x+=(Number(keys.has('arrowright'))-Number(keys.has('arrowleft')))*speed;driver.position.z+=(Number(keys.has('arrowdown'))-Number(keys.has('arrowup')))*speed;
   forceps.position.x+=(Number(keys.has('d'))-Number(keys.has('a')))*speed;forceps.position.z+=(Number(keys.has('s'))-Number(keys.has('w')))*speed;
