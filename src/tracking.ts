@@ -312,7 +312,7 @@ function updateLiveTargets(){
   // Two faces visible in the same frame provide an empirical rigid-body transform.
   const offsets=prismFaceOffsets.get(name)??new Map<number,THREE.Quaternion>();
   prismFaceOffsets.set(name,offsets);
-  if(!offsets.has(pose.id))offsets.set(pose.id,new THREE.Quaternion());
+  if(offsets.size===0)offsets.set(pose.id,new THREE.Quaternion());
   for(const other of candidates){
    if(other.pose.id===pose.id||other.pose.reprojectionError>5)continue;
    if(!offsets.has(other.pose.id)){
@@ -337,13 +337,14 @@ function updateLiveTargets(){
   // Relative orientation avoids imposing an arbitrary marker-face orientation on the instrument.
   // On face changes, rebase the new face to the last displayed orientation.
   let rotation=rotationStates.get(name);
-  const corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)!).normalize();
+  const hasFaceOffset=offsets.has(pose.id);
+  const corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)??new THREE.Quaternion()).normalize();
   if(!rotation){
    rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
    rotationStates.set(name,rotation);
   }else if(rotation.face!==pose.id){
    // Unknown face transforms retain the previous output without a sudden snap.
-   if(!offsets.has(pose.id)){
+   if(!hasFaceOffset){
     rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
    }else{
     rotation.face=pose.id;
