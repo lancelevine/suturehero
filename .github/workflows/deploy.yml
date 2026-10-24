@@ -30,8 +30,13 @@ jobs:
         run: npm ci
       - name: Test
         run: npm test
+      - name: Build calibration-enabled OpenCV.js
+        run: bash scripts/build-opencv/fetch-and-build.sh
+        timeout-minutes: 120
       - name: Build
         run: npm run build
+      - name: Include OpenCV.js in Pages output
+        run: mkdir -p dist/vendor && cp vendor/opencv.js dist/vendor/opencv.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
