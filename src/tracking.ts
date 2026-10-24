@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
-import {BrowserArucoDetector} from './input/arucoDetector';
+import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
 import {Instrument} from './instruments/Instrument';
 import './style.css';
@@ -69,7 +69,42 @@ const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
 const scissorsReadout=document.querySelector<HTMLElement>('#scissors-readout')!;
 const faceOverlapReadout=document.querySelector<HTMLElement>('#face-overlap-readout')!;
-const detector=new BrowserArucoDetector();
+class WorkerDetector {
+ private worker:Worker|null=null;
+ private pending=new Map<number,{resolve:(markers:MarkerObservation[])=>void;reject:(error:Error)=>void}>();
+ private sequence=0;
+ candidateCorners:Array<Array<{x:number;y:number}>>=[];
+ diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting',pass:'—',contrast:'—'};
+ async initialize(){
+  this.dispose();
+  const worker=new Worker(new URL('./input/arucoWorker.ts',import.meta.url),{type:'module'});
+  this.worker=worker;
+  await new Promise<void>((resolve,reject)=>{
+   const timeout=window.setTimeout(()=>reject(new Error('Detector worker initialization timed out')),15000);
+   worker.onmessage=(event:MessageEvent<{type:string;id?:number;found?:MarkerObservation[];candidates?:Array<Array<{x:number;y:number}>>;diagnostics?:DetectorDiagnostics;message?:string}>)=>{
+    const data=event.data;
+    if(data.type==='ready'){clearTimeout(timeout);resolve();return;}
+    if(data.type==='error'&&data.id===undefined){clearTimeout(timeout);reject(new Error(data.message));return;}
+    if(data.id===undefined)return;
+    const pending=this.pending.get(data.id);if(!pending)return;
+    this.pending.delete(data.id);
+    if(data.type==='error'){pending.reject(new Error(data.message));return;}
+    this.candidateCorners=data.candidates??[];
+    if(data.diagnostics)this.diagnostics=data.diagnostics;
+    pending.resolve(data.found??[]);
+   };
+   worker.onerror=()=>{clearTimeout(timeout);reject(new Error('Detector worker failed to load'));};
+   worker.postMessage({type:'init'});
+  });
+ }
+ detect(frame:ImageData):Promise<MarkerObservation[]>{
+  if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
+  const id=++this.sequence;
+  return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject});this.worker!.postMessage({type:'detect',id,frame},[frame.data.buffer]);});
+ }
+ dispose(){this.worker?.terminate();this.worker=null;for(const p of this.pending.values())p.reject(new Error('Worker stopped'));this.pending.clear();}
+}
+const detector=new WorkerDetector();
 const thresholdToggle=document.querySelector<HTMLInputElement>('#show-threshold')!;
 const thresholdPreview=document.querySelector<HTMLCanvasElement>('#threshold-preview')!;
 const thresholdContext=thresholdPreview.getContext('2d')!;
@@ -117,7 +152,7 @@ const select2=document.querySelector<HTMLSelectElement>('#camera-select-2')!;
 const start2=document.querySelector<HTMLButtonElement>('#start-camera-2')!;
 const stop2=document.querySelector<HTMLButtonElement>('#stop-camera-2')!;
 const status2=document.querySelector<HTMLElement>('#camera-status-2')!;
-const detector2=new BrowserArucoDetector();
+const detector2=new WorkerDetector();
 const frame2=document.createElement('canvas');
 const context2=frame2.getContext('2d',{willReadFrequently:true})!;
 const overlayContext2=overlay2.getContext('2d')!;
@@ -170,7 +205,7 @@ async function refreshSecondCameraList(){
  devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
  select2.value=devices.some(d=>d.deviceId===current)?current:'';
 }
-async function stopSecondCamera(){
+async function stopSecondCamera(){detector2.dispose();
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
@@ -280,11 +315,17 @@ const filterMeasurements=new Map<'needleDriver'|'forceps'|'scissors',{rawZ:numbe
 const stationaryStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
 const liveTargets=new Map<'needleDriver'|'forceps'|'scissors',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
+let idleNoMarkers=true,skippedFrames=0,renderFrames=0,renderFps=0,lastFpsTime=performance.now();
+const motionCanvas=document.createElement('canvas');motionCanvas.width=64;motionCanvas.height=36;
+const motionCtx=motionCanvas.getContext('2d',{willReadFrequently:true})!;
+let motionPrevious:Uint8Array|null=null;
+function changedFrame(source:HTMLVideoElement){motionCtx.drawImage(source,0,0,64,36);const data=motionCtx.getImageData(0,0,64,36).data;const next=new Uint8Array(64*36);let changed=0;for(let i=0;i<next.length;i++){const p=i*4;next[i]=(data[p]*3+data[p+1]*6+data[p+2])/10;if(motionPrevious&&Math.abs(next[i]-motionPrevious[i])>24)changed++;}motionPrevious=next;return changed>32;}
+
 let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;detector.dispose();detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
@@ -490,12 +531,15 @@ function drawDetections(){
  }
 }
 async function detectFrame(now:number){
- if(!stream||!detectorReady||processing||!video.videoWidth||now-lastDetection<90)return;
+ if(!stream||!detectorReady||processing||!video.videoWidth)return;
+ const motion=changedFrame(video);
+ const interval=idleNoMarkers?(motion?150:1200):90;
+ if(now-lastDetection<interval){skippedFrames++;return;}
  lastDetection=now;processing=true;const session=cameraSession;
  try{
   const w=video.videoWidth,h=video.videoHeight;if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
   frameContext.drawImage(video,0,0,w,h);const frame=frameContext.getImageData(0,0,w,h);if(thresholdToggle.checked)renderThreshold(frame);if(cropToggle.checked)renderCrop(frame);const found=await detector.detect(frame);
-  if(session===cameraSession){observations=found;observationsAt=performance.now();updateStereoMatches();framesAnalyzed++;diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
+  if(session===cameraSession){idleNoMarkers=found.length===0;observations=found;observationsAt=performance.now();updateStereoMatches();framesAnalyzed++;diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
  }catch(e){status.textContent='Detection error: '+(e instanceof Error?e.message:String(e));detectorReady=false;diag('note').textContent='Detector threw an error';}
  finally{processing=false;}
 }
@@ -523,9 +567,10 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(simulation.checked)driverReadout.textContent=`Simulated · (${driver.position.x.toFixed(2)}, ${driver.position.z.toFixed(2)})`;
  if(simulation.checked)scissorsReadout.textContent=`Simulated · (${scissors.position.x.toFixed(2)}, ${scissors.position.z.toFixed(2)})`;
  if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
+ renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
  void detectFrame(now);
  void detectSecondFrame(now);
  orbit.update();renderer.render(scene,camera);requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
-window.addEventListener('pagehide',()=>{void stopCamera();void stopSecondCamera();resize.disconnect();orbit.dispose();renderer.dispose();});
+window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit.dispose();renderer.dispose();});
