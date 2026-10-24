@@ -17,4 +17,4 @@ echo ">>> Fetching OpenCV ${OPENCV_VERSION}"
 wget -q "https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.tar.gz" -O "${WORK}/opencv.tar.gz"
 tar xzf "${WORK}/opencv.tar.gz" -C "${WORK}"
 
-OPENCV_SRC="${WORK}/opencv-${OPENCV_VERSION}" EMSDK_IMAGE="${EMSDK_IMAGE:-emscripten/emsdk:6.0.7}" "${SCRIPT_DIR}/build.sh"
+OPENCV_SRC="${WORK}/opencv-${OPENCV_VERSION}" EMSDK_IMAGE="${EMSDK_IMAGE:-emscripten/emsdk:6.0.7}" bash "${SCRIPT_DIR}/build.sh"
