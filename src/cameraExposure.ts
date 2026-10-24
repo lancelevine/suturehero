@@ -1,6 +1,7 @@
+export {};
 // Browser camera controls are optional: many UVC drivers expose controls to OBS but not Chrome.
-type Range={min:number;max:number;step?:number};
-type CameraCaps=MediaTrackCapabilities & {exposureMode?:string[];exposureTime?:Range;gain?:Range};
+type CameraNumericRange={min:number;max:number;step?:number};
+type CameraCaps=MediaTrackCapabilities & {exposureMode?:string[];exposureTime?:CameraNumericRange;gain?:CameraNumericRange};
 type CameraSettings=MediaTrackSettings & {exposureMode?:string;exposureTime?:number;gain?:number};
 function panel(videoId:string, label:string){
  const video=document.querySelector<HTMLVideoElement>('#'+videoId)!;
