@@ -58,3 +58,16 @@ it('renders the same shared midpoint ridge and gap used for thread contact',asyn
  expect(edge.x).toBeCloseTo(.05-fieldShift(.05,0,sites),6);
  expect(edge.y).toBeCloseTo(.41+fieldLift(.05,.41,0,sites),6);
 });
+it('shows a wider lower dermal gap for a shallow tract while the surface closes',async()=>{
+ const {TISSUE_LAYERS}=await import('./anatomy');
+ const pad=new TissuePatch(),wound=new WoundApproximation();wound.closure=1;
+ wound.tractBottom=(TISSUE_LAYERS.dermis.bottom+TISSUE_LAYERS.dermis.top)/2-.012;
+ pad.update(wound);
+ const mesh=pad.root.getObjectByName('dermis-right') as THREE.Mesh,pos=mesh.geometry.getAttribute('position');
+ const gapAt=(y:number)=>{
+  const vertices=Array.from({length:pos.count},(_,i)=>new THREE.Vector3().fromBufferAttribute(pos,i).add(mesh.position));
+  return Math.min(...vertices.filter(p=>Math.abs(p.z)<1e-6&&Math.abs(p.y-y)<1e-6).map(p=>p.x))*2;
+ };
+ expect(gapAt(TISSUE_LAYERS.dermis.top)).toBeCloseTo(.012,5);
+ expect(gapAt(TISSUE_LAYERS.dermis.bottom)).toBeGreaterThan(.025);
+});

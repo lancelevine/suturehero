@@ -29,3 +29,13 @@ it('is continuous across stitch centers and keeps isolated stitches unchanged',(
  for(const s of sites){expect(Math.abs(fieldShift(.05,s.siteZ-1e-5,sites)-fieldShift(.05,s.siteZ+1e-5,sites))).toBeLessThan(.00001);}
  const single=[site(0)];for(const z of [-1,0,.2,1]){expect(fieldShift(.05,z,single)).toBe(retainedShift(.05,z,single[0]));expect(fieldLift(.05,.41,z,single)).toBe(retainedLift(.05,.41,z,single[0]));}
 });
+it('can close the surface while a shallow tract leaves a lower dermal opening',async()=>{
+ const {DEEP_DERMIS_Y}=await import('./StitchField'),{TISSUE_LAYERS}=await import('./anatomy');
+ const shallow=site(0,{tractBottom:(TISSUE_LAYERS.dermis.bottom+TISSUE_LAYERS.dermis.top)/2-.012});
+ const deep=site(0,{tractBottom:TISSUE_LAYERS.dermis.bottom+.01});
+ const gap=(s:TissueSite,y:number)=>.1-2*fieldShift(.05,0,[s],y);
+ expect(gap(shallow,.41)).toBeCloseTo(.012,6);
+ expect(gap(shallow,DEEP_DERMIS_Y)).toBeGreaterThan(gap(deep,DEEP_DERMIS_Y)+.01);
+ expect(gap(shallow,.04)).toBeCloseTo(gap(shallow,DEEP_DERMIS_Y),6);
+ expect(gap(deep,DEEP_DERMIS_Y)).toBeCloseTo(.012,6);
+});

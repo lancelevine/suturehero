@@ -51,14 +51,14 @@ export class TissuePatch {
     this.lastEversion=eversion?.revision??0;
     this.lastClosure=model.closure;
     const response=model.response;
-    const shared=field??[...sites,{siteZ,closure:model.closure,initialGap:model.initialGap,eversion:response?.eversion??0,pucker:response?.pucker??0,compression:response?.compression??0,mismatch:model.edgeMismatch}].sort((a,b)=>a.siteZ-b.siteZ);
+    const shared=field??[...sites,{siteZ,closure:model.closure,initialGap:model.initialGap,tractBottom:model.tractBottom,eversion:response?.eversion??0,pucker:response?.pucker??0,compression:response?.compression??0,mismatch:model.edgeMismatch}].sort((a,b)=>a.siteZ-b.siteZ);
     const point=new THREE.Vector3();
     for(const {mesh,original} of this.surfaces) {
       const position=mesh.geometry.getAttribute('position');
       for(let i=0;i<position.count;i++) {
         point.set(original[i*3]+mesh.position.x,original[i*3+1]+mesh.position.y,original[i*3+2]+mesh.position.z);
         const x=point.x,y=point.y,z=point.z;
-        point.x=Math.sign(x)*Math.max(.006,Math.abs(x)-fieldShift(x,z,shared));
+        point.x=Math.sign(x)*Math.max(.006,Math.abs(x)-fieldShift(x,z,shared,y));
         point.y=y+fieldLift(x,y,z,shared);
         point.z-=siteZ;eversion?.deformPoint(point,point);point.z=z;
         point.sub(mesh.position);position.setXYZ(i,point.x,point.y,point.z);

@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.40)
+## Current practice options (build 0.41)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Skin cross-section and depth closure in 0.41
+
+**Show skin cross-section** opens a lightweight side-on panel showing epidermis, dermis and fat at the current stitch. It follows the same tissue field as the 3D pad, including closure, forceps eversion, unequal edge heights and neighboring stitches. The dashed blue curve shows the planned needle path in tissue coordinates; it is not a live suture trace. The toggle does not change instrument movement or interrupt practice and is hidden in microsurgery.
+
+A shallow planned needle tract now provides less approximation in the lower dermis while still allowing surface closure. Fat passively follows the lower dermal displacement. The panel compares surface and deep dermal gaps, sampled in the lower quarter of the dermis. Stitch feedback separately reports a remaining deep gap and uneven edge levels. Both the tract depth and the review are retained with saved stitches. Existing bite-width controls change the circular tract's depth; there is no new input requirement.
+
+Depth support and the feedback thresholds are bounded geometric illustrations, not measured tissue mechanics, tissue injury predictions or clinical adequacy criteria. Guided needle placement remains constrained to valid dermal purchase. No extra dynamic physics or heavy rendering effects are added.
 
 ## Neighboring stitch closure in 0.40
 

@@ -29,7 +29,10 @@ it.each([false,true])('completes three real passes, knots and cuts without repla
   expect(s.knotSlack.cut(s.knotSlack.short,8.5)).toBe(true);expect(s.canAdvanceStitch).toBe(false);
   expect(s.knotSlack.cut(s.knotSlack.long,8.5)).toBe(true);expect(s.canAdvanceStitch).toBe(true);
   const previous=s.course.completed.map(r=>r.strands[0].map(p=>p.toArray()));
+  const tractBottom=s.pass.center.y-s.pass.radius;
   expect(s.advanceStitch()).toBe(true);expect(s.course.completed).toHaveLength(n+1);
+  expect(s.course.completed[n].site.tractBottom).toBeCloseTo(tractBottom,6);
+  expect(s.course.completed[n].review.join(' ')).toContain('Deep dermal closure:');
   expect(s.course.completed.slice(0,n).map(r=>r.strands[0].map(p=>p.toArray()))).toEqual(previous);
   if(n<2){expect(s.pass.phase).toBe('idle');expect(s.wound.closure).toBe(0);expect(s.course.tissueSites[n].closure).toBeGreaterThan(.95);}
  }

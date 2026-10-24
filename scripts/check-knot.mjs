@@ -12,6 +12,12 @@ try {
     await page.locator('#show-needle-guide').uncheck();assert.equal(await page.locator('#show-needle-guide').isChecked(),false);
     assert.notEqual(await page.locator('#right-bite-value').innerText(),await page.locator('#left-bite-value').innerText());
   }
+  if(process.env.SUTURE_TEST_DEPTH){
+    assert.equal(await page.locator('#cross-section').isVisible(),false);
+    await page.locator('#show-cross-section').check();
+    await page.waitForFunction(()=>document.querySelector('#cross-section-readout').textContent.includes('Deep dermal gap'));
+    assert.equal(await page.locator('#cross-section-canvas').isVisible(),true);
+  }
   await page.getByRole('button',{name:'Start guided pass'}).click();
   if(process.env.SUTURE_TEST_TRACTION){
     await page.locator('#position-forceps').click();await page.keyboard.down('z');
@@ -82,6 +88,13 @@ try {
   await page.waitForFunction(()=>document.querySelector('#stitch-quality').textContent.includes('Tails trimmed: 2/2'),{},{timeout:15000});
   await page.keyboard.up(',');
   assert.match(await page.locator('#stitch-stage').innerText(),/Stitch exercise complete/);
+  if(process.env.SUTURE_TEST_DEPTH){
+    assert.match(await page.locator('#stitch-quality').innerText(),/Deep dermal closure:/);
+    assert.match(await page.locator('#cross-section-readout').innerText(),/Surface gap.*Deep dermal gap/);
+    await page.locator('#cross-section').screenshot({path:'/tmp/suture-cross-section.png'});
+    await page.locator('#show-cross-section').uncheck();assert.equal(await page.locator('#cross-section').isVisible(),false);
+    await page.locator('#show-cross-section').check();
+  }
   if(process.env.SUTURE_TEST_BITES)assert.match(await page.locator('#stitch-quality').innerText(),/unequal widths.*planned/);
   if(process.env.SUTURE_TEST_TRACTION)assert.match(await page.locator('#stitch-quality').innerText(),/Skin grasp slips: 1/);
   if(process.env.SUTURE_TEST_COURSE){

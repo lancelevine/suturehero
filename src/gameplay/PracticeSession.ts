@@ -1,6 +1,6 @@
 import {DEFAULT_BITE_WIDTH} from '../tissue/BitePlan';
 import {StitchCourse} from './StitchCourse';
-import {retainedSurfaceLift,fieldShift,fieldLift,type TissueSite} from '../tissue/StitchField';
+import {DEEP_DERMIS_Y,retainedSurfaceLift,fieldShift,fieldLift,type TissueSite} from '../tissue/StitchField';
 import {StitchTissueResponse} from '../tissue/StitchTissueResponse';
 import {assessStitch} from './StitchAssessment';
 import {MICRO_FLOOR_Y,MICRO_TARGETS} from '../environments/MicroTargets';
@@ -33,7 +33,7 @@ export class PracticeSession {
     this.bitePlanLimited=plan.limited;this.syncBitePlan();return true;
   }
   setStitchPosition(z:number){if(!this.canPlanBites||!this.course.selectSite(z))return false;this.configureTissueResponse();return true;}
-  private syncBitePlan(){this.placement.target.copy(this.pass.entry);this.placement.direction.set(-Math.sin(this.pass.startAngle),-Math.cos(this.pass.startAngle),0);this.freeKnot.tractHalfWidth=this.pass.halfWidth;}
+  private syncBitePlan(){this.placement.target.copy(this.pass.entry);this.placement.direction.set(-Math.sin(this.pass.startAngle),-Math.cos(this.pass.startAngle),0);this.freeKnot.tractHalfWidth=this.pass.halfWidth;this.wound.tractBottom=this.environment.id==='skin'?this.pass.center.y-this.pass.radius:undefined;}
 
   readonly tissueResponse=new StitchTissueResponse();
   readonly freeKnot=new FreeKnotPractice();
@@ -87,7 +87,7 @@ export class PracticeSession {
   private tissuePoint(p:THREE.Vector3){
     if(this.environment.id!=='skin'||!this.course.active)return this.wound.deformPoint(p);
     const z=p.z+this.course.siteZ,sites=this.tissueField;
-    return new THREE.Vector3(p.x-Math.sign(p.x)*fieldShift(p.x,z,sites),p.y+fieldLift(p.x,p.y,z,sites),p.z);
+    return new THREE.Vector3(p.x-Math.sign(p.x)*fieldShift(p.x,z,sites,p.y),p.y+fieldLift(p.x,p.y,z,sites),p.z);
   }
   private fieldCache:readonly TissueSite[]=[];
   private fieldActive?:TissueSite;
@@ -97,9 +97,9 @@ export class PracticeSession {
   get tissueField(){
     const saved=this.course.tissueSites,z=this.course.siteZ,r=this.tissueResponse;
     const previous=this.fieldActive,mismatch=this.wound.edgeMismatch;
-    if(this.fieldSaved!==saved||!previous||previous.siteZ!==z||previous.closure!==this.wound.closure||this.fieldRevision!==r.revision||previous.mismatch!==mismatch||previous.initialGap!==this.wound.initialGap){
+    if(this.fieldSaved!==saved||!previous||previous.siteZ!==z||previous.closure!==this.wound.closure||this.fieldRevision!==r.revision||previous.mismatch!==mismatch||previous.initialGap!==this.wound.initialGap||previous.tractBottom!==this.wound.tractBottom){
       this.fieldSaved=saved;this.fieldRevision=r.revision;
-      const active:TissueSite={siteZ:z,closure:this.wound.closure,initialGap:this.wound.initialGap,eversion:r.eversion,pucker:r.pucker,compression:r.compression,mismatch};
+      const active:TissueSite={siteZ:z,closure:this.wound.closure,initialGap:this.wound.initialGap,tractBottom:this.wound.tractBottom,eversion:r.eversion,pucker:r.pucker,compression:r.compression,mismatch};
       this.fieldActive=active;
       // The last site is already recorded when the course finishes.
       this.fieldCache=this.course.finished?saved:[...saved,active].sort((a,b)=>a.siteZ-b.siteZ);
@@ -127,7 +127,7 @@ export class PracticeSession {
   advanceStitch(){
     if(!this.canAdvanceStitch)return false;
     const free=this.freeKnot.active,threads=free?[this.freeKnot.long,this.freeKnot.short]:[this.knotSlack.long,this.knotSlack.short];
-    if(!this.course.record(true,{closure:this.wound.closure,initialGap:this.wound.initialGap,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,mismatch:this.wound.edgeMismatch},this.stitchAssessment.feedback,threads.map(s=>s.points)))return false;
+    if(!this.course.record(true,{closure:this.wound.closure,initialGap:this.wound.initialGap,tractBottom:this.wound.tractBottom,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,mismatch:this.wound.edgeMismatch},this.stitchAssessment.feedback,threads.map(s=>s.points)))return false;
     if(this.course.advance()){this.resetCurrent();this.configureTissueResponse();}
     return true;
   }
@@ -137,7 +137,7 @@ export class PracticeSession {
     return assessStitch({lab,skin:this.environment.id==='skin',pass:this.pass.phase==='complete',extracted:this.pull.phase==='complete',
       knot:isFree?!!free.sequence?.locked:this.knot.phase==='complete',seated:isFree?free.lockSeated:this.knot.phase==='complete'&&this.wound.closure>.9,
       released,trimmed:isFree?free.trimmedTails.size:this.knotSlack.trimmedTails.size,bites:this.wound.purchaseSites,closure:this.wound.closure,
-      eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,edgeMismatch:this.wound.edgeMismatch,planned:this.pass.customBites,skinTractionPeak:this.handlingPeak,skinGraspSlips:this.handlingSlips,
+      eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,edgeMismatch:this.wound.edgeMismatch,planned:this.pass.customBites,deepGap:this.environment.id==='skin'?this.wound.initialGap-2*fieldShift(this.wound.initialGap/2,this.course.siteZ,this.tissueField,DEEP_DERMIS_Y):undefined,skinTractionPeak:this.handlingPeak,skinGraspSlips:this.handlingSlips,
       peakPull:isFree?Math.max(free.tension.long.peakDemand,free.tension.short.peakDemand):this.tissueResponse.peakDemand});
   }
   gripFraction=0.9;

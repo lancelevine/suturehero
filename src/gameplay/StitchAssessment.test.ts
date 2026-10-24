@@ -18,3 +18,9 @@ it('reports current skin compression without changing completion or microsurgery
  expect(assessStitch({...f,compression:0}).feedback).toContain('Tissue compression: minimal');
  expect(assessStitch({...f,skin:false}).feedback.join(' ')).not.toContain('Tissue compression');
 });
+it('distinguishes surface closure from residual deep opening and unequal dermal levels',()=>{
+ const f={...frame(),deepGap:.035,edgeMismatch:.01};
+ expect(assessStitch(f).feedback).toContain('Deep dermal closure: residual gap · uneven levels');
+ expect(assessStitch(f).complete).toBe(true);
+ expect(assessStitch({...f,skin:false}).feedback.join(' ')).not.toContain('Deep dermal');
+});

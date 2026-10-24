@@ -1,4 +1,4 @@
-import {edgeMismatchLift} from './StitchField';
+import {edgeMismatchLift,depthSupport} from './StitchField';
 import {TISSUE_LAYERS} from './anatomy';
 import type {StitchTissueResponse} from './StitchTissueResponse';
 import { isDermalBite } from './anatomy';
@@ -6,6 +6,7 @@ import * as THREE from 'three';
 /** Dermal purchase carries closure load; attached epidermis and fat follow passively. Not an elastic material model. */
 export class WoundApproximation {
   closure=0;
+  tractBottom?:number;
   response?:StitchTissueResponse;
   get purchaseSites(){return this.bites.map(p=>p?.clone()??null) as [THREE.Vector3|null,THREE.Vector3|null];}
   surfaceLiftAt(point:THREE.Vector3){return (this.response?.surfaceLiftAt(point)??0)+edgeMismatchLift(point.x,TISSUE_LAYERS.epidermis.top,point.z,this.edgeMismatch);}
@@ -33,10 +34,10 @@ export class WoundApproximation {
     this.response?.update(this.closure,this.hasDermalSupport?demand:0,dt,balance);
   }
   private influence(z: number) {return Math.exp(-((z/0.6)**2));}
-  gapAt(z: number) {return this.initialGap-(this.initialGap-this.minimumGap)*this.closure*this.influence(z);}
+  gapAt(z: number,y:number=TISSUE_LAYERS.epidermis.top) {return this.initialGap-(this.initialGap-this.minimumGap)*this.closure*this.influence(z)*depthSupport(y,this.tractBottom);}
   deformPoint(point: THREE.Vector3,target=point.clone()) {
     const support=Math.max(0,1-Math.max(0,Math.abs(point.x)-this.initialGap/2)/1.4);
-    const shift=(this.initialGap-this.minimumGap)/2*this.closure*this.influence(point.z)*support;
+    const shift=(this.initialGap-this.minimumGap)/2*this.closure*this.influence(point.z)*support*depthSupport(point.y,this.tractBottom);
     return target.set(point.x-Math.sign(point.x)*shift,point.y+(this.response?.liftAt(point)??0)+edgeMismatchLift(point.x,point.y,point.z,this.edgeMismatch),point.z);
   }
   reset() {this.response?.reset();this.closure=0;this.bites=[null,null];}
