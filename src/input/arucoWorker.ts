@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
-import {MARKER_CODES} from './arucoDetector';
-import type {MarkerObservation} from './arucoTracking';
+const MARKER_CODES=[0xb532,0x0f9a,0x332d,0x9946,0x549e,0x79cd,0x9e2e,0xc4f2,0xfeda];
+type MarkerObservation={id:number;corners:Array<{x:number;y:number}>};
 type LegacyDetector={detect:(frame:ImageData)=>MarkerObservation[];candidates?:unknown[];polys?:unknown[]};
 type ArucoGlobal={DICTIONARIES:Record<string,{nBits:number;tau:number;codeList:number[]}>;Detector:new(options:{dictionaryName:string;maxHammingDistance:number})=>LegacyDetector};
 const workerScope=self as DedicatedWorkerGlobalScope & {AR?:ArucoGlobal};
