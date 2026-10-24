@@ -42,7 +42,7 @@ const start=document.querySelector<HTMLButtonElement>('#start-camera')!;
 const stop=document.querySelector<HTMLButtonElement>('#stop-camera')!;
 const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
-simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
+simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -209,8 +209,9 @@ const frameContext=frameCanvas.getContext('2d',{willReadFrequently:true})!;
 const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 let observationsAt=0;
-const trackingHoldMs=350;
+const trackingHoldMs=650;
 const rotationStates=new Map<'needleDriver'|'forceps',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
+const depthStates=new Map<'needleDriver'|'forceps,number>();
 const stationaryStates=new Map<'needleDriver'|'forceps',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
 const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
@@ -218,7 +219,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
@@ -267,7 +268,12 @@ function updateLiveTargets(){
   // Screen coordinates control horizontal/vertical movement; marker size estimates depth.
   const x=THREE.MathUtils.clamp((cx/overlay.width-.5)*7,-2.6,2.6);
   const y=THREE.MathUtils.clamp((.5-cy/overlay.height)*4+0.55,.15,2.8);
-  const z=THREE.MathUtils.clamp((pose.position.z-180)/180,-1.8,1.8);
+  // Single-marker depth is very noisy without calibrated intrinsics. Use a strong
+  // low-pass filter and reject isolated jumps rather than mapping raw Z directly.
+  const rawZ=THREE.MathUtils.clamp((pose.position.z-180)/180,-1.8,1.8);
+  const previousZ=depthStates.get(name);
+  const z=previousZ===undefined?rawZ:previousZ+THREE.MathUtils.clamp(rawZ-previousZ,-.08,.08)*.12;
+  depthStates.set(name,z);
   const position=new THREE.Vector3(x,y,z);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
   const switched=!!previous&&previous.id!==pose.id;
@@ -292,12 +298,12 @@ function updateLiveTargets(){
    let state=stationaryStates.get(name);
    if(!state){state={anchor:previous.position.clone(),moving:false,pending:0};stationaryStates.set(name,state);}
    const fromAnchor=state.anchor.distanceTo(position);
-   const enterMovement=.095,stopMovement=.035;
+   const enterMovement=.14,stopMovement=.045;
    if(!state.moving){
     if(fromAnchor>enterMovement){state.pending++;}
     else state.pending=0;
     // Large intentional motions unlock immediately; smaller motions need two frames.
-    if(fromAnchor>.19||state.pending>=2){state.moving=true;state.pending=0;}
+    if(fromAnchor>.30||state.pending>=3){state.moving=true;state.pending=0;}
    }else{
     // Relock only after the instrument has settled near its filtered position.
     if(distance<stopMovement){state.pending++;}
@@ -314,8 +320,8 @@ function updateLiveTargets(){
    }
    // Rotation uses its own deadband and filtering, independent of translation lock.
    const angle=previous.quaternion.angleTo(desired);
-   if(!switched&&angle>THREE.MathUtils.degToRad(.8)&&angle<THREE.MathUtils.degToRad(55)){
-    quaternion.slerp(desired,1-Math.exp(-elapsed*16));
+   if(!switched&&angle>THREE.MathUtils.degToRad(3)&&angle<THREE.MathUtils.degToRad(25)){
+    quaternion.slerp(desired,1-Math.exp(-elapsed*7));
    }
   }
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
