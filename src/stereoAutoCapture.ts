@@ -69,7 +69,7 @@ async function loadDetector():Promise<CV>{
  if(!globalCV.cv){
   await new Promise<void>((resolve,reject)=>{
    const script=document.createElement('script');
-   script.src='https://docs.opencv.org/4.x/opencv.js';
+   script.src=new URL('./vendor/opencv.js',document.baseURI).href;
    script.async=true;
    script.onload=()=>resolve();
    script.onerror=()=>reject(Error('Unable to load OpenCV.js. Check network access.'));
@@ -79,8 +79,15 @@ async function loadDetector():Promise<CV>{
  let cv=globalCV.cv;
  if(cv instanceof Promise)cv=await cv;
  if(cv?.ready instanceof Promise)await cv.ready;
+ // The custom build exposes its API after WebAssembly initialization.
+ if(typeof cv?.findChessboardCorners!=='function' && cv?.onRuntimeInitialized!==undefined){
+  await new Promise<void>((resolve,reject)=>{
+   const timeout=window.setTimeout(()=>reject(Error('OpenCV.js initialization timed out')),30000);
+   cv.onRuntimeInitialized=()=>{window.clearTimeout(timeout);resolve();};
+  });
+ }
  if(typeof cv?.findChessboardCorners!=='function'){
-  detectorError='This OpenCV.js build does not include checkerboard detection (calib3d). Validated capture is unavailable; no unverified images will be saved.';
+  detectorError='The bundled calibration OpenCV.js build did not expose checkerboard detection. Validated capture is unavailable; no unverified images will be saved.';
   throw Error(detectorError);
  }
  detector=cv as CV;
