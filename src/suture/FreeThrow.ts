@@ -31,7 +31,7 @@ export class FreeThrow {
   private retentionAge=0;
   private passageAge=0;
   private pendingPost?:number;
-  private clearanceMissTime=0;
+  private crossingMissTime=0;
   private notice='';
   private captureHint='';
   seatingHint='Pull the two held ends apart to tighten';
@@ -54,7 +54,7 @@ export class FreeThrow {
     if(this.active)this.retentionAge+=Math.max(0,Math.min(dt,.05));
     if(this.phase==='passed')this.passageAge+=Math.max(0,Math.min(dt,.05));
   }
-  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.clearanceMissTime=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;}
+  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.crossingMissTime=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
   update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driverSupportsLoop:(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>boolean,longGrip:number|undefined,shortGrip:number|undefined){
     // Keep recovery instructions until a fresh opening or successful retry,
@@ -65,7 +65,7 @@ export class FreeThrow {
       const event=passage.passage;
       if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1){this.reset('Leave free working thread beyond a complete wrap');passage.reset();return;}
       this.notice='';this.captureHint='';
-      this.passageAge=this.clearanceMissTime=0;this.pendingPost=undefined;
+      this.passageAge=this.crossingMissTime=0;this.pendingPost=undefined;
       this.passageVia=event.via;this.wraps=event.wraps;this.direction=event.direction;this.minimumSegments=this.wraps*6;
       this.first=event.first;this.last=event.last;this.initialSegments=this.last-this.first;this.exitSide=event.side;this.normal.copy(event.normal);this.phase='passed';
     }
@@ -86,15 +86,23 @@ export class FreeThrow {
       if(this.passageVia==='tip'&&side*this.exitSide< -0.02){this.reset('Tail moved back out · Pull the gold end completely through the loop');passage.reset();return;}
       const loop=long.points.slice(this.first,this.last+1);
       const opening=new MaterialOpening(loop,this.normal),crossing=opening.crossingCoordinate(short.points,THREAD_CONTACT_DISTANCE);
-      this.pendingPost=crossing??(this.pendingPost===undefined?undefined:opening.nearbyPlaneCrossing(short.points,this.pendingPost));
+      if(crossing!==undefined){this.pendingPost=crossing;this.crossingMissTime=0;}
+      else{
+        this.crossingMissTime+=Math.max(0,Math.min(dt,.05));
+        const previous=this.pendingPost;
+        const candidate=previous===undefined?undefined:opening.nearbyPlaneCrossing(short.points,previous)??previous;
+        // A single solver step can put the entire local post just to one
+        // side of the fitted plane. Preserve only an already proven material
+        // coordinate, within the live bight's slab and rim, for a short grace.
+        this.pendingPost=candidate!==undefined&&this.crossingMissTime<.1&&opening.containsPost(short.pointAt(candidate),THREAD_CONTACT_DISTANCE*2)?candidate:undefined;
+      }
       const clear=!driverSupportsLoop(loop,this.normal);
       this.captureHint=clear?'Keep the short strand through the loop while pulling clear':'Slide the loop clear of the driver working tip';
-      if(!clear){this.clearanceMissTime=0;return;}
+      if(!clear)return;
       if(crossing===undefined){
-        this.clearanceMissTime+=Math.max(0,Math.min(dt,.05));
-        // Let bounded rim contact converge across clearance, without attaching
-        // a nearby unthreaded strand or holding a tail that backed out axially.
-        if(this.pendingPost!==undefined&&this.clearanceMissTime<.1)return;
+        // Provisional continuity buys time for actual crossing to recover;
+        // proximity alone can never promote a throw to retained.
+        if(this.pendingPost!==undefined)return;
         this.reset('Loop slipped off the short strand · Rewrap and pull the gold end through');passage.reset();return;
       }
       this.shortCoordinate=THREE.MathUtils.clamp(crossing,1,this.postLimit(short,shortGrip));this.phase='retained';this.pullDistance=undefined;

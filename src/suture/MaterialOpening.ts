@@ -46,6 +46,17 @@ export class MaterialOpening {
     }
     return coordinate;
   }
+  /** Bounded continuation of an already observed post, never new passage evidence. */
+  containsPost(point:THREE.Vector3,margin:number){
+    const depth=point.clone().sub(this.center).dot(this.axis);
+    if(depth<this.low-margin||depth>this.high+margin)return false;
+    const p=this.project(point);if(this.contains(p))return true;
+    for(let i=0,j=this.polygon.length-1;i<this.polygon.length;j=i++){
+      const hit=closestSegments(p,p,this.polygon[j],this.polygon[i]);
+      if(hit.p.distanceToSquared(hit.q)<=margin*margin)return true;
+    }
+    return false;
+  }
   /** A provisional rim contact prevents a previously threaded post escaping
    * sideways. It leaves axial pull-through and reversal free. */
   inwardCorrection(point:THREE.Vector3,margin:number){

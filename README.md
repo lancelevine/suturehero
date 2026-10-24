@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.35)
+## Current practice options (build 0.36)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,10 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Free-tying capture continuity in 0.36
+
+A confirmed short-post crossing now survives a brief contact gap as the loop clears the driver. Previously, a single solver step placing the local strand just to one side of the fitted opening plane discarded that evidence immediately and reported “Loop slipped off.” Provisional continuity now follows the same material coordinate for up to 0.1 seconds, bounded by the live opening's slab and rim. Retention still requires an actual material crossing to recover; proximity alone cannot form a knot. Releasing the tail, pulling it back out, or failing to recover the crossing cancels capture.
 
 ## Three-stitch skin session in 0.35
 

@@ -183,3 +183,31 @@ it('does not pump slack out of a retained loop from repeated small hand oscillat
  f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
  expect(f.throwModel.last-f.throwModel.first).toBeLessThan(indices[1]-indices[0]);
 });
+
+it.each([1/60,1/120])('keeps a proven post through one axial contact gap at driver clearance (dt %f)',dt=>{
+ const f=fixture();f.throwModel.update(dt,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.phase).toBe('passed');expect(f.throwModel.protectedPostCoordinate).toBeGreaterThan(0);
+ const original=f.short.points.map(p=>p.clone());
+ for(const point of f.short.points)if(point.z<=.45)point.z=.455;
+ f.driver.makeTranslation(0,.65,1.2);
+ f.throwModel.update(dt,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.phase).toBe('passed');expect(f.throwModel.protectedPostCoordinate).toBeGreaterThan(0);
+ original.forEach((p,i)=>f.short.points[i].copy(p));
+ f.throwModel.update(dt,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.phase).toBe('retained');expect(f.long.length+f.short.length).toBeCloseTo(3.3,10);
+});
+it('does not turn a lingering nearby post into retention without a recovered material crossing',()=>{
+ const f=fixture();f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ for(const point of f.short.points)if(point.z<=.45)point.z=.455;
+ f.driver.makeTranslation(0,.65,1.2);
+ for(let i=0;i<20;i++)f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.active).toBe(false);expect(f.throwModel.phase).toBe('idle');expect(f.throwModel.lastFailure).toContain('Loop slipped off');
+});
+it('cancels provisional continuity immediately when the driver releases the short tail',()=>{
+ const f=fixture();f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ for(const point of f.short.points)if(point.z<=.45)point.z=.455;
+ f.driver.makeTranslation(0,.65,1.2);f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,39);
+ expect(f.throwModel.phase).toBe('passed');
+ f.throwModel.update(1/120,f.passage,f.long,f.short,f.supportsLoop,63,undefined);
+ expect(f.throwModel.phase).toBe('idle');expect(f.throwModel.protectedPostCoordinate).toBe(0);expect(f.passage.passage).toBeUndefined();
+});
