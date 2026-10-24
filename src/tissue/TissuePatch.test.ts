@@ -48,3 +48,13 @@ it('shows and retains a bounded edge-height mismatch for unequal dermal bites',(
  expect(wound.edgeMismatch).toBeGreaterThan(.01);const right=wound.deformPoint(new THREE.Vector3(.05,.41,0)),left=wound.deformPoint(new THREE.Vector3(-.05,.41,0));expect(left.y).toBeGreaterThan(right.y);
  expect(wound.deformPoint(new THREE.Vector3(-.05,.05,0)).y).toBe(.05);expect(wound.surfaceLiftAt(new THREE.Vector3(-.05,.41,0))).toBeGreaterThan(0);
 });
+it('renders the same shared midpoint ridge and gap used for thread contact',async()=>{
+ const {fieldShift,fieldLift}=await import('./StitchField');
+ const sites=[-.375,.375].map(siteZ=>({siteZ,closure:1,initialGap:.1,eversion:.02,pucker:0,compression:.004}));
+ const pad=new TissuePatch(),wound=new WoundApproximation();pad.update(wound,undefined,sites,0,sites);
+ const mesh=pad.root.getObjectByName('epidermis-right') as THREE.Mesh,pos=mesh.geometry.getAttribute('position');
+ const vertices=Array.from({length:pos.count},(_,i)=>new THREE.Vector3().fromBufferAttribute(pos,i).add(mesh.position));
+ const edge=vertices.filter(p=>Math.abs(p.z)<1e-6&&Math.abs(p.y-.41)<.04).sort((a,b)=>a.x-b.x||b.y-a.y)[0];
+ expect(edge.x).toBeCloseTo(.05-fieldShift(.05,0,sites),6);
+ expect(edge.y).toBeCloseTo(.41+fieldLift(.05,.41,0,sites),6);
+});

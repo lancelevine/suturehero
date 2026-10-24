@@ -32,3 +32,10 @@ it('reserves room for later stitches and enforces separation from saved material
  const c=new StitchCourse(),strand=[new THREE.Vector3(),new THREE.Vector3(0,.4,.1)];c.begin();c.selectSite(1.1);expect(c.siteZ).toBeCloseTo(.5);
  c.record(true,site,[],[strand]);c.advance();c.selectSite(-1);expect(c.siteZ).toBeCloseTo(.8);expect(c.completed[0].site.siteZ).toBeCloseTo(.5);
 });
+it('reviews residual opening between saved stitches and clears on reset',()=>{
+ const c=new StitchCourse(),strand=[new THREE.Vector3(),new THREE.Vector3(.1,.4,.1)];c.begin();
+ expect(c.closureReview).toContain('Save two');
+ for(const z of [-1,-.7,.8]){c.selectSite(z);c.record(true,site,[],[strand]);c.advance();}
+ expect(c.closureReview).toContain('visible opening');expect(c.spacingReview).toContain('Uneven');
+ c.reset();expect(c.closureReview).toContain('Save two');
+});

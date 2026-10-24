@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type {TissueSite} from '../tissue/StitchField';
+import {fieldShift,type TissueSite} from '../tissue/StitchField';
 export interface CompletedStitch {
  readonly number:number;readonly site:TissueSite;readonly review:readonly string[];
  readonly strands:readonly (readonly THREE.Vector3[])[];
@@ -21,6 +21,12 @@ export class StitchCourse {
   if(this.records.length<2)return 'Save two stitches to review spacing.';
   const gaps=this.records.slice(1).map((r,i)=>r.site.siteZ-this.records[i].site.siteZ);
   return gaps.length<2?`Stitch spacing: ${gaps[0].toFixed(2)} practice units`:`${Math.abs(gaps[0]-gaps[1])/Math.max(...gaps)<.2?'Even':'Uneven'} spacing · ${gaps.map(g=>g.toFixed(2)).join(' / ')} practice units`;
+ }
+ get closureReview(){
+  if(this.sites.length<2)return 'Save two stitches to review closure between them.';
+  const gaps=this.sites.slice(1).map((b,i)=>{const a=this.sites[i],gap=(a.initialGap+b.initialGap)/2;return gap-2*fieldShift(gap/2,(a.siteZ+b.siteZ)/2,this.sites);});
+  const largest=Math.max(...gaps),uneven=largest-Math.min(...gaps)>.012;
+  return `Between stitches: ${largest>.045?'visible opening':uneven?'uneven closure':'shared approximation'} · Largest midpoint gap ${largest.toFixed(3)} practice units`;
  }
  active=false;index=0;revision=0;
  private records:readonly CompletedStitch[]=[];

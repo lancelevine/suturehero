@@ -1,6 +1,6 @@
 import {DEFAULT_BITE_WIDTH} from '../tissue/BitePlan';
 import {StitchCourse} from './StitchCourse';
-import {retainedSurfaceLift} from '../tissue/StitchField';
+import {retainedSurfaceLift,fieldShift,fieldLift,type TissueSite} from '../tissue/StitchField';
 import {StitchTissueResponse} from '../tissue/StitchTissueResponse';
 import {assessStitch} from './StitchAssessment';
 import {MICRO_FLOOR_Y,MICRO_TARGETS} from '../environments/MicroTargets';
@@ -55,13 +55,13 @@ export class PracticeSession {
     if(this.course.active)return;
     this.reset();
     if(this.grasp) {this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,0.1,1.2);}
-    this.freeKnot.entry.copy(this.wound.deformPoint(this.pass.entry));this.freeKnot.exit.copy(this.wound.deformPoint(this.pass.exit));
+    this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));
     this.freeKnot.begin(this.instruments,technique);this.wound.setDermalBites(...this.pass.purchaseSites);
   }
   continueFreeTying(){
     if(!this.canBeginKnot||!this.grasp)return false;
     this.grasp.release();this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,.1,1.2);
-    this.eversion.reset();this.freeKnot.entry.copy(this.wound.deformPoint(this.pass.entry));this.freeKnot.exit.copy(this.wound.deformPoint(this.pass.exit));this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;
+    this.eversion.reset();this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;
     return true;
   }
   readonly eversion=new EdgeEversion();
@@ -84,6 +84,28 @@ export class PracticeSession {
   readonly releaseCheck=new KnotReleaseCheck();
   readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
+  private tissuePoint(p:THREE.Vector3){
+    if(this.environment.id!=='skin'||!this.course.active)return this.wound.deformPoint(p);
+    const z=p.z+this.course.siteZ,sites=this.tissueField;
+    return new THREE.Vector3(p.x-Math.sign(p.x)*fieldShift(p.x,z,sites),p.y+fieldLift(p.x,p.y,z,sites),p.z);
+  }
+  private fieldCache:readonly TissueSite[]=[];
+  private fieldActive?:TissueSite;
+  private fieldRevision=-1;
+  private fieldSaved:readonly TissueSite[]|undefined;
+  /** A stable snapshot shared by rendering and thread contact in pad coordinates. */
+  get tissueField(){
+    const saved=this.course.tissueSites,z=this.course.siteZ,r=this.tissueResponse;
+    const previous=this.fieldActive,mismatch=this.wound.edgeMismatch;
+    if(this.fieldSaved!==saved||!previous||previous.siteZ!==z||previous.closure!==this.wound.closure||this.fieldRevision!==r.revision||previous.mismatch!==mismatch||previous.initialGap!==this.wound.initialGap){
+      this.fieldSaved=saved;this.fieldRevision=r.revision;
+      const active:TissueSite={siteZ:z,closure:this.wound.closure,initialGap:this.wound.initialGap,eversion:r.eversion,pucker:r.pucker,compression:r.compression,mismatch};
+      this.fieldActive=active;
+      // The last site is already recorded when the course finishes.
+      this.fieldCache=this.course.finished?saved:[...saved,active].sort((a,b)=>a.siteZ-b.siteZ);
+    }
+    return this.fieldCache;
+  }
   private configureTissueResponse(){
     this.syncBitePlan();this.eversion.tractionEnabled=this.environment.id==='skin';
     this.wound.response=this.environment.id==='skin'?this.tissueResponse:undefined;
@@ -93,7 +115,7 @@ export class PracticeSession {
       const z=p.z+this.course.siteZ;
       const onPad=Math.abs(p.x)<=2.68&&Math.abs(z)<=1.68;
       const base=onPad?.423:Math.abs(p.x)<=3.5&&Math.abs(p.z)<=2.5?.055:-.075;
-      return base+(onPad?Math.max(this.wound.surfaceLiftAt(p),retainedSurfaceLift(p.x,z,this.course.tissueSites)):0);
+      return base+(onPad?retainedSurfaceLift(p.x,z,this.tissueField):0);
     };
     this.knotSlack.surfaceAt=this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt;
   }
@@ -217,7 +239,7 @@ export class PracticeSession {
     }
     if(this.freeKnot.active) {
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
-      this.freeKnot.entry.copy(this.wound.deformPoint(this.pass.entry));this.freeKnot.exit.copy(this.wound.deformPoint(this.pass.exit));
+      this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));
       this.freeKnot.update(step,this.instruments,this.eversion.held?new Set(['left']):undefined);
       this.wound.update(this.freeKnot.closureLoad,step,this.freeKnot.pullDemand);
       const released=![...this.freeKnot.grips.values()].some(g=>g.strand===this.freeKnot.long||g.strand===this.freeKnot.short);
@@ -257,13 +279,13 @@ export class PracticeSession {
         seatedThrows:this.knot.phase==='complete'?1:this.knot.phase==='between'?0:this.knot.throws,
         retainedLength:SEATED_LOOP_LENGTH*this.knot.retainedWraps,
         loopLength:loop.length,
-        shortStart:knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop),shortEnd:tail,
+        shortStart:knotTailContact(this.knot,this.tissuePoint(this.pass.entry),loop),shortEnd:tail,
         longStart:loop.end,longEnd:leftJaw,
       });
       if(this.knot.phase==='complete' && !this.loadTest.active)this.releaseCheck.observe(step,{
         closure:this.wound.closure,shortMaterial:this.knotSlack.short.length,
         loopMaterial:this.knotSlack.material.loop+this.knotSlack.material.retained,
-        anchorError:Math.max(this.knotSlack.short.points[0].distanceTo(knotTailContact(this.knot,this.wound.deformPoint(this.pass.entry),loop)),this.knotSlack.long.points[0].distanceTo(loop.end)),
+        anchorError:Math.max(this.knotSlack.short.points[0].distanceTo(knotTailContact(this.knot,this.tissuePoint(this.pass.entry),loop)),this.knotSlack.long.points[0].distanceTo(loop.end)),
         finite:[...this.knotSlack.short.points,...this.knotSlack.long.points].every(p=>p.toArray().every(Number.isFinite)),
       });this.updateEversion(step,false);return;
     }

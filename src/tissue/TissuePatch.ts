@@ -1,4 +1,4 @@
-import {retainedShift,retainedLift,type TissueSite} from './StitchField';
+import {fieldShift,fieldLift,type TissueSite} from './StitchField';
 import {TRACT_HALF_WIDTH} from './sutureTract';
 import { TISSUE_LAYERS } from './anatomy';
 import type { EdgeEversion } from './EdgeEversion';
@@ -43,29 +43,33 @@ export class TissuePatch {
   setTargets(entry:THREE.Vector3,exit:THREE.Vector3){
     for(let i=0;i<2;i++){const x=(i===0?exit:entry).x;if(this.markers[i].original.x!==x){this.markers[i].original.x=x;this.lastClosure=NaN;}}
   }
-  update(model: WoundApproximation,eversion?:EdgeEversion,sites:readonly TissueSite[]=EMPTY_SITES,siteZ=0) {
+  update(model: WoundApproximation,eversion?:EdgeEversion,sites:readonly TissueSite[]=EMPTY_SITES,siteZ=0,field?:readonly TissueSite[]) {
     this.root.position.z=-siteZ;
     if(this.lastSites===sites && this.lastSiteZ===siteZ && (model.response?.revision??0)===this.lastResponse && model.closure===this.lastClosure && (eversion?.revision??0)===this.lastEversion)return;
     this.lastSites=sites;this.lastSiteZ=siteZ;
     this.lastResponse=model.response?.revision??0;
     this.lastEversion=eversion?.revision??0;
     this.lastClosure=model.closure;
+    const response=model.response;
+    const shared=field??[...sites,{siteZ,closure:model.closure,initialGap:model.initialGap,eversion:response?.eversion??0,pucker:response?.pucker??0,compression:response?.compression??0,mismatch:model.edgeMismatch}].sort((a,b)=>a.siteZ-b.siteZ);
     const point=new THREE.Vector3();
     for(const {mesh,original} of this.surfaces) {
       const position=mesh.geometry.getAttribute('position');
       for(let i=0;i<position.count;i++) {
         point.set(original[i*3]+mesh.position.x,original[i*3+1]+mesh.position.y,original[i*3+2]+mesh.position.z);
         const x=point.x,y=point.y,z=point.z;
-        point.z-=siteZ;model.deformPoint(point,point);eversion?.deformPoint(point,point);point.z=z;
-        for(const site of sites){
-          point.x=Math.sign(x)*Math.min(Math.abs(point.x),Math.max(.006,Math.abs(x)-retainedShift(x,z,site)));
-          point.y=Math.max(point.y,y+retainedLift(x,y,z,site));
-        }
+        point.x=Math.sign(x)*Math.max(.006,Math.abs(x)-fieldShift(x,z,shared));
+        point.y=y+fieldLift(x,y,z,shared);
+        point.z-=siteZ;eversion?.deformPoint(point,point);point.z=z;
         point.sub(mesh.position);position.setXYZ(i,point.x,point.y,point.z);
       }
       position.needsUpdate=true;mesh.geometry.computeVertexNormals();mesh.geometry.computeBoundingSphere();
     }
-    for(const {mesh,original} of this.markers){model.deformPoint(original,mesh.position);eversion?.deformPoint(mesh.position,mesh.position);mesh.position.z+=siteZ;}
+    for(const {mesh,original} of this.markers){
+      const z=original.z+siteZ;
+      mesh.position.set(original.x-Math.sign(original.x)*fieldShift(original.x,z,shared),original.y+fieldLift(original.x,original.y,z,shared),original.z);
+      eversion?.deformPoint(mesh.position,mesh.position);mesh.position.z+=siteZ;
+    }
   }
 }
 export function createTissuePatch() {return new TissuePatch().root;}

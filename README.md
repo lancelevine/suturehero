@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.39)
+## Current practice options (build 0.40)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,12 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Neighboring stitch closure in 0.40
+
+In the three-stitch skin session, adjacent seated stitches now share a bounded tissue deformation between their sites. Even, close spacing supports a smoother ridge and smaller inter-stitch gap; widely separated stitches leave more opening. Both stitches must carry closure before a bridge develops. Local compression and unequal-bite height differences remain visible. The spacing review now also reports the largest midpoint gap in practice units.
+
+Rendering, surface contact and the active stitch's thread anchors use the same combined tissue field. Completed sutures and their saved reviews remain static; only the tissue profile and current stitch respond. Closure stays bounded without adding displacements or crossing the wound edges. This is a geometric approximation, not elastic tissue mechanics, calibrated tension, injury prediction or a continuous running-suture model. Single-stitch practice, microsurgery and input controls retain their existing behavior.
 
 ## Tension-sensitive skin closure in 0.39
 
