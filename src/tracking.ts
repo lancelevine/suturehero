@@ -35,8 +35,8 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div><strong>Detection status</strong><span id="diag-note">Waiting for camera</span></div>
 </div>
 </div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
-<p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main><section class="tracking-settings-footer"><details class="tracking-details"><summary>Camera Settings · Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Exposure and gain depend on browser and camera support.</p><div id="camera-settings-controls"></div></div></details></section>`;
+<p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D, scissors I/J/K/L (Shift = faster).</p>
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>V5 prism faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main><section class="tracking-settings-footer"><details class="tracking-details"><summary>Camera Settings · Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Exposure and gain depend on browser and camera support.</p><div id="camera-settings-controls"></div></div></details></section>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -54,10 +54,12 @@ trackingMode.addEventListener('change',()=>{
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: both feeds detect markers, but stereo fusion and metric depth require calibration. Camera 1 still drives the instruments.';
 });
-simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
+simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
+const scissorsReadout=document.querySelector<HTMLElement>('#scissors-readout')!;
+const faceOverlapReadout=document.querySelector<HTMLElement>('#face-overlap-readout')!;
 const detector=new BrowserArucoDetector();
 const thresholdToggle=document.querySelector<HTMLInputElement>('#show-threshold')!;
 const thresholdPreview=document.querySelector<HTMLCanvasElement>('#threshold-preview')!;
@@ -249,13 +251,13 @@ const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=650;
-const rotationStates=new Map<'needleDriver'|'forceps',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
+const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
 // Learned face-to-face transforms from simultaneous marker sightings.
 // Do not assume printed face orientation from nominal prism dimensions alone.
-const prismFaceOffsets=new Map<'needleDriver'|'forceps',Map<number,THREE.Quaternion>>();
-const depthStates=new Map<'needleDriver'|'forceps',number>();
-const stationaryStates=new Map<'needleDriver'|'forceps',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
-const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
+const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
+const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
+const stationaryStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
+const liveTargets=new Map<'needleDriver'|'forceps'|'scissors',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let stream:MediaStream|null=null;
 async function refreshCameras(){
@@ -289,7 +291,16 @@ function instrument(id:'left'|'right',color:number){
  return group;
 }
 const driver=instrument('right',0xe3b47e),forceps=instrument('left',0x68d1bb);
-driver.position.z=-.65;forceps.position.z=.65;
+// Scissors: two crossing blades and finger rings, sharing the same tracked rigid pose.
+function scissorsModel(){
+ const group=new THREE.Group(),steel=new THREE.MeshStandardMaterial({color:0xc5d1d5,metalness:.85,roughness:.27});
+ const rod=(a:THREE.Vector3,b:THREE.Vector3,r:number)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,a.distanceTo(b),12),steel);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());group.add(m);};
+ for(const side of [-1,1]){rod(new THREE.Vector3(side*.11,0,1.4),new THREE.Vector3(side*.015,0,.7),.043);const blade=new THREE.Mesh(new THREE.BoxGeometry(.075,.035,.85),steel);blade.position.set(side*.055,0,.3);blade.rotation.y=side*.14;group.add(blade);const ring=new THREE.Mesh(new THREE.TorusGeometry(.18,.045,10,32),steel);ring.rotation.x=Math.PI/2;ring.position.set(side*.25,0,1.67);group.add(ring);}
+ const pivot=new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),steel);pivot.position.z=.72;group.add(pivot);group.scale.setScalar(.8);group.rotation.y=-Math.PI/2;
+ const tracked=new THREE.Group();tracked.add(group);tracked.position.y=.25;scene.add(tracked);return tracked;
+}
+const scissors=scissorsModel();
+driver.position.z=-.85;forceps.position.z=.15;scissors.position.z=1.05;
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>keys.clear());
 document.querySelector('#reset-sim')!.addEventListener('click',()=>{driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);});
@@ -297,7 +308,7 @@ document.querySelector('#reset-sim')!.addEventListener('click',()=>{driver.posit
 function updateLiveTargets(){
  if(!overlay.width||!overlay.height)return;
  const now=observationsAt||performance.now();
- for(const name of ['needleDriver','forceps'] as const){
+ for(const name of ['needleDriver','forceps','scissors'] as const){
   const ids:readonly number[]=MARKER_GROUPS[name];
   const candidates=observations.filter(m=>ids.includes(m.id)).map(marker=>{
    const pose=estimateMarkerPose(marker,overlay.width,overlay.height);
@@ -405,18 +416,19 @@ function updateLiveTargets(){
 }
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
- for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();overlayContext.strokeStyle='#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&observations.filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;overlayContext.strokeStyle=overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
-  const readout=(name:'needleDriver'|'forceps')=>{
+  const readout=(name:'needleDriver'|'forceps'|'scissors')=>{
    const target=liveTargets.get(name);if(!target)return 'Not visible';
    const age=performance.now()-target.lastSeen;if(age>trackingHoldMs)return 'Not visible';
    const p=target.pose,v=p.position,e=new THREE.Euler().setFromQuaternion(p.quaternion,'XYZ');
    const deg=(r:number)=>(r*180/Math.PI).toFixed(0);
    return `${age>130?'Last seen · ':''}ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
   };
-  driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');
+  driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
+  faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=observations.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
  }
 }
 async function detectFrame(now:number){
@@ -433,7 +445,7 @@ const resize=new ResizeObserver(()=>{const w=mount.clientWidth,h=mount.clientHei
 let last=performance.now();
 function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(!simulation.checked){
-  for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps]] as const){
+  for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
    const target=liveTargets.get(name);
    if(target&&now-target.lastSeen<trackingHoldMs){
     const blend=1-Math.exp(-dt*24);
@@ -444,11 +456,14 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  }
  if(simulation.checked){const speed=(keys.has('shift')?2:1)*dt;
   driver.position.x+=(Number(keys.has('arrowright'))-Number(keys.has('arrowleft')))*speed;driver.position.z+=(Number(keys.has('arrowdown'))-Number(keys.has('arrowup')))*speed;
+  scissors.position.x+=(Number(keys.has('l'))-Number(keys.has('j')))*speed;scissors.position.z+=(Number(keys.has('k'))-Number(keys.has('i')))*speed;
   forceps.position.x+=(Number(keys.has('d'))-Number(keys.has('a')))*speed;forceps.position.z+=(Number(keys.has('s'))-Number(keys.has('w')))*speed;
  }
  driver.position.x=THREE.MathUtils.clamp(driver.position.x,-2,2);driver.position.z=THREE.MathUtils.clamp(driver.position.z,-2,2);
  forceps.position.x=THREE.MathUtils.clamp(forceps.position.x,-2,2);forceps.position.z=THREE.MathUtils.clamp(forceps.position.z,-2,2);
+ scissors.position.x=THREE.MathUtils.clamp(scissors.position.x,-2,2);scissors.position.z=THREE.MathUtils.clamp(scissors.position.z,-2,2);
  if(simulation.checked)driverReadout.textContent=`Simulated · (${driver.position.x.toFixed(2)}, ${driver.position.z.toFixed(2)})`;
+ if(simulation.checked)scissorsReadout.textContent=`Simulated · (${scissors.position.x.toFixed(2)}, ${scissors.position.z.toFixed(2)})`;
  if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
  void detectFrame(now);
  void detectSecondFrame(now);
