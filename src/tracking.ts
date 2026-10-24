@@ -26,7 +26,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 </section>
 <label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
-<details class="tracking-details"><summary>Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Hold a tracked prism at the near boundary and click Set Near, then repeat at the far boundary.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
+<details class="tracking-details"><summary>Camera Focus &amp; Exposure</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Hold a tracked prism at the near boundary and click Set Near, then repeat at the far boundary.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
 <div><strong>Camera resolution</strong><span id="diag-resolution">Not started</span></div>
 <div><strong>Frames analyzed</strong><span id="diag-frames">0</span></div>
 <div><strong>Candidate squares</strong><span id="diag-candidates">—</span></div><div><strong>Outlines drawn</strong><span id="diag-outlines">—</span></div>
@@ -178,18 +178,42 @@ function renderCameraSettings(){
   if(!track){const note=document.createElement('p');note.textContent='Start camera to configure.';section.append(note);cameraSettings.append(section);continue;}
   const capabilities=track.getCapabilities?.() as Record<string,unknown>|undefined;
   const settings=track.getSettings() as Record<string,unknown>;
-  for(const key of ['exposureTime','gain']){
-   const cap=capabilities?.[key] as {min:number;max:number;step?:number}|undefined;
-   if(!cap||typeof cap.min!=='number'||typeof cap.max!=='number')continue;
+  const modes=(key:string)=>Array.isArray(capabilities?.[key])?capabilities[key] as string[]:[];
+  const addMode=(key:string,title:string,choices:string[])=>{
+   const supported=modes(key).filter(v=>choices.includes(v));if(!supported.length)return;
    const row=document.createElement('label');row.className='camera-settings-row';
-   const title=document.createElement('span');title.textContent=key==='exposureTime'?'Exposure':'Gain';
-   const slider=document.createElement('input');slider.type='range';slider.min=String(cap.min);slider.max=String(cap.max);slider.step=String(cap.step||'any');slider.value=String(typeof settings[key]==='number'?settings[key]:cap.min);
-   const output=document.createElement('output');output.textContent=slider.value;
-   slider.addEventListener('input',()=>{output.textContent=slider.value;});
-   slider.addEventListener('change',async()=>{try{await track.applyConstraints({advanced:[{[key]:Number(slider.value)}] as MediaTrackConstraintSet[]});}catch{output.textContent='Unsupported';}});
+   const name=document.createElement('span');name.textContent=title;
+   const select=document.createElement('select');
+   for(const mode of supported){const option=document.createElement('option');option.value=mode;option.textContent=mode==='continuous'?'Auto':mode==='manual'?'Manual':mode;select.append(option);}
+   select.value=typeof settings[key]==='string'?settings[key] as string:supported[0];
+   select.addEventListener('change',async()=>{
+    try{await track.applyConstraints({advanced:[{[key]:select.value}] as MediaTrackConstraintSet[]});}
+    catch{select.value=String(track.getSettings()[key as keyof MediaTrackSettings]??supported[0]);}
+   });
+   row.append(name,select);section.append(row);
+  };
+  addMode('exposureMode','Exposure mode',['continuous','manual','single-shot']);
+  addMode('focusMode','Focus mode',['continuous','manual','single-shot']);
+  for(const key of ['exposureTime','gain','focusDistance']){
+   const cap=capabilities?.[key] as {min:number;max:number;step?:number}|undefined;
+   if(!cap||!Number.isFinite(cap.min)||!Number.isFinite(cap.max)||cap.max<=cap.min)continue;
+   const row=document.createElement('label');row.className='camera-settings-row';
+   const title=document.createElement('span');title.textContent=key==='exposureTime'?'Exposure':key==='focusDistance'?'Focus distance':'Gain';
+   const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='1000';slider.step='1';
+   // Logarithmic exposure spreads the useful low end over the whole slider.
+   const logarithmic=key==='exposureTime'&&cap.min>0;
+   const toValue=(fraction:number)=>logarithmic?cap.min*Math.pow(cap.max/cap.min,fraction):cap.min+(cap.max-cap.min)*fraction;
+   const toFraction=(value:number)=>logarithmic?Math.log(Math.max(cap.min,value)/cap.min)/Math.log(cap.max/cap.min):(value-cap.min)/(cap.max-cap.min);
+   const quantize=(value:number)=>{const step=cap.step&&cap.step>0?cap.step:0;return Math.min(cap.max,Math.max(cap.min,step?cap.min+Math.round((value-cap.min)/step)*step:value));};
+   const current=typeof settings[key]==='number'?settings[key] as number:cap.min;
+   slider.value=String(Math.round(Math.max(0,Math.min(1,toFraction(current)))*1000));
+   const output=document.createElement('output');output.textContent=String(quantize(current));
+   const apply=async()=>{const value=quantize(toValue(Number(slider.value)/1000));output.textContent=String(Number(value.toPrecision(6)));try{await track.applyConstraints({advanced:[{[key]:value}] as MediaTrackConstraintSet[]});}catch{output.textContent='Unsupported';}};
+   slider.addEventListener('input',()=>{output.textContent=String(Number(quantize(toValue(Number(slider.value)/1000)).toPrecision(6)));});
+   slider.addEventListener('change',()=>{void apply();});
    row.append(title,slider,output);section.append(row);
   }
-  if(section.children.length===1){const note=document.createElement('p');note.textContent='Exposure/gain unavailable in this browser.';section.append(note);}
+  if(section.children.length===1){const note=document.createElement('p');note.textContent='Manual exposure, gain and focus controls are unavailable for this camera/browser.';section.append(note);}
   cameraSettings.append(section);
  }
 }
