@@ -30,9 +30,20 @@ jobs:
         run: npm ci
       - name: Test
         run: npm test
-      - name: Build calibration-enabled OpenCV.js
+      # Cache the compiled WASM across workflow runs. The key changes only when
+      # the OpenCV build scripts/config or pinned toolchain change.
+      - name: Restore compiled OpenCV.js
+        id: opencv-cache
+        uses: actions/cache@v4
+        with:
+          path: vendor/opencv.js
+          key: opencv5-emsdk607-${{ hashFiles('scripts/build-opencv/**') }}
+      - name: Build calibration-enabled OpenCV.js (cache miss only)
+        if: steps.opencv-cache.outputs.cache-hit != 'true'
         run: bash scripts/build-opencv/fetch-and-build.sh
         timeout-minutes: 120
+      - name: Verify OpenCV.js artifact
+        run: test -s vendor/opencv.js
       - name: Build
         run: npm run build
       - name: Include OpenCV.js in Pages output
