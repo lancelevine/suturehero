@@ -12,6 +12,9 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers IDs 0–8. Outlines and IDs appear on the video.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
+<div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
+<div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
+<p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p>
 <label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#d49a00;font-weight:bold">Yellow</span> = candidate square · <span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
 <div class="tracking-stats" aria-label="Live camera diagnostics">
@@ -76,6 +79,71 @@ function renderThreshold(frame:ImageData){
  thresholdContext.putImageData(output,0,0);
 }
 
+
+// Second independent USB camera for stereo setup validation (not yet fused into pose).
+const video2=document.querySelector<HTMLVideoElement>('#camera-video-2')!;
+const overlay2=document.querySelector<HTMLCanvasElement>('#camera-overlay-2')!;
+const select2=document.querySelector<HTMLSelectElement>('#camera-select-2')!;
+const start2=document.querySelector<HTMLButtonElement>('#start-camera-2')!;
+const stop2=document.querySelector<HTMLButtonElement>('#stop-camera-2')!;
+const status2=document.querySelector<HTMLElement>('#camera-status-2')!;
+const detector2=new BrowserArucoDetector();
+const frame2=document.createElement('canvas');
+const context2=frame2.getContext('2d',{willReadFrequently:true})!;
+const overlayContext2=overlay2.getContext('2d')!;
+let stream2:MediaStream|null=null,ready2=false,processing2=false,lastDetection2=0,session2=0;
+async function refreshSecondCameraList(){
+ const current=select2.value;
+ const devices=await availableCameras();
+ select2.innerHTML='<option value="">Choose second camera</option>';
+ devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
+ select2.value=devices.some(d=>d.deviceId===current)?current:'';
+}
+async function stopSecondCamera(){
+ session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
+ video2.srcObject=null;overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
+ start2.disabled=false;stop2.disabled=true;
+ document.querySelector<HTMLElement>('#camera-placeholder-2')!.style.display='';
+ status2.textContent='Second camera stopped';
+}
+start2.addEventListener('click',async()=>{
+ try{
+  if(!select2.value){status2.textContent='Select the second USB camera first.';return;}
+  if(select2.value===select.value){status2.textContent='Select a different camera from the primary camera.';return;}
+  await stopSecondCamera();
+  stream2=await openCamera(select2.value);video2.srcObject=stream2;await video2.play();
+  document.querySelector<HTMLElement>('#camera-placeholder-2')!.style.display='none';
+  start2.disabled=true;stop2.disabled=false;status2.textContent='Loading second marker detector…';
+  const currentSession=session2;await detector2.initialize();
+  if(currentSession!==session2)return;
+  ready2=true;status2.textContent='Second camera detecting markers independently.';
+ }catch(error){status2.textContent='Second camera error: '+String(error);await stopSecondCamera();}
+});
+stop2.addEventListener('click',()=>{void stopSecondCamera();});
+select2.addEventListener('change',()=>{if(stream2)void stopSecondCamera();});
+async function detectSecondFrame(now:number){
+ if(!stream2||!ready2||processing2||!video2.videoWidth||now-lastDetection2<110)return;
+ lastDetection2=now;processing2=true;const currentSession=session2;
+ try{
+  const w=video2.videoWidth,h=video2.videoHeight;
+  if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
+  context2.drawImage(video2,0,0,w,h);
+  const found=await detector2.detect(context2.getImageData(0,0,w,h));
+  if(currentSession!==session2)return;
+  overlayContext2.clearRect(0,0,w,h);
+  for(const marker of found){
+   const pts=marker.corners;overlayContext2.beginPath();overlayContext2.moveTo(pts[0].x,pts[0].y);
+   for(let i=1;i<pts.length;i++)overlayContext2.lineTo(pts[i].x,pts[i].y);
+   overlayContext2.closePath();overlayContext2.strokeStyle='#18e89d';overlayContext2.lineWidth=3;overlayContext2.stroke();
+   overlayContext2.font='bold 20px sans-serif';overlayContext2.fillStyle='#18e89d';
+   overlayContext2.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));
+  }
+  status2.textContent='Second camera: '+w+' × '+h+' · '+found.length+' marker(s) detected'+(found.length?' · IDs '+found.map(m=>m.id).join(', '):'');
+ }catch(error){status2.textContent='Second camera detection error: '+String(error);}
+ finally{processing2=false;}
+}
+void refreshSecondCameraList().catch(()=>{status2.textContent='Connect both USB cameras and allow camera access.';});
+
 const diag=(name:string)=>document.querySelector<HTMLElement>('#diag-'+name)!;
 let framesAnalyzed=0;
 const frameCanvas=document.createElement('canvas');
@@ -94,7 +162,7 @@ async function refreshCameras(){
 }
 async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
- try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();}
+ try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
 });
 stop.addEventListener('click',stopCamera);
@@ -234,7 +302,8 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(simulation.checked)driverReadout.textContent=`Simulated · (${driver.position.x.toFixed(2)}, ${driver.position.z.toFixed(2)})`;
  if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
  void detectFrame(now);
+ void detectSecondFrame(now);
  renderer.render(scene,camera);requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
-window.addEventListener('pagehide',()=>{void stopCamera();resize.disconnect();renderer.dispose();});
+window.addEventListener('pagehide',()=>{void stopCamera();void stopSecondCamera();resize.disconnect();renderer.dispose();});
