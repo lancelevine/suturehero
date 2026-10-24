@@ -211,7 +211,7 @@ let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=650;
 const rotationStates=new Map<'needleDriver'|'forceps',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
-const depthStates=new Map<'needleDriver'|'forceps,number>();
+const depthStates=new Map<'needleDriver'|'forceps',number>();
 const stationaryStates=new Map<'needleDriver'|'forceps',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
 const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
