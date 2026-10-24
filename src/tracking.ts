@@ -559,8 +559,8 @@ function drawDetections(){
 }
 async function detectFrame(now:number){
  if(!stream||!detectorReady||processing||!video.videoWidth)return;
- const motion=changedFrame(video);
- const interval=idleNoMarkers?(motion?150:1200):90;
+ // Match Camera 2's acquisition cadence: idle throttling missed stationary markers.
+ const interval=110;
  if(now-lastDetection<interval){skippedFrames++;return;}
  lastDetection=now;processing=true;const session=cameraSession;
  try{
