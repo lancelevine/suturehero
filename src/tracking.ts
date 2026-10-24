@@ -32,7 +32,7 @@ const start=document.querySelector<HTMLButtonElement>('#start-camera')!;
 const stop=document.querySelector<HTMLButtonElement>('#stop-camera')!;
 const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
-simulation.addEventListener('change',()=>{liveTargets.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
+simulation.addEventListener('change',()=>{liveTargets.clear();previousRawPositions.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -84,13 +84,14 @@ const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=350;
+const previousRawPositions=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;time:number}>();
 const liveTargets=new Map<'needleDriver'|'forceps',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value;const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();previousRawPositions.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
@@ -140,13 +141,18 @@ function updateLiveTargets(){
    const distance=previous.position.distanceTo(position);
    // Reject isolated gross pose spikes, but allow the next observation to recover naturally.
    if(distance>1.1&&elapsed<.22)continue;
-   const deadband=.012;
-   const speed=distance/elapsed;
-   const rate=speed<.6?3.5:speed<2?7:12;
-   const blend=distance<deadband?0:1-Math.exp(-elapsed*rate);
+   // Use raw frame-to-frame velocity, not the lagging filtered position, to distinguish
+   // deliberate motion from small stationary camera noise.
+   const lastRaw=previousRawPositions.get(name);
+   const rawDt=lastRaw?Math.max(.016,(now-lastRaw.time)/1000):elapsed;
+   const rawSpeed=lastRaw?lastRaw.position.distanceTo(position)/rawDt:distance/elapsed;
+   const deadband=.022;
+   const rate=rawSpeed<.12?2.5:rawSpeed<.6?6:rawSpeed<1.5?15:30;
+   const blend=distance<deadband&&rawSpeed<.2?0:1-Math.exp(-elapsed*rate);
    position.lerpVectors(previous.position,position,blend);
    quaternion.slerpQuaternions(previous.quaternion,quaternion,switched?0:1-Math.exp(-elapsed*5));
   }
+  previousRawPositions.set(name,{position:new THREE.Vector3(x,y,z),time:now});
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
@@ -184,7 +190,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps]] as const){
    const target=liveTargets.get(name);
    if(target&&now-target.lastSeen<trackingHoldMs){
-    const blend=1-Math.exp(-dt*10);
+    const blend=1-Math.exp(-dt*24);
     mesh.position.lerp(target.position,blend);
     mesh.quaternion.slerp(target.quaternion,blend);
    }
