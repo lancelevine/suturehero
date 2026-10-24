@@ -340,7 +340,7 @@ function updateLiveTargets(){
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
   const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];if(!chosen)continue;
   if(chosen.pose.reprojectionError>8)continue;
-  const {marker,pose}=chosen;
+  const {pose}=chosen;
   // Learn how each V5 prism face is oriented relative to the selected face.
   // Two faces visible in the same frame provide an empirical rigid-body transform.
   const offsets=prismFaceOffsets.get(name)??new Map<number,THREE.Quaternion>();
