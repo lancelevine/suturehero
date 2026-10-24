@@ -77,7 +77,7 @@ class WorkerDetector {
  diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting',pass:'—',contrast:'—'};
  async initialize(){
   this.dispose();
-  const worker=new Worker(new URL('./input/arucoWorker.ts',import.meta.url),{type:'module'});
+  const worker=new Worker(new URL('./input/arucoWorker.ts',import.meta.url));
   this.worker=worker;
   await new Promise<void>((resolve,reject)=>{
    const timeout=window.setTimeout(()=>reject(new Error('Detector worker initialization timed out')),15000);
