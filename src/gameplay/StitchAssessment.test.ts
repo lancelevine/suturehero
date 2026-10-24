@@ -11,3 +11,10 @@ it('reports unequal placement, edge mismatch and excessive tension without inven
  const f=frame();f.bites=[new THREE.Vector3(.15,.31,0),new THREE.Vector3(-.4,.31,.15)];f.pucker=.02;f.peakPull=.9;
  const feedback=assessStitch(f).feedback.join(' ');expect(feedback).toContain('unequal widths');expect(feedback).toContain('uneven bites');expect(feedback).toContain('ease tension');expect(feedback).toContain('High pull observed');
 });
+it('reports current skin compression without changing completion or microsurgery feedback',()=>{
+ const f={...frame(),compression:.006};
+ expect(assessStitch(f).feedback).toContain('Tissue compression: ease tension');
+ expect(assessStitch(f).complete).toBe(true);
+ expect(assessStitch({...f,compression:0}).feedback).toContain('Tissue compression: minimal');
+ expect(assessStitch({...f,skin:false}).feedback.join(' ')).not.toContain('Tissue compression');
+});

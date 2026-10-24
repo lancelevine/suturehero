@@ -105,7 +105,7 @@ export class PracticeSession {
   advanceStitch(){
     if(!this.canAdvanceStitch)return false;
     const free=this.freeKnot.active,threads=free?[this.freeKnot.long,this.freeKnot.short]:[this.knotSlack.long,this.knotSlack.short];
-    if(!this.course.record(true,{closure:this.wound.closure,initialGap:this.wound.initialGap,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,mismatch:this.wound.edgeMismatch},this.stitchAssessment.feedback,threads.map(s=>s.points)))return false;
+    if(!this.course.record(true,{closure:this.wound.closure,initialGap:this.wound.initialGap,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,mismatch:this.wound.edgeMismatch},this.stitchAssessment.feedback,threads.map(s=>s.points)))return false;
     if(this.course.advance()){this.resetCurrent();this.configureTissueResponse();}
     return true;
   }
@@ -115,7 +115,7 @@ export class PracticeSession {
     return assessStitch({lab,skin:this.environment.id==='skin',pass:this.pass.phase==='complete',extracted:this.pull.phase==='complete',
       knot:isFree?!!free.sequence?.locked:this.knot.phase==='complete',seated:isFree?free.lockSeated:this.knot.phase==='complete'&&this.wound.closure>.9,
       released,trimmed:isFree?free.trimmedTails.size:this.knotSlack.trimmedTails.size,bites:this.wound.purchaseSites,closure:this.wound.closure,
-      eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,edgeMismatch:this.wound.edgeMismatch,planned:this.pass.customBites,skinTractionPeak:this.handlingPeak,skinGraspSlips:this.handlingSlips,
+      eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,edgeMismatch:this.wound.edgeMismatch,planned:this.pass.customBites,skinTractionPeak:this.handlingPeak,skinGraspSlips:this.handlingSlips,
       peakPull:isFree?Math.max(free.tension.long.peakDemand,free.tension.short.peakDemand):this.tissueResponse.peakDemand});
   }
   gripFraction=0.9;

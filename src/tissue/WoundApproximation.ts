@@ -28,7 +28,9 @@ export class WoundApproximation {
     const clamped=this.hasDermalSupport?THREE.MathUtils.clamp(target,0,1):0;
     this.closure=THREE.MathUtils.lerp(this.closure,clamped,1-Math.exp(-10*Math.max(0,Math.min(dt,0.05))));
     if(Math.abs(this.closure-clamped)<0.0001)this.closure=clamped;
-    this.response?.update(this.closure,this.hasDermalSupport?demand:0,dt);
+    const [a,b]=this.bites;
+    const balance=a&&b?Math.min(Math.abs(a.x),Math.abs(b.x))/Math.max(Math.abs(a.x),Math.abs(b.x)):1;
+    this.response?.update(this.closure,this.hasDermalSupport?demand:0,dt,balance);
   }
   private influence(z: number) {return Math.exp(-((z/0.6)**2));}
   gapAt(z: number) {return this.initialGap-(this.initialGap-this.minimumGap)*this.closure*this.influence(z);}
