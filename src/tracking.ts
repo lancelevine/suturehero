@@ -419,7 +419,7 @@ function updateLiveTargets(){
   const z=lockedDepth?baseline:previousZ===undefined?desiredZ:previousZ+depthDelta*depthAlpha;
   depthStates.set(name,z);
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
-  const x=THREE.MathUtils.clamp(pose.position.x/Math.max(near+range*.5,1)*7,-2.6,2.6);
+  const x=THREE.MathUtils.clamp(-pose.position.x/Math.max(near+range*.5,1)*7,-2.6,2.6);
   const y=THREE.MathUtils.clamp(-pose.position.y/Math.max(near+range*.5,1)*4+.55,.15,2.8);
   const position=new THREE.Vector3(x,y,z);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
