@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import {BrowserArucoDetector} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
@@ -11,12 +12,12 @@ declare const __SUTUREHERO_REVISION__: string;
 const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers IDs 0–8. Outlines and IDs appear on the video.</p>
-<div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · stable 2D</option><option value="stereo">2 cameras · experimental</option></select></div><p class="tracking-message" id="tracking-mode-info">1 camera: tracks movement across the image with fixed depth. Rotation is approximate. Two-camera stereo tracking is not calibrated yet.</p>
+<div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox"> Lock depth</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo tracking is not calibrated yet.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
-<p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
+<details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
 <section class="tracking-panel" style="margin-top:12px;padding:14px">
  <div class="eyebrow">STEREO CALIBRATION · CAPTURE</div>
  <p class="tracking-message">Checkerboard: <strong>8 × 8 squares · 7 × 7 inner corners · 37 mm squares</strong>. Hold the entire board in view of both cameras. Capture 20–30 varied poses, including corners of the workspace and tilted angles. Keep both cameras fixed.</p>
@@ -33,9 +34,9 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div><strong>Detection time</strong><span id="diag-time">—</span></div><div><strong>Detection pass</strong><span id="diag-pass">—</span></div><div><strong>Image contrast</strong><span id="diag-contrast">—</span></div>
 <div><strong>Detection status</strong><span id="diag-note">Waiting for camera</span></div>
 </div>
-<div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
+</div></details><details class="tracking-details"><summary>Camera Settings · Exposure &amp; Gain</summary><div class="tracking-details-body"><p class="tracking-message">Exposure and gain depend on browser and camera support.</p><div id="camera-settings-controls"></div></div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 6–8 (temporary) · Forceps IDs 3–5. Experimental relative 3D rotation tracking enabled. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 6–8 (temporary) · Forceps IDs 3–5. Experimental relative 3D rotation tracking enabled. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation is relative to its first detected pose; switching faces rebases orientation without a sudden jump. Absolute prism rotation still requires geometric calibration.</p></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -45,10 +46,12 @@ const select=document.querySelector<HTMLSelectElement>('#camera-select')!;
 const simulation=document.querySelector<HTMLInputElement>('#simulation')!;
 const trackingMode=document.querySelector<HTMLSelectElement>('#tracking-mode')!;
 const trackingModeInfo=document.querySelector<HTMLElement>('#tracking-mode-info')!;
+const lockDepth=document.querySelector<HTMLInputElement>('#lock-depth')!;
+lockDepth.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{
  liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
-  ?'1 camera: fixed depth eliminates forward/backward jitter. Movement and approximate rotation use camera 1.'
+  ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: both feeds detect markers, but stereo fusion and metric depth require calibration. Camera 1 still drives the instruments.';
 });
 simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);driver.quaternion.identity();forceps.quaternion.identity();});
@@ -118,6 +121,33 @@ function updateStereoMatches(){
  stereoStatus.textContent='Stereo: '+(delta<=250?'':'frames not synchronized · ')+(matches.length?'shared marker IDs '+matches.join(', '):'no shared marker IDs')+' · frame offset '+Math.round(delta)+' ms · calibration required for 3D';
 }
 
+
+const cameraSettings=document.querySelector<HTMLElement>('#camera-settings-controls')!;
+function renderCameraSettings(){
+ cameraSettings.replaceChildren();
+ for(const [label,active] of [['Camera 1',stream],['Camera 2',stream2]] as const){
+  const section=document.createElement('div');section.className='camera-settings-group';
+  const heading=document.createElement('strong');heading.textContent=label;section.append(heading);
+  const track=active?.getVideoTracks()[0];
+  if(!track){const note=document.createElement('p');note.textContent='Start camera to configure.';section.append(note);cameraSettings.append(section);continue;}
+  const capabilities=track.getCapabilities?.() as Record<string,unknown>|undefined;
+  const settings=track.getSettings() as Record<string,unknown>;
+  for(const key of ['exposureTime','gain']){
+   const cap=capabilities?.[key] as {min:number;max:number;step?:number}|undefined;
+   if(!cap||typeof cap.min!=='number'||typeof cap.max!=='number')continue;
+   const row=document.createElement('label');row.className='camera-settings-row';
+   const title=document.createElement('span');title.textContent=key==='exposureTime'?'Exposure':'Gain';
+   const slider=document.createElement('input');slider.type='range';slider.min=String(cap.min);slider.max=String(cap.max);slider.step=String(cap.step||'any');slider.value=String(typeof settings[key]==='number'?settings[key]:cap.min);
+   const output=document.createElement('output');output.textContent=slider.value;
+   slider.addEventListener('input',()=>{output.textContent=slider.value;});
+   slider.addEventListener('change',async()=>{try{await track.applyConstraints({advanced:[{[key]:Number(slider.value)}] as MediaTrackConstraintSet[]});}catch{output.textContent='Unsupported';}});
+   row.append(title,slider,output);section.append(row);
+  }
+  if(section.children.length===1){const note=document.createElement('p');note.textContent='Exposure/gain unavailable in this browser.';section.append(note);}
+  cameraSettings.append(section);
+ }
+}
+
 const CAMERA_STORAGE_PRIMARY='suturehero-camera-primary';
 const CAMERA_STORAGE_SECONDARY='suturehero-camera-secondary';
 function savedCamera(key:string){try{return localStorage.getItem(key)||'';}catch{return '';}}
@@ -134,7 +164,7 @@ async function stopSecondCamera(){
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
  document.querySelector<HTMLElement>('#camera-placeholder-2')!.style.display='';
- status2.textContent='Second camera stopped';
+ status2.textContent='Second camera stopped';renderCameraSettings();
 }
 start2.addEventListener('click',async()=>{
  try{
@@ -146,7 +176,7 @@ start2.addEventListener('click',async()=>{
   start2.disabled=true;stop2.disabled=false;status2.textContent='Loading second marker detector…';
   const currentSession=session2;await detector2.initialize();
   if(currentSession!==session2)return;
-  ready2=true;status2.textContent='Second camera detecting markers independently.';
+  ready2=true;status2.textContent='Second camera detecting markers independently.';renderCameraSettings();
  }catch(error){status2.textContent='Second camera error: '+String(error);await stopSecondCamera();}
 });
 stop2.addEventListener('click',()=>{void stopSecondCamera();});
@@ -228,9 +258,9 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
- try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();status2.textContent='Camera 2 is optional for now.';}
+ try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
 });
 stop.addEventListener('click',stopCamera);
@@ -240,6 +270,8 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x15242c);
 const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,3.7,6);camera.lookAt(0,0,0);
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 const mount=document.querySelector<HTMLElement>('#tracking-scene')!;mount.append(renderer.domElement);
+const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=1.4;orbit.maxDistance=18;orbit.target.set(0,.5,0);orbit.update();
+document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>{camera.position.set(0,3.7,6);orbit.target.set(0,.5,0);orbit.update();});
 scene.add(new THREE.HemisphereLight(0xffffff,0x63788a,2));
 const grid=new THREE.GridHelper(5,10,0x527d85,0x304852);scene.add(grid);
 function instrument(id:'left'|'right',color:number){
@@ -281,7 +313,7 @@ function updateLiveTargets(){
   // low-pass filter and reject isolated jumps rather than mapping raw Z directly.
   const rawZ=THREE.MathUtils.clamp((pose.position.z-180)/180,-1.8,1.8);
   const previousZ=depthStates.get(name);
-  const z=trackingMode.value==='mono'?(name==='needleDriver'?-.65:.65):(previousZ===undefined?rawZ:previousZ+THREE.MathUtils.clamp(rawZ-previousZ,-.08,.08)*.12);
+  const z=trackingMode.value==='mono'&&lockDepth.checked?(name==='needleDriver'?-.65:.65):(previousZ===undefined?rawZ:previousZ+THREE.MathUtils.clamp(rawZ-previousZ,-.08,.08)*.12);
   depthStates.set(name,z);
   const position=new THREE.Vector3(x,y,z);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
@@ -385,7 +417,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
  void detectFrame(now);
  void detectSecondFrame(now);
- renderer.render(scene,camera);requestAnimationFrame(animate);
+ orbit.update();renderer.render(scene,camera);requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
-window.addEventListener('pagehide',()=>{void stopCamera();void stopSecondCamera();resize.disconnect();renderer.dispose();});
+window.addEventListener('pagehide',()=>{void stopCamera();void stopSecondCamera();resize.disconnect();orbit.dispose();renderer.dispose();});
