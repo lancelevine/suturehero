@@ -2,3 +2,5 @@
 .tracking-details{margin-top:14px;border:1px solid #dce5df;border-radius:7px}.tracking-details summary{cursor:pointer;padding:13px;font-weight:600;font-size:13px}.tracking-details-body{padding:0 13px 14px}.camera-settings-group{padding:10px 0;border-bottom:1px solid #dce5df;font-size:12px}.camera-settings-row{display:grid;grid-template-columns:70px 1fr 65px;align-items:center;gap:10px;margin-top:12px}.camera-settings-row output{text-align:right}.tracking-details .tracking-panel{border:0}#tracking-scene canvas{touch-action:none}
 
 .tracking-settings-footer{max-width:1400px;margin:28px auto 40px;padding:0 20px}.tracking-settings-footer .tracking-details{max-width:100%}
+
+.tracking-tuning{display:grid;gap:14px;padding:14px 0}.tracking-tuning label{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}.tracking-tuning input[type=range]{flex:1;min-width:120px}.tracking-tuning output{min-width:36px;text-align:right;font-variant-numeric:tabular-nums}#tracking-filter-diagnostics{overflow-wrap:anywhere}
