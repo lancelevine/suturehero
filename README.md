@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.36)
+## Current practice options (build 0.37)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Bite placement and spacing in 0.37
+
+In skin practice, **Plan this stitch** adjusts the right entry width, left exit width and position along the incision before the skin is grasped. Widths are percentages of the default bite for the current needle; positions use practice units. A real circular path preserves the selected needle radius. Requests outside the span that reaches the dermis are adjusted, including limits that keep valid dermal purchase on both sides. The targets, needle pose, purchase sites and buried thread route follow the accepted plan. Controls lock once tissue is held or the pass starts.
+
+Unequal dermal bites produce a small bounded edge-height mismatch during closure, reported in the stitch review and preserved with a saved stitch. This is an illustrative geometric response, not elastic tissue mechanics or a clinical quality score. Guided and free tying after a pass use the chosen geometry. **Show needle arc** toggles the visual overlay; needle movement remains assisted, and instrument controls are unchanged.
+
+Each site in a three-stitch session can be repositioned before its pass. Earlier saved sites stay fixed; the next site reserves room for the remaining stitches and maintains at least 0.30 practice units of separation. The session review compares actual gaps and labels their spacing as even or uneven. Resetting practice restores the default bite geometry and positions. Microsurgery retains its existing single-stitch path.
 
 ## Free-tying capture continuity in 0.36
 

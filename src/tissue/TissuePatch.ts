@@ -40,6 +40,9 @@ export class TissuePatch {
   }
   group.traverse(object=>{if(object instanceof THREE.Mesh) { object.receiveShadow=true; object.castShadow=true; }});
   }
+  setTargets(entry:THREE.Vector3,exit:THREE.Vector3){
+    for(let i=0;i<2;i++){const x=(i===0?exit:entry).x;if(this.markers[i].original.x!==x){this.markers[i].original.x=x;this.lastClosure=NaN;}}
+  }
   update(model: WoundApproximation,eversion?:EdgeEversion,sites:readonly TissueSite[]=EMPTY_SITES,siteZ=0) {
     this.root.position.z=-siteZ;
     if(this.lastSites===sites && this.lastSiteZ===siteZ && (model.response?.revision??0)===this.lastResponse && model.closure===this.lastClosure && (eversion?.revision??0)===this.lastEversion)return;

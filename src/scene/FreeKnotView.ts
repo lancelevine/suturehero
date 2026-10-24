@@ -12,7 +12,7 @@ export class FreeKnotView {
   private tip=new THREE.Mesh(new THREE.SphereGeometry(0.026,12,8),new THREE.MeshStandardMaterial({color:0xffcc55,roughness:0.5}));
   constructor(model:FreeKnotPractice) {
     this.tip.name='short-tip-marker';
-    const path=new THREE.CatmullRomCurve3(tissueTractPoints(model.entry,model.exit));
+    const path=new THREE.CatmullRomCurve3(tissueTractPoints(model.entry,model.exit,33,model.tractHalfWidth));
     this.buried=new THREE.Mesh(new THREE.TubeGeometry(path,32,0.009,6),new THREE.MeshStandardMaterial({color:PRACTICE_SETUP.suture.color,roughness:.75}));this.root.add(this.tip,this.long,this.short,this.buried);
   }
   update(model:FreeKnotPractice) {
@@ -23,8 +23,8 @@ export class FreeKnotView {
     if(this.short.geometry.getAttribute('position').count!==model.short.count*6){
       this.root.remove(this.short);this.short.geometry.dispose();this.short.material.dispose();this.short=new StrandMesh(model.short.count);this.root.add(this.short);
     }
-    const route=[...model.entry.toArray(),...model.exit.toArray()].join(':');
-    if(route!==this.route){this.route=route;this.buried.geometry.dispose();this.buried.geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tissueTractPoints(model.entry,model.exit)),32,.009,6);}
+    const route=[...model.entry.toArray(),...model.exit.toArray(),model.tractHalfWidth].join(':');
+    if(route!==this.route){this.route=route;this.buried.geometry.dispose();this.buried.geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(tissueTractPoints(model.entry,model.exit,33,model.tractHalfWidth)),32,.009,6);}
     this.tip.position.copy(model.short.points.at(-1)!);
     this.tip.material.color.setHex(model.gripLabel('right')==='short tail'?0x65df9b:0xffcc55);
     this.root.updateWorldMatrix(true,false);this.long.update(model.long.points,this.root.matrixWorld);this.short.update(model.short.points,this.root.matrixWorld);

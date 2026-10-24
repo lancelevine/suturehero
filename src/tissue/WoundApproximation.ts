@@ -1,3 +1,5 @@
+import {edgeMismatchLift} from './StitchField';
+import {TISSUE_LAYERS} from './anatomy';
 import type {StitchTissueResponse} from './StitchTissueResponse';
 import { isDermalBite } from './anatomy';
 import * as THREE from 'three';
@@ -6,7 +8,7 @@ export class WoundApproximation {
   closure=0;
   response?:StitchTissueResponse;
   get purchaseSites(){return this.bites.map(p=>p?.clone()??null) as [THREE.Vector3|null,THREE.Vector3|null];}
-  surfaceLiftAt(point:THREE.Vector3){return this.response?.surfaceLiftAt(point)??0;}
+  surfaceLiftAt(point:THREE.Vector3){return (this.response?.surfaceLiftAt(point)??0)+edgeMismatchLift(point.x,TISSUE_LAYERS.epidermis.top,point.z,this.edgeMismatch);}
   purchaseValidator:(point:THREE.Vector3|null)=>boolean=isDermalBite;
   private bites:[THREE.Vector3|null,THREE.Vector3|null]=[null,null];
   setDermalBites(entry:THREE.Vector3|null,exit:THREE.Vector3|null){
@@ -15,6 +17,11 @@ export class WoundApproximation {
   get dermalBiteCount(){return this.bites.filter(Boolean).length;}
   get hasDermalSupport(){return this.dermalBiteCount===2;}
 
+  get edgeMismatch(){
+    const [a,b]=this.bites;if(!a||!b)return 0;
+    const difference=Math.abs(a.x)-Math.abs(b.x);
+    return Math.abs(difference)<1e-6?0:difference/Math.max(Math.abs(a.x),Math.abs(b.x))*.025*this.closure;
+  }
   initialGap=0.1;
   readonly minimumGap=0.012;
   update(target: number,dt: number,demand=0) {
@@ -28,7 +35,7 @@ export class WoundApproximation {
   deformPoint(point: THREE.Vector3,target=point.clone()) {
     const support=Math.max(0,1-Math.max(0,Math.abs(point.x)-this.initialGap/2)/1.4);
     const shift=(this.initialGap-this.minimumGap)/2*this.closure*this.influence(point.z)*support;
-    return target.set(point.x-Math.sign(point.x)*shift,point.y+(this.response?.liftAt(point)??0),point.z);
+    return target.set(point.x-Math.sign(point.x)*shift,point.y+(this.response?.liftAt(point)??0)+edgeMismatchLift(point.x,point.y,point.z,this.edgeMismatch),point.z);
   }
   reset() {this.response?.reset();this.closure=0;this.bites=[null,null];}
 }

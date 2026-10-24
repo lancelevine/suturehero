@@ -1,3 +1,4 @@
+import {TRACT_HALF_WIDTH} from '../tissue/sutureTract';
 import {StrandTension,limitSlackTakeUp} from '../suture/StrandTension';
 import {throwsAreStacked} from '../suture/KnotStack';
 import {postIsTaut} from '../suture/PostTension';
@@ -115,6 +116,7 @@ export class FreeKnotPractice {
   private contact=new InstrumentThreadContact();
   private accumulator=0;
   padOffsetZ=0;
+  tractHalfWidth=TRACT_HALF_WIDTH;
   private skinTopAt=(p:THREE.Vector3)=>this.surfaceAt(p);
   private skinContact=skinThreadContact(point=>this.contact.supportAt(point,this.skinTopAt),()=>this.padOffsetZ);
   private supportAt=(point:THREE.Vector3)=>(this.threadFloorAt??threadBaseAt)(point);

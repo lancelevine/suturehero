@@ -1,3 +1,5 @@
+import {NeedlePass} from '../tissue/NeedlePass';
+import {DEFAULT_BITE_WIDTH} from '../tissue/BitePlan';
 import {expect,it} from 'vitest';
 import * as THREE from 'three';
 import {createFreeTyingFixture} from './test-support/freeTying';
@@ -5,12 +7,13 @@ import {WoundApproximation} from '../tissue/WoundApproximation';
 import {StitchTissueResponse} from '../tissue/StitchTissueResponse';
 import {threadSurfaceAt} from '../suture/TissueThreadGuide';
 import {tractEntry,tractExit} from '../tissue/sutureTract';
-it('seats a real throw against responding skin and settles after release without losing material',async()=>{
+it.each([false,true])('seats and releases a real throw against responding skin (planned unequal bites: %s)',async planned=>{
  const wound=new WoundApproximation();wound.response=new StitchTissueResponse();wound.response.prepare(1,.6);
- wound.setDermalBites(new THREE.Vector3(.27,.31,0),new THREE.Vector3(-.27,.31,0));
+ const pass=new NeedlePass();if(planned)pass.setBites(DEFAULT_BITE_WIDTH*1.2,DEFAULT_BITE_WIDTH*.8);
+ if(planned)wound.setDermalBites(...pass.purchaseSites);else wound.setDermalBites(new THREE.Vector3(.27,.31,0),new THREE.Vector3(-.27,.31,0));
  const {model,tools,throwOne,lowerAndPull,update}=createFreeTyingFixture('auto',(dt,m,t)=>{
   m.surfaceAt=p=>threadSurfaceAt(p)+(Math.abs(p.x)<=2.68&&Math.abs(p.z)<=1.68?wound.surfaceLiftAt(p):0);
-  m.entry.copy(wound.deformPoint(tractEntry()));m.exit.copy(wound.deformPoint(tractExit()));
+  m.entry.copy(wound.deformPoint(planned?pass.entry:tractEntry()));m.exit.copy(wound.deformPoint(planned?pass.exit:tractExit()));
   m.update(dt,t);wound.update(m.closureLoad,dt,m.pullDemand);
  });
  await throwOne(1,1);await lowerAndPull();

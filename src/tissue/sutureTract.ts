@@ -12,12 +12,14 @@ export const TRACT_SWEEP=Math.PI-2*TRACT_START;
 export const TRACT_HALF_WIDTH=NEEDLE_RADIUS*Math.cos(TRACT_START);
 export const tractEntry=()=>new THREE.Vector3(TRACT_HALF_WIDTH,TRACT_SURFACE,0);
 export const tractExit=()=>new THREE.Vector3(-TRACT_HALF_WIDTH,TRACT_SURFACE,0);
-export function tissueTractPoints(entry:THREE.Vector3,exit:THREE.Vector3,count=33){
+export function tissueTractPoints(entry:THREE.Vector3,exit:THREE.Vector3,count=33,halfWidth=TRACT_HALF_WIDTH){
+ const centerY=halfWidth===TRACT_HALF_WIDTH?TRACT_CENTER_Y:TRACT_SURFACE+Math.sqrt(Math.max(0,NEEDLE_RADIUS**2-halfWidth**2));
+ const start=halfWidth===TRACT_HALF_WIDTH?TRACT_START:Math.asin((centerY-TRACT_SURFACE)/NEEDLE_RADIUS),sweep=Math.PI-2*start;
  return Array.from({length:count},(_,i)=>{
-  const angle=TRACT_START+i/(count-1)*TRACT_SWEEP;
-  const t=(Math.cos(TRACT_START)-Math.cos(angle))/(2*Math.cos(TRACT_START));
+  const angle=start+i/(count-1)*sweep;
+  const t=(Math.cos(start)-Math.cos(angle))/(2*Math.cos(start));
   const point=entry.clone().lerp(exit,t);
-  point.y+=TRACT_CENTER_Y-NEEDLE_RADIUS*Math.sin(angle)-TRACT_SURFACE;
+  point.y+=centerY-NEEDLE_RADIUS*Math.sin(angle)-TRACT_SURFACE;
   return point;
  });
 }

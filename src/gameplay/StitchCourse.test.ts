@@ -20,3 +20,15 @@ it('rejects non-finite or empty retained strand data',()=>{
  const c=new StitchCourse();c.begin();expect(c.record(true,site,[],[])).toBe(false);
  expect(c.record(true,site,[],[[new THREE.Vector3(),new THREE.Vector3(NaN,0,0)]])).toBe(false);expect(c.completed).toHaveLength(0);
 });
+it('lets each next stitch choose its site without moving saved positions and reviews unequal spacing',()=>{
+ const c=new StitchCourse(),strand=[new THREE.Vector3(),new THREE.Vector3(.1,.4,.1)];c.begin();
+ for(const z of [-1,-.5,.8]){
+  expect(c.selectSite(z)).toBe(true);expect(c.record(true,site,[],[strand])).toBe(true);c.advance();
+ }
+ expect(c.completed.map(r=>r.site.siteZ)).toEqual([-1,-.5,.8]);expect(c.spacingReview).toContain('Uneven spacing');expect(c.selectSite(0)).toBe(false);
+ c.reset();expect(c.selectSite(2)).toBe(true);expect(c.siteZ).toBe(1.1);
+});
+it('reserves room for later stitches and enforces separation from saved material',()=>{
+ const c=new StitchCourse(),strand=[new THREE.Vector3(),new THREE.Vector3(0,.4,.1)];c.begin();c.selectSite(1.1);expect(c.siteZ).toBeCloseTo(.5);
+ c.record(true,site,[],[strand]);c.advance();c.selectSite(-1);expect(c.siteZ).toBeCloseTo(.8);expect(c.completed[0].site.siteZ).toBeCloseTo(.5);
+});

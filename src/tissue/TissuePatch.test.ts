@@ -43,3 +43,8 @@ it('preserves closure at earlier sites and recenters the pad while a fresh stitc
  pad.update(wound,undefined,sites,.75);expect(pad.root.position.z).toBe(-.75);
  pad.update(wound);expect(pad.root.position.z).toBeCloseTo(0);
 });
+it('shows and retains a bounded edge-height mismatch for unequal dermal bites',()=>{
+ const wound=new WoundApproximation();wound.setDermalBites(new THREE.Vector3(.3,.31,0),new THREE.Vector3(-.1,.31,0));wound.update(1,.05);wound.closure=1;
+ expect(wound.edgeMismatch).toBeGreaterThan(.01);const right=wound.deformPoint(new THREE.Vector3(.05,.41,0)),left=wound.deformPoint(new THREE.Vector3(-.05,.41,0));expect(left.y).toBeGreaterThan(right.y);
+ expect(wound.deformPoint(new THREE.Vector3(-.05,.05,0)).y).toBe(.05);expect(wound.surfaceLiftAt(new THREE.Vector3(-.05,.41,0))).toBeGreaterThan(0);
+});

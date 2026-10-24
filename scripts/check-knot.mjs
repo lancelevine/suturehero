@@ -6,8 +6,15 @@ try {
   const page=await browser.newPage({viewport:{width:1440,height:1180}}); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   await page.goto(process.env.SUTURE_TEST_URL ?? 'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
   if(process.env.SUTURE_TEST_COURSE){await page.locator('#start-course').click();assert.match(await page.locator('#course-status').innerText(),/Stitch 1 \/ 3/);assert.equal(await page.locator('#next-stitch').isDisabled(),true);}
+  if(process.env.SUTURE_TEST_BITES){
+    await page.locator('#right-bite').fill('130');await page.locator('#right-bite').dispatchEvent('input');
+    await page.locator('#stitch-position').fill('-100');await page.locator('#stitch-position').dispatchEvent('input');
+    await page.locator('#show-needle-guide').uncheck();assert.equal(await page.locator('#show-needle-guide').isChecked(),false);
+    assert.notEqual(await page.locator('#right-bite-value').innerText(),await page.locator('#left-bite-value').innerText());
+  }
   await page.getByRole('button',{name:'Start guided pass'}).click();
   await prepareEversion(page);
+  if(process.env.SUTURE_TEST_BITES){await page.waitForFunction(()=>document.querySelector('#bite-controls').disabled);assert.equal(await page.locator('#right-bite').isDisabled(),true);}
   if(await page.locator('#close-up').getAttribute('aria-pressed')==='false')await page.locator('#close-up').click();
   await page.keyboard.down('u');
   await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000}).catch(async error=>{console.error(await page.locator('.exercise-feedback').innerText(),await page.locator('#grasp-status').innerText());throw error;});
@@ -65,6 +72,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#stitch-quality').textContent.includes('Tails trimmed: 2/2'),{},{timeout:15000});
   await page.keyboard.up(',');
   assert.match(await page.locator('#stitch-stage').innerText(),/Stitch exercise complete/);
+  if(process.env.SUTURE_TEST_BITES)assert.match(await page.locator('#stitch-quality').innerText(),/unequal widths.*planned/);
   if(process.env.SUTURE_TEST_COURSE){
     await page.locator('#next-stitch').click();
     await page.waitForFunction(()=>document.querySelector('#course-status').textContent.includes('Stitch 2 / 3'));

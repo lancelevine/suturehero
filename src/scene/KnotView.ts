@@ -1,3 +1,4 @@
+import {TRACT_HALF_WIDTH} from '../tissue/sutureTract';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {tissueTractPoints} from '../tissue/sutureTract';
 import { StrandMesh } from './StrandMesh';
@@ -17,7 +18,7 @@ export class KnotView {
   private tailMarker=new THREE.Mesh(new THREE.SphereGeometry(0.055,12,8),new THREE.MeshBasicMaterial({color:0xf0c277,depthTest:false}));
   private stamp=''; private count=-1;
   constructor() {this.thread.castShadow=true;this.tailMarker.renderOrder=4;this.continuation.castShadow=true;this.root.add(this.thread,this.continuation,this.shortSpan,this.longSpan,this.seated,this.tailMarker);}
-  update(knot: GuidedKnot,tools: readonly Instrument[],entry: THREE.Vector3,exit: THREE.Vector3,eye: THREE.Vector3,simulation:KnotSlack) {
+  update(knot: GuidedKnot,tools: readonly Instrument[],entry: THREE.Vector3,exit: THREE.Vector3,eye: THREE.Vector3,simulation:KnotSlack,halfWidth=TRACT_HALF_WIDTH) {
     this.root.visible=knot.active; if(!knot.active) {this.stamp='';return;}
     const left=tools.find(t=>t.id==='left')!,right=tools.find(t=>t.id==='right')!;
     const jaw=(tool:Instrument)=>{tool.root.updateWorldMatrix(true,false);return tool.root.localToWorld(new THREE.Vector3(0,0,0.05));};
@@ -40,7 +41,7 @@ export class KnotView {
     const contact=knotTailContact(knot,entry,loop);
     const slack=1-knot.takeUp;
     const tailBend=tail.clone().lerp(contact,0.5).add(new THREE.Vector3(0,0.12*slack,0.18*slack));
-    const prefix=tissueTractPoints(entry,exit);
+    const prefix=tissueTractPoints(entry,exit,33,halfWidth);
     if(knot.throws>0)prefix.unshift(new THREE.Vector3(0.06,0.47,0));
     if(contact.distanceToSquared(prefix[0])>1e-12)prefix.unshift(contact);
     const points=simulation.enabled?prefix:[tail.clone(),tailBend,...prefix];
