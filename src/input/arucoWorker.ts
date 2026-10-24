@@ -3,7 +3,7 @@ import {MARKER_CODES} from './arucoDetector';
 import type {MarkerObservation} from './arucoTracking';
 type LegacyDetector={detect:(frame:ImageData)=>MarkerObservation[];candidates?:unknown[];polys?:unknown[]};
 type ArucoGlobal={DICTIONARIES:Record<string,{nBits:number;tau:number;codeList:number[]}>;Detector:new(options:{dictionaryName:string;maxHammingDistance:number})=>LegacyDetector};
-declare const self:DedicatedWorkerGlobalScope & {AR?:ArucoGlobal};
+const workerScope=self as DedicatedWorkerGlobalScope & {AR?:ArucoGlobal};
 const base='https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
 let detector:LegacyDetector|null=null;
 const canvas=new OffscreenCanvas(1,1),ctx=canvas.getContext('2d',{willReadFrequently:true})!;
@@ -18,9 +18,9 @@ function cornersOf(candidate:unknown,ratio:number):Array<{x:number;y:number}>|nu
 async function initialize(){
  if(detector)return;
  importScripts(base+'cv.js',base+'aruco.js');
- if(!self.AR)throw Error('ArUco library did not initialize in worker');
- self.AR.DICTIONARIES.SUTUREHERO_4X4_50={nBits:16,tau:2,codeList:MARKER_CODES};
- detector=new self.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:1});
+ if(!workerScope.AR)throw Error('ArUco library did not initialize in worker');
+ workerScope.AR.DICTIONARIES.SUTUREHERO_4X4_50={nBits:16,tau:2,codeList:MARKER_CODES};
+ detector=new workerScope.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:1});
 }
 function detect(frame:ImageData){
  const start=performance.now(),raw=detector!.detect(frame);
