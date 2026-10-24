@@ -121,6 +121,33 @@ function updateStereoMatches(){
  stereoStatus.textContent='Stereo: '+(delta<=250?'':'frames not synchronized · ')+(matches.length?'shared marker IDs '+matches.join(', '):'no shared marker IDs')+' · frame offset '+Math.round(delta)+' ms · calibration required for 3D';
 }
 
+
+const cameraSettings=document.querySelector<HTMLElement>('#camera-settings-controls')!;
+function renderCameraSettings(){
+ cameraSettings.replaceChildren();
+ for(const [label,active] of [['Camera 1',stream],['Camera 2',stream2]] as const){
+  const section=document.createElement('div');section.className='camera-settings-group';
+  const heading=document.createElement('strong');heading.textContent=label;section.append(heading);
+  const track=active?.getVideoTracks()[0];
+  if(!track){const note=document.createElement('p');note.textContent='Start camera to configure.';section.append(note);cameraSettings.append(section);continue;}
+  const capabilities=track.getCapabilities?.() as Record<string,unknown>|undefined;
+  const settings=track.getSettings() as Record<string,unknown>;
+  for(const key of ['exposureTime','gain']){
+   const cap=capabilities?.[key] as {min:number;max:number;step?:number}|undefined;
+   if(!cap||typeof cap.min!=='number'||typeof cap.max!=='number')continue;
+   const row=document.createElement('label');row.className='camera-settings-row';
+   const title=document.createElement('span');title.textContent=key==='exposureTime'?'Exposure':'Gain';
+   const slider=document.createElement('input');slider.type='range';slider.min=String(cap.min);slider.max=String(cap.max);slider.step=String(cap.step||'any');slider.value=String(typeof settings[key]==='number'?settings[key]:cap.min);
+   const output=document.createElement('output');output.textContent=slider.value;
+   slider.addEventListener('input',()=>{output.textContent=slider.value;});
+   slider.addEventListener('change',async()=>{try{await track.applyConstraints({advanced:[{[key]:Number(slider.value)}] as MediaTrackConstraintSet[]});}catch{output.textContent='Unsupported';}});
+   row.append(title,slider,output);section.append(row);
+  }
+  if(section.children.length===1){const note=document.createElement('p');note.textContent='Exposure/gain unavailable in this browser.';section.append(note);}
+  cameraSettings.append(section);
+ }
+}
+
 const CAMERA_STORAGE_PRIMARY='suturehero-camera-primary';
 const CAMERA_STORAGE_SECONDARY='suturehero-camera-secondary';
 function savedCamera(key:string){try{return localStorage.getItem(key)||'';}catch{return '';}}
@@ -137,7 +164,7 @@ async function stopSecondCamera(){
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
  document.querySelector<HTMLElement>('#camera-placeholder-2')!.style.display='';
- status2.textContent='Second camera stopped';
+ status2.textContent='Second camera stopped';renderCameraSettings();
 }
 start2.addEventListener('click',async()=>{
  try{
@@ -149,7 +176,7 @@ start2.addEventListener('click',async()=>{
   start2.disabled=true;stop2.disabled=false;status2.textContent='Loading second marker detector…';
   const currentSession=session2;await detector2.initialize();
   if(currentSession!==session2)return;
-  ready2=true;status2.textContent='Second camera detecting markers independently.';
+  ready2=true;status2.textContent='Second camera detecting markers independently.';renderCameraSettings();
  }catch(error){status2.textContent='Second camera error: '+String(error);await stopSecondCamera();}
 });
 stop2.addEventListener('click',()=>{void stopSecondCamera();});
@@ -231,9 +258,9 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
- try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();status2.textContent='Camera 2 is optional for now.';}
+ try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;diag('frames').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} (requested 1920 × 1080)${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
 });
 stop.addEventListener('click',stopCamera);
