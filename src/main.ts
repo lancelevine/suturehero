@@ -213,7 +213,7 @@ try {
       const cue=document.querySelector('#tension-cue')!;if(cue.textContent!==session.freeKnot.tensionHint)cue.textContent=session.freeKnot.tensionHint;
     }
     const edge=session.eversion;
-    const skinContext=session.environment.id==='skin'&&!knot.active&&!course.finished&&!session.freeKnot.grips.has('left')&&grasp.holder?.kind!=='forceps';
+    const skinContext=session.environment.id==='skin'&&!knot.active&&!course.finished&&!session.freeKnot.grips.has('left')&&grasp.holder?.kind!=='forceps'&&!(session.pass.phase==='complete'&&session.pull.phase==='waiting'&&!edge.held);
     const tractionAlert=skinContext&&['stretching','slipping','slipped'].includes(edge.traction.state);
     const skinPanel=document.querySelector('#skin-handling') as HTMLElement;
     skinPanel.hidden=!skinContext||!edge.active&&edge.traction.state!=='slipped';
