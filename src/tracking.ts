@@ -366,7 +366,7 @@ function updateLiveTargets(){
   const sorted=[...samples].sort((a,b)=>a-b);
   const measuredDistance=sorted[Math.floor(sorted.length/2)];
   depthSamples.set(name,measuredDistance);
-  const near=depthNearMm??Math.max(30,measuredDistance-200);
+  const near=depthNearMm??100;
   const range=depthFarMm!==null&&depthNearMm!==null?depthFarMm-depthNearMm:Math.max(50,Number(workingDepthInput.value)||400);
   const depthFraction=THREE.MathUtils.clamp((measuredDistance-near)/range,0,1);
   const rawZ=-2.3+depthFraction*4.6;
