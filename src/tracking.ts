@@ -300,16 +300,30 @@ const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;ra
 // Do not assume printed face orientation from nominal prism dimensions alone.
 const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
+const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
+function saveDepthCalibration(){
+ try{localStorage.setItem(DEPTH_STORAGE_KEY,JSON.stringify({near:depthNearMm,far:depthFarMm,range:Number(workingDepthInput.value)||400}));}catch{/* unavailable */}
+}
+function restoreDepthCalibration(){
+ try{
+  const raw=localStorage.getItem(DEPTH_STORAGE_KEY);if(!raw)return;
+  const value=JSON.parse(raw) as {near?:unknown;far?:unknown;range?:unknown};
+  if(typeof value.range==='number'&&Number.isFinite(value.range)&&value.range>=50&&value.range<=1500)workingDepthInput.value=String(value.range);
+  if(typeof value.near==='number'&&Number.isFinite(value.near)&&value.near>0)depthNearMm=value.near;
+  if(typeof value.far==='number'&&Number.isFinite(value.far)&&depthNearMm!==null&&value.far>depthNearMm+20)depthFarMm=value.far;
+ }catch{/* invalid saved calibration */}
+}
+restoreDepthCalibration();
 const depthHistory=new Map<'needleDriver'|'forceps'|'scissors',number[]>();
 const poseHistory=new Map<'needleDriver'|'forceps'|'scissors',THREE.Quaternion[]>();
 const depthSamples=new Map<'needleDriver'|'forceps'|'scissors',number>();
 function depthRangeLabel(){const range=Math.max(50,Number(workingDepthInput.value)||400);depthRangeStatus.textContent=`Near: ${depthNearMm?.toFixed(0)??'unset'} mm · Far: ${depthFarMm?.toFixed(0)??'unset'} mm · working range: ${range} mm. ${depthNearMm===null?'Set Near first.':depthFarMm===null?'Set Far next.':'Calibrated.'}`;}
 function resetDepthFilters(){depthStates.clear();stationaryStates.clear();depthHistory.clear();}
-workingDepthInput.addEventListener('change',()=>{depthFarMm=null;resetDepthFilters();depthRangeLabel();});
-document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined){depthRangeStatus.textContent='No tracked prism visible. Start camera and show a marker.';return;}depthNearMm=z;depthFarMm=null;resetDepthFilters();depthRangeLabel();});
-document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined||depthNearMm===null){depthRangeStatus.textContent='Set Near first with a tracked marker visible.';return;}if(z<=depthNearMm+20){depthRangeStatus.textContent='Far must be at least 20 mm farther from camera than Near.';return;}depthFarMm=z;workingDepthInput.value=String(Math.round(z-depthNearMm));resetDepthFilters();depthRangeLabel();});
-document.querySelector('#reset-depth-range')!.addEventListener('click',()=>{depthNearMm=null;depthFarMm=null;workingDepthInput.value='400';resetDepthFilters();depthRangeLabel();});
+workingDepthInput.addEventListener('change',()=>{depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined){depthRangeStatus.textContent='No tracked prism visible. Start camera and show a marker.';return;}depthNearMm=z;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined||depthNearMm===null){depthRangeStatus.textContent='Set Near first with a tracked marker visible.';return;}if(z<=depthNearMm+20){depthRangeStatus.textContent='Far must be at least 20 mm farther from camera than Near.';return;}depthFarMm=z;workingDepthInput.value=String(Math.round(z-depthNearMm));resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+document.querySelector('#reset-depth-range')!.addEventListener('click',()=>{depthNearMm=null;depthFarMm=null;workingDepthInput.value='400';resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
 const rotationFilterStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Quaternion;pending:number;moving:boolean}>();
 const filterMeasurements=new Map<'needleDriver'|'forceps'|'scissors',{rawZ:number;filteredZ:number;angle:number;locked:boolean}>();
 const stationaryStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
@@ -423,7 +437,7 @@ function updateLiveTargets(){
   const y=THREE.MathUtils.clamp(-pose.position.y/Math.max(near+range*.5,1)*4+.55,.15,2.8);
   // The viewer's horizontal and forward axes are rotated relative to the webcam.
   // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
-  const position=new THREE.Vector3(z,y,x);
+  const position=new THREE.Vector3(-z,y,x);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
   const switched=!!previous&&previous.id!==pose.id;
   // Until the face-to-prism transforms are calibrated, changing faces must not rotate the instrument by 120 degrees.
