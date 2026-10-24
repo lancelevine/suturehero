@@ -121,7 +121,9 @@ function updateLiveTargets(){
    return pose?{marker,pose}:null;
   }).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item!==null);
   candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
-  const chosen=candidates[0];if(!chosen)continue;
+  const previous=liveTargets.get(name);
+  // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
+  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];if(!chosen)continue;
   const {marker,pose}=chosen;
   const cx=marker.corners.reduce((v,p)=>v+p.x,0)/4,cy=marker.corners.reduce((v,p)=>v+p.y,0)/4;
   // Screen coordinates control horizontal/vertical movement; marker size estimates depth.
@@ -130,7 +132,21 @@ function updateLiveTargets(){
   const z=THREE.MathUtils.clamp((pose.position.z-180)/180,-1.8,1.8);
   const position=new THREE.Vector3(x,y,z);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
-  const quaternion=pose.quaternion.clone();
+  const switched=!!previous&&previous.id!==pose.id;
+  // Until the face-to-prism transforms are calibrated, changing faces must not rotate the instrument by 120 degrees.
+  const quaternion=switched?previous!.quaternion.clone():pose.quaternion.clone();
+  if(previous&&now-previous.lastSeen<600){
+   const elapsed=Math.max(.016,(now-previous.lastSeen)/1000);
+   const distance=previous.position.distanceTo(position);
+   // Reject isolated gross pose spikes, but allow the next observation to recover naturally.
+   if(distance>1.1&&elapsed<.22)continue;
+   const deadband=.012;
+   const speed=distance/elapsed;
+   const rate=speed<.6?3.5:speed<2?7:12;
+   const blend=distance<deadband?0:1-Math.exp(-elapsed*rate);
+   position.lerpVectors(previous.position,position,blend);
+   quaternion.slerpQuaternions(previous.quaternion,quaternion,switched?0:1-Math.exp(-elapsed*5));
+  }
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
@@ -168,7 +184,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps]] as const){
    const target=liveTargets.get(name);
    if(target&&now-target.lastSeen<trackingHoldMs){
-    const blend=1-Math.exp(-dt*12);
+    const blend=1-Math.exp(-dt*10);
     mesh.position.lerp(target.position,blend);
     mesh.quaternion.slerp(target.quaternion,blend);
    }
