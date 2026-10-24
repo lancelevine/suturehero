@@ -313,6 +313,10 @@ function updateLiveTargets(){
   const offsets=prismFaceOffsets.get(name)??new Map<number,THREE.Quaternion>();
   prismFaceOffsets.set(name,offsets);
   if(offsets.size===0)offsets.set(pose.id,new THREE.Quaternion());
+  if(!offsets.has(pose.id)){
+   const known=candidates.find(c=>offsets.has(c.pose.id)&&c.pose.reprojectionError<5);
+   if(known)offsets.set(pose.id,pose.quaternion.clone().invert().multiply(known.pose.quaternion).multiply(offsets.get(known.pose.id)!).normalize());
+  }
   for(const other of candidates){
    if(other.pose.id===pose.id||other.pose.reprojectionError>5)continue;
    if(!offsets.has(other.pose.id)){
