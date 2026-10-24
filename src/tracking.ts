@@ -421,7 +421,9 @@ function updateLiveTargets(){
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
   const x=THREE.MathUtils.clamp(-pose.position.x/Math.max(near+range*.5,1)*7,-2.6,2.6);
   const y=THREE.MathUtils.clamp(-pose.position.y/Math.max(near+range*.5,1)*4+.55,.15,2.8);
-  const position=new THREE.Vector3(x,y,z);
+  // The viewer's horizontal and forward axes are rotated relative to the webcam.
+  // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
+  const position=new THREE.Vector3(z,y,x);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
   const switched=!!previous&&previous.id!==pose.id;
   // Until the face-to-prism transforms are calibrated, changing faces must not rotate the instrument by 120 degrees.
