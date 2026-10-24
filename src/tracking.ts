@@ -422,7 +422,7 @@ function updateLiveTargets(){
   const x=THREE.MathUtils.clamp(-pose.position.x/Math.max(near+range*.5,1)*7,-2.6,2.6);
   const y=THREE.MathUtils.clamp(-pose.position.y/Math.max(near+range*.5,1)*4+.55,.15,2.8);
   // The viewer's horizontal and forward axes are rotated relative to the webcam.
-  // Physical camera depth drives screen-horizontal motion; camera X drives scene forward/back.
+  // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
   const position=new THREE.Vector3(z,y,x);
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
   const switched=!!previous&&previous.id!==pose.id;
