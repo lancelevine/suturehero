@@ -7,6 +7,6 @@ export function alignOppositeEdge(session:PracticeSession,tools:readonly Instrum
  for(let i=0;i<14;i++)session.update(.05);
  if(!session.positionForceps())throw new Error('Opposite edge positioning unavailable');
  left.openness=.1;session.update(.01);
- left.root.position.y+=.15;left.root.position.x+=.045;session.update(.01);
+ left.root.position.y+=.015;left.root.position.x+=.085;session.update(.01);
  if(!session.oppositeEdgeReady)throw new Error('Opposite edge did not align');
 }

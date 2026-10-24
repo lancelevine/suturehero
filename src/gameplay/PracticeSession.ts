@@ -1,3 +1,4 @@
+import {TISSUE_LAYERS} from '../tissue/anatomy';
 import {DEFAULT_BITE_WIDTH} from '../tissue/BitePlan';
 import {StitchCourse} from './StitchCourse';
 import {DEEP_DERMIS_Y,retainedSurfaceLift,fieldShift,fieldLift,type TissueSite} from '../tissue/StitchField';
@@ -67,15 +68,24 @@ export class PracticeSession {
   readonly eversion=new EdgeEversion();
   private guidedEdge=false;
   oppositeEdgeRequired=false;
-  get oppositeEdgeReady(){return this.eversion.anchor.x<0&&this.eversion.ready&&this.eversion.target.x-this.eversion.anchor.x>=.025&&Math.abs(this.eversion.target.z)<.12;}
+  get epidermalAlignment(){
+    const right=this.eversion.deformPoint(this.tissuePoint(new THREE.Vector3(.05,TISSUE_LAYERS.epidermis.top,0)));
+    const left=this.eversion.deformPoint(this.tissuePoint(new THREE.Vector3(-.05,TISSUE_LAYERS.epidermis.top,0)));
+    const gap=right.x-left.x,heightDifference=left.y-right.y;
+    return {left,right,gap,heightDifference,aligned:gap>=.006&&gap<=.028&&Math.abs(heightDifference)<=.03&&Math.abs(left.z-right.z)<=.06};
+  }
+  get oppositeEdgeReady(){return this.eversion.anchor.x<0&&this.eversion.held&&this.eversion.traction.state==='gentle'&&this.epidermalAlignment.aligned;}
+
   get guidedPassReady(){return this.oppositeEdgeRequired?this.oppositeEdgeReady:this.eversion.ready;}
   get oppositeEdgeInstruction(){
     const edge=this.eversion;
     if(edge.anchor.x>0)return edge.held?'First side passed · Open X to release the right skin edge':'First side passed · Let the edge relax, then position forceps at the opposite edge';
     if(!edge.held)return 'Opposite edge · Position forceps at the left skin edge, then close Z';
-    if(!edge.ready)return 'Opposite edge held · Lift E gently to match the edges';
-    if(!this.oppositeEdgeReady)return 'Opposite edge held · Pull inward with D until flush · Shift slows movement';
-    return 'Opposite edge aligned · Hold U to advance the needle driver';
+    const alignment=this.epidermalAlignment;
+    if(alignment.heightDifference>.03)return 'Opposite edge held · Lower Q until the epidermal surfaces are level';
+    if(alignment.heightDifference<-.03)return 'Opposite edge held · Raise E until the epidermal surfaces are level';
+    if(!this.oppositeEdgeReady)return 'Opposite edge held · Pull inward with D until the epidermal edges meet · Shift slows movement';
+    return 'Epidermal edges flush · Stop pulling and hold U to advance the needle driver';
   }
   get preparingEdge(){return this.guidedEdge && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
   private updateEversion(dt:number,allowGrasp=true){
@@ -322,6 +332,7 @@ export class PracticeSession {
     this.grasp?.update(needleTools,this.pass.phase==='complete');
     if(constrained) {
       if(this.oppositeEdgeRequired&&this.eversion.anchor.x>0&&!this.eversion.held&&this.eversion.target.distanceTo(this.eversion.anchor)<.01)this.eversion.begin(-1);
+      if(this.oppositeEdgeRequired&&this.eversion.anchor.x<0)this.eversion.opposingEdgeX=this.tissuePoint(new THREE.Vector3(.05,TISSUE_LAYERS.epidermis.top,0)).x;
       const staged=this.environment.id==='skin';
       this.pass.update(this.guidedPassReady?drive:0,this.grasp?.holder?.kind==='needle-driver',step,staged&&!this.oppositeEdgeRequired?this.pass.firstSideAngle:this.pass.totalAngle);
       if(staged&&!this.oppositeEdgeRequired&&this.pass.angle>=this.pass.firstSideAngle-1e-8)this.oppositeEdgeRequired=true;

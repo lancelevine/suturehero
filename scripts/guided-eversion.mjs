@@ -21,9 +21,7 @@ export async function advanceGuidedPass(page){
   await page.keyboard.up('x');await page.locator('#position-forceps').click();
   await page.keyboard.down('z');
   await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Opposite edge held'),{},{timeout:15000});
-  await page.keyboard.up('z');await page.keyboard.down('Shift');await page.keyboard.down('e');
-  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Pull inward'),{},{timeout:15000});
-  await page.keyboard.up('e');await page.keyboard.down('d');
+  await page.keyboard.up('z');await page.keyboard.down('Shift');await page.keyboard.down('d');
   await page.waitForFunction(()=>document.querySelector('#exercise-title').dataset.passSupport==='aligned',{},{timeout:15000});
   await page.keyboard.up('d');await page.keyboard.up('Shift');await page.keyboard.down('u');
   await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});await page.keyboard.up('u');

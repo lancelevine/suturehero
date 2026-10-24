@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.42)
+## Current practice options (build 0.43)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,12 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Visible epidermal alignment in 0.43
+
+During opposite-edge support, small amber rings follow the visible epidermal edges at the stitch. They turn green when the surface edges meet with similar heights and the forceps holds a gentle grasp. Alignment uses the same deformed epidermal positions as the 3D pad and cross-section, rather than a fixed amount of lifting. After grasping the opposite edge with Z, pull inward with D; use E/Q only if the surface heights need adjustment. Stop pulling when the rings turn green, then U advances the needle driver.
+
+The opposite edge can move toward the stationary first edge across the original incision midline, with a bounded clearance to prevent crossing it. Excessive lifting produces a lower-with-Q cue rather than counting as alignment. The deeper dermal review remains separate in the cross-section and stitch feedback; surface alignment is not a claim of adequate deep purchase. This remains a geometric approximation with the existing controls.
 
 ## Two-edge guided skin pass in 0.42
 

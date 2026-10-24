@@ -11,6 +11,7 @@ export class EdgeEversion {
   // Monotonic event identity; the session owns per-stitch counts.
   get slipSerial(){return this.slipCount;}
   edgeX=.05;
+  opposingEdgeX?:number;
   padOffsetZ=0;
   readonly anchor=new THREE.Vector3(0.05,(TISSUE_LAYERS.epidermis.bottom+TISSUE_LAYERS.epidermis.top)/2,0);
   readonly target=this.anchor.clone();
@@ -68,8 +69,8 @@ export class EdgeEversion {
     const depth=THREE.MathUtils.smoothstep(point.y,TISSUE_LAYERS.fat.bottom,TISSUE_LAYERS.dermis.bottom),weight=across*along*depth;
     const moved=point.clone().sub(this.anchor).applyAxisAngle(new THREE.Vector3(0,0,1),-side*this.angle).add(this.target);
     // Deep attached tissue follows the epidermal lift without crossing the opposing edge.
-    moved.x=side*Math.max(0.006,side*moved.x);
+    moved.x=side<0&&this.opposingEdgeX!==undefined?Math.min(this.opposingEdgeX-.012,moved.x):side*Math.max(0.006,side*moved.x);
     return target.copy(point).lerp(moved,weight);
   }
-  reset(){this.traction.reset();this.active=false;this.held=false;this.anchor.set(this.edgeX,(TISSUE_LAYERS.epidermis.bottom+TISSUE_LAYERS.epidermis.top)/2,0);this.target.copy(this.anchor);this.angle=0;this.previousOpen=0.65;this.revision++;}
+  reset(){this.opposingEdgeX=undefined;this.traction.reset();this.active=false;this.held=false;this.anchor.set(this.edgeX,(TISSUE_LAYERS.epidermis.bottom+TISSUE_LAYERS.epidermis.top)/2,0);this.target.copy(this.anchor);this.angle=0;this.previousOpen=0.65;this.revision++;}
 }

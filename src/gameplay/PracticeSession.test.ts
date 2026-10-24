@@ -192,7 +192,7 @@ it.each([false,true])('recovers a slipped skin grasp and retains feedback (shall
  expect(s.pass.angle).toBeGreaterThan(angle);expect(s.stitchAssessment.feedback).toContain('Skin grasp slips: 1');
  s.reset();expect(s.stitchAssessment.feedback.join(' ')).not.toContain('Skin grasp slips');
 });
-it('pauses at the first side until the opposite edge is grasped, lifted and drawn flush',()=>{
+it('pauses at the first side until the visible epidermal edges are drawn flush',()=>{
  const needle=new SutureModel(),tools=[new Instrument('left',0),new Instrument('right',0)],scene=new THREE.Scene();scene.add(needle.root,...tools.map(t=>t.root));
  const command:ToolCommand={translation:[0,0,0],rotation:[0,0,1],jaw:0},idle:ToolCommand={translation:[0,0,0],rotation:[0,0,0],jaw:0};
  const s=new PracticeSession({sample:id=>id==='right'?command:idle,dispose:()=>{}},tools,new NeedleGrasp(needle)),tick=(n:number)=>{for(let i=0;i<n;i++)s.update(.05);};
@@ -203,7 +203,9 @@ it('pauses at the first side until the opposite edge is grasped, lifted and draw
  expect(s.canPositionForceps).toBe(false);tools[0].openness=.7;tick(14);expect(s.eversion.anchor.x).toBeLessThan(0);
  expect(s.positionForceps()).toBe(true);tools[0].openness=.1;s.update(.01);tools[0].root.position.y+=.15;tick(4);
  expect(s.eversion.ready).toBe(true);expect(s.oppositeEdgeReady).toBe(false);expect(s.pass.angle).toBe(angle);
- tools[0].root.position.x+=.045;tick(3);expect(s.oppositeEdgeReady).toBe(true);expect(s.pass.angle).toBeGreaterThan(angle);
+ tools[0].root.position.x+=.085;tick(3);expect(s.oppositeEdgeReady).toBe(false);expect(s.oppositeEdgeInstruction).toContain('Lower Q');
+ tools[0].root.position.y-=.15;tick(3);expect(s.eversion.ready).toBe(false);expect(s.oppositeEdgeReady).toBe(true);
+ expect(s.epidermalAlignment.gap).toBeGreaterThanOrEqual(.006);expect(Math.abs(s.epidermalAlignment.heightDifference)).toBeLessThan(.03);expect(s.pass.angle).toBeGreaterThan(angle);
  tools[0].openness=.7;s.update(.01);const paused=s.pass.angle;tick(3);expect(s.pass.angle).toBe(paused);
  alignOppositeEdge(s,tools);tick(100);expect(s.pass.phase).toBe('complete');s.reset();expect(s.oppositeEdgeRequired).toBe(false);
 });
