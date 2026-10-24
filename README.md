@@ -2,7 +2,7 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
-## Current practice options (build 0.37)
+## Current practice options (build 0.38)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 
@@ -14,6 +14,14 @@ The setup bar selects skin or microsurgery, tissue target, needle, suture materi
 - **Scissors:** select **Use scissors** to route the existing right-hand keys to a separate instrument while the driver stays parked. Skin uses Mayo scissors; microsurgery uses fine Westcott scissors. **Position scissors at tail** is an optional assist. Close with **comma** to cut a strand between the blades; **period** reopens for another cut. Offcuts remain separate simulated material and a held offcut stays attached until released. Reset restores full strand lengths. Cutting is available in free tying and after the guided knot's release/pull checks. Retained knots have a protected material region; scissors currently trim free tails rather than severing a knot or tissue.
 
 Free knot retention remains an approximate material-crossing constraint, not a calibrated knot-security model. The finite-iteration solver allows small geometric strain (the multi-throw regression bounds it to 3%) while preserving the prescribed material budget. Shaft/thread contact, local tissue deformation, and sliding on the short post are approximations. No heavy graphics features or input-device redesign are part of this increment.
+
+## Skin traction and grasp recovery in 0.38
+
+Skin grasping now distinguishes gentle eversion, visible stretching and a slipping grasp. The existing forceps controls are unchanged. The skin marker and relative-traction meter warn as the edge is pulled farther from its resting position; sustained overload can release the skin. Ease the pull back toward the edge before it slips, using Q to lower the forceps or Shift for slower movement. Abrupt out-of-range pulls release the grasp with bounded deformation instead of stretching the pad arbitrarily far.
+
+A lost skin grasp pauses the guided needle pass without resetting its progress. Open X, optionally use **Position forceps**, close Z near the edge and lift gently to resume. Keeping closed jaws near the tissue cannot automatically regrasp it after a slip. The tissue relaxes after release; there is no tearing, permanent injury or calibrated force model. The response uses geometric displacement and time under overload. Microsurgery retains its previous edge-handling behavior.
+
+High skin traction and grasp-slip counts remain in the current stitch review and its saved session record. They clear for a new stitch or reset and do not prevent completing a recovered stitch. Gentle eversion still prepares the skin profile used by the seated suture; excessive traction is not recorded as extra eversion preparation.
 
 ## Bite placement and spacing in 0.37
 

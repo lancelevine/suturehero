@@ -1,7 +1,7 @@
 import type {Vector3} from 'three';
 export interface StitchFrame {
  lab:boolean;skin:boolean;pass:boolean;extracted:boolean;knot:boolean;seated:boolean;released:boolean;trimmed:number;
- bites:readonly (Vector3|null)[];closure:number;eversion:number;pucker:number;peakPull:number;edgeMismatch?:number;planned?:boolean;
+ bites:readonly (Vector3|null)[];closure:number;eversion:number;pucker:number;peakPull:number;edgeMismatch?:number;planned?:boolean;skinTractionPeak?:number;skinGraspSlips?:number;
 }
 /** Observes achieved exercise stages. Quality feedback is geometric, not a clinical score. */
 export function assessStitch(f:StitchFrame){
@@ -19,6 +19,8 @@ export function assessStitch(f:StitchFrame){
   `Edges: ${f.closure>.9?'approximated':f.closure>.05?'drawing together':'open'}`,
   ...(f.skin?[`Eversion: ${f.eversion>.004?'maintained':'pending'}`,`Puckering: ${f.pucker>.008?'ease tension':'minimal'}`]:[]),
   `Tails trimmed: ${f.trimmed}/2`,
+  ...(f.skin&&(f.skinTractionPeak??0)>.6?['High skin traction observed']:[]),
+  ...(f.skin&&(f.skinGraspSlips??0)>0?[`Skin grasp slips: ${f.skinGraspSlips}`]:[]),
   ...(f.peakPull>.6?['High pull observed · Review tension control']:[]),
  ];
  return {stage,feedback,complete,labFinished:f.lab&&finished};

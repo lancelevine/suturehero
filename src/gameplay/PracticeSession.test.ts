@@ -177,3 +177,16 @@ it('counts a free release hold only while both primary strands are released and 
  s.freeKnot.grips.clear();seat.mockReturnValue(false);for(let i=0;i<100;i++)s.update(1/60);expect(s.freeReleaseProgress).toBe(0);
  s.reset();expect(s.freeReleaseProgress).toBe(0);
 });
+it('pauses a pass on skin grasp slip, allows recovery, and retains handling feedback until reset',()=>{
+ const left=new Instrument('left',0),right=new Instrument('right',0),needle=new SutureModel();
+ const drive:ToolCommand={translation:[0,0,0],rotation:[0,0,1],jaw:0};
+ const s=new PracticeSession({sample:id=>id==='right'?drive:{translation:[0,0,0],rotation:[0,0,0],jaw:0},dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+ s.beginPass();s.positionForceps();left.openness=.1;s.update(.01);left.root.position.y+=.15;s.update(.01);expect(s.beginPass()).toBe(true);s.update(.05);
+ const angle=s.pass.angle;left.root.position.y+=.19;
+ for(let i=0;i<30;i++)s.update(.05);
+ expect(s.eversion.held).toBe(false);expect(s.pass.phase).toBe('passing');expect(s.pass.angle).toBe(angle);
+ expect(s.stitchAssessment.feedback).toContain('Skin grasp slips: 1');expect(s.stitchAssessment.feedback).toContain('High skin traction observed');
+ expect(s.positionForceps()).toBe(true);left.openness=.1;s.update(.01);left.root.position.y+=.15;s.update(.01);s.update(.05);
+ expect(s.pass.angle).toBeGreaterThan(angle);expect(s.stitchAssessment.feedback).toContain('Skin grasp slips: 1');
+ s.reset();expect(s.stitchAssessment.feedback.join(' ')).not.toContain('Skin grasp slips');
+});

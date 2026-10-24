@@ -13,6 +13,16 @@ try {
     assert.notEqual(await page.locator('#right-bite-value').innerText(),await page.locator('#left-bite-value').innerText());
   }
   await page.getByRole('button',{name:'Start guided pass'}).click();
+  if(process.env.SUTURE_TEST_TRACTION){
+    await page.locator('#position-forceps').click();await page.keyboard.down('z');
+    await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Skin edge held'));await page.keyboard.up('z');
+    const liftTo=async state=>{await page.keyboard.down('Shift');await page.keyboard.down('e');await page.waitForFunction(s=>document.querySelector('#skin-traction').dataset.state===s,state,{timeout:15000});await page.keyboard.up('e');await page.keyboard.up('Shift');};
+    await liftTo('stretching');
+    await page.keyboard.down('Shift');await page.keyboard.down('q');await page.waitForFunction(()=>document.querySelector('#skin-traction').dataset.state==='gentle'&&!document.querySelector('#begin-pass').disabled);await page.keyboard.up('q');await page.keyboard.up('Shift');
+    await liftTo('slipping');await page.waitForFunction(()=>document.querySelector('#skin-traction').dataset.state==='slipped',{},{timeout:15000});
+    assert.equal(await page.locator('#begin-pass').isDisabled(),true);assert.match(await page.locator('#stitch-quality').innerText(),/Skin grasp slips: 1/);
+    assert.match(await page.locator('#skin-traction-state').innerText(),/Open X/);await page.waitForTimeout(800);
+  }
   await prepareEversion(page);
   if(process.env.SUTURE_TEST_BITES){await page.waitForFunction(()=>document.querySelector('#bite-controls').disabled);assert.equal(await page.locator('#right-bite').isDisabled(),true);}
   if(await page.locator('#close-up').getAttribute('aria-pressed')==='false')await page.locator('#close-up').click();
@@ -73,10 +83,12 @@ try {
   await page.keyboard.up(',');
   assert.match(await page.locator('#stitch-stage').innerText(),/Stitch exercise complete/);
   if(process.env.SUTURE_TEST_BITES)assert.match(await page.locator('#stitch-quality').innerText(),/unequal widths.*planned/);
+  if(process.env.SUTURE_TEST_TRACTION)assert.match(await page.locator('#stitch-quality').innerText(),/Skin grasp slips: 1/);
   if(process.env.SUTURE_TEST_COURSE){
     await page.locator('#next-stitch').click();
     await page.waitForFunction(()=>document.querySelector('#course-status').textContent.includes('Stitch 2 / 3'));
     assert.equal(await page.locator('#course-review li').count(),1);
+    if(process.env.SUTURE_TEST_TRACTION){assert.match(await page.locator('#course-review').innerText(),/Skin grasp slips: 1/);assert.doesNotMatch(await page.locator('#stitch-quality').innerText(),/Skin grasp slips/);}
     assert.match(await page.locator('#stitch-stage').innerText(),/Evert and pass/);
     assert.equal(await page.locator('#next-stitch').isDisabled(),true);
     assert.equal(await page.locator('#free-tying').isDisabled(),true);

@@ -25,6 +25,7 @@ import type { Instrument } from '../instruments/Instrument';
 export class PracticeSession {
   readonly course=new StitchCourse();
   bitePlanLimited=false;
+  private handlingPeak=0;private handlingSlips=0;private observedSlipSerial=0;
   get canPlanBites(){return this.environment.id==='skin'&&this.pass.phase==='idle'&&!this.knot.active&&!this.freeKnot.active&&!this.eversion.held&&!this.course.finished;}
   setBiteWidths(rightRatio:number,leftRatio:number){
     if(!this.canPlanBites)return false;
@@ -70,7 +71,8 @@ export class PracticeSession {
     const forceps=this.instruments.find(t=>t.kind==='forceps');if(!forceps)return;
     forceps.root.updateWorldMatrix(true,false);
     this.eversion.update({jaw:forceps.root.localToWorld(new THREE.Vector3(0,0,0.05)),rotation:forceps.root.getWorldQuaternion(new THREE.Quaternion()),openness:forceps.openness},dt,allowGrasp && this.grasp?.holder!==forceps && !this.grasp?.findGrip(forceps,this.pass.phase==='complete'),this.preparingEdge || this.pass.phase==='passing');
-    if(this.environment.id==='skin'&&this.eversion.held&&Math.abs(this.eversion.anchor.z)<.45)this.tissueResponse.prepare(this.eversion.anchor.x,this.eversion.angle);
+    if(this.environment.id==='skin'){this.handlingPeak=Math.max(this.handlingPeak,this.eversion.traction.peakLoad);this.handlingSlips+=this.eversion.slipSerial-this.observedSlipSerial;this.observedSlipSerial=this.eversion.slipSerial;}
+    if(this.environment.id==='skin'&&this.eversion.held&&this.eversion.traction.state==='gentle'&&Math.abs(this.eversion.anchor.z)<.45)this.tissueResponse.prepare(this.eversion.anchor.x,this.eversion.angle);
   }
   readonly placement=new NeedlePlacement();
   readonly pass=new NeedlePass();
@@ -83,7 +85,7 @@ export class PracticeSession {
   readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
   private configureTissueResponse(){
-    this.syncBitePlan();
+    this.syncBitePlan();this.eversion.tractionEnabled=this.environment.id==='skin';
     this.wound.response=this.environment.id==='skin'?this.tissueResponse:undefined;
     this.freeKnot.padOffsetZ=this.course.siteZ;this.eversion.padOffsetZ=this.course.siteZ;
     this.freeKnot.surfaceAt=p=>{
@@ -113,7 +115,7 @@ export class PracticeSession {
     return assessStitch({lab,skin:this.environment.id==='skin',pass:this.pass.phase==='complete',extracted:this.pull.phase==='complete',
       knot:isFree?!!free.sequence?.locked:this.knot.phase==='complete',seated:isFree?free.lockSeated:this.knot.phase==='complete'&&this.wound.closure>.9,
       released,trimmed:isFree?free.trimmedTails.size:this.knotSlack.trimmedTails.size,bites:this.wound.purchaseSites,closure:this.wound.closure,
-      eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,edgeMismatch:this.wound.edgeMismatch,planned:this.pass.customBites,
+      eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,edgeMismatch:this.wound.edgeMismatch,planned:this.pass.customBites,skinTractionPeak:this.handlingPeak,skinGraspSlips:this.handlingSlips,
       peakPull:isFree?Math.max(free.tension.long.peakDemand,free.tension.short.peakDemand):this.tissueResponse.peakDemand});
   }
   gripFraction=0.9;
@@ -311,5 +313,5 @@ export class PracticeSession {
     }
   }
   reset(){this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
-  private resetCurrent() {this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
+  private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }
