@@ -14,7 +14,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
-<p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p>
+<p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
 <label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#d49a00;font-weight:bold">Yellow</span> = candidate square · <span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
 <div class="tracking-stats" aria-label="Live camera diagnostics">
@@ -92,6 +92,16 @@ const frame2=document.createElement('canvas');
 const context2=frame2.getContext('2d',{willReadFrequently:true})!;
 const overlayContext2=overlay2.getContext('2d')!;
 let stream2:MediaStream|null=null,ready2=false,processing2=false,lastDetection2=0,session2=0;
+let secondaryObservations:MarkerObservation[]=[];
+let secondaryObservationsAt=0;
+const stereoStatus=document.querySelector<HTMLElement>('#stereo-match-status')!;
+function updateStereoMatches(){
+ if(!stream||!stream2||!observationsAt||!secondaryObservationsAt){stereoStatus.textContent='Stereo matching: waiting for both camera detections.';return;}
+ const delta=Math.abs(observationsAt-secondaryObservationsAt);
+ const matches=observations.filter(primary=>secondaryObservations.some(secondary=>secondary.id===primary.id)).map(marker=>marker.id);
+ stereoStatus.textContent='Stereo: '+(delta<=250?'':'frames not synchronized · ')+(matches.length?'shared marker IDs '+matches.join(', '):'no shared marker IDs')+' · frame offset '+Math.round(delta)+' ms · calibration required for 3D';
+}
+
 async function refreshSecondCameraList(){
  const current=select2.value;
  const devices=await availableCameras();
@@ -101,7 +111,7 @@ async function refreshSecondCameraList(){
 }
 async function stopSecondCamera(){
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
- video2.srcObject=null;overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
+ video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
  document.querySelector<HTMLElement>('#camera-placeholder-2')!.style.display='';
  status2.textContent='Second camera stopped';
@@ -130,6 +140,7 @@ async function detectSecondFrame(now:number){
   context2.drawImage(video2,0,0,w,h);
   const found=await detector2.detect(context2.getImageData(0,0,w,h));
   if(currentSession!==session2)return;
+  secondaryObservations=found;secondaryObservationsAt=performance.now();updateStereoMatches();
   overlayContext2.clearRect(0,0,w,h);
   for(const marker of found){
    const pts=marker.corners;overlayContext2.beginPath();overlayContext2.moveTo(pts[0].x,pts[0].y);
@@ -276,7 +287,7 @@ async function detectFrame(now:number){
  try{
   const w=video.videoWidth,h=video.videoHeight;if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
   frameContext.drawImage(video,0,0,w,h);const frame=frameContext.getImageData(0,0,w,h);if(thresholdToggle.checked)renderThreshold(frame);if(cropToggle.checked)renderCrop(frame);const found=await detector.detect(frame);
-  if(session===cameraSession){observations=found;observationsAt=performance.now();framesAnalyzed++;diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
+  if(session===cameraSession){observations=found;observationsAt=performance.now();updateStereoMatches();framesAnalyzed++;diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
  }catch(e){status.textContent='Detection error: '+(e instanceof Error?e.message:String(e));detectorReady=false;diag('note').textContent='Detector threw an error';}
  finally{processing=false;}
 }
