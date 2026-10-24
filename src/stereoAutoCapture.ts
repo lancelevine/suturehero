@@ -19,6 +19,9 @@ type CV = {
  COLOR_RGBA2GRAY:number;CALIB_CB_ADAPTIVE_THRESH:number;CALIB_CB_NORMALIZE_IMAGE:number;
 };
 const pairs:Pair[]=[];
+type BoardQuality={cx:number;cy:number;span:number;angle:number};
+const qualities:BoardQuality[]=[];
+const qualityMessage=document.createElement('p');qualityMessage.className='tracking-message';statusElement.after(qualityMessage);
 let active=false;
 let timer:number|undefined;
 let processing=false;
@@ -43,7 +46,7 @@ function frame(video:HTMLVideoElement):{canvas:HTMLCanvasElement;image:ImageCapt
  canvas.getContext('2d')!.drawImage(video,0,0);
  return {canvas,image:{width:canvas.width,height:canvas.height,image:canvas.toDataURL('image/jpeg',.82)}};
 }
-function checkerboardVisible(cv:CV,canvas:HTMLCanvasElement):boolean {
+function checkerboardVisible(cv:CV,canvas:HTMLCanvasElement):BoardQuality|null {
  // Detect on a downsampled image to keep the UI responsive.
  const small=document.createElement('canvas');
  const scale=Math.min(1,960/canvas.width);
@@ -56,7 +59,12 @@ function checkerboardVisible(cv:CV,canvas:HTMLCanvasElement):boolean {
   cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
   const found=cv.findChessboardCorners(gray,new cv.Size(7,6),corners,
    cv.CALIB_CB_ADAPTIVE_THRESH|cv.CALIB_CB_NORMALIZE_IMAGE);
-  return found&&corners.rows*corners.cols===42;
+  if(!found||corners.rows*corners.cols!==42)return null;
+  const data=corners.data32F as Float32Array;
+  if(!data||data.length<84)return null;
+  const x0=data[0],y0=data[1],x6=data[12],y6=data[13],x35=data[70],y35=data[71];
+  return {cx:(x0+x6+x35)/3/small.width,cy:(y0+y6+y35)/3/small.height,
+   span:Math.hypot(x6-x0,y6-y0)/small.width,angle:Math.atan2(y6-y0,x6-x0)};
  } finally {
   corners?.delete();gray?.delete();src?.delete();
  }
@@ -109,8 +117,17 @@ async function tick():Promise<void>{
   const first=frame(video1),second=frame(video2);
   const valid1=checkerboardVisible(cv,first.canvas);
   const valid2=checkerboardVisible(cv,second.canvas);
+  let warning='';
   if(valid1&&valid2){
+   const previous=qualities.some(q=>Math.hypot(q.cx-valid1.cx,q.cy-valid1.cy)<.035&&
+    Math.abs(q.span-valid1.span)<.025&&Math.abs(Math.atan2(Math.sin(q.angle-valid1.angle),Math.cos(q.angle-valid1.angle)))<.12);
+   if(previous)warning='This board pose resembles an earlier capture. Change position, tilt, or distance.';
    pairs.push({time:new Date().toISOString(),first:first.image,second:second.image,frameDeltaMs:null});
+   qualities.push(valid1);
+   const spans=qualities.map(q=>q.span),angles=qualities.map(q=>q.angle);
+   qualityMessage.textContent='Capture diversity (not a solved calibration): '+pairs.length+' pairs · board-size range '+
+    ((Math.max(...spans)-Math.min(...spans))*100).toFixed(1)+'% of frame · orientation range '+
+    ((Math.max(...angles)-Math.min(...angles))*180/Math.PI).toFixed(0)+'°. '+warning;
   }
   if(pairs.length>=target){stop('20 / 20 validated pairs captured. Ready to export.');return;}
   update(pairs.length+' / '+target+' accepted · Camera 1: '+(valid1?'42 corners ✓':'board not found')+
@@ -124,7 +141,7 @@ capture.addEventListener('click',event=>{
  event.stopImmediatePropagation();
  if(active){stop();return;}
  if(!ready()){update('Start both cameras before capture.');return;}
- pairs.length=0;
+ pairs.length=0;qualities.length=0;qualityMessage.textContent='';
  active=true;
  update('Loading checkerboard detector…');
  void tick().then(()=>{
@@ -134,7 +151,7 @@ capture.addEventListener('click',event=>{
 exportButton.addEventListener('click',event=>{
  event.stopImmediatePropagation();
  if(!pairs.length)return;
- const payload={format:'suturehero-stereo-captures-v1',board,camera1:camera1.value,camera2:camera2.value,pairs};
+ const payload={format:'suturehero-stereo-captures-v1',board,camera1:camera1.value,camera2:camera2.value,pairs,diagnostics:{captureQualities:qualities,measuredBaselineMm:290,notice:'Capture diversity only; stereo reprojection error and camera extrinsics not solved.'}};
  const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;
  link.download='suturehero-stereo-calibration-'+new Date().toISOString().slice(0,10)+'.json';
@@ -145,7 +162,7 @@ clearButton.addEventListener('click',event=>{
  event.stopImmediatePropagation();
  if(active)return;
  if(pairs.length&&!window.confirm('Discard all validated calibration captures?'))return;
- pairs.length=0;update('0 validated pairs captured.');
+ pairs.length=0;qualities.length=0;qualityMessage.textContent='';update('0 validated pairs captured.');
 },true);
 const intro=capture.closest('section')?.querySelector<HTMLElement>('p.tracking-message');
 if(intro)intro.innerHTML='Checkerboard: <strong>8 × 7 squares · 7 × 6 inner corners · 37 mm squares</strong>. The app accepts a pair only when both cameras detect all 42 inner corners. Tilt and reposition the board between captures; do not move the cameras.';
