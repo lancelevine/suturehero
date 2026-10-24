@@ -14,7 +14,9 @@ export class CrossSectionView {
   const ctx=this.canvas.getContext('2d');if(!ctx)return;
   ctx.clearRect(0,0,600,260);ctx.fillStyle='#12252c';ctx.fillRect(0,0,600,260);
   const point=new THREE.Vector3(),screen=(x:number,y:number)=>{
-   point.set(x-Math.sign(x)*fieldShift(x,siteZ,sites,y),y+fieldLift(x,y,siteZ,sites),0);
+   // Interpolate the planned path through the empty incision without folding it across the midline.
+   const shift=fieldShift(Math.max(.05,Math.abs(x)),siteZ,sites,y)*Math.min(1,Math.abs(x)/.05);
+   point.set(x-Math.sign(x)*shift,y+fieldLift(x,y,siteZ,sites),0);
    edge.deformPoint(point,point);return [300+point.x*480,245-point.y*470] as const;
   };
   for(const [layer,color] of [[TISSUE_LAYERS.fat,'#d9b55b'],[TISSUE_LAYERS.dermis,'#c88479'],[TISSUE_LAYERS.epidermis,'#edb9a2']] as const){
