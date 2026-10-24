@@ -398,7 +398,6 @@ function updateLiveTargets(){
     if(selectedOffset)offsets.set(other.pose.id,other.pose.quaternion.clone().invert().multiply(pose.quaternion).multiply(selectedOffset).normalize());
    }
   }
-  const cx=marker.corners.reduce((v,p)=>v+p.x,0)/4,cy=marker.corners.reduce((v,p)=>v+p.y,0)/4;
   // Monocular translation in camera coordinates. Intrinsics remain approximate.
   // Map the physical depth interval to the entire usable virtual Z range.
   const rawDistance=pose.position.z;
