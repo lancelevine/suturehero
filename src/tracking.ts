@@ -440,7 +440,18 @@ function updateLiveTargets(){
   candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
   const previous=liveTargets.get(name);
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
-  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];if(!chosen)continue;
+  // Only a recently decoded marker may be the active pose face. Optical
+  // flow may keep following a patch after the printed face is occluded.
+  const decoded=candidates.filter(c=>performance.now()-(markerLastDecoded.get(c.pose.id)??-Infinity)<=OVERLAP_DECODE_MS);
+  const scored=decoded.map(c=>{
+   const pts=c.marker.corners;
+   const area=Math.abs(pts.reduce((sum,p,i)=>sum+p.x*pts[(i+1)%4].y-pts[(i+1)%4].x*p.y,0))/2;
+   const age=performance.now()-(markerLastDecoded.get(c.pose.id)??0);
+   return {candidate:c,score:Math.log1p(area)-Math.min(age,300)*.009-c.pose.reprojectionError*.12};
+  }).sort((a,b)=>b.score-a.score);
+  const preferred=scored.find(c=>c.candidate.pose.id===previous?.id);
+  const chosen=(preferred&&preferred.score>=scored[0].score-.2?preferred:scored[0])?.candidate;
+  if(!chosen)continue;
   // Keep 2D translation active even with a poor 3D pose fit.
   const {pose}=chosen;
   // Nominal V5 triangular prism: consecutive marker IDs are 120 degrees apart.
