@@ -327,7 +327,22 @@ let observations:MarkerObservation[]=[];
 const markerLastConfirmed=new Map<number,number>();
 const markerLastDecoded=new Map<number,number>();
 const OVERLAP_DECODE_MS=300;
-const verifiedMarkers=()=>liveMarkers().filter(m=>performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<=OVERLAP_DECODE_MS);
+const verifiedMarkers=()=>{
+ const now=performance.now();
+ const eligible=liveMarkers().filter(m=>now-(markerLastDecoded.get(m.id)??-Infinity)<=OVERLAP_DECODE_MS);
+ const selected:MarkerObservation[]=[];
+ for(const name of Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>){
+  const ids=MARKER_GROUPS[name] as readonly number[];
+  const ranked=eligible.filter(m=>ids.includes(m.id)).map(m=>{
+   const area=Math.abs(m.corners.reduce((sum,p,i)=>sum+p.x*m.corners[(i+1)%4].y-m.corners[(i+1)%4].x*p.y,0))/2;
+   const age=now-(markerLastDecoded.get(m.id)??0);
+   return {marker:m,score:Math.log1p(area)-age*.009};
+  }).sort((a,b)=>b.score-a.score);
+  // A triangular prism has at most two camera-facing sides.
+  selected.push(...ranked.slice(0,2).map(item=>item.marker));
+ }
+ return selected;
+};
 const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=350;
 const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
 const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
@@ -442,7 +457,8 @@ function updateLiveTargets(){
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
   // Only a recently decoded marker may be the active pose face. Optical
   // flow may keep following a patch after the printed face is occluded.
-  const decoded=candidates.filter(c=>performance.now()-(markerLastDecoded.get(c.pose.id)??-Infinity)<=OVERLAP_DECODE_MS);
+  const visibleIds=new Set(verifiedMarkers().map(m=>m.id));
+  const decoded=candidates.filter(c=>visibleIds.has(c.pose.id));
   const scored=decoded.map(c=>{
    const pts=c.marker.corners;
    const area=Math.abs(pts.reduce((sum,p,i)=>sum+p.x*pts[(i+1)%4].y-pts[(i+1)%4].x*p.y,0))/2;
@@ -622,8 +638,8 @@ function updateLiveTargets(){
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
- const fresh=liveMarkers();
- for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=markerAge(marker.id)>MARKER_LIVE_MS;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((stale?'HELD ':overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ const fresh=verifiedMarkers();
+ for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=markerAge(marker.id)>MARKER_LIVE_MS||!verifiedMarkers().some(m=>m.id===marker.id);overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((stale?'HELD ':overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
