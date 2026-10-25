@@ -512,14 +512,20 @@ function updateLiveTargets(){
    rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
    rotationStates.set(name,rotation);
   }else if(rotation.face!==pose.id){
-   // A V5 prism has three faces spaced by 120 degrees. When a different
-   // marker becomes primary, re-anchor that face at the CURRENT displayed
-   // instrument orientation. This avoids a sudden 120-degree pose jump and
-   // permits relative rotation to continue from the new face immediately.
-   // The nominal offsets above remain useful for comparing simultaneous faces.
+   // The V5 markers are consecutive faces of a triangular prism.
+   // Changing faces represents an actual 120-degree axial roll, NOT a
+   // new instrument orientation to be silently zeroed out.
+   const ids=MARKER_GROUPS[name] as readonly number[];
+   const from=ids.indexOf(rotation.face);
+   const to=ids.indexOf(pose.id);
+   const steps=((to-from+4)%3)-1; // adjacent face: +1 or -1
+   if(from>=0&&to>=0&&steps!==0){
+    // Instrument shaft is local -X (the model's +Z shaft is turned -90° Y).
+    const roll=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-1,0,0),steps*2*Math.PI/3);
+    rotation.outputAnchor.multiply(roll).normalize();
+   }
    rotation.face=pose.id;
    rotation.rawAnchor.copy(corrected);
-   rotation.outputAnchor.copy(previous?.quaternion??new THREE.Quaternion());
    rotationGeometryStates.delete(name);
    rotationFilterStates.delete(name);
    poseHistory.set(name,[corrected.clone()]);
@@ -534,7 +540,7 @@ function updateLiveTargets(){
   const corners=chosen.marker.corners.map(p=>({x:p.x-centerX,y:p.y-centerY}));
   let geometry=rotationGeometryStates.get(name);
   if(!geometry||geometry.face!==pose.id){
-   geometry={face:pose.id,reference:corners,last:corners,moving:false,pending:0,still:0};
+   geometry={face:pose.id,reference:corners,last:corners,moving:switched,pending:0,still:0};
    rotationGeometryStates.set(name,geometry);
   }
   const cornerShift=(a:{x:number;y:number}[],b:{x:number;y:number}[])=>
