@@ -35,6 +35,38 @@ const MAX_UNCONFIRMED_MS=5000;
 let frameNumber=0;
 let flowOnly=false;
 let flowAccepted=0,flowRejected=0;
+let roiHints:MarkerObservation[]=[];
+let lastFullScan=0;
+const FULL_SCAN_INTERVAL_MS=1200;
+const ROI_PADDING=42;
+function decodeRegions(frame:ImageData):{markers:MarkerObservation[];candidates:Point[][];pass:string;durationMs:number}|null{
+ if(!roiHints.length)return null;
+ const start=performance.now();
+ const regions:Array<{x:number;y:number;w:number;h:number}>=[];
+ for(const marker of roiHints){
+  const xs=marker.corners.map(p=>p.x),ys=marker.corners.map(p=>p.y);
+  const x=Math.max(0,Math.floor(Math.min(...xs)-ROI_PADDING)),y=Math.max(0,Math.floor(Math.min(...ys)-ROI_PADDING));
+  const right=Math.min(frame.width,Math.ceil(Math.max(...xs)+ROI_PADDING)),bottom=Math.min(frame.height,Math.ceil(Math.max(...ys)+ROI_PADDING));
+  if(right-x>=24&&bottom-y>=24)regions.push({x,y,w:right-x,h:bottom-y});
+ }
+ if(!regions.length)return null;
+ const markers:MarkerObservation[]=[],candidates:Point[][]=[];
+ for(const region of regions){
+  const cropped=new ImageData(region.w,region.h);
+  for(let y=0;y<region.h;y++){
+   const offset=((region.y+y)*frame.width+region.x)*4;
+   cropped.data.set(frame.data.subarray(offset,offset+region.w*4),y*region.w*4);
+  }
+  const found=detector!.detect(cropped);
+  for(const marker of found)if(marker.id>=0&&marker.id<=8&&!markers.some(m=>m.id===marker.id))markers.push({...marker,corners:marker.corners.map(p=>({x:p.x+region.x,y:p.y+region.y}))});
+  for(const candidate of candidatesOf()){
+   const corners=cornersOf(candidate,1);
+   if(corners)candidates.push(corners.map(p=>({x:p.x+region.x,y:p.y+region.y})));
+  }
+ }
+ return {markers,candidates,pass:'ROI ('+regions.length+' regions)',durationMs:performance.now()-start};
+}
+
 function grayFrame(frame:ImageData):GrayFrame{
  const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
@@ -138,10 +170,16 @@ function detect(frame:ImageData){
  // Decoder and optical flow run independently; valid flow retains an ID between decodes.
  if(flowOnly){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Fast flow · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
- const start=performance.now(),raw=detector!.detect(frame);
- const all=[...raw],candidates=[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Array<{x:number;y:number}>=>!!c);
- let pass='Original',contrast='Unmodified';
- if(raw.length===0){
+ const start=performance.now();
+ const now=performance.now();
+ const useFull=now-lastFullScan>=FULL_SCAN_INTERVAL_MS||roiHints.length===0;
+ const local=useFull?null:decodeRegions(frame);
+ const raw=local?local.markers:detector!.detect(frame);
+ if(!local)lastFullScan=now;
+ const all=[...raw],candidates:Point[][]=local?[...local.candidates]:[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Point[]=>!!c);
+ let pass=local?local.pass:'Full frame',contrast='Unmodified';
+ // Expensive fallback passes only run during periodic full-frame reacquisition.
+ if(raw.length===0&&!local){
   const w=Math.max(1,Math.round(frame.width/2)),h=Math.max(1,Math.round(frame.height/2)),ratio=frame.width/w;
   canvas.width=w;canvas.height=h;
   const source=new OffscreenCanvas(frame.width,frame.height);
@@ -169,6 +207,7 @@ function detect(frame:ImageData){
   }
  }
  const decoded=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
+ if(decoded.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
  for(const marker of decoded)lastDecodedAt.set(marker.id,performance.now());
  const found=[...decoded];
  for(const marker of flowed)if(!found.some(m=>m.id===marker.id))found.push(marker);
@@ -178,7 +217,7 @@ function detect(frame:ImageData){
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
   if(e.data.type==='init'){flowOnly=!!(e.data as {flowOnly?:boolean}).flowOnly;if(!flowOnly)await initialize();self.postMessage({type:'ready'});}
-  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
+  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };
