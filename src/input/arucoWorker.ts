@@ -29,6 +29,7 @@ let previous:GrayFrame[]|null=null;
 let tracked:MarkerObservation[]=[];
 const lastDecodedAt=new Map<number,number>();
 let frameNumber=0;
+let flowOnly=false;
 let flowAccepted=0,flowRejected=0;
 function grayFrame(frame:ImageData):GrayFrame{
  const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
@@ -124,13 +125,14 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
 }
 
 function detect(frame:ImageData){
- const current=pyramid(grayFrame(frame));
- const flowed=flowTrack(previous,current);
- previous=current;
+ const current=flowOnly?pyramid(grayFrame(frame)):null;
+ const flowed=flowOnly?flowTrack(previous,current!):[];
+ if(flowOnly)previous=current;
  frameNumber++;
  // Run a full ID decode every third frame and whenever corner tracking fails.
  // Never propagate a marker ID beyond the short optical-flow confidence window.
- if(flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Pyramidal LK flow · accepted '+flowAccepted+' · rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
+ if(flowOnly){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Fast flow · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
+ if(false&&flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Pyramidal LK flow · accepted '+flowAccepted+' · rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
  const start=performance.now(),raw=detector!.detect(frame);
  const all=[...raw],candidates=[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Array<{x:number;y:number}>=>!!c);
@@ -169,9 +171,10 @@ function detect(frame:ImageData){
  tracked=found;
  return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:all.length,recognizedCount:found.length,rejectedCount:all.length-found.length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':flowed.length?'Flow maintained marker':'No tracked marker')+' · flow accepted '+flowAccepted+' / rejected '+flowRejected,pass,contrast}};
 }
-self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number}>)=>{
+self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
-  if(e.data.type==='init'){await initialize();self.postMessage({type:'ready'});}
+  if(e.data.type==='init'){flowOnly=!!(e.data as {flowOnly?:boolean}).flowOnly;if(!flowOnly)await initialize();self.postMessage({type:'ready'});}
+  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };

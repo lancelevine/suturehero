@@ -75,7 +75,7 @@ class WorkerDetector {
  private sequence=0;
  candidateCorners:Array<Array<{x:number;y:number}>>=[];
  diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting',pass:'—',contrast:'—'};
- async initialize(){
+ async initialize(flowOnly=false){
   this.dispose();
   const worker=new Worker(new URL('./input/arucoWorker.ts',import.meta.url));
   this.worker=worker;
@@ -94,9 +94,10 @@ class WorkerDetector {
     pending.resolve(data.found??[]);
    };
    worker.onerror=()=>{clearTimeout(timeout);reject(new Error('Detector worker failed to load'));};
-   worker.postMessage({type:'init'});
+   worker.postMessage({type:'init',flowOnly});
   });
  }
+ seed(markers:MarkerObservation[]){this.worker?.postMessage({type:'seed',markers});}
  detect(frame:ImageData):Promise<MarkerObservation[]>{
   if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
   const id=++this.sequence;
@@ -105,6 +106,9 @@ class WorkerDetector {
  dispose(){this.worker?.terminate();this.worker=null;for(const p of this.pending.values())p.reject(new Error('Worker stopped'));this.pending.clear();}
 }
 const detector=new WorkerDetector();
+const fastTracker=new WorkerDetector();
+let fastProcessing=false,lastFastFrame=0,lastSlowFrame=0,latestFlowAt=0,latestDecodeAt=0;
+let fastFrames=0,slowFrames=0,fastWindow=performance.now();
 const thresholdToggle=document.querySelector<HTMLInputElement>('#show-threshold')!;
 const thresholdPreview=document.querySelector<HTMLCanvasElement>('#threshold-preview')!;
 const thresholdContext=thresholdPreview.getContext('2d')!;
@@ -368,9 +372,9 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;detector.dispose();detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
- try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await detector.initialize();if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
+ try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
 });
 stop.addEventListener('click',stopCamera);
@@ -558,18 +562,60 @@ function drawDetections(){
  }
 }
 async function detectFrame(now:number){
- if(!stream||!detectorReady||processing||!video.videoWidth)return;
- // Process frames up to camera frame rate; skip frames while a detector is busy.
- const interval=33;
- if(now-lastDetection<interval){skippedFrames++;return;}
- lastDetection=now;processing=true;const session=cameraSession;
- try{
-  const scale=Math.min(1,960/video.videoWidth);const w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
-  frameContext.drawImage(video,0,0,w,h);const frame=frameContext.getImageData(0,0,w,h);if(thresholdToggle.checked)renderThreshold(frame);if(cropToggle.checked)renderCrop(frame);const found=await detector.detect(frame);
-  if(session===cameraSession){idleNoMarkers=found.length===0;observations=found;observationsAt=performance.now();updateStereoMatches();framesAnalyzed++;detectorFpsCount++;if(performance.now()-detectorFpsWindow>=1000){diag('detection-fps').textContent=(detectorFpsCount*1000/(performance.now()-detectorFpsWindow)).toFixed(1);detectorFpsCount=0;detectorFpsWindow=performance.now();}diag('frames').textContent=String(framesAnalyzed);diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);diag('outlines').textContent=String(detector.candidateCorners.length);diag('decoded').textContent=`${detector.diagnostics.recognizedCount} matched · ${detector.diagnostics.rawMarkerCount} total`;diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';diag('pass').textContent=detector.diagnostics.pass;diag('contrast').textContent=detector.diagnostics.contrast;diag('note').textContent=detector.diagnostics.note;drawDetections();}
- }catch(e){status.textContent='Detection error: '+(e instanceof Error?e.message:String(e));detectorReady=false;diag('note').textContent='Detector threw an error';}
- finally{processing=false;}
+ if(!stream||!detectorReady||!video.videoWidth)return;
+ const doFast=!fastProcessing&&now-lastFastFrame>=33;
+ const doSlow=!processing&&now-lastSlowFrame>=160;
+ if(!doFast&&!doSlow)return;
+ const session=cameraSession;
+ const scale=Math.min(1,960/video.videoWidth),w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
+ if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
+ frameContext.drawImage(video,0,0,w,h);
+ if(doFast){
+  fastProcessing=true;lastFastFrame=now;
+  const frame=frameContext.getImageData(0,0,w,h);
+  void fastTracker.detect(frame).then(found=>{
+   if(session!==cameraSession)return;
+   fastFrames++;
+   const stamp=performance.now();
+   // A fresh optical-flow result supersedes the last decoder snapshot.
+   // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
+   if(found.length){observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;drawDetections();}
+   else if(stamp-Math.max(latestFlowAt,latestDecodeAt)>350){observations=[];observationsAt=stamp;idleNoMarkers=true;drawDetections();}
+   if(stamp-fastWindow>=1000){
+    diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
+    fastFrames=0;slowFrames=0;fastWindow=stamp;
+   }
+  }).catch(e=>{if(session===cameraSession)diag('note').textContent='Flow error: '+String(e);}).finally(()=>{fastProcessing=false;});
+ }
+ if(doSlow){
+  processing=true;lastSlowFrame=now;
+  const frame=frameContext.getImageData(0,0,w,h);
+  if(thresholdToggle.checked)renderThreshold(frame);
+  if(cropToggle.checked)renderCrop(frame);
+  void detector.detect(frame).then(found=>{
+   if(session!==cameraSession)return;
+   slowFrames++;framesAnalyzed++;
+   diag('frames').textContent=String(framesAnalyzed);
+   diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);
+   diag('outlines').textContent=String(detector.candidateCorners.length);
+   diag('decoded').textContent=`${found.length} matched · ${detector.diagnostics.rawMarkerCount} total`;
+   diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';
+   diag('pass').textContent=detector.diagnostics.pass;
+   diag('contrast').textContent=detector.diagnostics.contrast;
+   diag('note').textContent=detector.diagnostics.note+' · parallel flow';
+   if(found.length){
+    fastTracker.seed(found);
+    latestDecodeAt=performance.now();
+    // Flow may already have advanced beyond this decode. Use the decode
+    // only for missing IDs, avoiding backward jumps from delayed responses.
+    const merged=[...observations];
+    for(const marker of found)if(!merged.some(m=>m.id===marker.id))merged.push(marker);
+    observations=merged;observationsAt=performance.now();idleNoMarkers=false;drawDetections();
+   }
+  }).catch(e=>{if(session===cameraSession){status.textContent='Detection error: '+String(e);diag('note').textContent='Decoder error';}}).finally(()=>{processing=false;});
+ }
 }
+
 const resize=new ResizeObserver(()=>{const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});resize.observe(mount);
 let last=performance.now();
 function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
