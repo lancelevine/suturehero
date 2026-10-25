@@ -541,7 +541,7 @@ function updateLiveTargets(){
    // No stationary lock or gross-pose rejection on translation: when the
    // green quadrilateral moves, the rendered instrument must follow it.
    // Smooth lightly to suppress subpixel jitter without freezing motion.
-   const blend=1-Math.exp(-elapsed*30);
+
    // Translation uses the latest measured marker position.
    // Rotation is independent of translation: allow deliberate rolling, pitching,
    // and yawing even when the instrument remains at a fixed position.
