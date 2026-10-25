@@ -561,6 +561,8 @@ function drawDetections(){
   faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=observations.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
  }
 }
+const decodeCanvas=document.createElement('canvas');
+const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
  if(!stream||!detectorReady||!video.videoWidth)return;
  const doFast=!fastProcessing&&now-lastFastFrame>=33;
@@ -568,6 +570,10 @@ async function detectFrame(now:number){
  if(!doFast&&!doSlow)return;
  const session=cameraSession;
  const scale=Math.min(1,960/video.videoWidth),w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
+ const nativeW=video.videoWidth,nativeH=video.videoHeight;
+ const decodeScaleX=nativeW/w,decodeScaleY=nativeH/h;
+ const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*decodeScaleX,y:p.y*decodeScaleY}))}));
+ const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/decodeScaleX,y:p.y/decodeScaleY}))}));
  if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
  frameContext.drawImage(video,0,0,w,h);
  if(doFast){
@@ -579,7 +585,7 @@ async function detectFrame(now:number){
    const stamp=performance.now();
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
-   if(found.length){observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(found);drawDetections();}
+   if(found.length){observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
    else if(stamp-Math.max(latestFlowAt,latestDecodeAt)>350){observations=[];observationsAt=stamp;idleNoMarkers=true;drawDetections();}
    if(stamp-fastWindow>=1000){
     diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
@@ -589,10 +595,14 @@ async function detectFrame(now:number){
  }
  if(doSlow){
   processing=true;lastSlowFrame=now;
-  const frame=frameContext.getImageData(0,0,w,h);
+  // Preserve native pixels for 12 mm marker decoding; flow stays at 960px.
+  if(decodeCanvas.width!==nativeW||decodeCanvas.height!==nativeH){decodeCanvas.width=nativeW;decodeCanvas.height=nativeH;}
+  decodeContext.drawImage(video,0,0,nativeW,nativeH);
+  const frame=decodeContext.getImageData(0,0,nativeW,nativeH);
   if(thresholdToggle.checked)renderThreshold(frame);
   if(cropToggle.checked)renderCrop(frame);
-  void detector.detect(frame).then(found=>{
+  void detector.detect(frame).then(nativeFound=>{
+   const found=toFlow(nativeFound);
    if(session!==cameraSession)return;
    slowFrames++;framesAnalyzed++;
    diag('frames').textContent=String(framesAnalyzed);
