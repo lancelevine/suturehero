@@ -37,16 +37,16 @@ let flowOnly=false;
 let flowAccepted=0,flowRejected=0;
 let roiHints:MarkerObservation[]=[];
 let lastFullScan=0;
-const FULL_SCAN_INTERVAL_MS=1200;
-const ROI_PADDING=42;
-function decodeRegions(frame:ImageData):{markers:MarkerObservation[];candidates:Point[][];pass:string;durationMs:number}|null{
+const FULL_SCAN_INTERVAL_MS=2500;
+const ROI_PADDING=90;
+function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObservation[];candidates:Point[][];pass:string;durationMs:number}|null{
  if(!roiHints.length)return null;
  const start=performance.now();
  const regions:Array<{x:number;y:number;w:number;h:number}>=[];
  for(const marker of roiHints){
   const xs=marker.corners.map(p=>p.x),ys=marker.corners.map(p=>p.y);
-  const x=Math.max(0,Math.floor(Math.min(...xs)-ROI_PADDING)),y=Math.max(0,Math.floor(Math.min(...ys)-ROI_PADDING));
-  const right=Math.min(frame.width,Math.ceil(Math.max(...xs)+ROI_PADDING)),bottom=Math.min(frame.height,Math.ceil(Math.max(...ys)+ROI_PADDING));
+  const x=Math.max(0,Math.floor(Math.min(...xs)-padding)),y=Math.max(0,Math.floor(Math.min(...ys)-padding));
+  const right=Math.min(frame.width,Math.ceil(Math.max(...xs)+padding)),bottom=Math.min(frame.height,Math.ceil(Math.max(...ys)+padding));
   if(right-x>=24&&bottom-y>=24)regions.push({x,y,w:right-x,h:bottom-y});
  }
  if(!regions.length)return null;
@@ -174,12 +174,16 @@ function detect(frame:ImageData){
  const now=performance.now();
  const useFull=now-lastFullScan>=FULL_SCAN_INTERVAL_MS||roiHints.length===0;
  const local=useFull?null:decodeRegions(frame);
- const raw=local?local.markers:detector!.detect(frame);
- if(!local)lastFullScan=now;
- const all=[...raw],candidates:Point[][]=local?[...local.candidates]:[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Point[]=>!!c);
- let pass=local?local.pass:'Full frame',contrast='Unmodified';
+ // If the marker rotated outside its normal crop, expand locally before
+ // paying for a full-frame scan. A stationary instrument stays in one area.
+ const expanded=local&&local.markers.length===0?decodeRegions(frame,ROI_PADDING*2):null;
+ const effectiveLocal=expanded&&expanded.markers.length?expanded:local;
+ const raw=effectiveLocal?effectiveLocal.markers:detector!.detect(frame);
+ if(!effectiveLocal)lastFullScan=now;
+ const all=[...raw],candidates:Point[][]=effectiveLocal?[...effectiveLocal.candidates]:[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Point[]=>!!c);
+ let pass=effectiveLocal?effectiveLocal.pass+(expanded&&expanded.markers.length?' · expanded':''):'Full frame',contrast='Unmodified';
  // Expensive fallback passes only run during periodic full-frame reacquisition.
- if(raw.length===0&&!local){
+ if(raw.length===0&&!effectiveLocal){
   const w=Math.max(1,Math.round(frame.width/2)),h=Math.max(1,Math.round(frame.height/2)),ratio=frame.width/w;
   canvas.width=w;canvas.height=h;
   const source=new OffscreenCanvas(frame.width,frame.height);
