@@ -28,6 +28,10 @@ type Point={x:number;y:number};
 let previous:GrayFrame[]|null=null;
 let tracked:MarkerObservation[]=[];
 const lastDecodedAt=new Map<number,number>();
+const lastFlowAt=new Map<number,number>();
+// A confirmed ID remains valid while geometrically consistent flow keeps updating it.
+const MAX_FLOW_GAP_MS=500;
+const MAX_UNCONFIRMED_MS=5000;
 let frameNumber=0;
 let flowOnly=false;
 let flowAccepted=0,flowRejected=0;
@@ -96,7 +100,8 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
  if(!a||!tracked.length)return [];
  const results:MarkerObservation[]=[];
  for(const marker of tracked){
-  if(performance.now()-(lastDecodedAt.get(marker.id)??0)>350)continue;
+  const now=performance.now();
+  if(now-(lastFlowAt.get(marker.id)??lastDecodedAt.get(marker.id)??0)>MAX_FLOW_GAP_MS || now-(lastDecodedAt.get(marker.id)??0)>MAX_UNCONFIRMED_MS)continue;
   // Track the center as well as corners. Center motion helps validate a coherent rigid patch.
   const center={x:marker.corners.reduce((n,p)=>n+p.x,0)/4,y:marker.corners.reduce((n,p)=>n+p.y,0)/4};
   const points=[...marker.corners,center];
@@ -119,6 +124,7 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
   if(!coherent||newArea<80||newArea<oldArea*.5||newArea>oldArea*2){flowRejected++;continue;}
   if(good[4]&&moved[4]&&Math.hypot(moved[4]!.x-center.x-mx,moved[4]!.y-center.y-my)>Math.max(12,Math.sqrt(oldArea)*.4)){flowRejected++;continue;}
   flowAccepted++;
+  lastFlowAt.set(marker.id,now);
   results.push({id:marker.id,corners});
  }
  return results;
@@ -129,10 +135,8 @@ function detect(frame:ImageData){
  const flowed=flowOnly?flowTrack(previous,current!):[];
  if(flowOnly)previous=current;
  frameNumber++;
- // Run a full ID decode every third frame and whenever corner tracking fails.
- // Never propagate a marker ID beyond the short optical-flow confidence window.
+ // Decoder and optical flow run independently; valid flow retains an ID between decodes.
  if(flowOnly){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Fast flow · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
- if(false&&flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Pyramidal LK flow · accepted '+flowAccepted+' · rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
  const start=performance.now(),raw=detector!.detect(frame);
  const all=[...raw],candidates=[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Array<{x:number;y:number}>=>!!c);
@@ -174,7 +178,7 @@ function detect(frame:ImageData){
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
   if(e.data.type==='init'){flowOnly=!!(e.data as {flowOnly?:boolean}).flowOnly;if(!flowOnly)await initialize();self.postMessage({type:'ready'});}
-  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
+  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };
