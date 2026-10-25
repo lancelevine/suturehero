@@ -94,7 +94,7 @@ function grayFrame(frame:ImageData):GrayFrame{
 }
 function pyramid(frame:GrayFrame):GrayFrame[]{
  const levels=[frame];
- for(let k=1;k<4;k++){
+ for(let k=1;k<5;k++){
   const src=levels[k-1],width=Math.floor(src.width/2),height=Math.floor(src.height/2);
   if(width<32||height<32)break;
   const pixels=new Uint8Array(width*height);
@@ -112,9 +112,9 @@ function sample(f:GrayFrame,x:number,y:number):number{
 }
 function valid(f:GrayFrame,x:number,y:number,r:number){return x>=r+2&&y>=r+2&&x<f.width-r-2&&y<f.height-r-2;}
 /** Coarse-to-fine inverse-compositional Lucas–Kanade with subpixel interpolation. */
-function lk(a:GrayFrame[],b:GrayFrame[],point:Point):Point|null{
+function lk(a:GrayFrame[],b:GrayFrame[],point:Point,initial:Point={x:0,y:0}):Point|null{
  const top=Math.min(a.length,b.length)-1;
- let dx=0,dy=0;
+ let dx=initial.x/(2**(top+1)),dy=initial.y/(2**(top+1));
  for(let level=top;level>=0;level--){
   if(level<top){dx*=2;dy*=2;}
   const scale=2**(level+1),x=point.x/scale,y=point.y/scale,r=3,A=a[level],B=b[level];
@@ -154,7 +154,24 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
   // Track the center as well as corners. Center motion helps validate a coherent rigid patch.
   const center={x:marker.corners.reduce((n,p)=>n+p.x,0)/4,y:marker.corners.reduce((n,p)=>n+p.y,0)/4};
   const points=[...marker.corners,center];
-  const moved=points.map(p=>lk(a,b,p));
+  // Search a small grid at the coarsest scale before LK refinement. This
+  // captures fast jumps that start outside LK's local convergence basin.
+  const coarse=a[Math.min(a.length,b.length)-1];
+  const coarseNext=b[Math.min(a.length,b.length)-1];
+  const coarseScale=2**Math.min(a.length,b.length);
+  const anchor=center;
+  const ax=anchor.x/coarseScale,ay=anchor.y/coarseScale;
+  let best={x:0,y:0},bestError=Infinity;
+  for(let oy=-9;oy<=9;oy+=3)for(let ox=-9;ox<=9;ox+=3){
+   if(!valid(coarse,ax,ay,2)||!valid(coarseNext,ax+ox,ay+oy,2))continue;
+   let error=0;
+   for(let py=-2;py<=2;py++)for(let px=-2;px<=2;px++){
+    const d=sample(coarse,ax+px,ay+py)-sample(coarseNext,ax+ox+px,ay+oy+py);
+    error+=d*d;
+   }
+   if(error<bestError){bestError=error;best={x:ox*coarseScale,y:oy*coarseScale};}
+  }
+  const moved=points.map(p=>lk(a,b,p,best));
   const good=points.map((p,i)=>{
    const next=moved[i];if(!next)return false;
    const reverse=lk(b,a,next);
