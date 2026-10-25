@@ -58,12 +58,12 @@ rotationSensitivity.addEventListener('input',()=>{rotationSensitivityValue.textC
 depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent=`${depthSensitivity.value}×`;depthStates.clear();});
 lockDepth.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{
- liveTargets.clear();stationaryStates.clear();rotationStates.clear();prismFaceOffsets.clear();depthStates.clear();
+ liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();prismFaceOffsets.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: both feeds detect markers, but stereo fusion and metric depth require calibration. Camera 1 still drives the instruments.';
 });
-simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -350,6 +350,8 @@ function restoreDepthCalibration(){
 restoreDepthCalibration();
 const depthHistory=new Map<'needleDriver'|'forceps'|'scissors',number[]>();
 const poseHistory=new Map<'needleDriver'|'forceps'|'scissors',THREE.Quaternion[]>();
+type RotationGeometryState={face:number;reference:{x:number;y:number}[];last:{x:number;y:number}[];moving:boolean;pending:number;still:number};
+const rotationGeometryStates=new Map<'needleDriver'|'forceps'|'scissors',RotationGeometryState>();
 const depthSamples=new Map<'needleDriver'|'forceps'|'scissors',number>();
 function depthRangeLabel(){const range=Math.max(50,Number(workingDepthInput.value)||400);depthRangeStatus.textContent=`Near: ${depthNearMm?.toFixed(0)??'unset'} mm · Far: ${depthFarMm?.toFixed(0)??'unset'} mm · working range: ${range} mm. ${depthNearMm===null?'Set Near first.':depthFarMm===null?'Set Far next.':'Calibrated.'}`;}
 function resetDepthFilters(){depthStates.clear();stationaryStates.clear();depthHistory.clear();}
@@ -499,6 +501,36 @@ function updateLiveTargets(){
    // Keep the same rotation anchor when switching among calibrated V5 faces.
    rotation.face=pose.id;
    rotationStates.set(name,rotation);
+  }
+  // Use observed corner geometry to distinguish real movement from a
+  // homography orientation flip while the printed marker is stationary.
+  // Compare against a fixed reference: per-frame-only tests miss slow turns.
+  const corners=chosen.marker.corners.map(p=>({x:p.x,y:p.y}));
+  let geometry=rotationGeometryStates.get(name);
+  if(!geometry||geometry.face!==pose.id){
+   geometry={face:pose.id,reference:corners,last:corners,moving:false,pending:0,still:0};
+   rotationGeometryStates.set(name,geometry);
+  }
+  const cornerShift=(a:{x:number;y:number}[],b:{x:number;y:number}[])=>
+   a.reduce((sum,p,i)=>sum+Math.hypot(p.x-b[i].x,p.y-b[i].y),0)/4;
+  const shift=cornerShift(corners,geometry.reference);
+  const frameShift=cornerShift(corners,geometry.last);
+  const markerWidth=corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-corners[(i+1)%4].x,p.y-corners[(i+1)%4].y),0)/4;
+  const startThreshold=Math.max(1.8,markerWidth*.035);
+  const stopThreshold=Math.max(.65,markerWidth*.012);
+  if(!geometry.moving){
+   geometry.pending=shift>startThreshold?geometry.pending+1:0;
+   if(geometry.pending>=2){geometry.moving=true;geometry.pending=0;}
+  }else{
+   geometry.still=frameShift<stopThreshold?geometry.still+1:0;
+   if(geometry.still>=5){geometry.moving=false;geometry.still=0;geometry.reference=corners;}
+  }
+  geometry.last=corners;
+  // While corners remain stationary, ignore large apparent pitch/yaw
+  // changes. They are typically planar-pose ambiguity, not real rotation.
+  if(!geometry.moving&&previous){
+   const anchored=rotation.rawAnchor.clone().multiply(previous.quaternion.clone().multiply(rotation.outputAnchor.clone().invert()));
+   corrected.copy(anchored);
   }
   const delta=corrected.clone().multiply(rotation.rawAnchor.clone().invert());
   const desired=delta.multiply(rotation.outputAnchor).normalize();
