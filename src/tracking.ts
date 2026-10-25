@@ -434,9 +434,17 @@ function updateLiveTargets(){
   const offsets=prismFaceOffsets.get(name)??new Map<number,THREE.Quaternion>();
   prismFaceOffsets.set(name,offsets);
   for(const faceId of ids)if(!offsets.has(faceId))offsets.set(faceId,nominalV5FaceOffset(name,faceId));
+  // Translation comes directly from the displayed marker quadrilateral, not PnP pose.
+  // The size-derived distance is approximate until camera intrinsics are calibrated.
+  const markerCenter={x:chosen.marker.corners.reduce((sum,p)=>sum+p.x,0)/4,y:chosen.marker.corners.reduce((sum,p)=>sum+p.y,0)/4};
+  const sideLengths=chosen.marker.corners.map((p,i)=>Math.hypot(p.x-chosen.marker.corners[(i+1)%4].x,p.y-chosen.marker.corners[(i+1)%4].y));
+  const markerSidePx=sideLengths.reduce((sum,n)=>sum+n,0)/4;
+  if(markerSidePx<2)continue;
+  const focalPx=overlay.width/(2*Math.tan(70*Math.PI/360/2));
+  const sizeDistance=12*focalPx/markerSidePx;
   // Monocular translation in camera coordinates. Intrinsics remain approximate.
   // Map the physical depth interval to the entire usable virtual Z range.
-  const rawDistance=pose.position.z;
+  const rawDistance=sizeDistance;
   const samples=depthHistory.get(name)??[];
   samples.push(rawDistance);if(samples.length>5)samples.shift();depthHistory.set(name,samples);
   const sorted=[...samples].sort((a,b)=>a-b);
@@ -455,8 +463,8 @@ function updateLiveTargets(){
   const z=lockedDepth?baseline:previousZ===undefined?desiredZ:previousZ+depthDelta*depthAlpha;
   depthStates.set(name,z);
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
-  const x=THREE.MathUtils.clamp(-pose.position.x/Math.max(near+range*.5,1)*7,-2.6,2.6);
-  const y=THREE.MathUtils.clamp(-pose.position.y/Math.max(near+range*.5,1)*4+.55,.15,2.8);
+  const x=THREE.MathUtils.clamp(-((markerCenter.x-overlay.width/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*7,-2.6,2.6);
+  const y=THREE.MathUtils.clamp(-((markerCenter.y-overlay.height/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*4+.55,.15,2.8);
   // The viewer's horizontal and forward axes are rotated relative to the webcam.
   // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
   const position=new THREE.Vector3(-z,y,x);
@@ -485,34 +493,11 @@ function updateLiveTargets(){
   const quaternion=previous?.quaternion.clone()??desired.clone();
   if(previous&&now-previous.lastSeen<600){
    const elapsed=Math.max(.016,(now-previous.lastSeen)/1000);
-   const distance=previous.position.distanceTo(position);
-   // Reject isolated gross pose spikes, but allow the next observation to recover naturally.
-   if(distance>1.1&&elapsed<.22)continue;
-   // A hysteretic stationary lock prevents sensor noise from becoming visible motion.
-   // Compare against a fixed anchor, not the previous noisy frame, to avoid drift.
-   let state=stationaryStates.get(name);
-   if(!state){state={anchor:previous.position.clone(),moving:false,pending:0};stationaryStates.set(name,state);}
-   const fromAnchor=state.anchor.distanceTo(position);
-   const enterMovement=.14,stopMovement=.045;
-   if(!state.moving){
-    if(fromAnchor>enterMovement){state.pending++;}
-    else state.pending=0;
-    // Large intentional motions unlock immediately; smaller motions need two frames.
-    if(fromAnchor>.30||state.pending>=3){state.moving=true;state.pending=0;}
-   }else{
-    // Relock only after the instrument has settled near its filtered position.
-    if(distance<stopMovement){state.pending++;}
-    else state.pending=0;
-    if(state.pending>=3){state.moving=false;state.pending=0;state.anchor=previous.position.clone();}
-   }
-   if(!state.moving){
-    position.copy(state.anchor);
-   }else{
-    // Follow real movement promptly without adding another slow filter stage.
-    const blend=1-Math.exp(-elapsed*26);
-    position.lerpVectors(previous.position,position,blend);
-    state.anchor.copy(position);
-   }
+   // No stationary lock or gross-pose rejection on translation: when the
+   // green quadrilateral moves, the rendered instrument must follow it.
+   // Smooth lightly to suppress subpixel jitter without freezing motion.
+   const blend=1-Math.exp(-elapsed*30);
+   position.lerpVectors(previous.position,position,blend);
    // Rotation is independent of translation: allow deliberate rolling, pitching,
    // and yawing even when the instrument remains at a fixed position.
    // Cap angular velocity instead of discarding changes above 25 degrees:
