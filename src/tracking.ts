@@ -421,8 +421,11 @@ function instrument(id:'left'|'right',color:number){
  const model=new Instrument(id,color);
  if(id==='right')model.setDriverStyle('castro');
  const group=new THREE.Group();
+ // Instrument.reset() positions/rotates the model for the main game.
+ // In tracking, the parent group's origin is the measured prism center/tip.
+ model.root.position.set(0,0,0);
+ model.root.rotation.set(0,-Math.PI/2,0);
  model.root.scale.setScalar(.72);
- model.root.rotation.y=-Math.PI/2;
  group.add(model.root);
  group.position.y=.25;
  scene.add(group);
@@ -590,7 +593,7 @@ function updateLiveTargets(){
   const previousRoll=rotation.accumulatedRoll;
   while(roll-previousRoll>Math.PI)roll-=2*Math.PI;
   while(roll-previousRoll< -Math.PI)roll+=2*Math.PI;
-  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(95)){
+  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(name==='scissors'?40:95)){
    const delta=roll-previousRoll;
    // Scissors: remove small pose jitter without damping intentional rolling.
    rotation.accumulatedRoll+=name==='scissors'&&Math.abs(delta)<THREE.MathUtils.degToRad(1.5)?delta*.3:delta;
