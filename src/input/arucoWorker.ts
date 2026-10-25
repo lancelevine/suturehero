@@ -22,7 +22,60 @@ async function initialize(){
  workerScope.AR.DICTIONARIES.SUTUREHERO_4X4_50={nBits:16,tau:2,codeList:MARKER_CODES};
  detector=new workerScope.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:1});
 }
+
+type GrayFrame={width:number;height:number;pixels:Uint8Array};
+let previous:GrayFrame|null=null;
+let tracked:MarkerObservation[]=[];
+let lastDecodedAt=0,frameNumber=0;
+function grayFrame(frame:ImageData):GrayFrame{
+ const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const i=(Math.min(frame.height-1,y*2)*frame.width+Math.min(frame.width-1,x*2))*4;
+  pixels[y*width+x]=Math.round(.299*frame.data[i]+.587*frame.data[i+1]+.114*frame.data[i+2]);
+ }
+ return {width,height,pixels};
+}
+function patchMatch(a:GrayFrame,b:GrayFrame,x:number,y:number){
+ const px=Math.round(x/2),py=Math.round(y/2),r=3,search=10;
+ if(px<r+search||py<r+search||px>=a.width-r-search||py>=a.height-r-search||a.width!==b.width||a.height!==b.height)return null;
+ let texture=0,mean=0;for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)mean+=a.pixels[(py+j)*a.width+px+i];mean/=49;
+ for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)texture+=Math.abs(a.pixels[(py+j)*a.width+px+i]-mean);
+ if(texture/49<12)return null;
+ let best=Infinity,dxBest=0,dyBest=0;
+ for(let dy=-search;dy<=search;dy++)for(let dx=-search;dx<=search;dx++){
+  let cost=0;
+  for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)cost+=Math.abs(a.pixels[(py+j)*a.width+px+i]-b.pixels[(py+j+dy)*b.width+px+i+dx]);
+  if(cost<best){best=cost;dxBest=dx;dyBest=dy;}
+ }
+ if(best/49>30)return null;
+ return {x:x+dxBest*2,y:y+dyBest*2,dx:dxBest*2,dy:dyBest*2};
+}
+function flowTrack(a:GrayFrame|null,b:GrayFrame):MarkerObservation[]{
+ if(!a||!tracked.length||performance.now()-lastDecodedAt>350)return [];
+ const results:MarkerObservation[]=[];
+ for(const marker of tracked){
+  const corners=marker.corners.map(p=>patchMatch(a,b,p.x,p.y));
+  if(corners.some(p=>!p))continue;
+  const pts=corners as Array<{x:number;y:number;dx:number;dy:number}>;
+  const dx=pts.map(p=>p.dx).sort((x,y)=>x-y),dy=pts.map(p=>p.dy).sort((x,y)=>x-y);
+  const mx=(dx[1]+dx[2])/2,my=(dy[1]+dy[2])/2;
+  if(pts.some(p=>Math.hypot(p.dx-mx,p.dy-my)>8))continue;
+  const area=(cs:Array<{x:number;y:number}>)=>Math.abs(cs.reduce((sum,p,i)=>sum+p.x*cs[(i+1)%4].y-cs[(i+1)%4].x*p.y,0))/2;
+  if(area(pts)<100||area(pts)<area(marker.corners)*.65||area(pts)>area(marker.corners)*1.5)continue;
+  results.push({id:marker.id,corners:pts.map(p=>({x:p.x,y:p.y}))});
+ }
+ return results;
+}
+
 function detect(frame:ImageData){
+ const current=grayFrame(frame);
+ const flowed=flowTrack(previous,current);
+ previous=current;
+ frameNumber++;
+ // Run a full ID decode every third frame and whenever corner tracking fails.
+ // Never propagate a marker ID beyond the short optical-flow confidence window.
+ if(flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Optical-flow tracked corners (ID last decoded)',pass:'Optical flow',contrast:'Patch matching'}};}
+
  const start=performance.now(),raw=detector!.detect(frame);
  const all=[...raw],candidates=[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Array<{x:number;y:number}>=>!!c);
  let pass='Original',contrast='Unmodified';
@@ -53,8 +106,12 @@ function detect(frame:ImageData){
    pass='Original + contrast + adaptive';contrast+=' · local mean threshold';
   }
  }
- const found=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
- return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:all.length,recognizedCount:found.length,rejectedCount:all.length-found.length,durationMs:performance.now()-start,note:candidates.length===0?'No quadrilaterals found':found.length===0?'Candidate shapes found; marker decode failed':'Markers recognized',pass,contrast}};
+ const decoded=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
+ if(decoded.length)lastDecodedAt=performance.now();
+ const found=[...decoded];
+ for(const marker of flowed)if(!found.some(m=>m.id===marker.id))found.push(marker);
+ tracked=found;
+ return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:all.length,recognizedCount:found.length,rejectedCount:all.length-found.length,durationMs:performance.now()-start,note:decoded.length?'Markers decoded':flowed.length?'Optical flow maintained marker through missed decode':candidates.length===0?'No quadrilaterals found':'Candidate shapes found; marker decode failed',pass,contrast}};
 }
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number}>)=>{
  try{
