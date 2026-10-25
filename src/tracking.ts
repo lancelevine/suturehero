@@ -612,7 +612,7 @@ async function detectFrame(now:number){
    diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';
    diag('pass').textContent=detector.diagnostics.pass;
    diag('contrast').textContent=detector.diagnostics.contrast;
-   diag('note').textContent=detector.diagnostics.note+' · parallel flow';
+   diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
    if(found.length){
     fastTracker.seed(found);
     latestDecodeAt=performance.now();
