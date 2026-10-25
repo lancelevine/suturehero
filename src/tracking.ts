@@ -325,6 +325,9 @@ const frameContext=frameCanvas.getContext('2d',{willReadFrequently:true})!;
 const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 const markerLastConfirmed=new Map<number,number>();
+const markerLastDecoded=new Map<number,number>();
+const OVERLAP_DECODE_MS=300;
+const verifiedMarkers=()=>liveMarkers().filter(m=>performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<=OVERLAP_DECODE_MS);
 const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=350;
 const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
 const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
@@ -499,7 +502,8 @@ function updateLiveTargets(){
   let rotation=rotationStates.get(name);
   let corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)??new THREE.Quaternion()).normalize();
   // Fuse visible faces only when their relative transforms have been learned.
-  const validFaces=candidates.filter(c=>c.pose.reprojectionError<3&&offsets.has(c.pose.id));
+  const verifiedIds=new Set(verifiedMarkers().map(m=>m.id));
+  const validFaces=candidates.filter(c=>verifiedIds.has(c.pose.id)&&c.pose.reprojectionError<3&&offsets.has(c.pose.id));
   if(validFaces.length>1){
    const reference=corrected.clone();
    const compatible=validFaces.map(c=>c.pose.quaternion.clone().multiply(offsets.get(c.pose.id)!).normalize())
@@ -620,7 +624,7 @@ function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
  const fresh=liveMarkers();
- for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&fresh.filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=markerAge(marker.id)>MARKER_LIVE_MS;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((stale?'HELD ':overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=markerAge(marker.id)>MARKER_LIVE_MS;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((stale?'HELD ':overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
@@ -633,7 +637,7 @@ function drawDetections(){
   };
   driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
   filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':'tracking'}`:`${name}: waiting`;}).join(' | ');
-  faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=fresh.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
+  faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
  }
 }
 const decodeCanvas=document.createElement('canvas');
@@ -690,6 +694,7 @@ async function detectFrame(now:number){
    diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
    if(found.length){
     const decodeStamp=performance.now();
+    for(const marker of found)markerLastDecoded.set(marker.id,decodeStamp);
     fastTracker.seed(found);
     latestDecodeAt=performance.now();
     // Flow may already have advanced beyond this decode. Use the decode
