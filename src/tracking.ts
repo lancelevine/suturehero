@@ -558,8 +558,8 @@ function updateLiveTargets(){
   geometry.last=corners;
   const axis=new THREE.Vector3(-1,0,0);
   const localDelta=rotation.rawAnchor.clone().invert().multiply(corrected).normalize();
-  const projection=-localDelta.x;
-  const twist=new THREE.Quaternion(-projection,0,0,localDelta.w).normalize();
+  const projection=localDelta.y;
+  const twist=new THREE.Quaternion(0,projection,0,localDelta.w).normalize();
   let roll=2*Math.atan2(projection,localDelta.w);
   while(roll-rotation.faceRoll>Math.PI)roll-=2*Math.PI;
   while(roll-rotation.faceRoll< -Math.PI)roll+=2*Math.PI;
