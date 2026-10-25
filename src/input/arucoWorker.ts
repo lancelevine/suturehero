@@ -37,7 +37,9 @@ let flowOnly=false;
 let flowAccepted=0,flowRejected=0;
 let roiHints:MarkerObservation[]=[];
 let lastFullScan=0;
-const FULL_SCAN_INTERVAL_MS=2500;
+const FULL_SCAN_INTERVAL_MS=1200;
+let consecutiveRoiMisses=0;
+let lastSuccessfulDecodeAt=0;
 const ROI_PADDING=90;
 function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObservation[];candidates:Point[][];pass:string;durationMs:number}|null{
  if(!roiHints.length)return null;
@@ -57,7 +59,19 @@ function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObser
    const offset=((region.y+y)*frame.width+region.x)*4;
    cropped.data.set(frame.data.subarray(offset,offset+region.w*4),y*region.w*4);
   }
-  const found=detector!.detect(cropped);
+  let found=detector!.detect(cropped);
+  // A still marker may be missed repeatedly by a single global threshold.
+  // Retry locally with contrast enhancement without rescanning the whole camera.
+  if(!found.length){
+   let low=255,high=0;
+   for(let i=0;i<cropped.data.length;i+=4){const v=Math.round(.299*cropped.data[i]+.587*cropped.data[i+1]+.114*cropped.data[i+2]);low=Math.min(low,v);high=Math.max(high,v);}
+   if(high-low>=16){
+    const enhanced=new ImageData(new Uint8ClampedArray(cropped.data),region.w,region.h);
+    const factor=255/(high-low);
+    for(let i=0;i<enhanced.data.length;i+=4){const v=Math.round(.299*enhanced.data[i]+.587*enhanced.data[i+1]+.114*enhanced.data[i+2]);const adjusted=Math.max(0,Math.min(255,Math.round((v-low)*factor)));enhanced.data[i]=adjusted;enhanced.data[i+1]=adjusted;enhanced.data[i+2]=adjusted;}
+    found=detector!.detect(enhanced);
+   }
+  }
   for(const marker of found)if(marker.id>=0&&marker.id<=8&&!markers.some(m=>m.id===marker.id))markers.push({...marker,corners:marker.corners.map(p=>({x:p.x+region.x,y:p.y+region.y}))});
   for(const candidate of candidatesOf()){
    const corners=cornersOf(candidate,1);
@@ -172,13 +186,14 @@ function detect(frame:ImageData){
 
  const start=performance.now();
  const now=performance.now();
- const useFull=now-lastFullScan>=FULL_SCAN_INTERVAL_MS||roiHints.length===0;
+ const useFull=now-lastFullScan>=FULL_SCAN_INTERVAL_MS||roiHints.length===0||consecutiveRoiMisses>=3;
  const local=useFull?null:decodeRegions(frame);
  // If the marker rotated outside its normal crop, expand locally before
  // paying for a full-frame scan. A stationary instrument stays in one area.
  const expanded=local&&local.markers.length===0?decodeRegions(frame,ROI_PADDING*2):null;
  const effectiveLocal=expanded&&expanded.markers.length?expanded:local;
  const raw=effectiveLocal?effectiveLocal.markers:detector!.detect(frame);
+ if(effectiveLocal){consecutiveRoiMisses=raw.length?0:consecutiveRoiMisses+1;}else{consecutiveRoiMisses=0;}
  if(!effectiveLocal)lastFullScan=now;
  const all=[...raw],candidates:Point[][]=effectiveLocal?[...effectiveLocal.candidates]:[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Point[]=>!!c);
  let pass=effectiveLocal?effectiveLocal.pass+(expanded&&expanded.markers.length?' · expanded':''):'Full frame',contrast='Unmodified';
@@ -211,7 +226,10 @@ function detect(frame:ImageData){
   }
  }
  const decoded=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
- if(decoded.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
+ if(decoded.length){lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
+ // Expire stale search hints: a marker that has been absent should not
+ // permanently trap the decoder in the wrong part of the image.
+ if(!decoded.length&&performance.now()-lastSuccessfulDecodeAt>4000){roiHints=[];consecutiveRoiMisses=0;}
  for(const marker of decoded)lastDecodedAt.set(marker.id,performance.now());
  const found=[...decoded];
  for(const marker of flowed)if(!found.some(m=>m.id===marker.id))found.push(marker);
