@@ -36,7 +36,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 </div>
 </div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D, scissors I/J/K/L (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><details class="tracking-details"><summary>Virtual View Controls &amp; Diagnostics</summary><div class="tracking-details-body"><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>V5 prism faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation uses nominal 120° V5 face offsets; exact marker print orientation may require calibration.</p><div class="tracking-tuning"><label>Rotation sensitivity <input id="rotation-sensitivity" type="range" min="0.5" max="8" step="0.5" value="3"><output id="rotation-sensitivity-value">3°</output></label><label>Depth sensitivity <input id="depth-sensitivity" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="depth-sensitivity-value">1.5×</output></label><p class="tracking-message" id="tracking-filter-diagnostics">Raw and filtered depth/rotation diagnostics appear during tracking.</p></div></div></details></section></main>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><details class="tracking-details"><summary>Virtual View Controls &amp; Diagnostics</summary><div class="tracking-details-body"><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>V5 prism faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation uses nominal 120° V5 face offsets; exact marker print orientation may require calibration.</p><div class="tracking-tuning"><label>Rotation sensitivity <input id="rotation-sensitivity" type="range" min="0.5" max="8" step="0.5" value="3"><output id="rotation-sensitivity-value">3°</output></label><label>Rotation gain <input id="rotation-gain" type="range" min="0.1" max="1" step="0.05" value="0.25"><output id="rotation-gain-value">0.25×</output></label><label>Depth sensitivity <input id="depth-sensitivity" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="depth-sensitivity-value">1.5×</output></label><p class="tracking-message" id="tracking-filter-diagnostics">Raw and filtered depth/rotation diagnostics appear during tracking.</p></div></div></details></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const status=document.querySelector<HTMLElement>('#camera-status')!;
@@ -48,6 +48,8 @@ const trackingMode=document.querySelector<HTMLSelectElement>('#tracking-mode')!;
 const trackingModeInfo=document.querySelector<HTMLElement>('#tracking-mode-info')!;
 const lockDepth=document.querySelector<HTMLInputElement>('#lock-depth')!;
 const rotationSensitivity=document.querySelector<HTMLInputElement>('#rotation-sensitivity')!;
+const rotationGain=document.querySelector<HTMLInputElement>('#rotation-gain')!;
+const rotationGainValue=document.querySelector<HTMLOutputElement>('#rotation-gain-value')!;
 const depthSensitivity=document.querySelector<HTMLInputElement>('#depth-sensitivity')!;
 const rotationSensitivityValue=document.querySelector<HTMLOutputElement>('#rotation-sensitivity-value')!;
 const depthSensitivityValue=document.querySelector<HTMLOutputElement>('#depth-sensitivity-value')!;
@@ -55,6 +57,7 @@ const filterDiagnostics=document.querySelector<HTMLElement>('#tracking-filter-di
 const workingDepthInput=document.querySelector<HTMLInputElement>('#working-depth-mm')!;
 const depthRangeStatus=document.querySelector<HTMLElement>('#depth-range-status')!;
 rotationSensitivity.addEventListener('input',()=>{rotationSensitivityValue.textContent=`${rotationSensitivity.value}°`;rotationFilterStates.clear();});
+rotationGain.addEventListener('input',()=>{rotationGainValue.textContent=`${Number(rotationGain.value).toFixed(2)}×`;});
 depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent=`${depthSensitivity.value}×`;depthStates.clear();});
 lockDepth.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{
@@ -530,7 +533,11 @@ function updateLiveTargets(){
   }
   geometry.last=corners;
   const delta=corrected.clone().multiply(rotation.rawAnchor.clone().invert());
-  const desired=delta.multiply(rotation.outputAnchor).normalize();
+  // Scale angular displacement relative to the calibration anchor, not
+  // animation speed. This retains prompt response at fine motion gain.
+  const gain=Number(rotationGain.value);
+  const scaledDelta=new THREE.Quaternion().slerp(delta,gain);
+  const desired=scaledDelta.multiply(rotation.outputAnchor).normalize();
   // Hold the OUTPUT quaternion exactly, rather than attempting to
   // reconstruct it through a non-commutative quaternion multiplication.
   // That previous reconstruction could itself generate stationary jitter.
