@@ -429,7 +429,7 @@ function updateLiveTargets(){
   const previous=liveTargets.get(name);
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
   const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];if(!chosen)continue;
-  if(chosen.pose.reprojectionError>8)continue;
+  // Keep 2D translation active even with a poor 3D pose fit.
   const {pose}=chosen;
   // Nominal V5 triangular prism: consecutive marker IDs are 120 degrees apart.
   // Face transforms share one reference even when only one marker is visible.
@@ -542,7 +542,7 @@ function updateLiveTargets(){
    // green quadrilateral moves, the rendered instrument must follow it.
    // Smooth lightly to suppress subpixel jitter without freezing motion.
    const blend=1-Math.exp(-elapsed*30);
-   position.lerpVectors(previous.position,position,blend);
+   // Translation uses the latest measured marker position.
    // Rotation is independent of translation: allow deliberate rolling, pitching,
    // and yawing even when the instrument remains at a fixed position.
    // Cap angular velocity instead of discarding changes above 25 degrees:
@@ -664,7 +664,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
    const target=liveTargets.get(name);
    if(target&&now-target.lastSeen<trackingHoldMs){
     const blend=1-Math.exp(-dt*24);
-    mesh.position.lerp(target.position,blend);
+    mesh.position.copy(target.position);
     mesh.quaternion.slerp(target.quaternion,blend);
    }
   }
