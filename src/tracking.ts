@@ -518,12 +518,10 @@ function updateLiveTargets(){
    const ids=MARKER_GROUPS[name] as readonly number[];
    const from=ids.indexOf(rotation.face);
    const to=ids.indexOf(pose.id);
-   const steps=((to-from+4)%3)-1; // adjacent face: +1 or -1
-   if(from>=0&&to>=0&&steps!==0){
-    // Instrument shaft is local -X (the model's +Z shaft is turned -90° Y).
-    const roll=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-1,0,0),steps*2*Math.PI/3);
-    rotation.outputAnchor.multiply(roll).normalize();
-   }
+   const distance=(to-from+3)%3;
+   const steps=distance===1?1:distance===2?-1:0;
+   rotation.accumulatedRoll+=rotation.faceRoll+steps*2*Math.PI/3;
+   rotation.faceRoll=0;
    rotation.face=pose.id;
    rotation.rawAnchor.copy(corrected);
    rotationGeometryStates.delete(name);
