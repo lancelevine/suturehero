@@ -522,22 +522,9 @@ function updateLiveTargets(){
    rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion(),accumulatedRoll:0,faceRoll:0};
    rotationStates.set(name,rotation);
   }else if(rotation.face!==pose.id){
-   // The V5 markers are consecutive faces of a triangular prism.
-   // Changing faces represents an actual 120-degree axial roll, NOT a
-   // new instrument orientation to be silently zeroed out.
-   const ids=MARKER_GROUPS[name] as readonly number[];
-   const from=ids.indexOf(rotation.face);
-   const to=ids.indexOf(pose.id);
-   const distance=(to-from+3)%3;
-   const steps=distance===1?1:distance===2?-1:0;
-   rotation.accumulatedRoll+=rotation.faceRoll+steps*2*Math.PI/3;
-   rotation.faceRoll=0;
    rotation.face=pose.id;
-   rotation.rawAnchor.copy(corrected);
    rotationGeometryStates.delete(name);
    rotationFilterStates.delete(name);
-   poseHistory.set(name,[corrected.clone()]);
-   rotationStates.set(name,rotation);
   }
   // Use observed corner geometry to distinguish real movement from a
   // homography orientation flip while the printed marker is stationary.
@@ -571,17 +558,18 @@ function updateLiveTargets(){
   const projection=localDelta.y;
   const twist=new THREE.Quaternion(0,projection,0,localDelta.w).normalize();
   let roll=2*Math.atan2(projection,localDelta.w);
-  while(roll-rotation.faceRoll>Math.PI)roll-=2*Math.PI;
-  while(roll-rotation.faceRoll< -Math.PI)roll+=2*Math.PI;
-  rotation.faceRoll=roll;
+  const previousRoll=rotation.accumulatedRoll;
+  while(roll-previousRoll>Math.PI)roll-=2*Math.PI;
+  while(roll-previousRoll< -Math.PI)roll+=2*Math.PI;
+  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(95))rotation.accumulatedRoll=roll;
   const swing=localDelta.clone().multiply(twist.clone().invert()).normalize();
   const scaledSwing=new THREE.Quaternion().slerp(swing,Number(rotationGain.value));
-  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(axis,rotation.accumulatedRoll+roll);
+  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(axis,rotation.accumulatedRoll);
   const desired=rotation.outputAnchor.clone().multiply(scaledSwing).multiply(rollQuaternion).normalize();
   // Hold the OUTPUT quaternion exactly, rather than attempting to
   // reconstruct it through a non-commutative quaternion multiplication.
   // That previous reconstruction could itself generate stationary jitter.
-  if(!geometry.moving&&previous)desired.copy(previous.quaternion);
+  if(!geometry.moving&&previous&&Math.abs(rotation.accumulatedRoll-previousRoll)<THREE.MathUtils.degToRad(.5))desired.copy(previous.quaternion);
   const quaternion=previous?.quaternion.clone()??desired.clone();
   if(previous&&now-previous.lastSeen<600){
    const elapsed=Math.max(.016,(now-previous.lastSeen)/1000);
