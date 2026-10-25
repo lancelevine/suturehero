@@ -505,7 +505,10 @@ function updateLiveTargets(){
   // Use observed corner geometry to distinguish real movement from a
   // homography orientation flip while the printed marker is stationary.
   // Compare against a fixed reference: per-frame-only tests miss slow turns.
-  const corners=chosen.marker.corners.map(p=>({x:p.x,y:p.y}));
+  const centerX=chosen.marker.corners.reduce((sum,p)=>sum+p.x,0)/4;
+  const centerY=chosen.marker.corners.reduce((sum,p)=>sum+p.y,0)/4;
+  // Remove translation: only changes in the square's SHAPE should unlock rotation.
+  const corners=chosen.marker.corners.map(p=>({x:p.x-centerX,y:p.y-centerY}));
   let geometry=rotationGeometryStates.get(name);
   if(!geometry||geometry.face!==pose.id){
    geometry={face:pose.id,reference:corners,last:corners,moving:false,pending:0,still:0};
@@ -516,24 +519,22 @@ function updateLiveTargets(){
   const shift=cornerShift(corners,geometry.reference);
   const frameShift=cornerShift(corners,geometry.last);
   const markerWidth=corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-corners[(i+1)%4].x,p.y-corners[(i+1)%4].y),0)/4;
-  const startThreshold=Math.max(1.8,markerWidth*.035);
-  const stopThreshold=Math.max(.65,markerWidth*.012);
+  const startThreshold=Math.max(1.5,markerWidth*.025);
+  const stopThreshold=Math.max(.8,markerWidth*.015);
   if(!geometry.moving){
    geometry.pending=shift>startThreshold?geometry.pending+1:0;
    if(geometry.pending>=2){geometry.moving=true;geometry.pending=0;}
   }else{
    geometry.still=frameShift<stopThreshold?geometry.still+1:0;
-   if(geometry.still>=5){geometry.moving=false;geometry.still=0;geometry.reference=corners;}
+   if(geometry.still>=3){geometry.moving=false;geometry.still=0;geometry.reference=corners;}
   }
   geometry.last=corners;
-  // While corners remain stationary, ignore large apparent pitch/yaw
-  // changes. They are typically planar-pose ambiguity, not real rotation.
-  if(!geometry.moving&&previous){
-   const anchored=rotation.rawAnchor.clone().multiply(previous.quaternion.clone().multiply(rotation.outputAnchor.clone().invert()));
-   corrected.copy(anchored);
-  }
   const delta=corrected.clone().multiply(rotation.rawAnchor.clone().invert());
   const desired=delta.multiply(rotation.outputAnchor).normalize();
+  // Hold the OUTPUT quaternion exactly, rather than attempting to
+  // reconstruct it through a non-commutative quaternion multiplication.
+  // That previous reconstruction could itself generate stationary jitter.
+  if(!geometry.moving&&previous)desired.copy(previous.quaternion);
   const quaternion=previous?.quaternion.clone()??desired.clone();
   if(previous&&now-previous.lastSeen<600){
    const elapsed=Math.max(.016,(now-previous.lastSeen)/1000);
