@@ -324,6 +324,12 @@ const frameCanvas=document.createElement('canvas');
 const frameContext=frameCanvas.getContext('2d',{willReadFrequently:true})!;
 const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
+const markerLastConfirmed=new Map<number,number>();
+const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=350;
+const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
+const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
+function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_RETAIN_MS);}
+
 let observationsAt=0;
 const trackingHoldMs=650;
 const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
@@ -424,7 +430,7 @@ function updateLiveTargets(){
  const now=observationsAt||performance.now();
  for(const name of ['needleDriver','forceps','scissors'] as const){
   const ids:readonly number[]=MARKER_GROUPS[name];
-  const candidates=observations.filter(m=>ids.includes(m.id)).map(marker=>{
+  const candidates=liveMarkers().filter(m=>ids.includes(m.id)).map(marker=>{
    const pose=estimateMarkerPose(marker,overlay.width,overlay.height);
    return pose?{marker,pose}:null;
   }).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item!==null);
@@ -612,7 +618,9 @@ function updateLiveTargets(){
 }
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
- for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&observations.filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;overlayContext.strokeStyle=overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ pruneMarkers();
+ const fresh=liveMarkers();
+ for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&fresh.filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=markerAge(marker.id)>MARKER_LIVE_MS;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((stale?'HELD ':overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
@@ -625,7 +633,7 @@ function drawDetections(){
   };
   driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
   filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':'tracking'}`:`${name}: waiting`;}).join(' | ');
-  faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=observations.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
+  faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=fresh.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
  }
 }
 const decodeCanvas=document.createElement('canvas');
@@ -652,8 +660,8 @@ async function detectFrame(now:number){
    const stamp=performance.now();
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
-   if(found.length){observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
-   else if(stamp-Math.max(latestFlowAt,latestDecodeAt)>350){observations=[];observationsAt=stamp;idleNoMarkers=true;drawDetections();}
+   if(found.length){for(const m of found)markerLastConfirmed.set(m.id,stamp);observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
+   else if(stamp-Math.max(latestFlowAt,latestDecodeAt)>350){observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;drawDetections();}
    if(stamp-fastWindow>=1000){
     diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
     fastFrames=0;slowFrames=0;fastWindow=stamp;
@@ -681,12 +689,13 @@ async function detectFrame(now:number){
    diag('contrast').textContent=detector.diagnostics.contrast;
    diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
    if(found.length){
+    const decodeStamp=performance.now();
     fastTracker.seed(found);
     latestDecodeAt=performance.now();
     // Flow may already have advanced beyond this decode. Use the decode
     // only for missing IDs, avoiding backward jumps from delayed responses.
-    const merged=[...observations];
-    for(const marker of found)if(!merged.some(m=>m.id===marker.id))merged.push(marker);
+    const merged=observations.filter(m=>markerAge(m.id)<=MARKER_RETAIN_MS);
+    for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);markerLastConfirmed.set(marker.id,decodeStamp);}
     observations=merged;observationsAt=performance.now();idleNoMarkers=false;drawDetections();
    }
   }).catch(e=>{if(session===cameraSession){status.textContent='Detection error: '+String(e);diag('note').textContent='Decoder error';}}).finally(()=>{processing=false;});
