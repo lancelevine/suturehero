@@ -27,6 +27,9 @@ type GrayFrame={width:number;height:number;pixels:Uint8Array};
 type Point={x:number;y:number};
 let previous:GrayFrame[]|null=null;
 let tracked:MarkerObservation[]=[];
+// A failed optical-flow frame must not erase the last known marker geometry.
+const lastReliableAt=new Map<number,number>();
+const TRACK_RECOVERY_MS=650;
 const lastDecodedAt=new Map<number,number>();
 const lastFlowAt=new Map<number,number>();
 // A confirmed ID remains valid while geometrically consistent flow keeps updating it.
@@ -158,12 +161,13 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
    return !!reverse&&Math.hypot(reverse.x-p.x,reverse.y-p.y)<2.5;
   });
   const goodCorners=good.slice(0,4).filter(Boolean).length;
-  if(goodCorners<3){flowRejected++;continue;}
+  if(goodCorners<1&&!good[4]){flowRejected++;continue;}
   // Recover one lost corner by translating it with the median displacement.
-  const xs=moved.slice(0,4).map((p,i)=>good[i]&&p?p.x-marker.corners[i].x:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
-  const ys=moved.slice(0,4).map((p,i)=>good[i]&&p?p.y-marker.corners[i].y:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
+  const xs=moved.map((p,i)=>good[i]&&p?p.x-points[i].x:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
+  const ys=moved.map((p,i)=>good[i]&&p?p.y-points[i].y:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
   const mx=xs[Math.floor(xs.length/2)],my=ys[Math.floor(ys.length/2)];
-  const corners=marker.corners.map((p,i)=>good[i]&&moved[i]?moved[i]!:{x:p.x+mx,y:p.y+my});
+  // Translation-only: preserve decoded quadrilateral geometry and move it as one rigid patch.
+  const corners=marker.corners.map(p=>({x:p.x+mx,y:p.y+my}));
   const area=(cs:Point[])=>Math.abs(cs.reduce((sum,p,i)=>sum+p.x*cs[(i+1)%4].y-cs[(i+1)%4].x*p.y,0))/2;
   const oldArea=area(marker.corners),newArea=area(corners);
   const coherent=corners.every((p,i)=>Math.hypot(p.x-marker.corners[i].x-mx,p.y-marker.corners[i].y-my)<Math.max(12,Math.sqrt(oldArea)*.55));
@@ -171,6 +175,7 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
   if(good[4]&&moved[4]&&Math.hypot(moved[4]!.x-center.x-mx,moved[4]!.y-center.y-my)>Math.max(12,Math.sqrt(oldArea)*.4)){flowRejected++;continue;}
   flowAccepted++;
   lastFlowAt.set(marker.id,now);
+  lastReliableAt.set(marker.id,now);
   results.push({id:marker.id,corners});
  }
  return results;
@@ -182,7 +187,10 @@ function detect(frame:ImageData){
  if(flowOnly)previous=current;
  frameNumber++;
  // Decoder and optical flow run independently; valid flow retains an ID between decodes.
- if(flowOnly){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Fast flow · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
+ if(flowOnly){
+  const successful=new Set(flowed.map(m=>m.id));
+  tracked=[...flowed,...tracked.filter(m=>!successful.has(m.id)&&performance.now()-(lastReliableAt.get(m.id)??lastDecodedAt.get(m.id)??0)<TRACK_RECOVERY_MS)];
+  return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Fast flow · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
  const start=performance.now();
  const now=performance.now();
@@ -239,7 +247,7 @@ function detect(frame:ImageData){
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
   if(e.data.type==='init'){flowOnly=!!(e.data as {flowOnly?:boolean}).flowOnly;if(!flowOnly)await initialize();self.postMessage({type:'ready'});}
-  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
+  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastReliableAt.set(marker.id,performance.now());lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };
