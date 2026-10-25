@@ -125,14 +125,14 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
 }
 
 function detect(frame:ImageData){
- const current=pyramid(grayFrame(frame));
- const flowed=flowTrack(previous,current);
- previous=current;
+ const current=flowOnly?pyramid(grayFrame(frame)):null;
+ const flowed=flowOnly?flowTrack(previous,current!):[];
+ if(flowOnly)previous=current;
  frameNumber++;
  // Run a full ID decode every third frame and whenever corner tracking fails.
  // Never propagate a marker ID beyond the short optical-flow confidence window.
  if(flowOnly){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Fast flow · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
- if(flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Pyramidal LK flow · accepted '+flowAccepted+' · rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
+ if(false&&flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Pyramidal LK flow · accepted '+flowAccepted+' · rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
  const start=performance.now(),raw=detector!.detect(frame);
  const all=[...raw],candidates=[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Array<{x:number;y:number}>=>!!c);
