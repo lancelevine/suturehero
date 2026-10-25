@@ -326,7 +326,7 @@ const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=650;
-const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
+const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
 // Learned face-to-face transforms from simultaneous marker sightings.
 // Do not assume printed face orientation from nominal prism dimensions alone.
 const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
@@ -509,7 +509,7 @@ function updateLiveTargets(){
   const history=poseHistory.get(name)??[];history.push(corrected.clone());if(history.length>4)history.shift();poseHistory.set(name,history);
   if(history.length>=4){const reference=history[history.length-2];const consistent=history.filter(q=>q.angleTo(reference)<THREE.MathUtils.degToRad(15));if(consistent.length>=3){const mean=consistent[0].clone();for(let i=1;i<consistent.length;i++)mean.slerp(consistent[i],1/(i+1));if(corrected.angleTo(mean)>THREE.MathUtils.degToRad(35))corrected=mean;}}
   if(!rotation){
-   rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
+   rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion(),accumulatedRoll:0,faceRoll:0};
    rotationStates.set(name,rotation);
   }else if(rotation.face!==pose.id){
    // The V5 markers are consecutive faces of a triangular prism.
