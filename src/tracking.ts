@@ -540,7 +540,7 @@ function updateLiveTargets(){
   const corners=chosen.marker.corners.map(p=>({x:p.x-centerX,y:p.y-centerY}));
   let geometry=rotationGeometryStates.get(name);
   if(!geometry||geometry.face!==pose.id){
-   geometry={face:pose.id,reference:corners,last:corners,moving:false,pending:0,still:0};
+   geometry={face:pose.id,reference:corners,last:corners,moving:switched,pending:0,still:0};
    rotationGeometryStates.set(name,geometry);
   }
   const cornerShift=(a:{x:number;y:number}[],b:{x:number;y:number}[])=>
