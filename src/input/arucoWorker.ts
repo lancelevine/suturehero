@@ -26,7 +26,8 @@ async function initialize(){
 type GrayFrame={width:number;height:number;pixels:Uint8Array};
 let previous:GrayFrame|null=null;
 let tracked:MarkerObservation[]=[];
-let lastDecodedAt=0,frameNumber=0;
+const lastDecodedAt=new Map<number,number>();
+let frameNumber=0;
 function grayFrame(frame:ImageData):GrayFrame{
  const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
@@ -51,9 +52,10 @@ function patchMatch(a:GrayFrame,b:GrayFrame,x:number,y:number){
  return {x:x+dxBest*2,y:y+dyBest*2,dx:dxBest*2,dy:dyBest*2};
 }
 function flowTrack(a:GrayFrame|null,b:GrayFrame):MarkerObservation[]{
- if(!a||!tracked.length||performance.now()-lastDecodedAt>350)return [];
+ if(!a||!tracked.length)return [];
  const results:MarkerObservation[]=[];
  for(const marker of tracked){
+  if(performance.now()-(lastDecodedAt.get(marker.id)??0)>350)continue;
   const corners=marker.corners.map(p=>patchMatch(a,b,p.x,p.y));
   if(corners.some(p=>!p))continue;
   const pts=corners as Array<{x:number;y:number;dx:number;dy:number}>;
@@ -107,7 +109,7 @@ function detect(frame:ImageData){
   }
  }
  const decoded=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
- if(decoded.length)lastDecodedAt=performance.now();
+ for(const marker of decoded)lastDecodedAt.set(marker.id,performance.now());
  const found=[...decoded];
  for(const marker of flowed)if(!found.some(m=>m.id===marker.id))found.push(marker);
  tracked=found;
