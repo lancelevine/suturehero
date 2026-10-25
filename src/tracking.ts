@@ -522,22 +522,9 @@ function updateLiveTargets(){
    rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion(),accumulatedRoll:0,faceRoll:0};
    rotationStates.set(name,rotation);
   }else if(rotation.face!==pose.id){
-   // The V5 markers are consecutive faces of a triangular prism.
-   // Changing faces represents an actual 120-degree axial roll, NOT a
-   // new instrument orientation to be silently zeroed out.
-   const ids=MARKER_GROUPS[name] as readonly number[];
-   const from=ids.indexOf(rotation.face);
-   const to=ids.indexOf(pose.id);
-   const distance=(to-from+3)%3;
-   const steps=distance===1?1:distance===2?-1:0;
-   rotation.accumulatedRoll+=rotation.faceRoll+steps*2*Math.PI/3;
-   rotation.faceRoll=0;
    rotation.face=pose.id;
-   rotation.rawAnchor.copy(corrected);
    rotationGeometryStates.delete(name);
    rotationFilterStates.delete(name);
-   poseHistory.set(name,[corrected.clone()]);
-   rotationStates.set(name,rotation);
   }
   // Use observed corner geometry to distinguish real movement from a
   // homography orientation flip while the printed marker is stationary.
