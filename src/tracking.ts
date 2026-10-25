@@ -593,7 +593,7 @@ function updateLiveTargets(){
   const previousRoll=rotation.accumulatedRoll;
   while(roll-previousRoll>Math.PI)roll-=2*Math.PI;
   while(roll-previousRoll< -Math.PI)roll+=2*Math.PI;
-  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(name==='scissors'?40:95)){
+  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(95)){
    const delta=roll-previousRoll;
    // Scissors: remove small pose jitter without damping intentional rolling.
    rotation.accumulatedRoll+=name==='scissors'&&Math.abs(delta)<THREE.MathUtils.degToRad(1.5)?delta*.3:delta;
