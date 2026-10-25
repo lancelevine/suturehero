@@ -24,10 +24,12 @@ async function initialize(){
 }
 
 type GrayFrame={width:number;height:number;pixels:Uint8Array};
-let previous:GrayFrame|null=null;
+type Point={x:number;y:number};
+let previous:GrayFrame[]|null=null;
 let tracked:MarkerObservation[]=[];
 const lastDecodedAt=new Map<number,number>();
 let frameNumber=0;
+let flowAccepted=0,flowRejected=0;
 function grayFrame(frame:ImageData):GrayFrame{
  const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
@@ -36,47 +38,99 @@ function grayFrame(frame:ImageData):GrayFrame{
  }
  return {width,height,pixels};
 }
-function patchMatch(a:GrayFrame,b:GrayFrame,x:number,y:number){
- const px=Math.round(x/2),py=Math.round(y/2),r=3,search=10;
- if(px<r+search||py<r+search||px>=a.width-r-search||py>=a.height-r-search||a.width!==b.width||a.height!==b.height)return null;
- let texture=0,mean=0;for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)mean+=a.pixels[(py+j)*a.width+px+i];mean/=49;
- for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)texture+=Math.abs(a.pixels[(py+j)*a.width+px+i]-mean);
- if(texture/49<12)return null;
- let best=Infinity,dxBest=0,dyBest=0;
- for(let dy=-search;dy<=search;dy++)for(let dx=-search;dx<=search;dx++){
-  let cost=0;
-  for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)cost+=Math.abs(a.pixels[(py+j)*a.width+px+i]-b.pixels[(py+j+dy)*b.width+px+i+dx]);
-  if(cost<best){best=cost;dxBest=dx;dyBest=dy;}
+function pyramid(frame:GrayFrame):GrayFrame[]{
+ const levels=[frame];
+ for(let k=1;k<4;k++){
+  const src=levels[k-1],width=Math.floor(src.width/2),height=Math.floor(src.height/2);
+  if(width<32||height<32)break;
+  const pixels=new Uint8Array(width*height);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+   const i=y*2*src.width+x*2;
+   pixels[y*width+x]=(src.pixels[i]+src.pixels[i+1]+src.pixels[i+src.width]+src.pixels[i+src.width+1])/4;
+  }
+  levels.push({width,height,pixels});
  }
- if(best/49>30)return null;
- return {x:x+dxBest*2,y:y+dyBest*2,dx:dxBest*2,dy:dyBest*2};
+ return levels;
 }
-function flowTrack(a:GrayFrame|null,b:GrayFrame):MarkerObservation[]{
+function sample(f:GrayFrame,x:number,y:number):number{
+ const ix=Math.floor(x),iy=Math.floor(y),dx=x-ix,dy=y-iy,i=iy*f.width+ix;
+ return f.pixels[i]*(1-dx)*(1-dy)+f.pixels[i+1]*dx*(1-dy)+f.pixels[i+f.width]*(1-dx)*dy+f.pixels[i+f.width+1]*dx*dy;
+}
+function valid(f:GrayFrame,x:number,y:number,r:number){return x>=r+2&&y>=r+2&&x<f.width-r-2&&y<f.height-r-2;}
+/** Coarse-to-fine inverse-compositional Lucas–Kanade with subpixel interpolation. */
+function lk(a:GrayFrame[],b:GrayFrame[],point:Point):Point|null{
+ const top=Math.min(a.length,b.length)-1;
+ let dx=0,dy=0;
+ for(let level=top;level>=0;level--){
+  if(level<top){dx*=2;dy*=2;}
+  const scale=2**(level+1),x=point.x/scale,y=point.y/scale,r=3,A=a[level],B=b[level];
+  if(!valid(A,x,y,r))return null;
+  let hxx=0,hxy=0,hyy=0;
+  const patches:Array<{ox:number;oy:number;value:number;gx:number;gy:number}>=[];
+  for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){
+   const xx=x+i,yy=y+j,gx=(sample(A,xx+1,yy)-sample(A,xx-1,yy))/2,gy=(sample(A,xx,yy+1)-sample(A,xx,yy-1))/2;
+   patches.push({ox:i,oy:j,value:sample(A,xx,yy),gx,gy});
+   hxx+=gx*gx;hxy+=gx*gy;hyy+=gy*gy;
+  }
+  const det=hxx*hyy-hxy*hxy;
+  if(det<10000)return null;
+  for(let iter=0;iter<12;iter++){
+   if(!valid(B,x+dx,y+dy,r))return null;
+   let bx=0,by=0;
+   for(const p of patches){
+    const err=p.value-sample(B,x+dx+p.ox,y+dy+p.oy);
+    bx+=p.gx*err;by+=p.gy*err;
+   }
+   const sx=(hyy*bx-hxy*by)/det,sy=(hxx*by-hxy*bx)/det;
+   if(!Number.isFinite(sx)||!Number.isFinite(sy))return null;
+   dx+=Math.max(-6,Math.min(6,sx));dy+=Math.max(-6,Math.min(6,sy));
+   if(sx*sx+sy*sy<.0025)break;
+  }
+ }
+ const result={x:point.x+dx*2,y:point.y+dy*2};
+ if(!valid(b[0],result.x/2,result.y/2,4))return null;
+ return result;
+}
+function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
  if(!a||!tracked.length)return [];
  const results:MarkerObservation[]=[];
  for(const marker of tracked){
   if(performance.now()-(lastDecodedAt.get(marker.id)??0)>350)continue;
-  const corners=marker.corners.map(p=>patchMatch(a,b,p.x,p.y));
-  if(corners.some(p=>!p))continue;
-  const pts=corners as Array<{x:number;y:number;dx:number;dy:number}>;
-  const dx=pts.map(p=>p.dx).sort((x,y)=>x-y),dy=pts.map(p=>p.dy).sort((x,y)=>x-y);
-  const mx=(dx[1]+dx[2])/2,my=(dy[1]+dy[2])/2;
-  if(pts.some(p=>Math.hypot(p.dx-mx,p.dy-my)>8))continue;
-  const area=(cs:Array<{x:number;y:number}>)=>Math.abs(cs.reduce((sum,p,i)=>sum+p.x*cs[(i+1)%4].y-cs[(i+1)%4].x*p.y,0))/2;
-  if(area(pts)<100||area(pts)<area(marker.corners)*.65||area(pts)>area(marker.corners)*1.5)continue;
-  results.push({id:marker.id,corners:pts.map(p=>({x:p.x,y:p.y}))});
+  // Track the center as well as corners. Center motion helps validate a coherent rigid patch.
+  const center={x:marker.corners.reduce((n,p)=>n+p.x,0)/4,y:marker.corners.reduce((n,p)=>n+p.y,0)/4};
+  const points=[...marker.corners,center];
+  const moved=points.map(p=>lk(a,b,p));
+  const good=points.map((p,i)=>{
+   const next=moved[i];if(!next)return false;
+   const reverse=lk(b,a,next);
+   return !!reverse&&Math.hypot(reverse.x-p.x,reverse.y-p.y)<2.5;
+  });
+  const goodCorners=good.slice(0,4).filter(Boolean).length;
+  if(goodCorners<3){flowRejected++;continue;}
+  // Recover one lost corner by translating it with the median displacement.
+  const xs=moved.slice(0,4).map((p,i)=>good[i]&&p?p.x-marker.corners[i].x:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
+  const ys=moved.slice(0,4).map((p,i)=>good[i]&&p?p.y-marker.corners[i].y:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
+  const mx=xs[Math.floor(xs.length/2)],my=ys[Math.floor(ys.length/2)];
+  const corners=marker.corners.map((p,i)=>good[i]&&moved[i]?moved[i]!:{x:p.x+mx,y:p.y+my});
+  const area=(cs:Point[])=>Math.abs(cs.reduce((sum,p,i)=>sum+p.x*cs[(i+1)%4].y-cs[(i+1)%4].x*p.y,0))/2;
+  const oldArea=area(marker.corners),newArea=area(corners);
+  const coherent=corners.every((p,i)=>Math.hypot(p.x-marker.corners[i].x-mx,p.y-marker.corners[i].y-my)<Math.max(12,Math.sqrt(oldArea)*.55));
+  if(!coherent||newArea<80||newArea<oldArea*.5||newArea>oldArea*2){flowRejected++;continue;}
+  if(good[4]&&moved[4]&&Math.hypot(moved[4]!.x-center.x-mx,moved[4]!.y-center.y-my)>Math.max(12,Math.sqrt(oldArea)*.4)){flowRejected++;continue;}
+  flowAccepted++;
+  results.push({id:marker.id,corners});
  }
  return results;
 }
 
 function detect(frame:ImageData){
- const current=grayFrame(frame);
+ const current=pyramid(grayFrame(frame));
  const flowed=flowTrack(previous,current);
  previous=current;
  frameNumber++;
  // Run a full ID decode every third frame and whenever corner tracking fails.
  // Never propagate a marker ID beyond the short optical-flow confidence window.
- if(flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Optical-flow tracked corners (ID last decoded)',pass:'Optical flow',contrast:'Patch matching'}};}
+ if(flowed.length&&frameNumber%3!==0){tracked=flowed;return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Pyramidal LK flow · accepted '+flowAccepted+' · rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
  const start=performance.now(),raw=detector!.detect(frame);
  const all=[...raw],candidates=[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Array<{x:number;y:number}>=>!!c);
@@ -113,7 +167,7 @@ function detect(frame:ImageData){
  const found=[...decoded];
  for(const marker of flowed)if(!found.some(m=>m.id===marker.id))found.push(marker);
  tracked=found;
- return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:all.length,recognizedCount:found.length,rejectedCount:all.length-found.length,durationMs:performance.now()-start,note:decoded.length?'Markers decoded':flowed.length?'Optical flow maintained marker through missed decode':candidates.length===0?'No quadrilaterals found':'Candidate shapes found; marker decode failed',pass,contrast}};
+ return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:all.length,recognizedCount:found.length,rejectedCount:all.length-found.length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':flowed.length?'Flow maintained marker':'No tracked marker')+' · flow accepted '+flowAccepted+' / rejected '+flowRejected,pass,contrast}};
 }
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number}>)=>{
  try{
