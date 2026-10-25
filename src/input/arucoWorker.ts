@@ -39,14 +39,23 @@ let roiHints:MarkerObservation[]=[];
 let lastFullScan=0;
 const FULL_SCAN_INTERVAL_MS=2500;
 const ROI_PADDING=90;
+// Hold a stable work-area ROI instead of following every noisy corner update.
+const roiAnchors=new Map<number,{x:number;y:number;radius:number;seen:number}>();
 function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObservation[];candidates:Point[][];pass:string;durationMs:number}|null{
  if(!roiHints.length)return null;
  const start=performance.now();
  const regions:Array<{x:number;y:number;w:number;h:number}>=[];
  for(const marker of roiHints){
   const xs=marker.corners.map(p=>p.x),ys=marker.corners.map(p=>p.y);
-  const x=Math.max(0,Math.floor(Math.min(...xs)-padding)),y=Math.max(0,Math.floor(Math.min(...ys)-padding));
-  const right=Math.min(frame.width,Math.ceil(Math.max(...xs)+padding)),bottom=Math.min(frame.height,Math.ceil(Math.max(...ys)+padding));
+  const centerX=(Math.min(...xs)+Math.max(...xs))/2,centerY=(Math.min(...ys)+Math.max(...ys))/2;
+  const radius=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))/2+padding;
+  const anchor=roiAnchors.get(marker.id);
+  // Large displacement means the working area moved: reacquire immediately.
+  const displaced=anchor&&Math.hypot(centerX-anchor.x,centerY-anchor.y)>Math.max(anchor.radius*0.7,80);
+  const cx=anchor&&!displaced?anchor.x:centerX,cy=anchor&&!displaced?anchor.y:centerY;
+  const searchRadius=Math.max(radius,anchor&&!displaced?anchor.radius:0);
+  const x=Math.max(0,Math.floor(cx-searchRadius)),y=Math.max(0,Math.floor(cy-searchRadius));
+  const right=Math.min(frame.width,Math.ceil(cx+searchRadius)),bottom=Math.min(frame.height,Math.ceil(cy+searchRadius));
   if(right-x>=24&&bottom-y>=24)regions.push({x,y,w:right-x,h:bottom-y});
  }
  if(!regions.length)return null;
@@ -211,7 +220,7 @@ function detect(frame:ImageData){
   }
  }
  const decoded=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
- if(decoded.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
+ if(decoded.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded){merged.set(m.id,m);const xs=m.corners.map(p=>p.x),ys=m.corners.map(p=>p.y);const x=(Math.min(...xs)+Math.max(...xs))/2,y=(Math.min(...ys)+Math.max(...ys))/2;const radius=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))/2+ROI_PADDING;const old=roiAnchors.get(m.id);roiAnchors.set(m.id,old&&Math.hypot(x-old.x,y-old.y)<old.radius*.7?{x:old.x*.95+x*.05,y:old.y*.95+y*.05,radius:Math.max(radius,old.radius*.98),seen:performance.now()}:{x,y,radius,seen:performance.now()});}roiHints=[...merged.values()];}
  for(const marker of decoded)lastDecodedAt.set(marker.id,performance.now());
  const found=[...decoded];
  for(const marker of flowed)if(!found.some(m=>m.id===marker.id))found.push(marker);
@@ -221,7 +230,7 @@ function detect(frame:ImageData){
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
   if(e.data.type==='init'){flowOnly=!!(e.data as {flowOnly?:boolean}).flowOnly;if(!flowOnly)await initialize();self.postMessage({type:'ready'});}
-  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
+  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0){if(!flowOnly)tracked[idx]=marker;/* Never replace newer flow corners with a stale decode snapshot. */}else tracked.push(marker);}}
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };
