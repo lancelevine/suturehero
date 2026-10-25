@@ -599,7 +599,10 @@ function updateLiveTargets(){
   const scaledSwing=new THREE.Quaternion().slerp(swing,Number(rotationGain.value));
   // Forceps' initial orientation needs a different shaft alignment than scissors.
   const rollAxis=name==='forceps'?new THREE.Vector3(1,0,0):axis;
-  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(rollAxis,rotation.accumulatedRoll);
+  // Provisional scissors correction from observed ~240 physical to 360 virtual.
+  // Instrument-specific calibration can replace this measured gain later.
+  const rollScale=name==='scissors'?2/3:1;
+  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(rollAxis,rotation.accumulatedRoll*rollScale);
   const desired=rotation.outputAnchor.clone().multiply(scaledSwing).multiply(rollQuaternion).normalize();
   // Hold the OUTPUT quaternion exactly, rather than attempting to
   // reconstruct it through a non-commutative quaternion multiplication.
