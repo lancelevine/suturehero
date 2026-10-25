@@ -660,8 +660,8 @@ async function detectFrame(now:number){
    const stamp=performance.now();
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
-   if(found.length){observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
-   else if(stamp-Math.max(latestFlowAt,latestDecodeAt)>350){observations=[];observationsAt=stamp;idleNoMarkers=true;drawDetections();}
+   if(found.length){for(const m of found)markerLastConfirmed.set(m.id,stamp);observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
+   else if(stamp-Math.max(latestFlowAt,latestDecodeAt)>350){observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;drawDetections();}
    if(stamp-fastWindow>=1000){
     diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
     fastFrames=0;slowFrames=0;fastWindow=stamp;
@@ -689,12 +689,13 @@ async function detectFrame(now:number){
    diag('contrast').textContent=detector.diagnostics.contrast;
    diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
    if(found.length){
+    const decodeStamp=performance.now();
     fastTracker.seed(found);
     latestDecodeAt=performance.now();
     // Flow may already have advanced beyond this decode. Use the decode
     // only for missing IDs, avoiding backward jumps from delayed responses.
-    const merged=[...observations];
-    for(const marker of found)if(!merged.some(m=>m.id===marker.id))merged.push(marker);
+    const merged=observations.filter(m=>markerAge(m.id)<=MARKER_RETAIN_MS);
+    for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);markerLastConfirmed.set(marker.id,decodeStamp);}
     observations=merged;observationsAt=performance.now();idleNoMarkers=false;drawDetections();
    }
   }).catch(e=>{if(session===cameraSession){status.textContent='Detection error: '+String(e);diag('note').textContent='Decoder error';}}).finally(()=>{processing=false;});
