@@ -556,12 +556,18 @@ function updateLiveTargets(){
    if(geometry.still>=3){geometry.moving=false;geometry.still=0;geometry.reference=corners;}
   }
   geometry.last=corners;
-  const delta=corrected.clone().multiply(rotation.rawAnchor.clone().invert());
-  // Scale angular displacement relative to the calibration anchor, not
-  // animation speed. This retains prompt response at fine motion gain.
-  const gain=Number(rotationGain.value);
-  const scaledDelta=new THREE.Quaternion().slerp(delta,gain);
-  const desired=scaledDelta.multiply(rotation.outputAnchor).normalize();
+  const axis=new THREE.Vector3(-1,0,0);
+  const localDelta=rotation.rawAnchor.clone().invert().multiply(corrected).normalize();
+  const projection=-localDelta.x;
+  const twist=new THREE.Quaternion(-projection,0,0,localDelta.w).normalize();
+  let roll=2*Math.atan2(projection,localDelta.w);
+  while(roll-rotation.faceRoll>Math.PI)roll-=2*Math.PI;
+  while(roll-rotation.faceRoll< -Math.PI)roll+=2*Math.PI;
+  rotation.faceRoll=roll;
+  const swing=localDelta.clone().multiply(twist.clone().invert()).normalize();
+  const scaledSwing=new THREE.Quaternion().slerp(swing,Number(rotationGain.value));
+  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(axis,rotation.accumulatedRoll+roll);
+  const desired=rotation.outputAnchor.clone().multiply(scaledSwing).multiply(rollQuaternion).normalize();
   // Hold the OUTPUT quaternion exactly, rather than attempting to
   // reconstruct it through a non-commutative quaternion multiplication.
   // That previous reconstruction could itself generate stationary jitter.
