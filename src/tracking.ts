@@ -558,17 +558,18 @@ function updateLiveTargets(){
   const projection=localDelta.y;
   const twist=new THREE.Quaternion(0,projection,0,localDelta.w).normalize();
   let roll=2*Math.atan2(projection,localDelta.w);
-  while(roll-rotation.faceRoll>Math.PI)roll-=2*Math.PI;
-  while(roll-rotation.faceRoll< -Math.PI)roll+=2*Math.PI;
-  rotation.faceRoll=roll;
+  const previousRoll=rotation.accumulatedRoll;
+  while(roll-previousRoll>Math.PI)roll-=2*Math.PI;
+  while(roll-previousRoll< -Math.PI)roll+=2*Math.PI;
+  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(95))rotation.accumulatedRoll=roll;
   const swing=localDelta.clone().multiply(twist.clone().invert()).normalize();
   const scaledSwing=new THREE.Quaternion().slerp(swing,Number(rotationGain.value));
-  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(axis,rotation.accumulatedRoll+roll);
+  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(axis,rotation.accumulatedRoll);
   const desired=rotation.outputAnchor.clone().multiply(scaledSwing).multiply(rollQuaternion).normalize();
   // Hold the OUTPUT quaternion exactly, rather than attempting to
   // reconstruct it through a non-commutative quaternion multiplication.
   // That previous reconstruction could itself generate stationary jitter.
-  if(!geometry.moving&&previous)desired.copy(previous.quaternion);
+  if(!geometry.moving&&previous&&Math.abs(rotation.accumulatedRoll-previousRoll)<THREE.MathUtils.degToRad(.5))desired.copy(previous.quaternion);
   const quaternion=previous?.quaternion.clone()??desired.clone();
   if(previous&&now-previous.lastSeen<600){
    const elapsed=Math.max(.016,(now-previous.lastSeen)/1000);
