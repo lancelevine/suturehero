@@ -494,15 +494,35 @@ function updateLiveTargets(){
   let corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)??new THREE.Quaternion()).normalize();
   // Fuse visible faces only when their relative transforms have been learned.
   const validFaces=candidates.filter(c=>c.pose.reprojectionError<3&&offsets.has(c.pose.id));
-  if(validFaces.length>1){const fused=validFaces.map(c=>c.pose.quaternion.clone().multiply(offsets.get(c.pose.id)!).normalize());const reference=previous?.quaternion??fused[0];fused.sort((a,b)=>a.angleTo(reference)-b.angleTo(reference));if(fused[0].angleTo(fused[1])<THREE.MathUtils.degToRad(18))corrected=fused[0].clone().slerp(fused[1],.5);}
+  if(validFaces.length>1){
+   const reference=corrected.clone();
+   const compatible=validFaces.map(c=>c.pose.quaternion.clone().multiply(offsets.get(c.pose.id)!).normalize())
+    .filter(q=>q.angleTo(reference)<THREE.MathUtils.degToRad(18));
+   // Never replace the primary face with an incompatible planar-pose solution.
+   // Fuse only faces that agree with the selected primary orientation.
+   if(compatible.length>1){
+    const mean=compatible[0].clone();
+    for(let i=1;i<compatible.length;i++)mean.slerp(compatible[i],1/(i+1));
+    corrected=mean.normalize();
+   }
+  }
   const history=poseHistory.get(name)??[];history.push(corrected.clone());if(history.length>4)history.shift();poseHistory.set(name,history);
   if(history.length>=4){const reference=history[history.length-2];const consistent=history.filter(q=>q.angleTo(reference)<THREE.MathUtils.degToRad(15));if(consistent.length>=3){const mean=consistent[0].clone();for(let i=1;i<consistent.length;i++)mean.slerp(consistent[i],1/(i+1));if(corrected.angleTo(mean)>THREE.MathUtils.degToRad(35))corrected=mean;}}
   if(!rotation){
    rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
    rotationStates.set(name,rotation);
   }else if(rotation.face!==pose.id){
-   // Keep the same rotation anchor when switching among calibrated V5 faces.
+   // A V5 prism has three faces spaced by 120 degrees. When a different
+   // marker becomes primary, re-anchor that face at the CURRENT displayed
+   // instrument orientation. This avoids a sudden 120-degree pose jump and
+   // permits relative rotation to continue from the new face immediately.
+   // The nominal offsets above remain useful for comparing simultaneous faces.
    rotation.face=pose.id;
+   rotation.rawAnchor.copy(corrected);
+   rotation.outputAnchor.copy(previous?.quaternion??new THREE.Quaternion());
+   rotationGeometryStates.delete(name);
+   rotationFilterStates.delete(name);
+   poseHistory.set(name,[corrected.clone()]);
    rotationStates.set(name,rotation);
   }
   // Use observed corner geometry to distinguish real movement from a
