@@ -442,9 +442,21 @@ function updateLiveTargets(){
   if(markerSidePx<2)continue;
   const focalPx=overlay.width/(2*Math.tan(70*Math.PI/360/2));
   const sizeDistance=12*focalPx/markerSidePx;
-  // Monocular translation in camera coordinates. Intrinsics remain approximate.
-  // Map the physical depth interval to the entire usable virtual Z range.
-  const rawDistance=sizeDistance;
+  // First step toward rigid-body pose: estimate orientation and distance
+  // together from the same four corners. A tilted face looks smaller even
+  // when its actual depth is unchanged, so side length alone is misleading.
+  // Only trust perspective-corrected depth when the planar fit is good.
+  // Translation on screen still follows the observed marker center.
+  const normal=new THREE.Vector3(0,0,1).applyQuaternion(pose.quaternion);
+  const faceTilt=Math.acos(THREE.MathUtils.clamp(Math.abs(normal.z),0,1));
+  const poseDepthValid=Number.isFinite(pose.position.z)&&pose.position.z>20&&pose.reprojectionError<2.5;
+  const correctedDistance=poseDepthValid?pose.position.z:sizeDistance;
+  // Use the perspective solution progressively as tilt increases. When
+  // nearly face-on, side-length depth is stable and less ambiguous.
+  const tiltWeight=poseDepthValid?THREE.MathUtils.smoothstep(faceTilt,THREE.MathUtils.degToRad(8),THREE.MathUtils.degToRad(35)):0;
+  const rawDistance=THREE.MathUtils.lerp(sizeDistance,correctedDistance,tiltWeight);
+  // Camera-relative X/Y continue to follow the green-square center.
+  // Depth is corrected for face orientation when the fit supports it.
   const samples=depthHistory.get(name)??[];
   samples.push(rawDistance);if(samples.length>5)samples.shift();depthHistory.set(name,samples);
   const sorted=[...samples].sort((a,b)=>a-b);
