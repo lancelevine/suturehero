@@ -326,7 +326,7 @@ const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 const markerLastConfirmed=new Map<number,number>();
 const markerLastDecoded=new Map<number,number>();
-const OVERLAP_DECODE_MS=300;
+const OVERLAP_DECODE_MS=220;
 const verifiedMarkers=()=>{
  const now=performance.now();
  const eligible=liveMarkers().filter(m=>now-(markerLastDecoded.get(m.id)??-Infinity)<=OVERLAP_DECODE_MS);
@@ -343,13 +343,13 @@ const verifiedMarkers=()=>{
  }
  return selected;
 };
-const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=350;
+const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=220;
 const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
 const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
 function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_RETAIN_MS);}
 
 let observationsAt=0;
-const trackingHoldMs=650;
+const trackingHoldMs=350;
 const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
 // Learned face-to-face transforms from simultaneous marker sightings.
 // Do not assume printed face orientation from nominal prism dimensions alone.
@@ -466,10 +466,11 @@ function updateLiveTargets(){
    const pts=c.marker.corners;
    const area=Math.abs(pts.reduce((sum,p,i)=>sum+p.x*pts[(i+1)%4].y-pts[(i+1)%4].x*p.y,0))/2;
    const age=performance.now()-(markerLastDecoded.get(c.pose.id)??0);
-   return {candidate:c,score:Math.log1p(area)-Math.min(age,300)*.009-c.pose.reprojectionError*.12};
+   return {candidate:c,score:Math.log1p(area)-Math.min(age,220)*.014-c.pose.reprojectionError*.12};
   }).sort((a,b)=>b.score-a.score);
   const preferred=scored.find(c=>c.candidate.pose.id===previous?.id);
-  const chosen=(preferred&&preferred.score>=scored[0].score-.2?preferred:scored[0])?.candidate;
+  // Prefer a genuinely fresh decode over a formerly active but aging face.
+  const chosen=(preferred&&preferred.score>=scored[0].score-.08?preferred:scored[0])?.candidate;
   if(!chosen)continue;
   // Keep 2D translation active even with a poor 3D pose fit.
   const {pose}=chosen;
