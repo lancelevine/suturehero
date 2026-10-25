@@ -29,6 +29,8 @@ let previous:GrayFrame[]|null=null;
 let tracked:MarkerObservation[]=[];
 // A failed optical-flow frame must not erase the last known marker geometry.
 const lastReliableAt=new Map<number,number>();
+const lastMotion=new Map<number,Point>();
+let lastFlowStatus='Waiting for marker';
 const TRACK_RECOVERY_MS=650;
 const lastDecodedAt=new Map<number,number>();
 const lastFlowAt=new Map<number,number>();
@@ -154,31 +156,41 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
   // Track the center as well as corners. Center motion helps validate a coherent rigid patch.
   const center={x:marker.corners.reduce((n,p)=>n+p.x,0)/4,y:marker.corners.reduce((n,p)=>n+p.y,0)/4};
   const points=[...marker.corners,center];
-  // Search a small grid at the coarsest scale before LK refinement. This
-  // captures fast jumps that start outside LK's local convergence basin.
-  const coarse=a[Math.min(a.length,b.length)-1];
-  const coarseNext=b[Math.min(a.length,b.length)-1];
-  const coarseScale=2**Math.min(a.length,b.length);
-  const anchor=center;
-  const ax=anchor.x/coarseScale,ay=anchor.y/coarseScale;
-  let best={x:0,y:0},bestError=Infinity;
-  for(let oy=-9;oy<=9;oy+=3)for(let ox=-9;ox<=9;ox+=3){
-   if(!valid(coarse,ax,ay,2)||!valid(coarseNext,ax+ox,ay+oy,2))continue;
+  // Predict from the last validated displacement, then refine using a
+  // modest-resolution image search. Avoid the coarsest pyramid level: a
+  // 12 mm marker has too little detail there and can match the background.
+  const predicted=lastMotion.get(marker.id)??{x:0,y:0};
+  const level=Math.min(2,a.length-1,b.length-1);
+  const A=a[level],B=b[level],scale=2**(level+1);
+  const ax=center.x/scale,ay=center.y/scale;
+  let best={x:predicted.x,y:predicted.y},bestError=Infinity;
+  const cx=Math.round(predicted.x/scale),cy=Math.round(predicted.y/scale);
+  for(let oy=cy-8;oy<=cy+8;oy+=2)for(let ox=cx-8;ox<=cx+8;ox+=2){
+   if(!valid(A,ax,ay,3)||!valid(B,ax+ox,ay+oy,3))continue;
    let error=0;
    for(let py=-2;py<=2;py++)for(let px=-2;px<=2;px++){
-    const d=sample(coarse,ax+px,ay+py)-sample(coarseNext,ax+ox+px,ay+oy+py);
+    const d=sample(A,ax+px,ay+py)-sample(B,ax+ox+px,ay+oy+py);
     error+=d*d;
    }
-   if(error<bestError){bestError=error;best={x:ox*coarseScale,y:oy*coarseScale};}
+   if(error<bestError){bestError=error;best={x:ox*scale,y:oy*scale};}
   }
-  const moved=points.map(p=>lk(a,b,p,best));
-  const good=points.map((p,i)=>{
-   const next=moved[i];if(!next)return false;
-   const reverse=lk(b,a,next);
-   return !!reverse&&Math.hypot(reverse.x-p.x,reverse.y-p.y)<2.5;
-  });
+  // Try prediction and the coarse image match. The fallback to zero
+  // motion avoids trapping a marker when the instrument reverses direction.
+  const guesses=[best,predicted,{x:0,y:0}];
+  let moved:Array<Point|null>=[];
+  let good:boolean[]=[];
+  for(const guess of guesses){
+   const candidate=points.map(p=>lk(a,b,p,guess));
+   const validated=points.map((p,i)=>{
+    const next=candidate[i];if(!next)return false;
+    const reverse=lk(b,a,next,{x:p.x-next.x,y:p.y-next.y});
+    return !!reverse&&Math.hypot(reverse.x-p.x,reverse.y-p.y)<2.5;
+   });
+   if(validated.filter(Boolean).length>good.filter(Boolean).length){moved=candidate;good=validated;}
+   if(good.filter(Boolean).length>=3)break;
+  }
   const goodCorners=good.slice(0,4).filter(Boolean).length;
-  if(goodCorners<1&&!good[4]){flowRejected++;continue;}
+  if(goodCorners<1&&!good[4]){flowRejected++;lastFlowStatus='Flow rejected: no validated points';continue;}
   // Recover one lost corner by translating it with the median displacement.
   const xs=moved.map((p,i)=>good[i]&&p?p.x-points[i].x:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
   const ys=moved.map((p,i)=>good[i]&&p?p.y-points[i].y:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
@@ -191,6 +203,8 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
   if(!coherent||newArea<80||newArea<oldArea*.5||newArea>oldArea*2){flowRejected++;continue;}
   if(good[4]&&moved[4]&&Math.hypot(moved[4]!.x-center.x-mx,moved[4]!.y-center.y-my)>Math.max(12,Math.sqrt(oldArea)*.4)){flowRejected++;continue;}
   flowAccepted++;
+  lastMotion.set(marker.id,{x:mx,y:my});
+  lastFlowStatus='Flow tracked: '+good.filter(Boolean).length+'/5 points · dx '+mx.toFixed(1)+' dy '+my.toFixed(1);
   lastFlowAt.set(marker.id,now);
   lastReliableAt.set(marker.id,now);
   results.push({id:marker.id,corners});
@@ -207,7 +221,7 @@ function detect(frame:ImageData){
  if(flowOnly){
   const successful=new Set(flowed.map(m=>m.id));
   tracked=[...flowed,...tracked.filter(m=>!successful.has(m.id)&&performance.now()-(lastReliableAt.get(m.id)??lastDecodedAt.get(m.id)??0)<TRACK_RECOVERY_MS)];
-  return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:'Fast flow · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
+  return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:lastFlowStatus+' · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
  const start=performance.now();
  const now=performance.now();
@@ -264,7 +278,7 @@ function detect(frame:ImageData){
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
   if(e.data.type==='init'){flowOnly=!!(e.data as {flowOnly?:boolean}).flowOnly;if(!flowOnly)await initialize();self.postMessage({type:'ready'});}
-  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastReliableAt.set(marker.id,performance.now());lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
+  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastMotion.delete(marker.id);lastReliableAt.set(marker.id,performance.now());lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };
