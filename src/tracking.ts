@@ -580,6 +580,8 @@ function updateLiveTargets(){
    if(geometry.still>=3){geometry.moving=false;geometry.still=0;geometry.reference=corners;}
   }
   geometry.last=corners;
+  // Both rendered shafts point along local -X after the model's Y rotation.
+  // Keep roll in the tracked group's local shaft frame.
   const axis=new THREE.Vector3(-1,0,0);
   const localDelta=rotation.rawAnchor.clone().invert().multiply(corrected).normalize();
   const projection=localDelta.y;
@@ -588,10 +590,16 @@ function updateLiveTargets(){
   const previousRoll=rotation.accumulatedRoll;
   while(roll-previousRoll>Math.PI)roll-=2*Math.PI;
   while(roll-previousRoll< -Math.PI)roll+=2*Math.PI;
-  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(95))rotation.accumulatedRoll=roll;
+  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(95)){
+   const delta=roll-previousRoll;
+   // Scissors: remove small pose jitter without damping intentional rolling.
+   rotation.accumulatedRoll+=name==='scissors'&&Math.abs(delta)<THREE.MathUtils.degToRad(1.5)?delta*.3:delta;
+  }
   const swing=localDelta.clone().multiply(twist.clone().invert()).normalize();
   const scaledSwing=new THREE.Quaternion().slerp(swing,Number(rotationGain.value));
-  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(axis,rotation.accumulatedRoll);
+  // Forceps' initial orientation needs a different shaft alignment than scissors.
+  const rollAxis=name==='forceps'?new THREE.Vector3(1,0,0):axis;
+  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(rollAxis,rotation.accumulatedRoll);
   const desired=rotation.outputAnchor.clone().multiply(scaledSwing).multiply(rollQuaternion).normalize();
   // Hold the OUTPUT quaternion exactly, rather than attempting to
   // reconstruct it through a non-commutative quaternion multiplication.
