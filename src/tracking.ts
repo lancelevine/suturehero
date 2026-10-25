@@ -326,7 +326,7 @@ const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
 let observationsAt=0;
 const trackingHoldMs=650;
-const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion}>();
+const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
 // Learned face-to-face transforms from simultaneous marker sightings.
 // Do not assume printed face orientation from nominal prism dimensions alone.
 const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
@@ -509,7 +509,7 @@ function updateLiveTargets(){
   const history=poseHistory.get(name)??[];history.push(corrected.clone());if(history.length>4)history.shift();poseHistory.set(name,history);
   if(history.length>=4){const reference=history[history.length-2];const consistent=history.filter(q=>q.angleTo(reference)<THREE.MathUtils.degToRad(15));if(consistent.length>=3){const mean=consistent[0].clone();for(let i=1;i<consistent.length;i++)mean.slerp(consistent[i],1/(i+1));if(corrected.angleTo(mean)>THREE.MathUtils.degToRad(35))corrected=mean;}}
   if(!rotation){
-   rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion()};
+   rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion(),accumulatedRoll:0,faceRoll:0};
    rotationStates.set(name,rotation);
   }else if(rotation.face!==pose.id){
    // The V5 markers are consecutive faces of a triangular prism.
@@ -518,12 +518,10 @@ function updateLiveTargets(){
    const ids=MARKER_GROUPS[name] as readonly number[];
    const from=ids.indexOf(rotation.face);
    const to=ids.indexOf(pose.id);
-   const steps=((to-from+4)%3)-1; // adjacent face: +1 or -1
-   if(from>=0&&to>=0&&steps!==0){
-    // Instrument shaft is local -X (the model's +Z shaft is turned -90° Y).
-    const roll=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-1,0,0),steps*2*Math.PI/3);
-    rotation.outputAnchor.multiply(roll).normalize();
-   }
+   const distance=(to-from+3)%3;
+   const steps=distance===1?1:distance===2?-1:0;
+   rotation.accumulatedRoll+=rotation.faceRoll+steps*2*Math.PI/3;
+   rotation.faceRoll=0;
    rotation.face=pose.id;
    rotation.rawAnchor.copy(corrected);
    rotationGeometryStates.delete(name);
@@ -558,12 +556,18 @@ function updateLiveTargets(){
    if(geometry.still>=3){geometry.moving=false;geometry.still=0;geometry.reference=corners;}
   }
   geometry.last=corners;
-  const delta=corrected.clone().multiply(rotation.rawAnchor.clone().invert());
-  // Scale angular displacement relative to the calibration anchor, not
-  // animation speed. This retains prompt response at fine motion gain.
-  const gain=Number(rotationGain.value);
-  const scaledDelta=new THREE.Quaternion().slerp(delta,gain);
-  const desired=scaledDelta.multiply(rotation.outputAnchor).normalize();
+  const axis=new THREE.Vector3(-1,0,0);
+  const localDelta=rotation.rawAnchor.clone().invert().multiply(corrected).normalize();
+  const projection=localDelta.y;
+  const twist=new THREE.Quaternion(0,projection,0,localDelta.w).normalize();
+  let roll=2*Math.atan2(projection,localDelta.w);
+  while(roll-rotation.faceRoll>Math.PI)roll-=2*Math.PI;
+  while(roll-rotation.faceRoll< -Math.PI)roll+=2*Math.PI;
+  rotation.faceRoll=roll;
+  const swing=localDelta.clone().multiply(twist.clone().invert()).normalize();
+  const scaledSwing=new THREE.Quaternion().slerp(swing,Number(rotationGain.value));
+  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(axis,rotation.accumulatedRoll+roll);
+  const desired=rotation.outputAnchor.clone().multiply(scaledSwing).multiply(rollQuaternion).normalize();
   // Hold the OUTPUT quaternion exactly, rather than attempting to
   // reconstruct it through a non-commutative quaternion multiplication.
   // That previous reconstruction could itself generate stationary jitter.
