@@ -148,6 +148,40 @@ function lk(a:GrayFrame[],b:GrayFrame[],point:Point,initial:Point={x:0,y:0}):Poi
  if(!valid(b[0],result.x/2,result.y/2,4))return null;
  return result;
 }
+
+// Recover a known marker's translation by matching its previous grayscale patch.
+// This does not attempt to decode a new ID; only a previously tracked marker
+// can be recovered, and ambiguous / low-texture matches are rejected.
+function recoverPatch(a:GrayFrame[],b:GrayFrame[],center:Point,motion:Point):Point|null{
+ const level=Math.min(1,a.length-1,b.length-1),A=a[level],B=b[level],scale=2**(level+1);
+ const x=center.x/scale,y=center.y/scale;
+ if(!valid(A,x,y,5))return null;
+ const offsets=[-4,-2,0,2,4];
+ const samples=offsets.flatMap(dy=>offsets.map(dx=>({dx,dy,value:sample(A,x+dx,y+dy)})));
+ const mean=samples.reduce((sum,p)=>sum+p.value,0)/samples.length;
+ const variance=samples.reduce((sum,p)=>sum+(p.value-mean)**2,0)/samples.length;
+ if(variance<180)return null;
+ let best=Infinity,second=Infinity,bx=0,by=0;
+ const px=Math.round(motion.x/scale),py=Math.round(motion.y/scale);
+ // Search both predicted motion and direction reversals, up to 100px/frame.
+ const origins=[{x:px,y:py},{x:0,y:0}];
+ for(const origin of origins)for(let dy=origin.y-24;dy<=origin.y+24;dy+=2)for(let dx=origin.x-24;dx<=origin.x+24;dx+=2){
+  if(!valid(B,x+dx,y+dy,5))continue;
+  let error=0;
+  for(const p of samples){const delta=sample(B,x+dx+p.dx,y+dy+p.dy)-p.value;error+=delta*delta;}
+  error/=samples.length;
+  if(error<best){second=best;best=error;bx=dx;by=dy;}
+  else if(error<second)second=error;
+ }
+ // Reject blurry, ambiguous or background-like patches.
+ if(best>Math.max(280,variance*.65))return null;
+ // Confirm with a reverse local patch search and a second, independent feature.
+ const displacement={x:bx*scale,y:by*scale};
+ const check=lk(b,a,{x:center.x+displacement.x,y:center.y+displacement.y},{x:-displacement.x,y:-displacement.y});
+ if(!check||Math.hypot(check.x-center.x,check.y-center.y)>4)return null;
+ return displacement;
+}
+
 function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
  if(!a||!tracked.length)return [];
  const results:MarkerObservation[]=[];
@@ -191,7 +225,17 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
    if(good.filter(Boolean).length>=3)break;
   }
   const goodCorners=good.slice(0,4).filter(Boolean).length;
-  if(goodCorners<1&&!good[4]){flowRejected++;lastFlowStatus='Flow rejected: no validated points';continue;}
+  if(goodCorners<1&&!good[4]){
+   const recovered=recoverPatch(a,b,center,predicted);
+   if(recovered){
+    const corners=marker.corners.map(p=>({x:p.x+recovered.x,y:p.y+recovered.y}));
+    if(corners.every(p=>p.x>=0&&p.y>=0&&p.x<b[0].width*2&&p.y<b[0].height*2)){
+     lastMotion.set(marker.id,recovered);lastFlowAt.set(marker.id,now);lastReliableAt.set(marker.id,now);
+     flowAccepted++;lastFlowStatus='Patch recovered '+marker.id;results.push({id:marker.id,corners});continue;
+    }
+   }
+   flowRejected++;lastFlowStatus='Flow rejected: no validated points';continue;
+  }
   // Recover one lost corner by translating it with the median displacement.
   const xs=moved.map((p,i)=>good[i]&&p?p.x-points[i].x:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
   const ys=moved.map((p,i)=>good[i]&&p?p.y-points[i].y:null).filter((v):v is number=>v!==null).sort((x,y)=>x-y);
