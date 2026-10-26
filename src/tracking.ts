@@ -343,7 +343,7 @@ const verifiedMarkers=()=>{
  }
  return selected;
 };
-const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=220;
+const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=0;
 const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
 const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
 function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_RETAIN_MS);}
@@ -468,9 +468,8 @@ function updateLiveTargets(){
    const age=performance.now()-(markerLastDecoded.get(c.pose.id)??0);
    return {candidate:c,score:Math.log1p(area)-Math.min(age,220)*.014-c.pose.reprojectionError*.12};
   }).sort((a,b)=>b.score-a.score);
-  const preferred=scored.find(c=>c.candidate.pose.id===previous?.id);
-  // Prefer a genuinely fresh decode over a formerly active but aging face.
-  const chosen=(preferred&&preferred.score>=scored[0].score-.08?preferred:scored[0])?.candidate;
+  // Do not prefer a previously active ID over the strongest current observation.
+  const chosen=scored[0]?.candidate;
   if(!chosen)continue;
   // Keep 2D translation active even with a poor 3D pose fit.
   const {pose}=chosen;
@@ -695,7 +694,7 @@ async function detectFrame(now:number){
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
    if(found.length){for(const m of found)markerLastConfirmed.set(m.id,stamp);observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
-   else if(stamp-Math.max(latestFlowAt,latestDecodeAt)>350){observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;drawDetections();}
+   else {observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;drawDetections();}
    if(stamp-fastWindow>=1000){
     diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
     fastFrames=0;slowFrames=0;fastWindow=stamp;
@@ -729,7 +728,7 @@ async function detectFrame(now:number){
     latestDecodeAt=performance.now();
     // Flow may already have advanced beyond this decode. Use the decode
     // only for missing IDs, avoiding backward jumps from delayed responses.
-    const merged=observations.filter(m=>markerAge(m.id)<=MARKER_RETAIN_MS);
+    const merged=liveMarkers();
     for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);markerLastConfirmed.set(marker.id,decodeStamp);}
     observations=merged;observationsAt=performance.now();idleNoMarkers=false;drawDetections();
    }
