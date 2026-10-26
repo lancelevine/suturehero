@@ -3,6 +3,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
+import {solvePrismPose,type PrismPose} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import './style.css';
 import './tracking.css';
@@ -361,7 +362,7 @@ function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number)
 }
 // Rotation-only rigid-body state. Never used to accept/reject translation.
 const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
- anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number
+ anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose
 }>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
@@ -519,51 +520,31 @@ function updateLiveTargets(){
   // The viewer's horizontal and forward axes are rotated relative to the webcam.
   // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
   const position=new THREE.Vector3(-z,y,x);
-  // Independent rigid-body orientation: all prism faces have fixed 120-degree transforms.
-  // Keep the PR #91 position calculation above untouched; no rotation failure can block it.
-  const rotationCandidates=liveMarkers().filter(m=>ids.includes(m.id)).map(marker=>({marker,pose:estimateMarkerPose(marker,overlay.width,overlay.height)})).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item.pose!==null);
-  // Flow provides fresh corners between decoder frames; decoding identifies the face.
-  // Do not gate rotation on the green overlay's short decoder freshness window.
-  const freshFaces=rotationCandidates.filter(c=>
-   c.pose.reprojectionError<12 &&
-   performance.now()-(markerLastDecoded.get(c.pose.id)??-Infinity)<5000
-  );
-  const rigidFaces=freshFaces.map(c=>({
-   id:c.pose.id,
-   q:c.pose.quaternion.clone().multiply(nominalV5FaceOffset(name,c.pose.id)).normalize(),
-   error:c.pose.reprojectionError
-  }));
+  // Rotation-only joint 3D fit. This never modifies translation, flow or marker selection.
+  const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
+   performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<5000);
+  const state=rigidBodyStates.get(name);
+  const rigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose);
   let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
-  if(rigidFaces.length){
-   // Prefer temporal continuity when a prism edge exposes two faces.
-   const state=rigidBodyStates.get(name);
-   const reference=state?.lastRaw;
-   rigidFaces.sort((a,b)=>{
-    if(!reference)return a.error-b.error;
-    return (a.q.angleTo(reference)*3+a.error*.04)-(b.q.angleTo(reference)*3+b.error*.04);
-   });
-   const primary=rigidFaces[0];
-   let fused=primary.q.clone(),weight=1;
-   for(const face of rigidFaces.slice(1)){
-    if(face.q.angleTo(primary.q)>THREE.MathUtils.degToRad(30))continue;
-    weight++;
-    fused.slerp(face.q,1/weight);
-   }
-   fused.normalize();
+  if(rigid){
    if(!state){
-    rigidBodyStates.set(name,{anchorRaw:fused.clone(),anchorOutput:quaternion.clone(),lastRaw:fused.clone(),lastAt:now});
+    rigidBodyStates.set(name,{anchorRaw:rigid.quaternion.clone(),anchorOutput:quaternion.clone(),lastRaw:rigid.quaternion.clone(),lastAt:now,pose:rigid});
    }else{
-    // Ignore implausible one-frame planar-pose flips, without freezing translation.
-    const jump=fused.angleTo(state.lastRaw);
-    if(jump<THREE.MathUtils.degToRad(70)){
-     const desired=state.anchorOutput.clone().multiply(state.anchorRaw.clone().invert()).multiply(fused).normalize();
+    const jump=rigid.quaternion.angleTo(state.lastRaw);
+    if(jump<THREE.MathUtils.degToRad(85)){
+     const delta=state.anchorRaw.clone().invert().multiply(rigid.quaternion).normalize();
+     // Prism's longitudinal axis is local Y. The forceps model's shaft is local X.
+     const twist=new THREE.Quaternion(0,delta.y,0,delta.w).normalize();
+     const swing=delta.clone().multiply(twist.clone().invert()).normalize();
+     const shaftRoll=2*Math.atan2(twist.y,twist.w);
+     const rollAxis=new THREE.Vector3(name==='forceps'?1:-1,0,0);
+     const roll=new THREE.Quaternion().setFromAxisAngle(rollAxis,shaftRoll);
+     const desired=state.anchorOutput.clone().multiply(swing).multiply(roll).normalize();
      const elapsed=Math.max(.016,Math.min(.1,(now-state.lastAt)/1000));
-     const angularStep=THREE.MathUtils.degToRad(480)*elapsed;
-     const angularError=quaternion.angleTo(desired);
-     const alpha=Math.min(1,1-Math.exp(-elapsed*18),angularStep/Math.max(angularError,1e-6));
-     quaternion.slerp(desired,alpha);
-     state.lastRaw.copy(fused);
+     quaternion.slerp(desired,1-Math.exp(-elapsed*16));
+     state.lastRaw.copy(rigid.quaternion);
      state.lastAt=now;
+     state.pose=rigid;
     }
    }
   }
