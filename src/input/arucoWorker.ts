@@ -31,7 +31,7 @@ let tracked:MarkerObservation[]=[];
 const lastReliableAt=new Map<number,number>();
 const lastMotion=new Map<number,Point>();
 let lastFlowStatus='Waiting for marker';
-const TRACK_RECOVERY_MS=650;
+const TRACK_RECOVERY_MS=0;
 const lastDecodedAt=new Map<number,number>();
 const lastFlowAt=new Map<number,number>();
 // Allow geometrically consistent optical flow to bridge missed decodes.
