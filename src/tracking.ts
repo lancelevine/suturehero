@@ -515,6 +515,13 @@ function updateLiveTargets(){
   // The viewer's horizontal and forward axes are rotated relative to the webcam.
   // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
   const position=new THREE.Vector3(-z,y,x);
+  // Translation uses fresh optical flow regardless of whether a face was decoded.
+  // Rotation must use a recently decoded face: flow alone cannot establish visibility.
+  const rotationFaceFresh=performance.now()-(markerLastDecoded.get(pose.id)??-Infinity)<=350;
+  if(!rotationFaceFresh){
+   liveTargets.set(name,{position,quaternion:previous?.quaternion.clone()??new THREE.Quaternion(),lastSeen:now,id:pose.id,pose});
+   continue;
+  }
   // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
   const switched=!!previous&&previous.id!==pose.id;
   // Until the face-to-prism transforms are calibrated, changing faces must not rotate the instrument by 120 degrees.
@@ -643,7 +650,10 @@ function updateLiveTargets(){
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
- for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ for(const marker of observations){
+  // Only draw faces with recent decoder evidence; optical flow may persist on hidden texture.
+  if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>350)continue;
+  const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
