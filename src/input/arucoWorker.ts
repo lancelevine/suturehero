@@ -31,12 +31,12 @@ let tracked:MarkerObservation[]=[];
 const lastReliableAt=new Map<number,number>();
 const lastMotion=new Map<number,Point>();
 let lastFlowStatus='Waiting for marker';
-const TRACK_RECOVERY_MS=100;
+const TRACK_RECOVERY_MS=650;
 const lastDecodedAt=new Map<number,number>();
 const lastFlowAt=new Map<number,number>();
-// Optical flow is short-lived between real decodes; never follow an unconfirmed ID for seconds.
-const MAX_FLOW_GAP_MS=160;
-const MAX_UNCONFIRMED_MS=300;
+// Allow geometrically consistent optical flow to bridge missed decodes.
+const MAX_FLOW_GAP_MS=500;
+const MAX_UNCONFIRMED_MS=5000;
 let frameNumber=0;
 let flowOnly=false;
 let flowAccepted=0,flowRejected=0;
