@@ -362,7 +362,7 @@ function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number)
 }
 // Rotation-only rigid-body state. Never used to accept/reject translation.
 const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
- anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose
+ anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring'
 }>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
@@ -520,7 +520,7 @@ function updateLiveTargets(){
   // The viewer's horizontal and forward axes are rotated relative to the webcam.
   // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
   const position=new THREE.Vector3(-z,y,x);
-  // Rotation-only joint 3D fit. This never modifies translation, flow or marker selection.
+  // Independent rigid-body rotation: never gate or alter the working translation.
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
    performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<5000);
   const state=rigidBodyStates.get(name);
@@ -528,12 +528,24 @@ function updateLiveTargets(){
   let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
   if(rigid){
    if(!state){
-    rigidBodyStates.set(name,{anchorRaw:rigid.quaternion.clone(),anchorOutput:quaternion.clone(),lastRaw:rigid.quaternion.clone(),lastAt:now,pose:rigid});
+    rigidBodyStates.set(name,{anchorRaw:rigid.quaternion.clone(),anchorOutput:quaternion.clone(),lastRaw:rigid.quaternion.clone(),lastAt:now,pose:rigid,stallSince:null,status:'tracking'});
    }else{
     const jump=rigid.quaternion.angleTo(state.lastRaw);
-    if(jump<THREE.MathUtils.degToRad(85)){
+    const stalledFor=state.stallSince===null?0:now-state.stallSince;
+    const consistent=jump<THREE.MathUtils.degToRad(85);
+    // After 450ms of rejected updates, reacquire from the newly observed orientation.
+    // Re-anchor to the current rendered quaternion so the virtual instrument cannot snap.
+    const reacquire=!consistent&&stalledFor>450&&rigid.error<8&&rigid.faces>=2;
+    if(reacquire){
+     state.anchorRaw.copy(rigid.quaternion);
+     state.anchorOutput.copy(quaternion);
+     state.lastRaw.copy(rigid.quaternion);
+     state.lastAt=now;
+     state.pose=rigid;
+     state.stallSince=null;
+     state.status='reacquiring';
+    }else if(consistent){
      const delta=state.anchorRaw.clone().invert().multiply(rigid.quaternion).normalize();
-     // Prism's longitudinal axis is local Y. The forceps model's shaft is local X.
      const twist=new THREE.Quaternion(0,delta.y,0,delta.w).normalize();
      const swing=delta.clone().multiply(twist.clone().invert()).normalize();
      const shaftRoll=2*Math.atan2(twist.y,twist.w);
@@ -545,8 +557,16 @@ function updateLiveTargets(){
      state.lastRaw.copy(rigid.quaternion);
      state.lastAt=now;
      state.pose=rigid;
+     state.stallSince=null;
+     state.status='tracking';
+    }else{
+     state.stallSince??=now;
+     state.status='stalled';
     }
    }
+  }else if(state){
+   state.stallSince??=now;
+   state.status='stalled';
   }
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
