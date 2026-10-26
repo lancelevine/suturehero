@@ -359,6 +359,10 @@ function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number)
  const index=(MARKER_GROUPS[name] as readonly number[]).indexOf(id);
  return new THREE.Quaternion().setFromAxisAngle(prismAxis,-index*2*Math.PI/3);
 }
+// Rotation-only rigid-body state. Never used to accept/reject translation.
+const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
+ anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number
+}>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
@@ -515,135 +519,51 @@ function updateLiveTargets(){
   // The viewer's horizontal and forward axes are rotated relative to the webcam.
   // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
   const position=new THREE.Vector3(-z,y,x);
-  // Translation uses fresh optical flow regardless of whether a face was decoded.
-  // Rotation must use a recently decoded face: flow alone cannot establish visibility.
-  const rotationFaceFresh=performance.now()-(markerLastDecoded.get(pose.id)??-Infinity)<=350;
-  if(!rotationFaceFresh){
-   liveTargets.set(name,{position,quaternion:previous?.quaternion.clone()??new THREE.Quaternion(),lastSeen:now,id:pose.id,pose});
-   continue;
-  }
-  // Rotation is provisional: one marker face is not yet registered to the prism/instrument.
-  const switched=!!previous&&previous.id!==pose.id;
-  // Until the face-to-prism transforms are calibrated, changing faces must not rotate the instrument by 120 degrees.
-  // Relative orientation avoids imposing an arbitrary marker-face orientation on the instrument.
-  // On face changes, rebase the new face to the last displayed orientation.
-  let rotation=rotationStates.get(name);
-  let corrected=pose.quaternion.clone().multiply(offsets.get(pose.id)??new THREE.Quaternion()).normalize();
-  // Fuse visible faces only when their relative transforms have been learned.
-  const verifiedIds=new Set(verifiedMarkers().map(m=>m.id));
-  const validFaces=candidates.filter(c=>verifiedIds.has(c.pose.id)&&c.pose.reprojectionError<3&&offsets.has(c.pose.id));
-  if(validFaces.length>1){
-   const reference=corrected.clone();
-   const compatible=validFaces.map(c=>c.pose.quaternion.clone().multiply(offsets.get(c.pose.id)!).normalize())
-    .filter(q=>q.angleTo(reference)<THREE.MathUtils.degToRad(18));
-   // Never replace the primary face with an incompatible planar-pose solution.
-   // Fuse only faces that agree with the selected primary orientation.
-   if(compatible.length>1){
-    const mean=compatible[0].clone();
-    for(let i=1;i<compatible.length;i++)mean.slerp(compatible[i],1/(i+1));
-    corrected=mean.normalize();
+  // Independent rigid-body orientation: all prism faces have fixed 120-degree transforms.
+  // Keep the PR #91 position calculation above untouched; no rotation failure can block it.
+  const freshFaces=candidates.filter(c=>
+   performance.now()-(markerLastDecoded.get(c.pose.id)??-Infinity)<300 &&
+   c.pose.reprojectionError<5
+  );
+  const rigidFaces=freshFaces.map(c=>({
+   id:c.pose.id,
+   q:c.pose.quaternion.clone().multiply(nominalV5FaceOffset(name,c.pose.id)).normalize(),
+   error:c.pose.reprojectionError
+  }));
+  let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
+  if(rigidFaces.length){
+   // Prefer temporal continuity when a prism edge exposes two faces.
+   const state=rigidBodyStates.get(name);
+   const reference=state?.lastRaw;
+   rigidFaces.sort((a,b)=>{
+    if(!reference)return a.error-b.error;
+    return (a.q.angleTo(reference)*3+a.error*.04)-(b.q.angleTo(reference)*3+b.error*.04);
+   });
+   const primary=rigidFaces[0];
+   let fused=primary.q.clone(),weight=1;
+   for(const face of rigidFaces.slice(1)){
+    if(face.q.angleTo(primary.q)>THREE.MathUtils.degToRad(30))continue;
+    weight++;
+    fused.slerp(face.q,1/weight);
    }
-  }
-  const history=poseHistory.get(name)??[];history.push(corrected.clone());if(history.length>4)history.shift();poseHistory.set(name,history);
-  if(history.length>=4){const reference=history[history.length-2];const consistent=history.filter(q=>q.angleTo(reference)<THREE.MathUtils.degToRad(15));if(consistent.length>=3){const mean=consistent[0].clone();for(let i=1;i<consistent.length;i++)mean.slerp(consistent[i],1/(i+1));if(corrected.angleTo(mean)>THREE.MathUtils.degToRad(35))corrected=mean;}}
-  if(!rotation){
-   rotation={face:pose.id,rawAnchor:corrected.clone(),outputAnchor:previous?.quaternion.clone()??new THREE.Quaternion(),accumulatedRoll:0,faceRoll:0};
-   rotationStates.set(name,rotation);
-  }else if(rotation.face!==pose.id){
-   rotation.face=pose.id;
-   rotationGeometryStates.delete(name);
-   rotationFilterStates.delete(name);
-  }
-  // Use observed corner geometry to distinguish real movement from a
-  // homography orientation flip while the printed marker is stationary.
-  // Compare against a fixed reference: per-frame-only tests miss slow turns.
-  const centerX=chosen.marker.corners.reduce((sum,p)=>sum+p.x,0)/4;
-  const centerY=chosen.marker.corners.reduce((sum,p)=>sum+p.y,0)/4;
-  // Remove translation: only changes in the square's SHAPE should unlock rotation.
-  const corners=chosen.marker.corners.map(p=>({x:p.x-centerX,y:p.y-centerY}));
-  let geometry=rotationGeometryStates.get(name);
-  if(!geometry||geometry.face!==pose.id){
-   geometry={face:pose.id,reference:corners,last:corners,moving:switched,pending:0,still:0};
-   rotationGeometryStates.set(name,geometry);
-  }
-  const cornerShift=(a:{x:number;y:number}[],b:{x:number;y:number}[])=>
-   a.reduce((sum,p,i)=>sum+Math.hypot(p.x-b[i].x,p.y-b[i].y),0)/4;
-  const shift=cornerShift(corners,geometry.reference);
-  const frameShift=cornerShift(corners,geometry.last);
-  const markerWidth=corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-corners[(i+1)%4].x,p.y-corners[(i+1)%4].y),0)/4;
-  const startThreshold=Math.max(1.5,markerWidth*.025);
-  const stopThreshold=Math.max(.8,markerWidth*.015);
-  if(!geometry.moving){
-   geometry.pending=shift>startThreshold?geometry.pending+1:0;
-   if(geometry.pending>=2){geometry.moving=true;geometry.pending=0;}
-  }else{
-   geometry.still=frameShift<stopThreshold?geometry.still+1:0;
-   if(geometry.still>=3){geometry.moving=false;geometry.still=0;geometry.reference=corners;}
-  }
-  geometry.last=corners;
-  // Both rendered shafts point along local -X after the model's Y rotation.
-  // Keep roll in the tracked group's local shaft frame.
-  const axis=new THREE.Vector3(-1,0,0);
-  const localDelta=rotation.rawAnchor.clone().invert().multiply(corrected).normalize();
-  const projection=localDelta.y;
-  const twist=new THREE.Quaternion(0,projection,0,localDelta.w).normalize();
-  let roll=2*Math.atan2(projection,localDelta.w);
-  const previousRoll=rotation.accumulatedRoll;
-  while(roll-previousRoll>Math.PI)roll-=2*Math.PI;
-  while(roll-previousRoll< -Math.PI)roll+=2*Math.PI;
-  if(Math.abs(roll-previousRoll)<THREE.MathUtils.degToRad(95)){
-   const delta=roll-previousRoll;
-   // Scissors: remove small pose jitter without damping intentional rolling.
-   rotation.accumulatedRoll+=name==='scissors'&&Math.abs(delta)<THREE.MathUtils.degToRad(1.5)?delta*.3:delta;
-  }
-  const swing=localDelta.clone().multiply(twist.clone().invert()).normalize();
-  const scaledSwing=new THREE.Quaternion().slerp(swing,Number(rotationGain.value));
-  // Forceps' initial orientation needs a different shaft alignment than scissors.
-  const rollAxis=name==='forceps'?new THREE.Vector3(1,0,0):axis;
-  // Provisional scissors correction from observed ~240 physical to 360 virtual.
-  // Instrument-specific calibration can replace this measured gain later.
-  const rollScale=name==='scissors'?2/3:1;
-  const rollQuaternion=new THREE.Quaternion().setFromAxisAngle(rollAxis,rotation.accumulatedRoll*rollScale);
-  const desired=rotation.outputAnchor.clone().multiply(scaledSwing).multiply(rollQuaternion).normalize();
-  // Hold the OUTPUT quaternion exactly, rather than attempting to
-  // reconstruct it through a non-commutative quaternion multiplication.
-  // That previous reconstruction could itself generate stationary jitter.
-  if(!geometry.moving&&previous&&Math.abs(rotation.accumulatedRoll-previousRoll)<THREE.MathUtils.degToRad(.5))desired.copy(previous.quaternion);
-  const quaternion=previous?.quaternion.clone()??desired.clone();
-  if(previous&&now-previous.lastSeen<600){
-   const elapsed=Math.max(.016,(now-previous.lastSeen)/1000);
-   // No stationary lock or gross-pose rejection on translation: when the
-   // green quadrilateral moves, the rendered instrument must follow it.
-   // Smooth lightly to suppress subpixel jitter without freezing motion.
-
-   // Translation uses the latest measured marker position.
-   // Rotation is independent of translation: allow deliberate rolling, pitching,
-   // and yawing even when the instrument remains at a fixed position.
-   // Cap angular velocity instead of discarding changes above 25 degrees:
-   // rejecting those frames previously made large rotations appear frozen.
-   const threshold=THREE.MathUtils.degToRad(Number(rotationSensitivity.value));
-   let filter=rotationFilterStates.get(name);
-   if(!filter){filter={anchor:previous.quaternion.clone(),pending:0,moving:false};rotationFilterStates.set(name,filter);}
-   const displacement=filter.anchor.angleTo(desired);
-   const instantaneous=previous.quaternion.angleTo(desired);
-   // Require sustained angular displacement to unlock; reject isolated large pose spikes.
-   {
-    if(!filter.moving){
-     filter.pending=displacement>threshold?filter.pending+1:0;
-     if(filter.pending>=1){filter.moving=true;filter.pending=0;}
-    }
-    if(filter.moving){
-     const maxStep=THREE.MathUtils.degToRad(540)*elapsed;
-     const smooth=1-Math.exp(-elapsed*(displacement>threshold*3?24:14));
-     quaternion.slerp(desired,Math.min(smooth,maxStep/Math.max(instantaneous,1e-6)));
-     filter.anchor.copy(quaternion);
-     if(instantaneous<threshold*.4){filter.pending++;if(filter.pending>=3){filter.moving=false;filter.pending=0;}}
-     else filter.pending=0;
+   fused.normalize();
+   if(!state){
+    rigidBodyStates.set(name,{anchorRaw:fused.clone(),anchorOutput:quaternion.clone(),lastRaw:fused.clone(),lastAt:now});
+   }else{
+    // Ignore implausible one-frame planar-pose flips, without freezing translation.
+    const jump=fused.angleTo(state.lastRaw);
+    if(jump<THREE.MathUtils.degToRad(70)){
+     const desired=state.anchorOutput.clone().multiply(state.anchorRaw.clone().invert()).multiply(fused).normalize();
+     const elapsed=Math.max(.016,Math.min(.1,(now-state.lastAt)/1000));
+     const angularStep=THREE.MathUtils.degToRad(480)*elapsed;
+     const angularError=quaternion.angleTo(desired);
+     const alpha=Math.min(1,1-Math.exp(-elapsed*18),angularStep/Math.max(angularError,1e-6));
+     quaternion.slerp(desired,alpha);
+     state.lastRaw.copy(fused);
+     state.lastAt=now;
     }
    }
-   filterMeasurements.set(name,{rawZ:measuredDistance,filteredZ:z,angle:THREE.MathUtils.radToDeg(instantaneous),locked:!filter.moving});
   }
-  if(!previous)filterMeasurements.set(name,{rawZ:measuredDistance,filteredZ:z,angle:0,locked:false});
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
@@ -651,8 +571,8 @@ function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
  for(const marker of observations){
-  // Only draw faces with recent decoder evidence; optical flow may persist on hidden texture.
-  if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>350)continue;
+  // A flow-only outline is not proof that the printed face is still visible.
+  if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>300)continue;
   const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
