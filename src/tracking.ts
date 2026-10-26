@@ -349,7 +349,7 @@ const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
 function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);}
 
 let observationsAt=0;
-const trackingHoldMs=350;
+const trackingHoldMs=140;
 const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
 // Learned face-to-face transforms from simultaneous marker sightings.
 // Do not assume printed face orientation from nominal prism dimensions alone.
@@ -460,13 +460,13 @@ function updateLiveTargets(){
   // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
   // Only a recently decoded marker may be the active pose face. Optical
   // flow may keep following a patch after the printed face is occluded.
-  const visibleIds=new Set(verifiedMarkers().map(m=>m.id));
-  const decoded=candidates.filter(c=>visibleIds.has(c.pose.id));
+  // All currently flow-tracked observations are eligible for translation;
+  // decoder recency is no longer a hard gate that freezes position between decodes.
+  const decoded=candidates;
   const scored=decoded.map(c=>{
    const pts=c.marker.corners;
    const area=Math.abs(pts.reduce((sum,p,i)=>sum+p.x*pts[(i+1)%4].y-pts[(i+1)%4].x*p.y,0))/2;
-   const age=performance.now()-(markerLastDecoded.get(c.pose.id)??0);
-   return {candidate:c,score:Math.log1p(area)-Math.min(age,220)*.014-c.pose.reprojectionError*.12};
+   return {candidate:c,score:Math.log1p(area)-c.pose.reprojectionError*.12};
   }).sort((a,b)=>b.score-a.score);
   // Do not prefer a previously active ID over the strongest current observation.
   const chosen=scored[0]?.candidate;
@@ -652,8 +652,7 @@ function updateLiveTargets(){
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
- const fresh=verifiedMarkers();
- for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=markerAge(marker.id)>MARKER_LIVE_MS||!verifiedMarkers().some(m=>m.id===marker.id);overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((stale?'HELD ':overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ for(const marker of observations){const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
@@ -742,7 +741,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(!simulation.checked){
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
    const target=liveTargets.get(name);
-   if(target&&now-target.lastSeen<trackingHoldMs){
+   if(target&&now-target.lastSeen<MARKER_LIVE_MS&&liveMarkers().some(m=>m.id===target.id)){
     mesh.position.copy(target.position);
     // Rotation was already stabilized in updateLiveTargets; avoid another
     // rendering-stage interpolation that adds latency.
