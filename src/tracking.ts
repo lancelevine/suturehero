@@ -343,10 +343,10 @@ const verifiedMarkers=()=>{
  }
  return selected;
 };
-const MARKER_LIVE_MS=140,MARKER_RETAIN_MS=0;
+const MARKER_LIVE_MS=140;
 const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
 const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
-function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_RETAIN_MS);}
+function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);}
 
 let observationsAt=0;
 const trackingHoldMs=350;
