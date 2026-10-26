@@ -21,7 +21,8 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
 <section class="tracking-panel" style="margin-top:12px;padding:14px">
  <div class="eyebrow">STEREO CALIBRATION · CAPTURE</div>
- <p class="tracking-message">Checkerboard: <strong>8 × 8 squares · 7 × 7 inner corners · 37 mm squares</strong>. Hold the entire board in view of both cameras. Capture 20–30 varied poses, including corners of the workspace and tilted angles. Keep both cameras fixed.</p>
+ <p class="tracking-message">Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · 24 mm squares</strong>. Hold the entire board in view of both cameras, with the same checkerboard corner visible in both. Capture 20–30 varied poses, including corners of the workspace and tilted angles. Keep both cameras fixed.</p>
+ <p class="tracking-message" id="checkerboard-quality">Capture guidance: keep the checkerboard sharp, flat, and fully visible in both cameras. Rotate and tilt it between captures.</p>
  <div class="tracking-actions"><button id="capture-stereo-pair">Capture checkerboard pair</button><button id="export-stereo-pairs" disabled>Export captures</button><button id="clear-stereo-pairs">Clear captures</button></div>
  <p class="tracking-message" id="stereo-calibration-status">0 pairs captured. This stage records paired images; calibration solving and triangulation are not enabled yet.</p>
 </section>
@@ -284,13 +285,24 @@ async function detectSecondFrame(now:number){
 void refreshSecondCameraList().catch(()=>{status2.textContent='Connect both USB cameras and allow camera access.';});
 
 
-interface CalibrationPair {time:string;first:{width:number;height:number;image:string};second:{width:number;height:number;image:string};frameDeltaMs:number|null}
+interface CalibrationPair {time:string;first:{width:number;height:number;image:string};second:{width:number;height:number;image:string};frameDeltaMs:number|null;sharpness?:{first:number;second:number}}
 const calibrationPairs:CalibrationPair[]=[];
 const calibrationStatus=document.querySelector<HTMLElement>('#stereo-calibration-status')!;
 const exportCalibration=document.querySelector<HTMLButtonElement>('#export-stereo-pairs')!;
 function updateCalibrationStatus(message=''){
  calibrationStatus.textContent=calibrationPairs.length+' pairs captured (target 20–30). '+message+' Paired images only; camera calibration is not solved yet.';
  exportCalibration.disabled=calibrationPairs.length===0;
+}
+function checkerboardSharpness(source:HTMLVideoElement){
+ const canvas=document.createElement('canvas');canvas.width=160;canvas.height=120;
+ const context=canvas.getContext('2d',{willReadFrequently:true})!;context.drawImage(source,0,0,160,120);
+ const data=context.getImageData(0,0,160,120).data;
+ let energy=0;for(let y=1;y<119;y++)for(let x=1;x<159;x++){
+  const i=(y*160+x)*4;const l=(i-4),u=(i-160*4);
+  const v=(data[i]+data[i+1]+data[i+2])/3;
+  energy+=Math.abs(v-(data[l]+data[l+1]+data[l+2])/3)+Math.abs(v-(data[u]+data[u+1]+data[u+2])/3);
+ }
+ return Math.round(energy/(158*118));
 }
 function captureCalibrationImage(source:HTMLVideoElement){
  const canvas=document.createElement('canvas');canvas.width=source.videoWidth;canvas.height=source.videoHeight;
@@ -302,8 +314,10 @@ document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!.addEventListe
   updateCalibrationStatus('Start both cameras before capturing.');return;
  }
  // Capture consecutively in one event handler, minimizing (but not eliminating) frame skew.
+ const quality1=checkerboardSharpness(video),quality2=checkerboardSharpness(video2);
  const first=captureCalibrationImage(video),second=captureCalibrationImage(video2);
- calibrationPairs.push({time:new Date().toISOString(),first,second,frameDeltaMs:observationsAt&&secondaryObservationsAt?Math.round(Math.abs(observationsAt-secondaryObservationsAt)):null});
+ document.querySelector<HTMLElement>('#checkerboard-quality')!.textContent='Image edge-detail indicators: camera 1 '+quality1+' · camera 2 '+quality2+'. These are only rough sharpness indicators, not verified checkerboard corner detections.';
+ calibrationPairs.push({time:new Date().toISOString(),first,second,sharpness:{first:quality1,second:quality2},frameDeltaMs:observationsAt&&secondaryObservationsAt?Math.round(Math.abs(observationsAt-secondaryObservationsAt)):null});
  updateCalibrationStatus('Captured pair '+calibrationPairs.length+'. Move and tilt the board for the next pair.');
 });
 document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!.addEventListener('click',()=>{
@@ -312,7 +326,7 @@ document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!.addEventListen
 });
 exportCalibration.addEventListener('click',()=>{
  if(!calibrationPairs.length)return;
- const payload={format:'suturehero-stereo-captures-v1',board:{squaresX:8,squaresY:8,innerCornersX:7,innerCornersY:7,squareSizeMm:37},camera1:select.value,camera2:select2.value,pairs:calibrationPairs};
+ const payload={format:'suturehero-stereo-captures-v1',board:{squaresX:9,squaresY:7,innerCornersX:8,innerCornersY:6,squareSizeMm:24},camera1:select.value,camera2:select2.value,pairs:calibrationPairs};
  const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;link.download='suturehero-stereo-calibration-'+new Date().toISOString().slice(0,10)+'.json';link.click();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
