@@ -522,9 +522,11 @@ function updateLiveTargets(){
   // Independent rigid-body orientation: all prism faces have fixed 120-degree transforms.
   // Keep the PR #91 position calculation above untouched; no rotation failure can block it.
   const rotationCandidates=liveMarkers().filter(m=>ids.includes(m.id)).map(marker=>({marker,pose:estimateMarkerPose(marker,overlay.width,overlay.height)})).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item.pose!==null);
+  // Flow provides fresh corners between decoder frames; decoding identifies the face.
+  // Do not gate rotation on the green overlay's short decoder freshness window.
   const freshFaces=rotationCandidates.filter(c=>
-   performance.now()-(markerLastDecoded.get(c.pose.id)??-Infinity)<300 &&
-   c.pose.reprojectionError<5
+   c.pose.reprojectionError<12 &&
+   performance.now()-(markerLastDecoded.get(c.pose.id)??-Infinity)<5000
   );
   const rigidFaces=freshFaces.map(c=>({
    id:c.pose.id,
