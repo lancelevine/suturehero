@@ -623,7 +623,10 @@ const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
  if(!stream||!detectorReady||!video.videoWidth)return;
  const doFast=!fastProcessing&&now-lastFastFrame>=33;
- const doSlow=!processing&&now-lastSlowFrame>=160;
+ // Run decode faster when flow has no usable marker; only one decode can be in flight.
+ const recovering=idleNoMarkers||now-latestFlowAt>120;
+ const decodeInterval=recovering?65:110;
+ const doSlow=!processing&&now-lastSlowFrame>=decodeInterval;
  if(!doFast&&!doSlow)return;
  const session=cameraSession;
  const scale=Math.min(1,960/video.videoWidth),w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
@@ -643,7 +646,7 @@ async function detectFrame(now:number){
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
    if(found.length){for(const m of found)markerLastConfirmed.set(m.id,stamp);observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
-   else {observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;drawDetections();}
+   else {observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;lastSlowFrame=Math.min(lastSlowFrame,stamp-65);drawDetections();}
    if(stamp-fastWindow>=1000){
     diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
     fastFrames=0;slowFrames=0;fastWindow=stamp;
