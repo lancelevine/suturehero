@@ -461,7 +461,8 @@ function updateLiveTargets(){
   // switching IDs based on marker area on every frame.
   const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];
   if(!chosen)continue;
-  if(chosen.pose.reprojectionError>8)continue;
+  // Pose reprojection error gates rotation confidence, not marker-center translation.
+  // Optical flow can track a valid 2D square even when the planar 3D fit is poor.
   const {pose}=chosen;
   // Nominal V5 triangular prism: consecutive marker IDs are 120 degrees apart.
   // Face transforms share one reference even when only one marker is visible.
