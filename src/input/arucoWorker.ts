@@ -174,7 +174,7 @@ function recoverPatch(a:GrayFrame[],b:GrayFrame[],center:Point,motion:Point):Poi
   else if(error<second)second=error;
  }
  // Reject blurry, ambiguous or background-like patches.
- if(best>Math.max(280,variance*.65))return null;
+ if(best>Math.max(280,variance*.65)||second-best<Math.max(12,best*.04))return null;
  // Confirm with a reverse local patch search and a second, independent feature.
  const displacement={x:bx*scale,y:by*scale};
  const check=lk(b,a,{x:center.x+displacement.x,y:center.y+displacement.y},{x:-displacement.x,y:-displacement.y});
