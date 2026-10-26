@@ -349,7 +349,7 @@ const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
 function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);}
 
 let observationsAt=0;
-const trackingHoldMs=140;
+const trackingHoldMs=650;
 const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
 // Learned face-to-face transforms from simultaneous marker sightings.
 // Do not assume printed face orientation from nominal prism dimensions alone.
@@ -457,21 +457,11 @@ function updateLiveTargets(){
   }).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item!==null);
   candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
   const previous=liveTargets.get(name);
-  // Prefer the same face when multiple faces are visible, preventing rapid ID toggling.
-  // Only a recently decoded marker may be the active pose face. Optical
-  // flow may keep following a patch after the printed face is occluded.
-  // All currently flow-tracked observations are eligible for translation;
-  // decoder recency is no longer a hard gate that freezes position between decodes.
-  const decoded=candidates;
-  const scored=decoded.map(c=>{
-   const pts=c.marker.corners;
-   const area=Math.abs(pts.reduce((sum,p,i)=>sum+p.x*pts[(i+1)%4].y-pts[(i+1)%4].x*p.y,0))/2;
-   return {candidate:c,score:Math.log1p(area)-c.pose.reprojectionError*.12};
-  }).sort((a,b)=>b.score-a.score);
-  // Do not prefer a previously active ID over the strongest current observation.
-  const chosen=scored[0]?.candidate;
+  // PR #67 face selection: prefer a stable, well-fitting face instead of
+  // switching IDs based on marker area on every frame.
+  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];
   if(!chosen)continue;
-  // Keep 2D translation active even with a poor 3D pose fit.
+  if(chosen.pose.reprojectionError>8)continue;
   const {pose}=chosen;
   // Nominal V5 triangular prism: consecutive marker IDs are 120 degrees apart.
   // Face transforms share one reference even when only one marker is visible.
@@ -741,10 +731,10 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(!simulation.checked){
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
    const target=liveTargets.get(name);
-   if(target&&now-target.lastSeen<MARKER_LIVE_MS&&liveMarkers().some(m=>m.id===target.id)){
-    mesh.position.copy(target.position);
-    // Rotation was already stabilized in updateLiveTargets; avoid another
-    // rendering-stage interpolation that adds latency.
+   if(target&&now-target.lastSeen<trackingHoldMs){
+    // Restore PR #67's frame-rate independent translation smoothing.
+    const blend=1-Math.exp(-dt*24);
+    mesh.position.lerp(target.position,blend);
     mesh.quaternion.copy(target.quaternion);
    }
   }
