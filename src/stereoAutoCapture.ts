@@ -1,6 +1,6 @@
 export {};
 // Fail-closed stereo capture: accept a pair only when both frames contain
-// all 42 corners of the 8 x 7-square checkerboard.
+// all 48 corners of the 9 x 7-square checkerboard.
 const capture = document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!;
 const exportButton = document.querySelector<HTMLButtonElement>('#export-stereo-pairs')!;
 const clearButton = document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!;
@@ -29,7 +29,7 @@ let detector:CV|undefined;
 let detectorError='';
 const target=20;
 const intervalMs=3000;
-const board={squaresX:8,squaresY:7,innerCornersX:7,innerCornersY:6,squareSizeMm:37};
+const board={squaresX:9,squaresY:7,innerCornersX:8,innerCornersY:6,squareSizeMm:24};
 function ready():boolean {
  return video1.readyState>=2&&video2.readyState>=2&&video1.videoWidth>0&&video2.videoWidth>0
   &&!!video1.srcObject&&!!video2.srcObject;
@@ -57,14 +57,14 @@ function checkerboardVisible(cv:CV,canvas:HTMLCanvasElement):BoardQuality|null {
  try {
   src=cv.imread(small);gray=new cv.Mat();corners=new cv.Mat();
   cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
-  const found=cv.findChessboardCorners(gray,new cv.Size(7,6),corners,
+  const found=cv.findChessboardCorners(gray,new cv.Size(8,6),corners,
    cv.CALIB_CB_ADAPTIVE_THRESH|cv.CALIB_CB_NORMALIZE_IMAGE);
-  if(!found||corners.rows*corners.cols!==42)return null;
+  if(!found||corners.rows*corners.cols!==48)return null;
   const data=corners.data32F as Float32Array;
-  if(!data||data.length<84)return null;
-  const x0=data[0],y0=data[1],x6=data[12],y6=data[13],x35=data[70],y35=data[71];
-  return {cx:(x0+x6+x35)/3/small.width,cy:(y0+y6+y35)/3/small.height,
-   span:Math.hypot(x6-x0,y6-y0)/small.width,angle:Math.atan2(y6-y0,x6-x0)};
+  if(!data||data.length<96)return null;
+  const x0=data[0],y0=data[1],x7=data[14],y7=data[15],x47=data[94],y47=data[95];
+  return {cx:(x0+x7+x47)/3/small.width,cy:(y0+y7+y47)/3/small.height,
+   span:Math.hypot(x7-x0,y7-y0)/small.width,angle:Math.atan2(y7-y0,x7-x0)};
  } finally {
   corners?.delete();gray?.delete();src?.delete();
  }
@@ -130,8 +130,8 @@ async function tick():Promise<void>{
     ((Math.max(...angles)-Math.min(...angles))*180/Math.PI).toFixed(0)+'°. '+warning;
   }
   if(pairs.length>=target){stop('20 / 20 validated pairs captured. Ready to export.');return;}
-  update(pairs.length+' / '+target+' accepted · Camera 1: '+(valid1?'42 corners ✓':'board not found')+
-   ' · Camera 2: '+(valid2?'42 corners ✓':'board not found')+
+  update(pairs.length+' / '+target+' accepted · Camera 1: '+(valid1?'48 corners ✓':'board not found')+
+   ' · Camera 2: '+(valid2?'48 corners ✓':'board not found')+
    '. '+(valid1&&valid2?'Move or tilt board for next pair.':'Keep all squares visible in both cameras.'));
  }catch(error){
   stop('Validated capture stopped: '+String(error));
@@ -165,5 +165,5 @@ clearButton.addEventListener('click',event=>{
  pairs.length=0;qualities.length=0;qualityMessage.textContent='';update('0 validated pairs captured.');
 },true);
 const intro=capture.closest('section')?.querySelector<HTMLElement>('p.tracking-message');
-if(intro)intro.innerHTML='Checkerboard: <strong>8 × 7 squares · 7 × 6 inner corners · 37 mm squares</strong>. The app accepts a pair only when both cameras detect all 42 inner corners. Tilt and reposition the board between captures; do not move the cameras.';
+if(intro)intro.innerHTML='Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · 24 mm squares</strong>. The app accepts a pair only when both cameras detect all 42 inner corners. Tilt and reposition the board between captures; do not move the cameras.';
 update('0 validated pairs captured. Start both cameras, then capture. Checks every 3 seconds.');
