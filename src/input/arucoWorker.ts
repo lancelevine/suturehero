@@ -129,7 +129,8 @@ function lk(a:GrayFrame[],b:GrayFrame[],point:Point,initial:Point={x:0,y:0}):Poi
    hxx+=gx*gx;hxy+=gx*gy;hyy+=gy*gy;
   }
   const det=hxx*hyy-hxy*hxy;
-  if(det<10000)return null;
+  // Small, partially blurred markers can have weaker gradients while remaining trackable.
+  if(det<3500)return null;
   for(let iter=0;iter<12;iter++){
    if(!valid(B,x+dx,y+dy,r))return null;
    let bx=0,by=0;
@@ -184,7 +185,7 @@ function flowTrack(a:GrayFrame[]|null,b:GrayFrame[]):MarkerObservation[]{
    const validated=points.map((p,i)=>{
     const next=candidate[i];if(!next)return false;
     const reverse=lk(b,a,next,{x:p.x-next.x,y:p.y-next.y});
-    return !!reverse&&Math.hypot(reverse.x-p.x,reverse.y-p.y)<2.5;
+    return !!reverse&&Math.hypot(reverse.x-p.x,reverse.y-p.y)<3.5;
    });
    if(validated.filter(Boolean).length>good.filter(Boolean).length){moved=candidate;good=validated;}
    if(good.filter(Boolean).length>=3)break;
