@@ -31,11 +31,11 @@ let tracked:MarkerObservation[]=[];
 const lastReliableAt=new Map<number,number>();
 const lastMotion=new Map<number,Point>();
 let lastFlowStatus='Waiting for marker';
-const TRACK_RECOVERY_MS=0;
+const TRACK_RECOVERY_MS=450;
 const lastDecodedAt=new Map<number,number>();
 const lastFlowAt=new Map<number,number>();
 // Allow geometrically consistent optical flow to bridge missed decodes.
-const MAX_FLOW_GAP_MS=500;
+const MAX_FLOW_GAP_MS=650;
 const MAX_UNCONFIRMED_MS=5000;
 let frameNumber=0;
 let flowOnly=false;
@@ -46,14 +46,19 @@ const FULL_SCAN_INTERVAL_MS=1200;
 let consecutiveRoiMisses=0;
 let lastSuccessfulDecodeAt=0;
 const ROI_PADDING=90;
+const recoveryMisses=new Map<number,number>();
 function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObservation[];candidates:Point[][];pass:string;durationMs:number}|null{
  if(!roiHints.length)return null;
  const start=performance.now();
  const regions:Array<{x:number;y:number;w:number;h:number}>=[];
  for(const marker of roiHints){
   const xs=marker.corners.map(p=>p.x),ys=marker.corners.map(p=>p.y);
-  const x=Math.max(0,Math.floor(Math.min(...xs)-padding)),y=Math.max(0,Math.floor(Math.min(...ys)-padding));
-  const right=Math.min(frame.width,Math.ceil(Math.max(...xs)+padding)),bottom=Math.min(frame.height,Math.ceil(Math.max(...ys)+padding));
+  const misses=recoveryMisses.get(marker.id)??0;
+  const velocity=lastMotion.get(marker.id)??{x:0,y:0};
+  const extra=Math.min(220,misses*45);
+  const predictedX=velocity.x*Math.min(3,misses),predictedY=velocity.y*Math.min(3,misses);
+  const x=Math.max(0,Math.floor(Math.min(...xs, ...xs.map(v=>v+predictedX))-padding-extra)),y=Math.max(0,Math.floor(Math.min(...ys,...ys.map(v=>v+predictedY))-padding-extra));
+  const right=Math.min(frame.width,Math.ceil(Math.max(...xs,...xs.map(v=>v+predictedX))+padding+extra)),bottom=Math.min(frame.height,Math.ceil(Math.max(...ys,...ys.map(v=>v+predictedY))+padding+extra));
   if(right-x>=24&&bottom-y>=24)regions.push({x,y,w:right-x,h:bottom-y});
  }
  if(!regions.length)return null;
@@ -265,12 +270,17 @@ function detect(frame:ImageData){
  // Decoder and optical flow run independently; valid flow retains an ID between decodes.
  if(flowOnly){
   const successful=new Set(flowed.map(m=>m.id));
-  tracked=[...flowed,...tracked.filter(m=>!successful.has(m.id)&&performance.now()-(lastReliableAt.get(m.id)??lastDecodedAt.get(m.id)??0)<TRACK_RECOVERY_MS)];
-  return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:lastFlowStatus+' · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
+  const now=performance.now();
+  const retained=tracked.filter(m=>!successful.has(m.id)&&now-(lastReliableAt.get(m.id)??lastDecodedAt.get(m.id)??0)<TRACK_RECOVERY_MS);
+  tracked=[...flowed,...retained];
+  for(const marker of flowed)recoveryMisses.delete(marker.id);
+  for(const marker of retained)recoveryMisses.set(marker.id,(recoveryMisses.get(marker.id)??0)+1);
+  return {found:flowed,candidates:[],diagnostics:{candidateCount:0,rawMarkerCount:0,recognizedCount:flowed.length,rejectedCount:0,durationMs:0,note:(flowed.length?'Tracking':retained.length?'Recovering '+retained.length+' marker(s)':'Marker lost')+' · '+lastFlowStatus+' · accepted '+flowAccepted+' / rejected '+flowRejected,pass:'Optical flow',contrast:'Forward/backward checked'}};}
 
  const start=performance.now();
  const now=performance.now();
- const useFull=now-lastFullScan>=FULL_SCAN_INTERVAL_MS||roiHints.length===0||consecutiveRoiMisses>=3;
+ const recovering=consecutiveRoiMisses>0||[...recoveryMisses.values()].some(n=>n>0);
+ const useFull=now-lastFullScan>=(recovering?300:FULL_SCAN_INTERVAL_MS)||roiHints.length===0||consecutiveRoiMisses>=3;
  const local=useFull?null:decodeRegions(frame);
  // If the marker rotated outside its normal crop, expand locally before
  // paying for a full-frame scan. A stationary instrument stays in one area.
@@ -310,7 +320,7 @@ function detect(frame:ImageData){
   }
  }
  const decoded=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
- if(decoded.length){lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
+ if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
  // Expire stale search hints: a marker that has been absent should not
  // permanently trap the decoder in the wrong part of the image.
  if(!decoded.length&&performance.now()-lastSuccessfulDecodeAt>4000){roiHints=[];consecutiveRoiMisses=0;}
@@ -323,7 +333,7 @@ function detect(frame:ImageData){
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
   if(e.data.type==='init'){flowOnly=!!(e.data as {flowOnly?:boolean}).flowOnly;if(!flowOnly)await initialize();self.postMessage({type:'ready'});}
-  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){lastMotion.delete(marker.id);lastReliableAt.set(marker.id,performance.now());lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
+  else if(e.data.type==='seed'){const markers=(e.data as {markers?:MarkerObservation[]}).markers??[];if(!flowOnly&&markers.length){const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of markers)merged.set(m.id,m);roiHints=[...merged.values()];}for(const marker of markers){recoveryMisses.delete(marker.id);lastMotion.delete(marker.id);lastReliableAt.set(marker.id,performance.now());lastDecodedAt.set(marker.id,performance.now());lastFlowAt.set(marker.id,performance.now());const idx=tracked.findIndex(m=>m.id===marker.id);if(idx>=0)tracked[idx]=marker;else tracked.push(marker);}}
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };
