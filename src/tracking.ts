@@ -521,7 +521,8 @@ function updateLiveTargets(){
   const position=new THREE.Vector3(-z,y,x);
   // Independent rigid-body orientation: all prism faces have fixed 120-degree transforms.
   // Keep the PR #91 position calculation above untouched; no rotation failure can block it.
-  const freshFaces=candidates.filter(c=>
+  const rotationCandidates=liveMarkers().filter(m=>ids.includes(m.id)).map(marker=>({marker,pose:estimateMarkerPose(marker,overlay.width,overlay.height)})).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item.pose!==null);
+  const freshFaces=rotationCandidates.filter(c=>
    performance.now()-(markerLastDecoded.get(c.pose.id)??-Infinity)<300 &&
    c.pose.reprojectionError<5
   );
