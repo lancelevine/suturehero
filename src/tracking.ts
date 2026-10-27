@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {parseCalibration,triangulate,calibrationMatches,type StereoCalibration} from './input/stereoGeometry';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
@@ -13,7 +14,7 @@ declare const __SUTUREHERO_REVISION__: string;
 const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers IDs 0–8. Outlines and IDs appear on the video.</p>
-<div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo tracking is not calibrated yet.</p>
+<div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
@@ -66,7 +67,7 @@ trackingMode.addEventListener('change',()=>{
  liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();prismFaceOffsets.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
-  :'2 cameras: both feeds detect markers, but stereo fusion and metric depth require calibration. Camera 1 still drives the instruments.';
+  :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
 });
 simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
@@ -162,6 +163,34 @@ const start2=document.querySelector<HTMLButtonElement>('#start-camera-2')!;
 const stop2=document.querySelector<HTMLButtonElement>('#stop-camera-2')!;
 const status2=document.querySelector<HTMLElement>('#camera-status-2')!;
 const detector2=new WorkerDetector();
+const stereoPanel=document.createElement('section');stereoPanel.className='tracking-panel';stereoPanel.style.cssText='padding:12px;margin:12px 0';
+stereoPanel.innerHTML='<div class="eyebrow">CALIBRATED STEREO · METRIC 3D</div><p class="tracking-message">Import a solved stereo calibration JSON. Replace it after moving either camera, changing focus/zoom, or changing resolution/aspect ratio. Raw checkerboard captures are not solved parameters.</p><div class="tracking-actions"><label>Import calibration <input id="stereo-import" type="file" accept=".json,application/json"></label><button id="stereo-remove" type="button">Remove calibration</button><label><input id="stereo-enable" type="checkbox"> Enable metric 3D</label></div><p class="tracking-message" id="stereo-geometry-status">No calibration loaded.</p><p class="tracking-message" id="stereo-3d-points">No triangulated markers.</p>';
+document.querySelector('#stereo-calibration-status')!.closest('section')!.after(stereoPanel);
+const stereoGeometryStatus=stereoPanel.querySelector<HTMLElement>('#stereo-geometry-status')!;
+const stereo3dStatus=stereoPanel.querySelector<HTMLElement>('#stereo-3d-points')!;
+const stereoEnabled=stereoPanel.querySelector<HTMLInputElement>('#stereo-enable')!;
+let stereoCalibration:StereoCalibration|null=null;
+const stereoStorage='suturehero.stereoCalibration.v1';
+function loadStereoCalibration(raw:unknown,restore=false){
+ const parsed=parseCalibration(raw);
+ if(!restore){
+  if(!select.value||!select2.value||select.value===select2.value)throw Error('Select two distinct, explicitly identified cameras before importing.');
+  parsed.cameraIds={first:select.value,second:select2.value};
+ }
+ stereoCalibration=parsed;stereoEnabled.checked=false;
+ try{localStorage.setItem(stereoStorage,JSON.stringify(parsed));}catch{/* storage unavailable */}
+ stereoGeometryStatus.textContent='Calibration loaded · '+Math.hypot(...parsed.stereo.translationMm).toFixed(1)+' mm baseline · stereo RMS '+(parsed.stereo.rmsPx?.toFixed(2)??'unknown')+' px. Enable metric 3D after checking camera setup.';
+}
+try{const raw=localStorage.getItem(stereoStorage);if(raw)loadStereoCalibration(JSON.parse(raw),true);}catch{localStorage.removeItem(stereoStorage);}
+stereoPanel.querySelector<HTMLInputElement>('#stereo-import')!.addEventListener('change',async event=>{
+ const input=event.currentTarget as HTMLInputElement,file=input.files?.[0];if(!file)return;
+ try{loadStereoCalibration(JSON.parse(await file.text()));}catch(e){stereoGeometryStatus.textContent='Import rejected: '+String(e);}
+ input.value='';
+});
+stereoPanel.querySelector<HTMLButtonElement>('#stereo-remove')!.addEventListener('click',()=>{
+ stereoCalibration=null;stereoEnabled.checked=false;try{localStorage.removeItem(stereoStorage);}catch{/* ignore */}
+ stereoGeometryStatus.textContent='Calibration removed.';stereo3dStatus.textContent='No triangulated markers.';
+});
 const frame2=document.createElement('canvas');
 const context2=frame2.getContext('2d',{willReadFrequently:true})!;
 const overlayContext2=overlay2.getContext('2d')!;
