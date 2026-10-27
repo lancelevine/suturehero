@@ -481,7 +481,10 @@ function instrument(id:'left'|'right',color:number){
  // Instrument.reset() positions/rotates the model for the main game.
  // In tracking, the parent group's origin is the measured prism center/tip.
  model.root.position.set(0,0,0);
- model.root.rotation.set(0,-Math.PI/2,0);
+ // Instrument local +Z points from tip toward handle. Align that shaft
+  // with prism local +Y mapped into scene -Y (camera Y points down).
+  // A roll about the prism's long axis now rolls the virtual shaft.
+  model.root.rotation.set(Math.PI/2,0,0);
  model.root.scale.setScalar(.72);
  group.add(model.root);
  group.position.y=.25;
@@ -494,7 +497,8 @@ function scissorsModel(){
  const group=new THREE.Group(),steel=new THREE.MeshStandardMaterial({color:0xc5d1d5,metalness:.85,roughness:.27});
  const rod=(a:THREE.Vector3,b:THREE.Vector3,r:number)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,a.distanceTo(b),12),steel);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());group.add(m);};
  for(const side of [-1,1]){rod(new THREE.Vector3(side*.11,0,1.4),new THREE.Vector3(side*.015,0,.7),.043);const blade=new THREE.Mesh(new THREE.BoxGeometry(.075,.035,.85),steel);blade.position.set(side*.055,0,.3);blade.rotation.y=side*.14;group.add(blade);const ring=new THREE.Mesh(new THREE.TorusGeometry(.18,.045,10,32),steel);ring.rotation.x=Math.PI/2;ring.position.set(side*.25,0,1.67);group.add(ring);}
- const pivot=new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),steel);pivot.position.z=.72;group.add(pivot);group.scale.setScalar(.8);group.rotation.y=-Math.PI/2;
+ const pivot=new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),steel);pivot.position.z=.72;group.add(pivot);group.scale.setScalar(.8);// Scissors are also modeled along +Z; use the same shaft alignment.
+ group.rotation.set(Math.PI/2,0,0);
  const tracked=new THREE.Group();tracked.add(group);tracked.position.y=.25;scene.add(tracked);return tracked;
 }
 const scissors=scissorsModel();
