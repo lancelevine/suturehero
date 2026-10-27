@@ -412,6 +412,10 @@ function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number)
 const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
  anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring';angularVelocity:THREE.Vector3
 }>();
+// Camera axes (+X right, +Y down, +Z away) to scene axes.
+const cameraToSceneRotation=new THREE.Quaternion().setFromRotationMatrix(
+ new THREE.Matrix4().makeBasis(new THREE.Vector3(0,0,-1),new THREE.Vector3(0,-1,0),new THREE.Vector3(-1,0,0))
+);
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
@@ -570,7 +574,7 @@ function updateLiveTargets(){
   const position=new THREE.Vector3(-z,y,x);
   // Independent rigid-body rotation: never gate or alter the working translation.
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
-   performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<5000);
+   performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<350);
   const state=rigidBodyStates.get(name);
   // Solve all simultaneously visible prism faces as one rigid object.
   // Retain the last accepted pose as a solver seed, but never discard real
@@ -598,9 +602,10 @@ function updateLiveTargets(){
     if(credible){
      // Incremental body-frame delta preserves all accepted rotation across
      // face transitions. No re-anchoring, no twist/swing reset.
-     const delta=state.lastRaw.clone().invert().multiply(rigid.quaternion).normalize();
-     quaternion.multiply(delta).normalize();
+     // Rotation delta is in camera coordinates, not model-local coordinates.
      const motion=rigid.quaternion.clone().multiply(state.lastRaw.clone().invert()).normalize();
+     const sceneMotion=cameraToSceneRotation.clone().multiply(motion).multiply(cameraToSceneRotation.clone().invert()).normalize();
+     quaternion.premultiply(sceneMotion).normalize();
      const axis=new THREE.Vector3(motion.x,motion.y,motion.z);
      if(axis.lengthSq()>1e-9&&angularDifference<1.2){
       axis.normalize().multiplyScalar(angularDifference/elapsed*(motion.w<0?-1:1));
