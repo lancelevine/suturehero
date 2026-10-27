@@ -759,6 +759,44 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
  void detectFrame(now);
  void detectSecondFrame(now);
+ if(stereoEnabled.checked){
+  if(!stereoCalibration){stereo3dStatus.textContent='Import a solved calibration JSON first.';}
+  else if(trackingMode.value!=='stereo'){stereo3dStatus.textContent='Select 2 cameras in Tracking mode.';}
+  else if(simulation.checked){stereo3dStatus.textContent='Disable simulated input for live triangulation.';}
+  else{
+   const mismatch=calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight);
+   if(mismatch){stereo3dStatus.textContent='Stereo inactive: '+mismatch;}
+   else{
+    const first=liveMarkers(),second=secondaryObservations;
+    const age=Math.abs(observationsAt-secondaryObservationsAt);
+    const hits=[] as Array<{id:number;point:NonNullable<ReturnType<typeof triangulate>>}>;
+    let common=0,rejected=0;
+    if(age<300&&performance.now()-secondaryObservationsAt<300){
+     for(const m of first){
+      const other=second.find(o=>o.id===m.id);
+      if(!other)continue;
+      common++;
+      const center=(corners:typeof m.corners)=>({x:corners.reduce((s,p)=>s+p.x,0)/4,y:corners.reduce((s,p)=>s+p.y,0)/4});
+      const point=triangulate(stereoCalibration,center(m.corners),center(other.corners),{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height});
+      if(point&&point.epipolarErrorPx<4&&point.rayGapMm<12&&point.depthMm>30&&point.depthMm<3000)hits.push({id:m.id,point});
+      else rejected++;
+     }
+    }
+    stereo3dStatus.textContent=hits.length?
+     hits.map(({id,point})=>'ID '+id+': '+point.xyzMm.map(v=>v.toFixed(1)).join(', ')+' mm (rectified Δy '+point.epipolarErrorPx.toFixed(2)+' px)').join(' | '):
+     'No valid 3D markers · camera 1: '+first.length+' IDs · camera 2: '+second.length+' IDs · common: '+common+' · rejected: '+rejected+' · frame age difference: '+Math.round(age)+' ms.';
+    for(const name of ['needleDriver','forceps','scissors'] as const){
+     const hit=hits.find(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id));
+     if(!hit)continue;
+     const target=liveTargets.get(name);
+     if(!target)continue;
+     const [x,y,z]=hit.point.xyzMm;
+     target.position.set(THREE.MathUtils.clamp(x/200,-2,2),THREE.MathUtils.clamp(-y/200,-2,2),THREE.MathUtils.clamp(-z/200,-2,2));
+     target.lastSeen=now;
+    }
+   }
+  }
+ }
  orbit.update();renderer.render(scene,camera);requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
