@@ -181,8 +181,9 @@ function updateStereoViewIndicator(now:number){
  const fresh=[...stereoPositions.entries()].filter(([,p])=>now-p.lastSeen<350).map(([name])=>name);
  const active=stereoActive()&&fresh.length>0;
  const configured=stereoActive();
- stereoViewDot.style.background=active?'#16a34a':configured?'#d69e28':'#89939e';
- stereoViewLabel.textContent=active?'Stereo triangulation: ACTIVE · '+fresh.map(name=>name==='needleDriver'?'needle driver':name).join(', '):
+ const mismatch=configured?calibrationMatches(stereoCalibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight):null;
+ stereoViewDot.style.background=active&&!mismatch?'#16a34a':configured?'#d69e28':'#89939e';
+ stereoViewLabel.textContent=mismatch?'Stereo triangulation: calibration mismatch · '+mismatch:active?'Stereo triangulation: ACTIVE · '+fresh.map(name=>name==='needleDriver'?'needle driver':name).join(', '):
   configured?'Stereo triangulation: waiting for valid 3D markers':'Stereo triangulation: off';
 }
 
@@ -215,7 +216,9 @@ let stream2:MediaStream|null=null,ready2=false,processing2=false,lastDetection2=
 let fastProcessing2=false,lastFastFrame2=0,lastSlowFrame2=0,latestFlowAt2=0;
 let decodedFrames2=0,flowFrames2=0,statsAt2=performance.now();
 const confirmed2=new Map<number,number>();
-const liveSecondMarkers=()=>secondaryObservations.filter(m=>performance.now()-(confirmed2.get(m.id)??-Infinity)<180);
+const decoded2=new Map<number,number>();
+const MARKER_LIVE_MS_SECONDARY=140;
+const liveSecondMarkers=()=>secondaryObservations.filter(m=>performance.now()-(confirmed2.get(m.id)??-Infinity)<=MARKER_LIVE_MS_SECONDARY);
 let secondaryObservations:MarkerObservation[]=[];
 let secondaryObservationsAt=0;
 const stereoStatus=document.querySelector<HTMLElement>('#stereo-match-status')!;
@@ -289,7 +292,7 @@ async function refreshSecondCameraList(){
  select2.value=devices.some(d=>d.deviceId===current)?current:'';
 }
 async function stopSecondCamera(){stereoPositions.clear();detector2.dispose();fastTracker2.dispose();
- fastProcessing2=false;processing2=false;lastFastFrame2=0;lastSlowFrame2=0;latestFlowAt2=0;confirmed2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
+ fastProcessing2=false;processing2=false;lastFastFrame2=0;lastSlowFrame2=0;latestFlowAt2=0;confirmed2.clear();decoded2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
@@ -329,6 +332,9 @@ async function detectSecondFrame(now:number){
   const fresh=liveSecondMarkers();
   overlayContext2.clearRect(0,0,w,h);
   for(const marker of fresh){
+   // Same green-outline rule as Camera 1: require a recent decoded ID,
+   // not merely an optical-flow prediction of an old marker.
+   if(performance.now()-(decoded2.get(marker.id)??-Infinity)>300)continue;
    const pts=marker.corners;
    overlayContext2.beginPath();overlayContext2.moveTo(pts[0].x,pts[0].y);
    for(let i=1;i<pts.length;i++)overlayContext2.lineTo(pts[i].x,pts[i].y);
@@ -355,7 +361,7 @@ async function detectSecondFrame(now:number){
     secondaryObservations=found;secondaryObservationsAt=stamp;latestFlowAt2=stamp;
     detector2.seed(toNative(found));
    }else{
-    secondaryObservations=[];secondaryObservationsAt=stamp;
+    secondaryObservations=[];confirmed2.clear();secondaryObservationsAt=stamp;
     lastSlowFrame2=Math.min(lastSlowFrame2,stamp-65);
    }
    render();
@@ -375,10 +381,10 @@ async function detectSecondFrame(now:number){
    decodedFrames2++;
    const found=toFlow(nativeFound),stamp=performance.now();
    if(found.length){
-    for(const marker of found)confirmed2.set(marker.id,stamp);
+    for(const marker of found)decoded2.set(marker.id,stamp);
     fastTracker2.seed(found);
     const merged=liveSecondMarkers();
-    for(const marker of found)if(!merged.some(m=>m.id===marker.id))merged.push(marker);
+    for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);confirmed2.set(marker.id,stamp);}
     secondaryObservations=merged;secondaryObservationsAt=stamp;
    }
    render();
