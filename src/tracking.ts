@@ -69,7 +69,7 @@ trackingMode.addEventListener('change',()=>{
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
 });
-simulation.addEventListener('change',()=>{stereoPositions.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -171,6 +171,7 @@ const stereo3dStatus=stereoPanel.querySelector<HTMLElement>('#stereo-3d-points')
 const stereoEnabled=stereoPanel.querySelector<HTMLInputElement>('#stereo-enable')!;
 let stereoCalibration:StereoCalibration|null=null;
 type InstrumentName='needleDriver'|'forceps'|'scissors';
+const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
 stereoEnabled.addEventListener('change',()=>stereoPositions.clear());
@@ -571,6 +572,13 @@ function updateLiveTargets(){
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
    performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<5000);
   const state=rigidBodyStates.get(name);
+   // A face transition can select a different planar pose branch even though
+   // the instrument itself has moved smoothly.
+   const visibleIds=new Set(rotationMarkers.map(m=>m.id));
+   const faceTrack=rotationFaceStates.get(name);
+   const faceChanged=!!faceTrack&&faceTrack.id!==chosen.pose.id;
+   const previousFaceVisible=!!faceTrack&&visibleIds.has(faceTrack.id);
+   const selectedFace=faceChanged&&previousFaceVisible?faceTrack!.id:chosen.pose.id;
   // Predict the next orientation from accepted angular motion; cap extrapolation
   // so a brief optical-flow dropout cannot launch the model into a spin.
   let predicted:PrismPose|undefined;
@@ -584,16 +592,30 @@ function updateLiveTargets(){
   }
   const rigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted);
   let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
+   const nextFace=rotationFaceStates.get(name);
+   if(!nextFace)rotationFaceStates.set(name,{id:selectedFace,pending:null,count:0});
+   else if(nextFace.id!==selectedFace){nextFace.id=selectedFace;nextFace.pending=null;nextFace.count=0;}
   if(rigid){
    if(!state){
     rigidBodyStates.set(name,{anchorRaw:rigid.quaternion.clone(),anchorOutput:quaternion.clone(),lastRaw:rigid.quaternion.clone(),lastAt:now,pose:rigid,stallSince:null,status:'tracking',angularVelocity:new THREE.Vector3()});
    }else{
     const jump=rigid.quaternion.angleTo(state.lastRaw);
     const stalledFor=state.stallSince===null?0:now-state.stallSince;
-    const consistent=jump<THREE.MathUtils.degToRad(85);
+    const faceState=rotationFaceStates.get(name)!;
+     const singleFace=rigid.faces<2;
+     const largeStep=jump>THREE.MathUtils.degToRad(singleFace?28:48);
+     // A one-frame discontinuity near a face boundary must not be applied.
+     // Accept a new pose branch only if it persists over several observations,
+     // then re-anchor without teleporting the displayed instrument.
+     if(largeStep&&rigid.error<8){
+      if(faceState.pending&&rigid.quaternion.angleTo(faceState.pending)<THREE.MathUtils.degToRad(18))faceState.count++;
+      else{faceState.pending=rigid.quaternion.clone();faceState.count=1;}
+     }else{faceState.pending=null;faceState.count=0;}
+     const confirmedBranch=largeStep&&faceState.count>=4;
+     const consistent=!largeStep&&jump<THREE.MathUtils.degToRad(85);
     // After 450ms of rejected updates, reacquire from the newly observed orientation.
     // Re-anchor to the current rendered quaternion so the virtual instrument cannot snap.
-    const reacquire=!consistent&&stalledFor>450&&rigid.error<8&&rigid.faces>=2;
+    const reacquire=confirmedBranch||(!consistent&&stalledFor>450&&rigid.error<8&&rigid.faces>=2);
     if(reacquire){
      state.anchorRaw.copy(rigid.quaternion);
      state.anchorOutput.copy(quaternion);
@@ -602,7 +624,7 @@ function updateLiveTargets(){
      state.pose=rigid;
      state.stallSince=null;
      state.angularVelocity.set(0,0,0);
-     state.status='reacquiring';
+     state.status='reacquiring';faceState.pending=null;faceState.count=0;
     }else if(consistent){
      // Update angular velocity only from accepted, plausible observations.
      const sampleDt=Math.max(.016,Math.min(.2,(now-state.lastAt)/1000));
