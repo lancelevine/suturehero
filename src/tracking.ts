@@ -599,8 +599,7 @@ function updateLiveTargets(){
      // Incremental body-frame delta preserves all accepted rotation across
      // face transitions. No re-anchoring, no twist/swing reset.
      const delta=state.lastRaw.clone().invert().multiply(rigid.quaternion).normalize();
-     const desired=quaternion.clone().multiply(delta).normalize();
-     quaternion.slerp(desired,1-Math.exp(-elapsed*22));
+     quaternion.multiply(delta).normalize();
      const motion=rigid.quaternion.clone().multiply(state.lastRaw.clone().invert()).normalize();
      const axis=new THREE.Vector3(motion.x,motion.y,motion.z);
      if(axis.lengthSq()>1e-9&&angularDifference<1.2){
