@@ -423,10 +423,6 @@ function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number)
 const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
  anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring';angularVelocity:THREE.Vector3
 }>();
-// Camera axes (+X right, +Y down, +Z away) to scene axes.
-const cameraToSceneRotation=new THREE.Quaternion().setFromRotationMatrix(
- new THREE.Matrix4().makeBasis(new THREE.Vector3(0,0,-1),new THREE.Vector3(0,-1,0),new THREE.Vector3(-1,0,0))
-);
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
