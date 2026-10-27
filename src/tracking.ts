@@ -69,7 +69,7 @@ trackingMode.addEventListener('change',()=>{
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
 });
-simulation.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{stereoPositions.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -170,6 +170,10 @@ const stereoGeometryStatus=stereoPanel.querySelector<HTMLElement>('#stereo-geome
 const stereo3dStatus=stereoPanel.querySelector<HTMLElement>('#stereo-3d-points')!;
 const stereoEnabled=stereoPanel.querySelector<HTMLInputElement>('#stereo-enable')!;
 let stereoCalibration:StereoCalibration|null=null;
+type InstrumentName='needleDriver'|'forceps'|'scissors';
+const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
+const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
+stereoEnabled.addEventListener('change',()=>stereoPositions.clear());
 const stereoStorage='suturehero.stereoCalibration.v1';
 function loadStereoCalibration(raw:unknown,restore=false){
  const parsed=parseCalibration(raw);
@@ -177,7 +181,7 @@ function loadStereoCalibration(raw:unknown,restore=false){
   if(!select.value||!select2.value||select.value===select2.value)throw Error('Select two distinct, explicitly identified cameras before importing.');
   parsed.cameraIds={first:select.value,second:select2.value};
  }
- stereoCalibration=parsed;stereoEnabled.checked=false;
+ stereoCalibration=parsed;stereoEnabled.checked=false;stereoPositions.clear();
  try{localStorage.setItem(stereoStorage,JSON.stringify(parsed));}catch{/* storage unavailable */}
  stereoGeometryStatus.textContent='Calibration loaded · '+Math.hypot(...parsed.stereo.translationMm).toFixed(1)+' mm baseline · stereo RMS '+(parsed.stereo.rmsPx?.toFixed(2)??'unknown')+' px. Enable metric 3D after checking camera setup.';
 }
@@ -188,7 +192,7 @@ stereoPanel.querySelector<HTMLInputElement>('#stereo-import')!.addEventListener(
  input.value='';
 });
 stereoPanel.querySelector<HTMLButtonElement>('#stereo-remove')!.addEventListener('click',()=>{
- stereoCalibration=null;stereoEnabled.checked=false;try{localStorage.removeItem(stereoStorage);}catch{/* ignore */}
+ stereoCalibration=null;stereoEnabled.checked=false;stereoPositions.clear();try{localStorage.removeItem(stereoStorage);}catch{/* ignore */}
  stereoGeometryStatus.textContent='Calibration removed.';stereo3dStatus.textContent='No triangulated markers.';
 });
 const frame2=document.createElement('canvas');
@@ -267,7 +271,7 @@ async function refreshSecondCameraList(){
  devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
  select2.value=devices.some(d=>d.deviceId===current)?current:'';
 }
-async function stopSecondCamera(){detector2.dispose();
+async function stopSecondCamera(){stereoPositions.clear();detector2.dispose();
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
@@ -449,7 +453,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 start.addEventListener('click',async()=>{
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;}
@@ -786,13 +790,22 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
      hits.map(({id,point})=>'ID '+id+': '+point.xyzMm.map(v=>v.toFixed(1)).join(', ')+' mm (rectified Δy '+point.epipolarErrorPx.toFixed(2)+' px)').join(' | '):
      'No valid 3D markers · camera 1: '+first.length+' IDs · camera 2: '+second.length+' IDs · common: '+common+' · rejected: '+rejected+' · frame age difference: '+Math.round(age)+' ms.';
     for(const name of ['needleDriver','forceps','scissors'] as const){
-     const hit=hits.find(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id));
+     const previous=stereoPositions.get(name);
+     // Prefer the same marker face while it remains visible; switching between
+     // different face centers introduces a false translation of the rigid body.
+     const candidates=hits.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id));
+     const hit=candidates.find(m=>m.id===previous?.markerId)??candidates[0];
      if(!hit)continue;
-     const target=liveTargets.get(name);
-     if(!target)continue;
      const [x,y,z]=hit.point.xyzMm;
-     target.position.set(THREE.MathUtils.clamp(x/200,-2,2),THREE.MathUtils.clamp(-y/200,-2,2),THREE.MathUtils.clamp(-z/200,-2,2));
-     target.lastSeen=now;
+     const measured=new THREE.Vector3(THREE.MathUtils.clamp(x/200,-2,2),THREE.MathUtils.clamp(-y/200,-2,2),THREE.MathUtils.clamp(-z/200,-2,2));
+     // A sudden jump may be a mismatched face or stereo outlier. Require
+     // reacquisition rather than instantly teleporting the instrument.
+     if(previous&&now-previous.lastSeen<400&&measured.distanceTo(previous.position)>.65)continue;
+     if(previous){
+      const elapsed=Math.max(0,Math.min(.1,(now-previous.lastSample)/1000));
+      previous.position.lerp(measured,1-Math.exp(-elapsed*11));
+      previous.lastSeen=now;previous.lastSample=now;previous.markerId=hit.id;
+     }else stereoPositions.set(name,{position:measured,lastSeen:now,lastSample:now,markerId:hit.id});
     }
    }
   }
