@@ -163,6 +163,7 @@ const start2=document.querySelector<HTMLButtonElement>('#start-camera-2')!;
 const stop2=document.querySelector<HTMLButtonElement>('#stop-camera-2')!;
 const status2=document.querySelector<HTMLElement>('#camera-status-2')!;
 const detector2=new WorkerDetector();
+const fastTracker2=new WorkerDetector();
 const stereoPanel=document.createElement('section');stereoPanel.className='tracking-panel';stereoPanel.style.cssText='padding:12px;margin:12px 0';
 stereoPanel.innerHTML='<div class="eyebrow">CALIBRATED STEREO · METRIC 3D</div><p class="tracking-message">Import a solved stereo calibration JSON. Replace it after moving either camera, changing focus/zoom, or changing resolution/aspect ratio. Raw checkerboard captures are not solved parameters.</p><div class="tracking-actions"><label>Import calibration <input id="stereo-import" type="file" accept=".json,application/json"></label><button id="stereo-remove" type="button">Remove calibration</button><label><input id="stereo-enable" type="checkbox"> Enable metric 3D</label></div><p class="tracking-message" id="stereo-geometry-status">No calibration loaded.</p><p class="tracking-message" id="stereo-3d-points">No triangulated markers.</p>';
 document.querySelector('#stereo-calibration-status')!.closest('section')!.after(stereoPanel);
@@ -211,13 +212,17 @@ const frame2=document.createElement('canvas');
 const context2=frame2.getContext('2d',{willReadFrequently:true})!;
 const overlayContext2=overlay2.getContext('2d')!;
 let stream2:MediaStream|null=null,ready2=false,processing2=false,lastDetection2=0,session2=0;
+let fastProcessing2=false,lastFastFrame2=0,lastSlowFrame2=0,latestFlowAt2=0;
+let decodedFrames2=0,flowFrames2=0,statsAt2=performance.now();
+const confirmed2=new Map<number,number>();
+const liveSecondMarkers=()=>secondaryObservations.filter(m=>performance.now()-(confirmed2.get(m.id)??-Infinity)<180);
 let secondaryObservations:MarkerObservation[]=[];
 let secondaryObservationsAt=0;
 const stereoStatus=document.querySelector<HTMLElement>('#stereo-match-status')!;
 function updateStereoMatches(){
  if(!stream||!stream2||!observationsAt||!secondaryObservationsAt){stereoStatus.textContent='Stereo matching: waiting for both camera detections.';return;}
  const delta=Math.abs(observationsAt-secondaryObservationsAt);
- const matches=observations.filter(primary=>secondaryObservations.some(secondary=>secondary.id===primary.id)).map(marker=>marker.id);
+ const matches=liveMarkers().filter(primary=>liveSecondMarkers().some(secondary=>secondary.id===primary.id)).map(marker=>marker.id);
  stereoStatus.textContent='Stereo: '+(delta<=250?'':'frames not synchronized · ')+(matches.length?'shared marker IDs '+matches.join(', '):'no shared marker IDs')+' · frame offset '+Math.round(delta)+' ms · calibration required for 3D';
 }
 
@@ -283,7 +288,8 @@ async function refreshSecondCameraList(){
  devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
  select2.value=devices.some(d=>d.deviceId===current)?current:'';
 }
-async function stopSecondCamera(){stereoPositions.clear();detector2.dispose();
+async function stopSecondCamera(){stereoPositions.clear();detector2.dispose();fastTracker2.dispose();
+ fastProcessing2=false;processing2=false;lastFastFrame2=0;lastSlowFrame2=0;latestFlowAt2=0;confirmed2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
@@ -298,7 +304,7 @@ start2.addEventListener('click',async()=>{
   stream2=await openCamera(select2.value);video2.srcObject=stream2;await video2.play();
   document.querySelector<HTMLElement>('#camera-placeholder-2')!.style.display='none';
   start2.disabled=true;stop2.disabled=false;status2.textContent='Loading second marker detector…';
-  const currentSession=session2;await detector2.initialize();
+  const currentSession=session2;await Promise.all([detector2.initialize(),fastTracker2.initialize(true)]);
   if(currentSession!==session2)return;
   ready2=true;status2.textContent='Second camera detecting markers independently.';renderCameraSettings();
  }catch(error){status2.textContent='Second camera error: '+String(error);await stopSecondCamera();}
@@ -306,27 +312,83 @@ start2.addEventListener('click',async()=>{
 stop2.addEventListener('click',()=>{void stopSecondCamera();});
 select2.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_SECONDARY,select2.value);if(stream2)void stopSecondCamera();});
 async function detectSecondFrame(now:number){
- if(!stream2||!ready2||processing2||!video2.videoWidth||now-lastDetection2<33)return;
- lastDetection2=now;processing2=true;const currentSession=session2;
- try{
-  const scale2=Math.min(1,960/video2.videoWidth);const w=Math.round(video2.videoWidth*scale2),h=Math.round(video2.videoHeight*scale2);
-  if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
-  context2.drawImage(video2,0,0,w,h);
-  const found=await detector2.detect(context2.getImageData(0,0,w,h));
-  if(currentSession!==session2)return;
-  secondaryObservations=found;secondaryObservationsAt=performance.now();updateStereoMatches();
+ if(!stream2||!ready2||!video2.videoWidth)return;
+ const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
+ const doFast=!fastProcessing2&&now-lastFastFrame2>=33;
+ const doSlow=!processing2&&now-lastSlowFrame2>=(recovering?65:110);
+ if(!doFast&&!doSlow)return;
+ const currentSession=session2;
+ const nativeW=video2.videoWidth,nativeH=video2.videoHeight;
+ const scale=Math.min(1,960/nativeW),w=Math.round(nativeW*scale),h=Math.round(nativeH*scale);
+ const sx=nativeW/w,sy=nativeH/h;
+ const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*sx,y:p.y*sy}))}));
+ const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/sx,y:p.y/sy}))}));
+ if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
+ context2.drawImage(video2,0,0,w,h);
+ const render=()=>{
+  const fresh=liveSecondMarkers();
   overlayContext2.clearRect(0,0,w,h);
-  for(const marker of found){
-   const pts=marker.corners;overlayContext2.beginPath();overlayContext2.moveTo(pts[0].x,pts[0].y);
+  for(const marker of fresh){
+   const pts=marker.corners;
+   overlayContext2.beginPath();overlayContext2.moveTo(pts[0].x,pts[0].y);
    for(let i=1;i<pts.length;i++)overlayContext2.lineTo(pts[i].x,pts[i].y);
    overlayContext2.closePath();overlayContext2.strokeStyle='#18e89d';overlayContext2.lineWidth=3;overlayContext2.stroke();
    overlayContext2.font='bold 20px sans-serif';overlayContext2.fillStyle='#18e89d';
    overlayContext2.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));
   }
-  status2.textContent='Second camera: '+w+' × '+h+' · '+found.length+' marker(s) detected'+(found.length?' · IDs '+found.map(m=>m.id).join(', '):'');
- }catch(error){status2.textContent='Second camera detection error: '+String(error);}
- finally{processing2=false;}
+  const stamp=performance.now();
+  if(stamp-statsAt2>=1000){
+   const seconds=(stamp-statsAt2)/1000;
+   status2.textContent='Camera 2: '+w+' × '+h+' · '+fresh.length+' tracked · IDs '+(fresh.map(m=>m.id).join(', ')||'none')+
+    ' · '+(decodedFrames2/seconds).toFixed(1)+' decode FPS · '+(flowFrames2/seconds).toFixed(1)+' flow FPS';
+   statsAt2=stamp;decodedFrames2=0;flowFrames2=0;
+  }
+  updateStereoMatches();
+ };
+ if(doFast){
+  fastProcessing2=true;lastFastFrame2=now;
+  void fastTracker2.detect(context2.getImageData(0,0,w,h)).then(found=>{
+   if(currentSession!==session2)return;
+   const stamp=performance.now();flowFrames2++;
+   if(found.length){
+    for(const marker of found)confirmed2.set(marker.id,stamp);
+    secondaryObservations=found;secondaryObservationsAt=stamp;latestFlowAt2=stamp;
+    detector2.seed(toNative(found));
+   }else{
+    secondaryObservations=[];secondaryObservationsAt=stamp;
+    lastSlowFrame2=Math.min(lastSlowFrame2,stamp-65);
+   }
+   render();
+  }).catch(error=>{if(currentSession===session2)status2.textContent='Camera 2 flow error: '+String(error);})
+   .finally(()=>{if(currentSession===session2)fastProcessing2=false;});
+ }
+ if(doSlow){
+  processing2=true;lastSlowFrame2=now;
+  // Decode at native resolution, matching Camera 1. Optical flow stays at
+  // the smaller preview resolution for speed.
+  if(decodeCanvas2.width!==nativeW||decodeCanvas2.height!==nativeH){
+   decodeCanvas2.width=nativeW;decodeCanvas2.height=nativeH;
+  }
+  decodeContext2.drawImage(video2,0,0,nativeW,nativeH);
+  void detector2.detect(decodeContext2.getImageData(0,0,nativeW,nativeH)).then(nativeFound=>{
+   if(currentSession!==session2)return;
+   decodedFrames2++;
+   const found=toFlow(nativeFound),stamp=performance.now();
+   if(found.length){
+    for(const marker of found)confirmed2.set(marker.id,stamp);
+    fastTracker2.seed(found);
+    const merged=liveSecondMarkers();
+    for(const marker of found)if(!merged.some(m=>m.id===marker.id))merged.push(marker);
+    secondaryObservations=merged;secondaryObservationsAt=stamp;
+   }
+   render();
+  }).catch(error=>{if(currentSession===session2)status2.textContent='Camera 2 decode error: '+String(error);})
+   .finally(()=>{if(currentSession===session2)processing2=false;});
+ }
 }
+const decodeCanvas2=document.createElement('canvas');
+const decodeContext2=decodeCanvas2.getContext('2d',{willReadFrequently:true})!;
+
 void refreshSecondCameraList().catch(()=>{status2.textContent='Connect both USB cameras and allow camera access.';});
 
 
@@ -771,7 +833,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
    const mismatch=calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight);
    if(mismatch){stereo3dStatus.textContent='Stereo inactive: '+mismatch;}
    else{
-    const first=liveMarkers(),second=secondaryObservations;
+    const first=liveMarkers(),second=liveSecondMarkers();
     const age=Math.abs(observationsAt-secondaryObservationsAt);
     const hits=[] as Array<{id:number;point:NonNullable<ReturnType<typeof triangulate>>}>;
     let common=0,rejected=0;
