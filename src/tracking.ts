@@ -572,81 +572,41 @@ function updateLiveTargets(){
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
    performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<5000);
   const state=rigidBodyStates.get(name);
-   // A face transition can select a different planar pose branch even though
-   // the instrument itself has moved smoothly.
-   const visibleIds=new Set(rotationMarkers.map(m=>m.id));
-   const faceTrack=rotationFaceStates.get(name);
-   const faceChanged=!!faceTrack&&faceTrack.id!==chosen.pose.id;
-   const previousFaceVisible=!!faceTrack&&visibleIds.has(faceTrack.id);
-   const selectedFace=faceChanged&&previousFaceVisible?faceTrack!.id:chosen.pose.id;
-  // Predict the next orientation from accepted angular motion; cap extrapolation
-  // so a brief optical-flow dropout cannot launch the model into a spin.
+  // Solve all simultaneously visible prism faces as one rigid object.
+  // Retain the last accepted pose as a solver seed, but never discard real
+  // rotation by resetting the output anchor when the visible face changes.
   let predicted:PrismPose|undefined;
   if(state){
-   const dt=Math.min(.12,Math.max(0,(now-state.lastAt)/1000));
+   const dt=Math.min(.09,Math.max(0,(now-state.lastAt)/1000));
    const step=state.angularVelocity.clone().multiplyScalar(dt);
    const angle=step.length();
-   const predictedQ=state.lastRaw.clone();
-   if(angle>1e-5)predictedQ.premultiply(new THREE.Quaternion().setFromAxisAngle(step.normalize(),Math.min(angle,.35)));
-   predicted={...state.pose,quaternion:predictedQ};
+   const q=state.lastRaw.clone();
+   if(angle>1e-5)q.premultiply(new THREE.Quaternion().setFromAxisAngle(step.normalize(),Math.min(angle,.45)));
+   predicted={...state.pose,quaternion:q};
   }
   const rigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted);
   let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
-   const nextFace=rotationFaceStates.get(name);
-   if(!nextFace)rotationFaceStates.set(name,{id:selectedFace,pending:null,count:0});
-   else if(nextFace.id!==selectedFace){nextFace.id=selectedFace;nextFace.pending=null;nextFace.count=0;}
   if(rigid){
    if(!state){
     rigidBodyStates.set(name,{anchorRaw:rigid.quaternion.clone(),anchorOutput:quaternion.clone(),lastRaw:rigid.quaternion.clone(),lastAt:now,pose:rigid,stallSince:null,status:'tracking',angularVelocity:new THREE.Vector3()});
    }else{
-    const jump=rigid.quaternion.angleTo(state.lastRaw);
-    const stalledFor=state.stallSince===null?0:now-state.stallSince;
-    const faceState=rotationFaceStates.get(name)!;
-     const singleFace=rigid.faces<2;
-     const largeStep=jump>THREE.MathUtils.degToRad(singleFace?28:48);
-     // A one-frame discontinuity near a face boundary must not be applied.
-     // Accept a new pose branch only if it persists over several observations,
-     // then re-anchor without teleporting the displayed instrument.
-     if(largeStep&&rigid.error<8){
-      if(faceState.pending&&rigid.quaternion.angleTo(faceState.pending)<THREE.MathUtils.degToRad(18))faceState.count++;
-      else{faceState.pending=rigid.quaternion.clone();faceState.count=1;}
-     }else{faceState.pending=null;faceState.count=0;}
-     const confirmedBranch=largeStep&&faceState.count>=4;
-     const consistent=!largeStep&&jump<THREE.MathUtils.degToRad(85);
-    // After 450ms of rejected updates, reacquire from the newly observed orientation.
-    // Re-anchor to the current rendered quaternion so the virtual instrument cannot snap.
-    const reacquire=confirmedBranch||(!consistent&&stalledFor>450&&rigid.error<8&&rigid.faces>=2);
-    if(reacquire){
-     state.anchorRaw.copy(rigid.quaternion);
-     state.anchorOutput.copy(quaternion);
-     state.lastRaw.copy(rigid.quaternion);
-     state.lastAt=now;
-     state.pose=rigid;
-     state.stallSince=null;
-     state.angularVelocity.set(0,0,0);
-     state.status='reacquiring';faceState.pending=null;faceState.count=0;
-    }else if(consistent){
-     // Update angular velocity only from accepted, plausible observations.
-     const sampleDt=Math.max(.016,Math.min(.2,(now-state.lastAt)/1000));
+    const elapsed=Math.max(.016,Math.min(.15,(now-state.lastAt)/1000));
+    const angularDifference=rigid.quaternion.angleTo(state.lastRaw);
+    // A lone planar face can briefly return a mirrored solution. Prefer
+    // continuity, but do not impose a hard angular ceiling on real motion.
+    const credible=rigid.error<10&&(rigid.faces>=2||angularDifference<Math.max(.35,elapsed*10));
+    if(credible){
+     // Incremental body-frame delta preserves all accepted rotation across
+     // face transitions. No re-anchoring, no twist/swing reset.
+     const delta=state.lastRaw.clone().invert().multiply(rigid.quaternion).normalize();
+     quaternion.multiply(delta).normalize();
      const motion=rigid.quaternion.clone().multiply(state.lastRaw.clone().invert()).normalize();
-     const motionAngle=motion.angleTo(new THREE.Quaternion());
-     if(motionAngle<.65){
-      const axis=new THREE.Vector3(motion.x,motion.y,motion.z);
-      if(axis.lengthSq()>1e-8){
-       axis.normalize().multiplyScalar(motionAngle/sampleDt*(motion.w<0?-1:1));
-       state.angularVelocity.lerp(axis,.3);
-       if(state.angularVelocity.length()>8)state.angularVelocity.setLength(8);
-      }
-     }else state.angularVelocity.multiplyScalar(.5);
-     const delta=state.anchorRaw.clone().invert().multiply(rigid.quaternion).normalize();
-     const twist=new THREE.Quaternion(0,delta.y,0,delta.w).normalize();
-     const swing=delta.clone().multiply(twist.clone().invert()).normalize();
-     const shaftRoll=2*Math.atan2(twist.y,twist.w);
-     const rollAxis=new THREE.Vector3(name==='forceps'?1:-1,0,0);
-     const roll=new THREE.Quaternion().setFromAxisAngle(rollAxis,shaftRoll);
-     const desired=state.anchorOutput.clone().multiply(swing).multiply(roll).normalize();
-     const elapsed=Math.max(.016,Math.min(.1,(now-state.lastAt)/1000));
-     quaternion.slerp(desired,1-Math.exp(-elapsed*16));
+     const axis=new THREE.Vector3(motion.x,motion.y,motion.z);
+     if(axis.lengthSq()>1e-9&&angularDifference<1.2){
+      axis.normalize().multiplyScalar(angularDifference/elapsed*(motion.w<0?-1:1));
+      state.angularVelocity.lerp(axis,.25);
+      if(state.angularVelocity.length()>12)state.angularVelocity.setLength(12);
+     }
      state.lastRaw.copy(rigid.quaternion);
      state.lastAt=now;
      state.pose=rigid;
@@ -655,12 +615,13 @@ function updateLiveTargets(){
     }else{
      state.stallSince??=now;
      state.status='stalled';
+     state.angularVelocity.multiplyScalar(.85);
     }
    }
   }else if(state){
    state.stallSince??=now;
    state.status='stalled';
-   state.angularVelocity.multiplyScalar(.8);
+   state.angularVelocity.multiplyScalar(.85);
   }
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
