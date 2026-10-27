@@ -50,7 +50,7 @@ export function triangulate(c:StereoCalibration,p1:Point,p2:Point,size1:{width:n
  const C=mul(mv(rt,T),-1),u=unit(a),v=unit(mv(rt,b));
  const w=mul(C,-1),uv=dot(u,v),den=1-uv*uv;
  if(den<1e-6)return null;
- const t=(dot(u,w)-uv*dot(v,w))/den,s=(uv*dot(u,w)-dot(v,w))/den;
+ const t=(-dot(u,w)+uv*dot(v,w))/den,s=(-uv*dot(u,w)+dot(v,w))/den;
  if(t<=0||s<=0)return null;
  const q1=mul(u,t),q2=add(C,mul(v,s)),mid=mul(add(q1,q2),.5);
  const gap=norm(sub(q1,q2));
