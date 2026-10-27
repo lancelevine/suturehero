@@ -615,12 +615,13 @@ function updateLiveTargets(){
     // continuity, but do not impose a hard angular ceiling on real motion.
     const credible=rigid.error<10&&(rigid.faces>=2||angularDifference<Math.max(.35,elapsed*10));
     if(credible){
-     // Incremental body-frame delta preserves all accepted rotation across
-     // face transitions. No re-anchoring, no twist/swing reset.
-     // Rotation delta is in camera coordinates, not model-local coordinates.
-     const motion=rigid.quaternion.clone().multiply(state.lastRaw.clone().invert()).normalize();
-     const sceneMotion=cameraToSceneRotation.clone().multiply(motion).multiply(cameraToSceneRotation.clone().invert()).normalize();
-     quaternion.premultiply(sceneMotion).normalize();
+     // Track rotation in the prism's *local* coordinate frame. The virtual
+     // models have their shafts aligned with local Y, just like the prism.
+     // Postmultiplying the body-local delta makes prism roll rotate the
+     // instrument about its shaft, regardless of how the prism is tilted.
+     // Keep the instrument's existing tip pivot and stereo translation.
+     const motion=state.lastRaw.clone().invert().multiply(rigid.quaternion).normalize();
+     quaternion.multiply(motion).normalize();
      const axis=new THREE.Vector3(motion.x,motion.y,motion.z);
      if(axis.lengthSq()>1e-9&&angularDifference<1.2){
       axis.normalize().multiplyScalar(angularDifference/elapsed*(motion.w<0?-1:1));
