@@ -178,8 +178,8 @@ const trackerTypeStatus=document.querySelector<HTMLElement>('#tracker-type-statu
 let trackerType:TrackerType='prism';
 const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
  needleDriver:[0,1,2,3,4,5,6,7],
- forceps:[8,9,10,11,12,13,14,15],
- scissors:[16,17,18,19,20,21,22,23]
+ forceps:[10,11,12,13,14,15,16,17],
+ scissors:[20,21,22,23,24,25,26,27]
 };
 const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:MARKER_GROUPS;
 function resetTrackerPose(){
@@ -191,12 +191,12 @@ function resetTrackerPose(){
 trackerTypeSelect.addEventListener('change',()=>{
  trackerType=trackerTypeSelect.value==='ring8'?'ring8':'prism';
  resetTrackerPose();
- trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 8–15 forceps, 16–23 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
+ trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
  try{localStorage.setItem('suturehero.trackerType',trackerType);}catch{/* unavailable */}
 });
 try{trackerTypeSelect.value=localStorage.getItem('suturehero.trackerType')==='ring8'?'ring8':'prism';}catch{/* unavailable */}
 trackerType=trackerTypeSelect.value==='ring8'?'ring8':'prism';
-trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 8–15 forceps, 16–23 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
+trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
 
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
