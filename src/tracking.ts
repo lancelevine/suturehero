@@ -4,7 +4,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
-import {solvePrismPose,localCorners,type PrismPose} from './input/prismPose';
+import {solvePrismPose,localCorners,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import './style.css';
 import './tracking.css';
@@ -13,7 +13,8 @@ declare const __SUTUREHERO_BUILD__: string;
 declare const __SUTUREHERO_REVISION__: string;
 const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
-<main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers IDs 0–8. Outlines and IDs appear on the video.</p>
+<main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers. Outlines and IDs appear on the video.</p>
+<div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
@@ -172,6 +173,30 @@ const stereo3dStatus=stereoPanel.querySelector<HTMLElement>('#stereo-3d-points')
 const stereoEnabled=stereoPanel.querySelector<HTMLInputElement>('#stereo-enable')!;
 let stereoCalibration:StereoCalibration|null=null;
 type InstrumentName='needleDriver'|'forceps'|'scissors';
+const trackerTypeSelect=document.querySelector<HTMLSelectElement>('#tracker-type')!;
+const trackerTypeStatus=document.querySelector<HTMLElement>('#tracker-type-status')!;
+let trackerType:TrackerType='prism';
+const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
+ needleDriver:[0,1,2,3,4,5,6,7],
+ forceps:[8,9,10,11,12,13,14,15],
+ scissors:[16,17,18,19,20,21,22,23]
+};
+const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:MARKER_GROUPS;
+function resetTrackerPose(){
+ rigidBodyStates.clear();rotationSources.clear();prismFaceOffsets.clear();
+ rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
+ rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
+ poseHistory.clear();
+}
+trackerTypeSelect.addEventListener('change',()=>{
+ trackerType=trackerTypeSelect.value==='ring8'?'ring8':'prism';
+ resetTrackerPose();
+ trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 8–15 forceps, 16–23 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
+ try{localStorage.setItem('suturehero.trackerType',trackerType);}catch{/* unavailable */}
+});
+try{trackerTypeSelect.value=localStorage.getItem('suturehero.trackerType')==='ring8'?'ring8':'prism';}catch{/* unavailable */}
+trackerTypeSelect.dispatchEvent(new Event('change'));
+
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 
@@ -183,7 +208,7 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
  if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
  if(Math.abs(observationsAt-secondaryObservationsAt)>120||now-observationsAt>180||now-secondaryObservationsAt>180)return null;
- const ids:readonly number[]=MARKER_GROUPS[name];
+ const ids:readonly number[]=markerGroups()[name];
  const first=liveMarkers(),second=liveSecondMarkers();
  const candidates:StereoRotation[]=[];
  for(const id of ids){
@@ -198,7 +223,7 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
    world.push(new THREE.Vector3(...point.xyzMm));
   }
   if(!valid)continue;
-  const local=localCorners(id-ids[0]);
+  const local=localCorners(id-ids[0],trackerType);
   const basis=(pts:THREE.Vector3[])=>{
    const x=pts[1].clone().sub(pts[0]).add(pts[2].clone().sub(pts[3])).normalize();
    const y0=pts[3].clone().sub(pts[0]).add(pts[2].clone().sub(pts[1])).normalize();
@@ -531,8 +556,8 @@ const verifiedMarkers=()=>{
  const now=performance.now();
  const eligible=liveMarkers().filter(m=>now-(markerLastDecoded.get(m.id)??-Infinity)<=OVERLAP_DECODE_MS);
  const selected:MarkerObservation[]=[];
- for(const name of Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>){
-  const ids=MARKER_GROUPS[name] as readonly number[];
+ for(const name of Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>){
+  const ids=markerGroups()[name] as readonly number[];
   const ranked=eligible.filter(m=>ids.includes(m.id)).map(m=>{
    const area=Math.abs(m.corners.reduce((sum,p,i)=>sum+p.x*m.corners[(i+1)%4].y-m.corners[(i+1)%4].x*p.y,0))/2;
    const age=now-(markerLastDecoded.get(m.id)??0);
@@ -556,8 +581,8 @@ const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;ra
 const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
 const prismAxis=new THREE.Vector3(0,1,0);
 function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number){
- const index=(MARKER_GROUPS[name] as readonly number[]).indexOf(id);
- return new THREE.Quaternion().setFromAxisAngle(prismAxis,-index*2*Math.PI/3);
+ const index=(markerGroups()[name] as readonly number[]).indexOf(id);
+ return new THREE.Quaternion().setFromAxisAngle(prismAxis,-index*(trackerType==='ring8'?Math.PI/3:2*Math.PI/3));
 }
 // Rotation-only rigid-body state. Never used to accept/reject translation.
 const rotationSources=new Map<InstrumentName,'mono'|'stereo'>();
@@ -660,7 +685,7 @@ function updateLiveTargets(){
  if(!overlay.width||!overlay.height)return;
  const now=observationsAt||performance.now();
  for(const name of ['needleDriver','forceps','scissors'] as const){
-  const ids:readonly number[]=MARKER_GROUPS[name];
+  const ids:readonly number[]=markerGroups()[name];
   const candidates=liveMarkers().filter(m=>ids.includes(m.id)).map(marker=>{
    const pose=estimateMarkerPose(marker,overlay.width,overlay.height);
    return pose?{marker,pose}:null;
@@ -741,7 +766,7 @@ function updateLiveTargets(){
    if(angle>1e-5)q.multiply(new THREE.Quaternion().setFromAxisAngle(step.normalize(),Math.min(angle,.45)));
    predicted={...state.pose,quaternion:q};
   }
-  const monoRigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted);
+  const monoRigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted,trackerType);
   const stereoRigid=stereoPrismRotation(name,performance.now());
   // Stereo pose has a distinct camera-calibrated frame. Preserve the mono
   // solver's orientation state separately so switching modes cannot cause
@@ -816,7 +841,7 @@ function drawDetections(){
  for(const marker of observations){
   // A flow-only outline is not proof that the printed face is still visible.
   if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>300)continue;
-  const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).find(name=>(MARKER_GROUPS[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+  const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
@@ -829,7 +854,7 @@ function drawDetections(){
   };
   driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
   filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':'tracking'}`:`${name}: waiting`;}).join(' | ');
-  faceOverlapReadout.textContent=(Object.keys(MARKER_GROUPS) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
+  faceOverlapReadout.textContent=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
  }
 }
 const decodeCanvas=document.createElement('canvas');
@@ -972,7 +997,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
      const previous=stereoPositions.get(name);
      // Prefer the same marker face while it remains visible; switching between
      // different face centers introduces a false translation of the rigid body.
-     const candidates=hits.filter(m=>(MARKER_GROUPS[name] as readonly number[]).includes(m.id));
+     const candidates=hits.filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id));
      const hit=candidates.find(m=>m.id===previous?.markerId)??candidates[0];
      if(!hit)continue;
      const [x,y,z]=hit.point.xyzMm;
