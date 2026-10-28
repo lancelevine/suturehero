@@ -7,7 +7,7 @@ import {estimateMarkerPose} from './markerPose';
 const SIDE=12;
 const RADIUS=SIDE/(2*Math.tan(Math.PI/3));
 const faceRotation=(index:number)=>new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),index*2*Math.PI/3);
-const localCorners=(index:number)=>{
+export const localCorners=(index:number)=>{
  const q=faceRotation(index),s=SIDE/2;
  return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,RADIUS).applyQuaternion(q));
 };
