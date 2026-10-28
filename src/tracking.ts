@@ -195,7 +195,8 @@ trackerTypeSelect.addEventListener('change',()=>{
  try{localStorage.setItem('suturehero.trackerType',trackerType);}catch{/* unavailable */}
 });
 try{trackerTypeSelect.value=localStorage.getItem('suturehero.trackerType')==='ring8'?'ring8':'prism';}catch{/* unavailable */}
-trackerTypeSelect.dispatchEvent(new Event('change'));
+trackerType=trackerTypeSelect.value==='ring8'?'ring8':'prism';
+trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 8–15 forceps, 16–23 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
 
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
