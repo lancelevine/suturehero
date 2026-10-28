@@ -962,11 +962,11 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     filter.lastTarget.copy(target.quaternion);filter.lastAt=now;
     rotationStabilizers.set(name,filter);
     const angularError=mesh.quaternion.angleTo(target.quaternion);
-    const deadband=THREE.MathUtils.degToRad(filter.quiet?.35:.08);
+    const deadband=THREE.MathUtils.degToRad(filter.quiet ? 0.35 : 0.08);
     if(angularError>deadband){
      const speedFactor=THREE.MathUtils.smoothstep(angularError,
       THREE.MathUtils.degToRad(1),THREE.MathUtils.degToRad(12));
-     const tau=filter.quiet?.16:THREE.MathUtils.lerp(.065,.025,speedFactor);
+     const tau=filter.quiet ? 0.16 : THREE.MathUtils.lerp(.065,.025,speedFactor);
      const rotationBlend=1-Math.exp(-dt/tau);
      mesh.quaternion.slerp(target.quaternion,rotationBlend);
     }
