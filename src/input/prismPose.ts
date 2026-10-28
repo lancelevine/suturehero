@@ -5,11 +5,24 @@ import {estimateMarkerPose} from './markerPose';
 // Each face is a 12 mm square tangent to a regular triangular prism.
 // Local Y is the prism/shaft axis; all face marker tops point along +Y.
 const SIDE=12;
-const RADIUS=SIDE/(2*Math.tan(Math.PI/3));
-const faceRotation=(index:number)=>new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),index*2*Math.PI/3);
-export const localCorners=(index:number)=>{
- const q=faceRotation(index),s=SIDE/2;
- return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,RADIUS).applyQuaternion(q));
+export type TrackerType='prism'|'ring8';
+const ringRadius=SIDE/(2*Math.tan(Math.PI/6));
+const prismRadius=SIDE/(2*Math.tan(Math.PI/3));
+export function faceGeometry(index:number,type:TrackerType='prism'){
+ const ring=type==='ring8';
+ const angle=ring?index<6?index*Math.PI/3:0:index*2*Math.PI/3;
+ const radius=ring?ringRadius:prismRadius;
+ const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle);
+ // The two angled faces are modeled on opposite axial ends of face 0.
+ // Their normals tilt 30 degrees toward the respective ends.
+ if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),(index===6?-1:1)*Math.PI/6));
+ const center=new THREE.Vector3(0,ring&&index>=6?(index===6?SIDE:-SIDE):0,radius)
+  .applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle));
+ return {rotation:q,center};
+}
+export const localCorners=(index:number,type:TrackerType='prism')=>{
+ const {rotation,center}=faceGeometry(index,type),s=SIDE/2;
+ return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,0).applyQuaternion(rotation).add(center));
 };
 export interface PrismPose {quaternion:THREE.Quaternion;translation:THREE.Vector3;error:number;faces:number}
 function linearSolve(A:number[][],b:number[]):number[]|null{
@@ -25,14 +38,14 @@ function linearSolve(A:number[][],b:number[]):number[]|null{
 }
 export function solvePrismPose(
  markers:MarkerObservation[],firstId:number,width:number,height:number,
- previous?:PrismPose, predicted?:PrismPose
+ previous?:PrismPose, predicted?:PrismPose, trackerType:TrackerType='prism'
 ):PrismPose|null{
  if(!markers.length||!width||!height)return null;
  const fx=width/(2*Math.tan(70*Math.PI/360/2)),cx=width/2,cy=height/2;
  const points=markers.flatMap(marker=>{
   const index=marker.id-firstId;
-  if(index<0||index>2||marker.corners.length!==4)return [];
-  return localCorners(index).map((p,i)=>({p,uv:marker.corners[i]}));
+  if(index<0||index>=(trackerType==='ring8'?8:3)||marker.corners.length!==4)return [];
+  return localCorners(index,trackerType).map((p,i)=>({p,uv:marker.corners[i]}));
  });
  if(points.length<4)return null;
  const residual=(q:THREE.Quaternion,t:THREE.Vector3)=>{
@@ -52,11 +65,12 @@ export function solvePrismPose(
  if(predicted)seeds.push({q:predicted.quaternion.clone(),t:predicted.translation.clone()});
  if(previous)seeds.push({q:previous.quaternion.clone(),t:previous.translation.clone()});
  for(const marker of markers){
-  const index=marker.id-firstId;if(index<0||index>2)continue;
+  const index=marker.id-firstId;if(index<0||index>=(trackerType==='ring8'?8:3))continue;
   const pose=estimateMarkerPose(marker,width,height);
   if(!pose)continue;
-  const q=pose.quaternion.clone().multiply(faceRotation(index).invert()).normalize();
-  const t=pose.position.clone().sub(new THREE.Vector3(0,0,RADIUS).applyQuaternion(pose.quaternion));
+  const geometry=faceGeometry(index,trackerType);
+  const q=pose.quaternion.clone().multiply(geometry.rotation.clone().invert()).normalize();
+  const t=pose.position.clone().sub(geometry.center.clone().applyQuaternion(q));
   seeds.push({q,t});
  }
  let best:PrismPose|null=null,bestScore=Infinity;
