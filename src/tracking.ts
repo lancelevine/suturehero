@@ -324,8 +324,8 @@ stereoQuick.addEventListener('click',async()=>{
   stereoEnabled.checked=true;stereoEnabled.dispatchEvent(new Event('change'));
   stereoQuickStatus.textContent='Starting both cameras…';
   await refreshCameras();await refreshSecondCameraList();
-  if(!select.value||!select2.value||select.value===select2.value){
-   stereoQuickStatus.textContent='Select two different cameras above, then press this button again.';
+  if(!select2.value||(select.value&&select.value===select2.value)){
+   stereoQuickStatus.textContent='Select a second camera distinct from camera 1, then press this button again.';
    return;
   }
   if(!stream)await startPrimaryCamera();
