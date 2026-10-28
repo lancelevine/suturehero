@@ -10,14 +10,15 @@ const ringRadius=SIDE/(2*Math.tan(Math.PI/6));
 const prismRadius=SIDE/(2*Math.tan(Math.PI/3));
 export function faceGeometry(index:number,type:TrackerType='prism'){
  const ring=type==='ring8';
- const angle=ring?index<6?index*Math.PI/3:0:index*2*Math.PI/3;
+ // IDs 0–5 wrap around the ring. IDs 6 and 7 are opposite each
+ // other circumferentially (0° and 180°), both on the tip-facing end.
+ const angle=ring?(index<6?index*Math.PI/3:(index===6?0:Math.PI)):index*2*Math.PI/3;
  const radius=ring?ringRadius:prismRadius;
- const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle);
- // The two angled faces are modeled on opposite axial ends of face 0.
- // Their normals tilt 30 degrees toward the respective ends.
- if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),(index===6?-1:1)*Math.PI/6));
- const center=new THREE.Vector3(0,ring&&index>=6?(index===6?SIDE:-SIDE):0,radius)
-  .applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle));
+ const yaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle);
+ const q=yaw.clone();
+ // Both inclined faces lean toward the tip (+Y in the mount frame).
+ if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/6));
+ const center=new THREE.Vector3(0,ring&&index>=6?SIDE:0,radius).applyQuaternion(yaw);
  return {rotation:q,center};
 }
 export const localCorners=(index:number,type:TrackerType='prism')=>{
