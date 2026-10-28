@@ -4,7 +4,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
-import {solvePrismPose,type PrismPose} from './input/prismPose';
+import {solvePrismPose,localCorners,type PrismPose} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import './style.css';
 import './tracking.css';
@@ -174,6 +174,56 @@ let stereoCalibration:StereoCalibration|null=null;
 type InstrumentName='needleDriver'|'forceps'|'scissors';
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
+
+type StereoRotation={quaternion:THREE.Quaternion;errorMm:number;faces:number;corners:number};
+const stereoRotationStates=new Map<InstrumentName,{pose:StereoRotation;lastAt:number}>();
+// Recover rigid-body orientation from corresponding 3D ArUco corners.
+// Camera 1 coordinates are the shared reference frame. The physical mount
+// remains the existing 3-face, 12 mm prism; no eight-face assumption here.
+function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null{
+ if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
+ if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
+ if(Math.abs(observationsAt-secondaryObservationsAt)>120||now-observationsAt>180||now-secondaryObservationsAt>180)return null;
+ const ids:readonly number[]=MARKER_GROUPS[name];
+ const first=liveMarkers(),second=liveSecondMarkers();
+ const candidates:StereoRotation[]=[];
+ for(const id of ids){
+  const a=first.find(m=>m.id===id),b=second.find(m=>m.id===id);
+  if(!a||!b||a.corners.length!==4||b.corners.length!==4)continue;
+  const world:THREE.Vector3[]=[];
+  let valid=true;
+  for(let i=0;i<4;i++){
+   const point=triangulate(stereoCalibration,a.corners[i],b.corners[i],
+    {width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height});
+   if(!point||point.epipolarErrorPx>4||point.rayGapMm>12||point.depthMm<30||point.depthMm>3000){valid=false;break;}
+   world.push(new THREE.Vector3(...point.xyzMm));
+  }
+  if(!valid)continue;
+  const local=localCorners(id-ids[0]);
+  const basis=(pts:THREE.Vector3[])=>{
+   const x=pts[1].clone().sub(pts[0]).add(pts[2].clone().sub(pts[3])).normalize();
+   const y0=pts[3].clone().sub(pts[0]).add(pts[2].clone().sub(pts[1])).normalize();
+   const z=new THREE.Vector3().crossVectors(x,y0).normalize();
+   const y=new THREE.Vector3().crossVectors(z,x).normalize();
+   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+  };
+  const q=basis(world).multiply(basis(local).invert()).normalize();
+  // Validate all four points after aligning the centroids.
+  const lc=new THREE.Vector3(),wc=new THREE.Vector3();
+  for(let i=0;i<4;i++){lc.add(local[i]);wc.add(world[i]);}
+  lc.multiplyScalar(.25);wc.multiplyScalar(.25);
+  let sum=0;
+  for(let i=0;i<4;i++)sum+=world[i].distanceTo(local[i].clone().sub(lc).applyQuaternion(q).add(wc))**2;
+  const errorMm=Math.sqrt(sum/4);
+  if(errorMm<5)candidates.push({quaternion:q,errorMm,faces:1,corners:4});
+ }
+ if(!candidates.length)return null;
+ candidates.sort((a,b)=>a.errorMm-b.errorMm);
+ const best=candidates[0],agree=candidates.filter(c=>c.quaternion.angleTo(best.quaternion)<.35);
+ const result=agree.reduce((q,c,i)=>i?q.slerp(c.quaternion,1/(i+1)):c.quaternion.clone(),new THREE.Quaternion());
+ return {quaternion:result,errorMm:agree.reduce((v,c)=>v+c.errorMm,0)/agree.length,faces:agree.length,corners:agree.length*4};
+}
+
 const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
 const stereoViewDot=document.querySelector<HTMLElement>('#stereo-view-dot')!;
 const stereoViewLabel=document.querySelector<HTMLElement>('#stereo-view-label')!;
@@ -511,6 +561,7 @@ function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number)
  return new THREE.Quaternion().setFromAxisAngle(prismAxis,-index*2*Math.PI/3);
 }
 // Rotation-only rigid-body state. Never used to accept/reject translation.
+const rotationSources=new Map<InstrumentName,'mono'|'stereo'>();
 const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
  anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring';angularVelocity:THREE.Vector3
 }>();
@@ -678,7 +729,7 @@ function updateLiveTargets(){
   // Independent rigid-body rotation: never gate or alter the working translation.
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
    performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<350);
-  const state=rigidBodyStates.get(name);
+  let state=rigidBodyStates.get(name);
   // Solve all simultaneously visible prism faces as one rigid object.
   // Retain the last accepted pose as a solver seed, but never discard real
   // rotation by resetting the output anchor when the visible face changes.
@@ -691,7 +742,23 @@ function updateLiveTargets(){
    if(angle>1e-5)q.multiply(new THREE.Quaternion().setFromAxisAngle(step.normalize(),Math.min(angle,.45)));
    predicted={...state.pose,quaternion:q};
   }
-  const rigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted);
+  const monoRigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted);
+  const stereoRigid=stereoPrismRotation(name,performance.now());
+  // Stereo pose has a distinct camera-calibrated frame. Preserve the mono
+  // solver's orientation state separately so switching modes cannot cause
+  // an arbitrary camera-frame jump.
+  const stereoUsable=!!stereoRigid;
+  const rigid=stereoUsable?{
+   quaternion:stereoRigid.quaternion,translation:monoRigid?.translation??new THREE.Vector3(),
+   error:stereoRigid.errorMm,faces:Math.max(2,stereoRigid.faces)
+  } as PrismPose:monoRigid;
+  const rotationSource=stereoUsable?'stereo':'mono';
+  const lastSource=rotationSources.get(name);
+  if(rigid&&lastSource&&lastSource!==rotationSource){
+   rigidBodyStates.delete(name);
+   state=undefined;
+  }
+  if(rigid)rotationSources.set(name,rotationSource);
   let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
   if(rigid){
    if(!state){
@@ -706,10 +773,10 @@ function updateLiveTargets(){
     // Reacquire after a face transition: a valid new face may be ~90–120°
     // away from the last accepted pose. Do not freeze indefinitely because
     // the single-face angular gate was exceeded.
-    const reacquire=staleMs>220&&rigid.error<5;
-    const credible=rigid.error<10&&(rigid.faces>=2||angularDifference<singleFaceLimit||reacquire);
+    const reacquire=staleMs>220&&rigid.error<(stereoUsable?4:5);
+    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||reacquire);
     document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=
-     name+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
+     name+' · '+rotationSource+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
      ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(reacquire?'reacquired':'accepted'):'rejected');
     if(credible){
      // Track rotation in the prism's *local* coordinate frame. The virtual
