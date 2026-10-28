@@ -176,7 +176,6 @@ const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quatern
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 
 type StereoRotation={quaternion:THREE.Quaternion;errorMm:number;faces:number;corners:number};
-const stereoRotationStates=new Map<InstrumentName,{pose:StereoRotation;lastAt:number}>();
 // Recover rigid-body orientation from corresponding 3D ArUco corners.
 // Camera 1 coordinates are the shared reference frame. The physical mount
 // remains the existing 3-face, 12 mm prism; no eight-face assumption here.
