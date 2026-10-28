@@ -69,7 +69,7 @@ trackingMode.addEventListener('change',()=>{
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
 });
-simulation.addEventListener('change',()=>{rotationStabilizers.clear();stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -176,88 +176,51 @@ const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quatern
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 
 type StereoRotation={quaternion:THREE.Quaternion;errorMm:number;faces:number;corners:number};
-type StereoCorrespondence={local:THREE.Vector3;world:THREE.Vector3;face:number};
-// Horn's absolute-orientation fit. A single rotation and translation explain
-// every accepted stereo corner, rather than blending per-face quaternions.
-function fitStereoRigid(points:StereoCorrespondence[]):{quaternion:THREE.Quaternion;errorMm:number}|null{
- if(points.length<4)return null;
- const a=new THREE.Vector3(),b=new THREE.Vector3();
- for(const p of points){a.add(p.local);b.add(p.world);}
- a.multiplyScalar(1/points.length);b.multiplyScalar(1/points.length);
- let sxx=0,sxy=0,sxz=0,syx=0,syy=0,syz=0,szx=0,szy=0,szz=0;
- for(const p of points){
-  const x=p.local.x-a.x,y=p.local.y-a.y,z=p.local.z-a.z;
-  const u=p.world.x-b.x,v=p.world.y-b.y,w=p.world.z-b.z;
-  sxx+=x*u;sxy+=x*v;sxz+=x*w;
-  syx+=y*u;syy+=y*v;syz+=y*w;
-  szx+=z*u;szy+=z*v;szz+=z*w;
- }
- const trace=sxx+syy+szz;
- const N=[
-  [trace,syz-szy,szx-sxz,sxy-syx],
-  [syz-szy,sxx-syy-szz,sxy+syx,szx+sxz],
-  [szx-sxz,sxy+syx,-sxx+syy-szz,syz+szy],
-  [sxy-syx,szx+sxz,syz+szy,-sxx-syy+szz]
- ];
- // Shift to positive-definite for stable power iteration, even with a
- // near-planar single marker. Quaternion is ordered [w,x,y,z].
- const shift=Math.max(1,...N.flat().map(Math.abs))*4;
- let v=[1,0,0,0];
- for(let k=0;k<40;k++){
-  const next=N.map((row,i)=>row.reduce((sum,n,j)=>sum+n*v[j],shift*v[i]));
-  const length=Math.hypot(...next);
-  if(length<1e-10)return null;
-  v=next.map(n=>n/length);
- }
- const q=new THREE.Quaternion(v[1],v[2],v[3],v[0]).normalize();
- let error=0;
- for(const p of points){
-  const fitted=p.local.clone().sub(a).applyQuaternion(q).add(b);
-  error+=fitted.distanceToSquared(p.world);
- }
- return {quaternion:q,errorMm:Math.sqrt(error/points.length)};
-}
+// Recover rigid-body orientation from corresponding 3D ArUco corners.
+// Camera 1 coordinates are the shared reference frame. The physical mount
+// remains the existing 3-face, 12 mm prism; no eight-face assumption here.
 function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null{
  if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
  if(Math.abs(observationsAt-secondaryObservationsAt)>120||now-observationsAt>180||now-secondaryObservationsAt>180)return null;
  const ids:readonly number[]=MARKER_GROUPS[name];
  const first=liveMarkers(),second=liveSecondMarkers();
- const faces:StereoCorrespondence[][]=[];
+ const candidates:StereoRotation[]=[];
  for(const id of ids){
   const a=first.find(m=>m.id===id),b=second.find(m=>m.id===id);
   if(!a||!b||a.corners.length!==4||b.corners.length!==4)continue;
-  const corners:StereoCorrespondence[]=[];
-  const local=localCorners(id-ids[0]);
+  const world:THREE.Vector3[]=[];
+  let valid=true;
   for(let i=0;i<4;i++){
    const point=triangulate(stereoCalibration,a.corners[i],b.corners[i],
     {width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height});
-   if(!point||point.epipolarErrorPx>4||point.rayGapMm>12||point.depthMm<30||point.depthMm>3000)break;
-   corners.push({local:local[i],world:new THREE.Vector3(...point.xyzMm),face:id});
+   if(!point||point.epipolarErrorPx>4||point.rayGapMm>12||point.depthMm<30||point.depthMm>3000){valid=false;break;}
+   world.push(new THREE.Vector3(...point.xyzMm));
   }
-  if(corners.length===4)faces.push(corners);
+  if(!valid)continue;
+  const local=localCorners(id-ids[0]);
+  const basis=(pts:THREE.Vector3[])=>{
+   const x=pts[1].clone().sub(pts[0]).add(pts[2].clone().sub(pts[3])).normalize();
+   const y0=pts[3].clone().sub(pts[0]).add(pts[2].clone().sub(pts[1])).normalize();
+   const z=new THREE.Vector3().crossVectors(x,y0).normalize();
+   const y=new THREE.Vector3().crossVectors(z,x).normalize();
+   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+  };
+  const q=basis(world).multiply(basis(local).invert()).normalize();
+  // Validate all four points after aligning the centroids.
+  const lc=new THREE.Vector3(),wc=new THREE.Vector3();
+  for(let i=0;i<4;i++){lc.add(local[i]);wc.add(world[i]);}
+  lc.multiplyScalar(.25);wc.multiplyScalar(.25);
+  let sum=0;
+  for(let i=0;i<4;i++)sum+=world[i].distanceTo(local[i].clone().sub(lc).applyQuaternion(q).add(wc))**2;
+  const errorMm=Math.sqrt(sum/4);
+  if(errorMm<5)candidates.push({quaternion:q,errorMm,faces:1,corners:4});
  }
- if(!faces.length)return null;
- let points=faces.flat();
- let fit=fitStereoRigid(points);
- if(!fit)return null;
- // Reject a geometrically inconsistent face and refit remaining corners.
- // Keep all corners when they agree; don't average independent face poses.
- if(faces.length>1){
-  const centerLocal=new THREE.Vector3(),centerWorld=new THREE.Vector3();
-  for(const p of points){centerLocal.add(p.local);centerWorld.add(p.world);}
-  centerLocal.multiplyScalar(1/points.length);centerWorld.multiplyScalar(1/points.length);
-  const scores=faces.map(face=>face.reduce((sum,p)=>
-   sum+p.world.distanceTo(p.local.clone().sub(centerLocal).applyQuaternion(fit!.quaternion).add(centerWorld)),0)/4);
-  const keep=faces.filter((_,i)=>scores[i]<Math.max(3,Math.min(7,fit!.errorMm*2.5)));
-  if(keep.length&&keep.length<faces.length){
-   points=keep.flat();
-   fit=fitStereoRigid(points);
-  }
- }
- if(!fit||fit.errorMm>5)return null;
- return {quaternion:fit.quaternion,errorMm:fit.errorMm,
-  faces:new Set(points.map(p=>p.face)).size,corners:points.length};
+ if(!candidates.length)return null;
+ candidates.sort((a,b)=>a.errorMm-b.errorMm);
+ const best=candidates[0],agree=candidates.filter(c=>c.quaternion.angleTo(best.quaternion)<.35);
+ const result=agree.reduce((q,c,i)=>i?q.slerp(c.quaternion,1/(i+1)):c.quaternion.clone(),new THREE.Quaternion());
+ return {quaternion:result,errorMm:agree.reduce((v,c)=>v+c.errorMm,0)/agree.length,faces:agree.length,corners:agree.length*4};
 }
 
 const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
@@ -941,7 +904,6 @@ async function detectFrame(now:number){
 
 const resize=new ResizeObserver(()=>{const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});resize.observe(mount);
 let last=performance.now();
-const rotationStabilizers=new Map<InstrumentName,{quiet:boolean;lastTarget:THREE.Quaternion;lastAt:number;velocity:number}>();
 function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(!simulation.checked){
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
@@ -950,23 +912,16 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     // Restore PR #67's frame-rate independent translation smoothing.
     const blend=1-Math.exp(-dt*24);
     mesh.position.lerp(target.position,blend);
-    // Adaptive rotational filter: quiet at rest, fast during deliberate
-    // motion. Hysteresis prevents tiny triangulation noise from toggling modes.
-    const filter=rotationStabilizers.get(name)??{quiet:true,lastTarget:target.quaternion.clone(),lastAt:now,velocity:0};
-    const elapsed=Math.max(.016,Math.min(.2,(now-filter.lastAt)/1000));
-    const step=filter.lastTarget.angleTo(target.quaternion);
-    const instantaneous=step/elapsed;
-    filter.velocity=THREE.MathUtils.lerp(filter.velocity,instantaneous,.18);
-    if(filter.quiet&&filter.velocity>THREE.MathUtils.degToRad(14))filter.quiet=false;
-    else if(!filter.quiet&&filter.velocity<THREE.MathUtils.degToRad(5))filter.quiet=true;
-    filter.lastTarget.copy(target.quaternion);filter.lastAt=now;
-    rotationStabilizers.set(name,filter);
+    // Filter the rendered orientation, not the accumulated rigid-body pose:
+    // this preserves full 1:1 roll and tilt while suppressing decode jitter.
+    // Small changes use a 65 ms time constant; deliberate movement responds
+    // faster (down to 22 ms). A tiny deadband avoids stationary shimmer.
     const angularError=mesh.quaternion.angleTo(target.quaternion);
-    const deadband=THREE.MathUtils.degToRad(filter.quiet ? 0.35 : 0.08);
+    const deadband=THREE.MathUtils.degToRad(.12);
     if(angularError>deadband){
      const speedFactor=THREE.MathUtils.smoothstep(angularError,
-      THREE.MathUtils.degToRad(1),THREE.MathUtils.degToRad(12));
-     const tau=filter.quiet ? 0.16 : THREE.MathUtils.lerp(.065,.025,speedFactor);
+      THREE.MathUtils.degToRad(.5),THREE.MathUtils.degToRad(12));
+     const tau=THREE.MathUtils.lerp(.065,.022,speedFactor);
      const rotationBlend=1-Math.exp(-dt/tau);
      mesh.quaternion.slerp(target.quaternion,rotationBlend);
     }
