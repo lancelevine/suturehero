@@ -189,6 +189,7 @@ try {
    if(!data||data.type!=='suturehero:tracking-pose'||!['needleDriver','forceps','scissors'].includes(data.instrument))return;
    if(!Array.isArray(data.position)||data.position.length!==3||!Array.isArray(data.quaternion)||data.quaternion.length!==4)return;
    if(![...data.position,...data.quaternion].every((v:unknown)=>typeof v==='number'&&Number.isFinite(v)))return;
+   cameraStatus.textContent='Tracking '+data.instrument;
    cameraPoses.set(data.instrument as CameraInstrument,{
     position:new THREE.Vector3().fromArray(data.position),
     quaternion:new THREE.Quaternion().fromArray(data.quaternion).normalize(),seenAt:performance.now()
