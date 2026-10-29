@@ -18,6 +18,8 @@ import { HandoffGuide } from './scene/HandoffGuide';
 import { PassGuide } from './scene/PassGuide';
 import { PlacementGuide } from './scene/PlacementGuide';
 import './style.css';
+declare const __SUTUREHERO_BUILD__: string;
+declare const __SUTUREHERO_REVISION__: string;
 import { createScene } from './scene/createScene';
 import { Instrument } from './instruments/Instrument';
 import { KeyboardInput } from './input/KeyboardInput';
@@ -27,7 +29,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.43</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Enable camera tracking</button></header>
+<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.44 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Enable camera tracking</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -207,6 +209,7 @@ try {
   };
   window.addEventListener('suturehero:tracking-pose',(event)=>onTrackingData((event as CustomEvent).detail));
   window.addEventListener('suturehero:tracking-fps',(event)=>onTrackingData((event as CustomEvent).detail));
+  let frameDt=1/60;
   const applyCameraPose=(name:CameraInstrument,object:THREE.Object3D)=>{
    const pose=cameraPoses.get(name);
    if(!pose||performance.now()-pose.seenAt>350)return;
@@ -220,15 +223,20 @@ try {
    // and makes the first detected frame free of sudden jumps.
    const desiredPosition=origin.scenePosition.clone().add(pose.position.clone().sub(origin.sourcePosition));
    desiredPosition.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
-   const delta=origin.sourceRotation.clone().invert().multiply(pose.quaternion);
-   const desiredRotation=origin.sceneRotation.clone().multiply(delta).normalize();
-   // The tracking engine already interpolates rotation over 40 ms.
-   // Avoid a second laggy filter in the simulator.
-   object.position.copy(desiredPosition);
-   object.quaternion.copy(desiredRotation);
+   // The measured quaternion is in world/camera space, not instrument-local
+   // space. Left-multiply the world-frame delta to preserve the correct axes.
+   const delta=pose.quaternion.clone().multiply(origin.sourceRotation.clone().invert());
+   const desiredRotation=delta.multiply(origin.sceneRotation).normalize();
+   // Suppress subpixel bridge jitter without introducing another long
+   // interpolation window. The lab's 40 ms interpolation remains authoritative.
+   const positionError=object.position.distanceTo(desiredPosition);
+   if(positionError>.004) object.position.lerp(desiredPosition,1-Math.exp(-Math.min(frameDt,.05)*45));
+   const angularError=object.quaternion.angleTo(desiredRotation);
+   if(angularError>THREE.MathUtils.degToRad(.22))
+    object.quaternion.slerp(desiredRotation,1-Math.exp(-Math.min(frameDt,.05)*50));
   };
   let last=performance.now();
-  view.renderer.setAnimationLoop((time)=>{const dt=Math.min((time-last)/1000,.05);session.update(dt); last=time;
+  view.renderer.setAnimationLoop((time)=>{const dt=Math.min((time-last)/1000,.05);frameDt=dt;session.update(dt); last=time;
     if(cameraEnabled){
      simulatorFrames++;
      if(time-lastSimulatorFps>=1000){
