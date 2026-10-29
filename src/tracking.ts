@@ -956,6 +956,13 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     }
     const progress=THREE.MathUtils.clamp((now-transition.started)/40,0,1);
     mesh.quaternion.copy(transition.from).slerp(transition.to,progress);
+    // The standalone lab remains the camera/diagnostic owner. When embedded,
+    // publish the exact rendered pose to the simulator on the same origin.
+    if(window.parent!==window){
+     window.parent.postMessage({type:'suturehero:tracking-pose',instrument:name,
+      position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),
+      seenAt:Date.now()},location.origin);
+    }
    }
   }
  }
