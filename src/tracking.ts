@@ -642,7 +642,7 @@ start.addEventListener('click',()=>{void startPrimaryCamera();});
 stop.addEventListener('click',stopCamera);
 select.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_PRIMARY,select.value);if(stream)void stopCamera();});
 void refreshCameras();
-const embeddedTracking=window.parent!==window;
+const embeddedTracking=window.parent!==window||root.dataset.embedded==='true';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x15242c);
 const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,4.5,7.6);camera.lookAt(0,0,0);
 const renderer=new THREE.WebGLRenderer({antialias:!embeddedTracking});renderer.setPixelRatio(embeddedTracking?1:Math.min(window.devicePixelRatio,2));
@@ -964,9 +964,10 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.
     if(embeddedTracking&&now-lastPoseMessage>=32){
-     window.parent.postMessage({type:'suturehero:tracking-pose',instrument:name,
-      position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),
-      seenAt:Date.now()},location.origin);
+     const detail={type:'suturehero:tracking-pose',instrument:name,
+      position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),seenAt:Date.now()};
+     if(root.dataset.embedded==='true')window.dispatchEvent(new CustomEvent('suturehero:tracking-pose',{detail}));
+     else window.parent.postMessage(detail,location.origin);
     }
    }
   }
@@ -1038,7 +1039,9 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  else{
   embeddedFrames++;
   if(now-lastEmbeddedFpsReport>=1000){
-   window.parent.postMessage({type:'suturehero:tracking-fps',fps:Math.round(embeddedFrames*1000/(now-lastEmbeddedFpsReport||1000))},location.origin);
+   const detail={type:'suturehero:tracking-fps',fps:Math.round(embeddedFrames*1000/(now-lastEmbeddedFpsReport||1000))};
+   if(root.dataset.embedded==='true')window.dispatchEvent(new CustomEvent('suturehero:tracking-fps',{detail}));
+   else window.parent.postMessage(detail,location.origin);
    embeddedFrames=0;lastEmbeddedFpsReport=now;
   }
  }
