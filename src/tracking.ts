@@ -70,7 +70,7 @@ trackingMode.addEventListener('change',()=>{
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
 });
-simulation.addEventListener('change',()=>{stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{rotationTransitions.clear();stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -183,6 +183,7 @@ const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
 };
 const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:MARKER_GROUPS;
 function resetTrackerPose(){
+ rotationTransitions.clear();
  rigidBodyStates.clear();rotationSources.clear();prismFaceOffsets.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -929,6 +930,9 @@ async function detectFrame(now:number){
 }
 
 const resize=new ResizeObserver(()=>{const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});resize.observe(mount);
+const rotationTransitions=new Map<InstrumentName,{
+ from:THREE.Quaternion;to:THREE.Quaternion;started:number;sample:THREE.Quaternion
+}>();
 let last=performance.now();
 function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(!simulation.checked){
@@ -938,19 +942,20 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     // Restore PR #67's frame-rate independent translation smoothing.
     const blend=1-Math.exp(-dt*24);
     mesh.position.lerp(target.position,blend);
-    // Filter the rendered orientation, not the accumulated rigid-body pose:
-    // this preserves full 1:1 roll and tilt while suppressing decode jitter.
-    // Small changes use a 110 ms time constant; deliberate movement responds
-    // quickly (down to 25 ms). Keep the solver and translation unchanged.
-    const angularError=mesh.quaternion.angleTo(target.quaternion);
-    const deadband=THREE.MathUtils.degToRad(.28);
-    if(angularError>deadband){
-     const speedFactor=THREE.MathUtils.smoothstep(angularError,
-      THREE.MathUtils.degToRad(.8),THREE.MathUtils.degToRad(8));
-     const tau=THREE.MathUtils.lerp(.11,.025,speedFactor);
-     const rotationBlend=1-Math.exp(-dt/tau);
-     mesh.quaternion.slerp(target.quaternion,rotationBlend);
+    // Smooth only the rendered orientation, never the accepted solver pose.
+    let transition=rotationTransitions.get(name);
+    if(!transition){
+     transition={from:mesh.quaternion.clone(),to:target.quaternion.clone(),
+      started:now,sample:target.quaternion.clone()};
+     rotationTransitions.set(name,transition);
+    }else if(transition.sample.angleTo(target.quaternion)>1e-6){
+     transition.from.copy(mesh.quaternion);
+     transition.to.copy(target.quaternion);
+     transition.sample.copy(target.quaternion);
+     transition.started=now;
     }
+    const progress=THREE.MathUtils.clamp((now-transition.started)/70,0,1);
+    mesh.quaternion.copy(transition.from).slerp(transition.to,progress);
    }
   }
  }
