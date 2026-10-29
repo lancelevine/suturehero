@@ -29,7 +29,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
 <header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.43</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Enable camera tracking</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
-<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
+<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <iframe id="camera-tracking-frame" title="SutureHero tracking camera and diagnostics" style="width:100%;flex:1;border:0" allow="camera"></iframe>
 </div>
 <main><aside><div class="eyebrow">01 / FOUNDATIONS</div><h1>A steady hand.<br>A better stitch.</h1><p class="intro">Your surgical skills start here. Explore the workspace and get a feel for your instruments.</p><div class="lesson"><span class="tag">FREE PRACTICE</span><h2>Pass & tie</h2><p>Start guided pass, then position the forceps at the right skin edge. Close Z and lift briefly with E to evert it. Click Begin needle pass when ready. Hold U to pass right to left. Open X to release the skin. Choose a needle grip point, click Position forceps, close Z, then open the driver with period. Hold R to continue the needle’s curve; Y reverses. After extraction, choose guided knot tying or Tie freely after pass. Release the seated knot for its hold check, then trim both free tails and review your stitch feedback.</p><div class="rule"></div><div class="objective"><span>◉</span><div>Simple interrupted suture<small>Pass · tie · release · trim</small></div></div></div><div class="steps" role="list"><div data-stitch-step="1" role="listitem"><b>01</b><span>Evert and pass<small>Grasp the edge · Follow the needle curve</small></span></div><div data-stitch-step="2" role="listitem"><b>02</b><span>Transfer and extract<small>Left Z · right period · left R</small></span></div><div data-stitch-step="3" role="listitem"><b>03</b><span>Tie and seat<small>Choose guided or free tying</small></span></div><div data-stitch-step="4" role="listitem"><b>04</b><span>Release and hold<small>Open both jaws · Let the knot settle</small></span></div><div data-stitch-step="5" role="listitem"><b>05</b><span>Trim both tails<small>Scissors · Position at each free tail</small></span></div><div data-stitch-step="6" role="listitem"><b>06</b><span>Review the stitch<small>Bites · edges · knot placement</small></span></div></div><div class="notice">RESEARCH PROTOTYPE<p>For exploration only. Not a clinical training or assessment tool.</p></div></aside>
@@ -165,6 +165,8 @@ try {
   const cameraPanel=document.querySelector<HTMLElement>('#camera-tracking-panel')!;
   const cameraFrame=document.querySelector<HTMLIFrameElement>('#camera-tracking-frame')!;
   const cameraStatus=document.querySelector<HTMLElement>('#camera-tracking-status')!;
+  const cameraPerformance=document.querySelector<HTMLElement>('#camera-performance')!;
+  let trackingLoopFps=0,simulatorFrames=0,simulatorFps=0,lastSimulatorFps=performance.now();
   let cameraEnabled=false;
   const setCameraMode=(enabled:boolean)=>{
    cameraEnabled=enabled;cameraToggle.setAttribute('aria-pressed',String(enabled));
@@ -186,6 +188,9 @@ try {
   window.addEventListener('message',(event:MessageEvent)=>{
    if(!cameraEnabled||event.origin!==location.origin||event.source!==cameraFrame.contentWindow)return;
    const data=event.data;
+   if(data?.type==='suturehero:tracking-fps'&&typeof data.fps==='number'){
+    trackingLoopFps=data.fps;return;
+   }
    if(!data||data.type!=='suturehero:tracking-pose'||!['needleDriver','forceps','scissors'].includes(data.instrument))return;
    if(!Array.isArray(data.position)||data.position.length!==3||!Array.isArray(data.quaternion)||data.quaternion.length!==4)return;
    if(![...data.position,...data.quaternion].every((v:unknown)=>typeof v==='number'&&Number.isFinite(v)))return;
@@ -195,6 +200,7 @@ try {
     quaternion:new THREE.Quaternion().fromArray(data.quaternion).normalize(),seenAt:performance.now()
    });
   });
+  let frameDt=1/60;
   const applyCameraPose=(name:CameraInstrument,object:THREE.Object3D)=>{
    const pose=cameraPoses.get(name);
    if(!pose||performance.now()-pose.seenAt>350)return;
@@ -206,13 +212,23 @@ try {
    }
    // Relative calibration preserves the simulator's initial tool placement
    // and makes the first detected frame free of sudden jumps.
-   object.position.copy(origin.scenePosition).add(pose.position.clone().sub(origin.sourcePosition));
-   object.position.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
+   const desiredPosition=origin.scenePosition.clone().add(pose.position.clone().sub(origin.sourcePosition));
+   desiredPosition.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
    const delta=origin.sourceRotation.clone().invert().multiply(pose.quaternion);
-   object.quaternion.copy(origin.sceneRotation).multiply(delta).normalize();
+   const desiredRotation=origin.sceneRotation.clone().multiply(delta).normalize();
+   // Smooth bridge-frame scheduling without changing the tracking solver.
+   object.position.lerp(desiredPosition,1-Math.exp(-Math.min(frameDt,.05)*35));
+   object.quaternion.slerp(desiredRotation,1-Math.exp(-Math.min(frameDt,.05)*45));
   };
   let last=performance.now();
-  view.renderer.setAnimationLoop((time)=>{const dt=(time-last)/1000;session.update(dt); last=time;
+  view.renderer.setAnimationLoop((time)=>{const dt=Math.min((time-last)/1000,.05);frameDt=dt;session.update(dt); last=time;
+    if(cameraEnabled){
+     simulatorFrames++;
+     if(time-lastSimulatorFps>=1000){
+      simulatorFps=Math.round(simulatorFrames*1000/(time-lastSimulatorFps));simulatorFrames=0;lastSimulatorFps=time;
+      cameraPerformance.textContent='Simulator '+simulatorFps+' FPS · Tracking loop '+trackingLoopFps+' FPS';
+     }
+    }
     if(cameraEnabled){
      applyCameraPose('forceps',tools[0].root);
      applyCameraPose('needleDriver',tools[1].root);
