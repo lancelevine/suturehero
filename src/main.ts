@@ -207,7 +207,6 @@ try {
   };
   window.addEventListener('suturehero:tracking-pose',(event)=>onTrackingData((event as CustomEvent).detail));
   window.addEventListener('suturehero:tracking-fps',(event)=>onTrackingData((event as CustomEvent).detail));
-  let frameDt=1/60;
   const applyCameraPose=(name:CameraInstrument,object:THREE.Object3D)=>{
    const pose=cameraPoses.get(name);
    if(!pose||performance.now()-pose.seenAt>350)return;
@@ -223,12 +222,13 @@ try {
    desiredPosition.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
    const delta=origin.sourceRotation.clone().invert().multiply(pose.quaternion);
    const desiredRotation=origin.sceneRotation.clone().multiply(delta).normalize();
-   // Smooth bridge-frame scheduling without changing the tracking solver.
-   object.position.lerp(desiredPosition,1-Math.exp(-Math.min(frameDt,.05)*35));
-   object.quaternion.slerp(desiredRotation,1-Math.exp(-Math.min(frameDt,.05)*45));
+   // The tracking engine already interpolates rotation over 40 ms.
+   // Avoid a second laggy filter in the simulator.
+   object.position.copy(desiredPosition);
+   object.quaternion.copy(desiredRotation);
   };
   let last=performance.now();
-  view.renderer.setAnimationLoop((time)=>{const dt=Math.min((time-last)/1000,.05);frameDt=dt;session.update(dt); last=time;
+  view.renderer.setAnimationLoop((time)=>{const dt=Math.min((time-last)/1000,.05);session.update(dt); last=time;
     if(cameraEnabled){
      simulatorFrames++;
      if(time-lastSimulatorFps>=1000){
@@ -239,7 +239,6 @@ try {
     if(cameraEnabled){
      applyCameraPose('forceps',tools[0].root);
      applyCameraPose('needleDriver',tools[1].root);
-     applyCameraPose('scissors',scissors.root);
     }
     if(!canUseScissors())input.scissorsActive=false;
     scissors.update(input.sampleScissors(),dt);
