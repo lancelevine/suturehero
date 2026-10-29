@@ -940,14 +940,14 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     mesh.position.lerp(target.position,blend);
     // Filter the rendered orientation, not the accumulated rigid-body pose:
     // this preserves full 1:1 roll and tilt while suppressing decode jitter.
-    // Small changes use a 65 ms time constant; deliberate movement responds
-    // faster (down to 22 ms). A tiny deadband avoids stationary shimmer.
+    // Small changes use a 110 ms time constant; deliberate movement responds
+    // quickly (down to 25 ms). Keep the solver and translation unchanged.
     const angularError=mesh.quaternion.angleTo(target.quaternion);
-    const deadband=THREE.MathUtils.degToRad(.12);
+    const deadband=THREE.MathUtils.degToRad(.28);
     if(angularError>deadband){
      const speedFactor=THREE.MathUtils.smoothstep(angularError,
-      THREE.MathUtils.degToRad(.5),THREE.MathUtils.degToRad(12));
-     const tau=THREE.MathUtils.lerp(.065,.022,speedFactor);
+      THREE.MathUtils.degToRad(.8),THREE.MathUtils.degToRad(8));
+     const tau=THREE.MathUtils.lerp(.11,.025,speedFactor);
      const rotationBlend=1-Math.exp(-dt/tau);
      mesh.quaternion.slerp(target.quaternion,rotationBlend);
     }
