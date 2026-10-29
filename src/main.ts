@@ -171,15 +171,17 @@ try {
    cameraToggle.textContent=enabled?'Disable camera tracking':'Enable camera tracking';
    cameraPanel.style.display=enabled?'flex':'none';
    cameraPoses.clear();cameraOrigins.clear();
-   if(enabled&&!cameraFrame.src)cameraFrame.src='./tracking.html';
+   if(enabled&&!cameraFrame.getAttribute('src'))cameraFrame.src='./tracking.html';
+   if(!enabled){cameraFrame.removeAttribute('src');cameraFrame.src='about:blank';}
    cameraStatus.textContent=enabled?'Start a camera below':'Camera tracking off';
   };
-  cameraToggle.addEventListener('click',()=>setCameraMode(!cameraEnabled));
+  cameraToggle.addEventListener('click',()=>{
+   if(cameraEnabled&&cameraPanel.style.display==='none'){
+    cameraPanel.style.display='flex';cameraToggle.textContent='Disable camera tracking';
+   }else setCameraMode(!cameraEnabled);
+  });
   document.querySelector('#camera-tracking-hide')!.addEventListener('click',()=>{
    cameraPanel.style.display='none';cameraToggle.textContent='Show camera controls';
-  });
-  cameraToggle.addEventListener('click',()=>{
-   if(cameraEnabled){cameraPanel.style.display='flex';cameraToggle.textContent='Disable camera tracking';}
   });
   window.addEventListener('message',(event:MessageEvent)=>{
    if(!cameraEnabled||event.origin!==location.origin||event.source!==cameraFrame.contentWindow)return;
