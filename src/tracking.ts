@@ -642,10 +642,12 @@ start.addEventListener('click',()=>{void startPrimaryCamera();});
 stop.addEventListener('click',stopCamera);
 select.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_PRIMARY,select.value);if(stream)void stopCamera();});
 void refreshCameras();
+const embeddedTracking=window.parent!==window;
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x15242c);
 const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,4.5,7.6);camera.lookAt(0,0,0);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-const mount=document.querySelector<HTMLElement>('#tracking-scene')!;mount.append(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:!embeddedTracking});renderer.setPixelRatio(embeddedTracking?1:Math.min(window.devicePixelRatio,2));
+const mount=document.querySelector<HTMLElement>('#tracking-scene')!;
+if(embeddedTracking)mount.style.display='none';else mount.append(renderer.domElement);
 const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=1.4;orbit.maxDistance=18;orbit.target.set(0,.5,0);orbit.update();
 document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>{camera.position.set(0,3.7,6);orbit.target.set(0,.5,0);orbit.update();});
 scene.add(new THREE.HemisphereLight(0xffffff,0x63788a,2));
@@ -929,11 +931,14 @@ async function detectFrame(now:number){
  }
 }
 
-const resize=new ResizeObserver(()=>{const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});resize.observe(mount);
+const resize=new ResizeObserver(()=>{if(embeddedTracking)return;const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});if(!embeddedTracking)resize.observe(mount);
 const rotationTransitions=new Map<InstrumentName,{
  from:THREE.Quaternion;to:THREE.Quaternion;started:number;sample:THREE.Quaternion
 }>();
 let last=performance.now();
+let lastPoseMessage=0;
+let lastEmbeddedFpsReport=0;
+let embeddedFrames=0;
 function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  if(!simulation.checked){
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
@@ -958,13 +963,14 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     mesh.quaternion.copy(transition.from).slerp(transition.to,progress);
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.
-    if(window.parent!==window){
+    if(embeddedTracking&&now-lastPoseMessage>=32){
      window.parent.postMessage({type:'suturehero:tracking-pose',instrument:name,
       position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),
       seenAt:Date.now()},location.origin);
     }
    }
   }
+  if(embeddedTracking&&now-lastPoseMessage>=32)lastPoseMessage=now;
  }
  if(simulation.checked){const speed=(keys.has('shift')?2:1)*dt;
   driver.position.x+=(Number(keys.has('arrowright'))-Number(keys.has('arrowleft')))*speed;driver.position.z+=(Number(keys.has('arrowdown'))-Number(keys.has('arrowup')))*speed;
@@ -1028,7 +1034,15 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
   }
  }
  updateStereoViewIndicator(now);
- orbit.update();renderer.render(scene,camera);requestAnimationFrame(animate);
+ if(!embeddedTracking){orbit.update();renderer.render(scene,camera);}
+ else{
+  embeddedFrames++;
+  if(now-lastEmbeddedFpsReport>=1000){
+   window.parent.postMessage({type:'suturehero:tracking-fps',fps:Math.round(embeddedFrames*1000/(now-lastEmbeddedFpsReport||1000))},location.origin);
+   embeddedFrames=0;lastEmbeddedFpsReport=now;
+  }
+ }
+ requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
 window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit.dispose();renderer.dispose();});
