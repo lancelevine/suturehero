@@ -963,7 +963,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     mesh.quaternion.copy(transition.from).slerp(transition.to,progress);
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.
-    if(embeddedTracking&&now-lastPoseMessage>=32){
+    if(embeddedTracking&&(root.dataset.embedded==='true'||now-lastPoseMessage>=32)){
      const detail={type:'suturehero:tracking-pose',instrument:name,
       position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),seenAt:Date.now()};
      if(root.dataset.embedded==='true')window.dispatchEvent(new CustomEvent('suturehero:tracking-pose',{detail}));
@@ -971,7 +971,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     }
    }
   }
-  if(embeddedTracking&&now-lastPoseMessage>=32)lastPoseMessage=now;
+  if(embeddedTracking)lastPoseMessage=now;
  }
  if(simulation.checked){const speed=(keys.has('shift')?2:1)*dt;
   driver.position.x+=(Number(keys.has('arrowright'))-Number(keys.has('arrowleft')))*speed;driver.position.z+=(Number(keys.has('arrowdown'))-Number(keys.has('arrowup')))*speed;
