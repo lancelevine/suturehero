@@ -954,7 +954,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
      transition.sample.copy(target.quaternion);
      transition.started=now;
     }
-    const progress=THREE.MathUtils.clamp((now-transition.started)/70,0,1);
+    const progress=THREE.MathUtils.clamp((now-transition.started)/40,0,1);
     mesh.quaternion.copy(transition.from).slerp(transition.to,progress);
    }
   }
