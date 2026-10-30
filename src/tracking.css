@@ -4,3 +4,9 @@
 .tracking-settings-footer{max-width:1400px;margin:28px auto 40px;padding:0 20px}.tracking-settings-footer .tracking-details{max-width:100%}
 
 .tracking-tuning{display:grid;gap:14px;padding:14px 0}.tracking-tuning label{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}.tracking-tuning input[type=range]{flex:1;min-width:120px}.tracking-tuning output{min-width:36px;text-align:right;font-variant-numeric:tabular-nums}#tracking-filter-diagnostics{overflow-wrap:anywhere}
+
+/* Camera-first debugging layout: full-width preview, no change to decode resolution. */
+body.tracking-camera-enlarged .tracking-layout{display:block;max-width:1500px}
+body.tracking-camera-enlarged #primary-camera-preview{width:100%;max-width:1450px;aspect-ratio:16/9}
+body.tracking-camera-enlarged #primary-camera-preview video,
+body.tracking-camera-enlarged #primary-camera-preview canvas{object-fit:contain}
