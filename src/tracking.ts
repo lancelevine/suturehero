@@ -15,7 +15,7 @@ const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers. Outlines and IDs appear on the video.</p>
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
-<div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
+<div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
@@ -789,8 +789,11 @@ function updateLiveTargets(){
   // doing so makes a left/right physical movement appear forward/back.
   const position=new THREE.Vector3(x,y,z);
   // Independent rigid-body rotation: never gate or alter the working translation.
+  const continuousFlowRotation=document.querySelector<HTMLInputElement>('#flow-rotation')!.checked&&trackingMode.value==='mono';
+  // Baseline requires a recent decode. Experimental mode additionally uses
+  // flow-confirmed corners while their identity remains recently decoded.
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
-   performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<350);
+   performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<(continuousFlowRotation?650:350));
   let state=rigidBodyStates.get(name);
   // Solve all simultaneously visible prism faces as one rigid object.
   // Retain the last accepted pose as a solver seed, but never discard real
@@ -843,10 +846,16 @@ function updateLiveTargets(){
     const freshDecodedFace=rotationMarkers.some(m=>performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<110);
     const fastFaceTransition=!stereoUsable&&rigid.faces===1&&freshDecodedFace&&
      rigid.error<2.0&&angularDifference<Math.PI*.85;
-    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||fastFaceTransition||reacquire);
+    // Flow corner geometry can update between decodes. Accept only small,
+    // well-fitted incremental rotations without waiting for the next ID decode.
+    // Large single-face jumps still use the baseline face-transition gate.
+    const flowIncrement=continuousFlowRotation&&!stereoUsable&&rigid.faces===1&&
+     rigid.error<3&&angularDifference<Math.max(.55,elapsed*14)&&
+     rotationMarkers.some(m=>markerAge(m.id)<100);
+    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||fastFaceTransition||flowIncrement||reacquire);
     document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=
      name+' · '+rotationSource+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
-     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(fastFaceTransition?'fast face accepted':reacquire?'reacquired':'accepted'):'rejected');
+     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(fastFaceTransition?'fast face accepted':flowIncrement?'flow accepted':reacquire?'reacquired':'accepted'):'rejected');
     if(credible){
      // Track rotation in the prism's *local* coordinate frame. The virtual
      // models have their shafts aligned with local Y, just like the prism.
