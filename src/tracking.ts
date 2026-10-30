@@ -15,7 +15,7 @@ const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers. Outlines and IDs appear on the video.</p>
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
-<div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
+<div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
@@ -590,6 +590,7 @@ function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number)
 }
 // Rotation-only rigid-body state. Never used to accept/reject translation.
 const rotationSources=new Map<InstrumentName,'mono'|'stereo'>();
+const faceTransitionStates=new Map<InstrumentName,{faceId:number;candidateId:number|null;candidateCount:number}>();
 const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
  anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring';angularVelocity:THREE.Vector3
 }>();
@@ -795,6 +796,11 @@ function updateLiveTargets(){
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
    performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<(continuousFlowRotation?650:350));
   let state=rigidBodyStates.get(name);
+  const faceTransitionEnabled=document.querySelector<HTMLInputElement>('#face-transition')!.checked&&trackingMode.value==='mono';
+  const currentFace=rotationMarkers.length?rotationMarkers.reduce((a,b)=>{
+   const area=(m:MarkerObservation)=>Math.abs(m.corners.reduce((sum,p,i)=>{const next=m.corners[(i+1)%4];return sum+p.x*next.y-next.x*p.y;},0));
+   return area(a)>=area(b)?a:b;
+  }).id:null;
   // Solve all simultaneously visible prism faces as one rigid object.
   // Retain the last accepted pose as a solver seed, but never discard real
   // rotation by resetting the output anchor when the visible face changes.
@@ -828,6 +834,7 @@ function updateLiveTargets(){
   if(rigid){
    if(!state){
     rigidBodyStates.set(name,{anchorRaw:rigid.quaternion.clone(),anchorOutput:quaternion.clone(),lastRaw:rigid.quaternion.clone(),lastAt:now,pose:rigid,stallSince:null,status:'tracking',angularVelocity:new THREE.Vector3()});
+    if(currentFace!==null)faceTransitionStates.set(name,{faceId:currentFace,candidateId:null,candidateCount:0});
    }else{
     const elapsed=Math.max(.016,Math.min(.15,(now-state.lastAt)/1000));
     const angularDifference=rigid.quaternion.angleTo(state.lastRaw);
@@ -852,11 +859,36 @@ function updateLiveTargets(){
     const flowIncrement=continuousFlowRotation&&!stereoUsable&&rigid.faces===1&&
      rigid.error<3&&angularDifference<Math.max(.55,elapsed*14)&&
      rotationMarkers.some(m=>markerAge(m.id)<100);
-    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||fastFaceTransition||flowIncrement||reacquire);
+    // An ID-confirmed face switch can represent a genuine large prism roll.
+    // Confirm the new face across two consecutive fresh observations and
+    // require its fitted orientation to agree with predicted angular motion.
+    // This path never bypasses the single-face error / mirror safeguards.
+    let transition=faceTransitionStates.get(name);
+    if(!transition&&currentFace!==null){
+     transition={faceId:currentFace,candidateId:null,candidateCount:0};
+     faceTransitionStates.set(name,transition);
+    }
+    const changedFace=!!transition&&currentFace!==null&&currentFace!==transition.faceId;
+    const newFaceFresh=changedFace&&rotationMarkers.some(m=>m.id===currentFace&&
+     performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<180);
+    if(transition){
+     if(newFaceFresh){
+      transition.candidateCount=transition.candidateId===currentFace?transition.candidateCount+1:1;
+      transition.candidateId=currentFace;
+     }else if(!changedFace){
+      transition.candidateId=null;transition.candidateCount=0;
+     }
+    }
+    const predictedDifference=predicted?rigid.quaternion.angleTo(predicted.quaternion):Infinity;
+    const faceTransitionAccepted=faceTransitionEnabled&&!stereoUsable&&
+     !!newFaceFresh&&!!transition&&transition.candidateCount>=2&&
+     rigid.error<2.5&&predictedDifference<.85&&angularDifference<2.5;
+    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||fastFaceTransition||flowIncrement||faceTransitionAccepted||reacquire);
     document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=
      name+' · '+rotationSource+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
-     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(fastFaceTransition?'fast face accepted':flowIncrement?'flow accepted':reacquire?'reacquired':'accepted'):'rejected');
+     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(faceTransitionAccepted?'face transition accepted':fastFaceTransition?'fast face accepted':flowIncrement?'flow accepted':reacquire?'reacquired':'accepted'):(changedFace?'face transition pending':'angular gate rejected'));
     if(credible){
+     if(transition&&currentFace!==null){transition.faceId=currentFace;transition.candidateId=null;transition.candidateCount=0;}
      // Track rotation in the prism's *local* coordinate frame. The virtual
      // models have their shafts aligned with local Y, just like the prism.
      // Postmultiplying the body-local delta makes prism roll rotate the
