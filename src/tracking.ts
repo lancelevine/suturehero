@@ -948,7 +948,7 @@ function updateRotationStageReadout(){
   lines.push(' rendered '+stageAngles(name,'rendered',mesh.quaternion));
  }
  const el=document.querySelector<HTMLElement>('#rotation-stage-readout');
- if(el)el.textContent=lines.join('\\n');
+ if(el)el.textContent=lines.join('\n');
 }
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
