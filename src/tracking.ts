@@ -115,6 +115,8 @@ class WorkerDetector {
 const detector=new WorkerDetector();
 const fastTracker=new WorkerDetector();
 let fastProcessing=false,lastFastFrame=0,lastSlowFrame=0,latestFlowAt=0,latestDecodeAt=0;
+let lastAppliedFrameAt=0;
+let staleDecodeDrops=0;
 let fastFrames=0,slowFrames=0,fastWindow=performance.now();
 const thresholdToggle=document.querySelector<HTMLInputElement>('#show-threshold')!;
 const thresholdPreview=document.querySelector<HTMLCanvasElement>('#threshold-preview')!;
@@ -633,7 +635,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;throw e;}
@@ -892,10 +894,13 @@ async function detectFrame(now:number){
  if(doFast){
   fastProcessing=true;lastFastFrame=now;
   const frame=frameContext.getImageData(0,0,w,h);
+  const capturedAt=performance.now();
   void fastTracker.detect(frame).then(found=>{
    if(session!==cameraSession)return;
    fastFrames++;
    const stamp=performance.now();
+   if(capturedAt<lastAppliedFrameAt)return;
+   lastAppliedFrameAt=capturedAt;
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
    if(found.length){for(const m of found)markerLastConfirmed.set(m.id,stamp);observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
@@ -931,6 +936,7 @@ async function detectFrame(now:number){
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
   decodeContext.drawImage(video,left,top,regionW,regionH,0,0,regionW,regionH);
   const frame=decodeContext.getImageData(0,0,regionW,regionH);
+  const capturedAt=performance.now();
   if(thresholdToggle.checked)renderThreshold(frame);
   if(cropToggle.checked)renderCrop(frame);
   void detector.detect(frame).then(nativeFound=>{
@@ -947,14 +953,22 @@ async function detectFrame(now:number){
    diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
    if(found.length){
     const decodeStamp=performance.now();
+    // Decoding runs asynchronously: never inject old image coordinates into
+    // a pose already advanced by optical flow. Stale results may confirm IDs
+    // but must not move either translation or rotation backward in time.
+    const stale=capturedAt<lastAppliedFrameAt;
     for(const marker of found)markerLastDecoded.set(marker.id,decodeStamp);
-    fastTracker.seed(found);
-    latestDecodeAt=performance.now();
-    // Flow may already have advanced beyond this decode. Use the decode
-    // only for missing IDs, avoiding backward jumps from delayed responses.
-    const merged=liveMarkers();
-    for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);markerLastConfirmed.set(marker.id,decodeStamp);}
-    observations=merged;observationsAt=performance.now();idleNoMarkers=false;drawDetections();
+    latestDecodeAt=decodeStamp;
+    if(stale){
+     staleDecodeDrops++;
+     diag('note').textContent='Stale decode skipped ('+staleDecodeDrops+') · '+detector.diagnostics.note;
+    }else{
+     lastAppliedFrameAt=capturedAt;
+     fastTracker.seed(found);
+     const merged=liveMarkers();
+     for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);markerLastConfirmed.set(marker.id,decodeStamp);}
+     observations=merged;observationsAt=decodeStamp;idleNoMarkers=false;drawDetections();
+    }
    }
   }).catch(e=>{if(session===cameraSession){status.textContent='Detection error: '+String(e);diag('note').textContent='Decoder error';}}).finally(()=>{processing=false;});
  }
