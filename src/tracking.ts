@@ -17,7 +17,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
+<div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental forceps color-ball jaw tracking</summary><p>With camera 1 running, click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
@@ -950,6 +950,88 @@ function updateRotationStageReadout(){
  const el=document.querySelector<HTMLElement>('#rotation-stage-readout');
  if(el)el.textContent=lines.join('\n');
 }
+// Experimental forceps jaw sensor: chromaticity-based two-color ball centroids.
+// Operates on a downscaled camera frame to avoid interfering with ArUco workers.
+const ballCanvas=document.createElement('canvas');ballCanvas.width=320;ballCanvas.height=180;
+const ballContext=ballCanvas.getContext('2d',{willReadFrequently:true})!;
+const ballColors:Array<[number,number,number]|null>=[null,null];
+const ballCenters:Array<{x:number;y:number;count:number}|null>=[null,null];
+let ballPick=-1,ballClosed:number|null=null,ballOpen:number|null=null,ballLastScan=0,ballLastSeen=0,ballValue=0;
+const ballEnabled=document.querySelector<HTMLInputElement>('#ball-enable')!;
+const ballReadout=document.querySelector<HTMLElement>('#ball-readout')!;
+for(let i=0;i<2;i++)document.querySelector<HTMLButtonElement>(i===0?'#ball-pick-a':'#ball-pick-b')!.addEventListener('click',()=>{
+ ballPick=i;ballReadout.textContent='Click the center of ball '+(i===0?'A':'B')+' in the camera image';
+ overlay.style.pointerEvents='auto';
+});
+overlay.addEventListener('click',event=>{
+ if(ballPick<0||!video.videoWidth)return;
+ const rect=overlay.getBoundingClientRect();
+ const x=Math.max(0,Math.min(ballCanvas.width-1,Math.floor((event.clientX-rect.left)/rect.width*ballCanvas.width)));
+ const y=Math.max(0,Math.min(ballCanvas.height-1,Math.floor((event.clientY-rect.top)/rect.height*ballCanvas.height)));
+ ballContext.drawImage(video,0,0,ballCanvas.width,ballCanvas.height);
+ const data=ballContext.getImageData(0,0,ballCanvas.width,ballCanvas.height).data;
+ let rgb=[0,0,0],n=0;
+ for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){
+  const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=ballCanvas.width||yy>=ballCanvas.height)continue;
+  const p=(yy*ballCanvas.width+xx)*4;for(let c=0;c<3;c++)rgb[c]+=data[p+c];n++;
+ }
+ rgb=rgb.map(v=>v/n);const total=rgb[0]+rgb[1]+rgb[2];
+ if(total<70){ballReadout.textContent='Too dark; click the brightly colored center';return;}
+ ballColors[ballPick]=[rgb[0]/total,rgb[1]/total,rgb[2]/total];
+ ballPick=-1;overlay.style.pointerEvents='none';ballReadout.textContent='Color assigned; calibrate closed and open';
+});
+const ballSeparation=()=>ballCenters[0]&&ballCenters[1]?Math.hypot(ballCenters[0].x-ballCenters[1].x,ballCenters[0].y-ballCenters[1].y):null;
+document.querySelector('#ball-closed')!.addEventListener('click',()=>{
+ const d=ballSeparation();if(d!==null)ballClosed=d;else ballReadout.textContent='Both balls must be detected to calibrate';
+});
+document.querySelector('#ball-open')!.addEventListener('click',()=>{
+ const d=ballSeparation();if(d!==null)ballOpen=d;else ballReadout.textContent='Both balls must be detected to calibrate';
+});
+function scanForcepsBalls(now:number){
+ if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
+ ballLastScan=now;
+ const w=320,h=Math.max(1,Math.round(video.videoHeight/video.videoWidth*w));
+ if(ballCanvas.height!==h)ballCanvas.height=h;
+ ballContext.drawImage(video,0,0,w,h);
+ const pixels=ballContext.getImageData(0,0,w,h).data;
+ for(let c=0;c<2;c++){
+  const color=ballColors[c];ballCenters[c]=null;if(!color)continue;
+  let sx=0,sy=0,count=0;
+  // Saturation and chromatic distance reject gray/white background.
+  for(let y=0;y<h;y+=2)for(let x=0;x<w;x+=2){
+   const p=(y*w+x)*4,r=pixels[p],g=pixels[p+1],b=pixels[p+2],sum=r+g+b;
+   if(sum<95||Math.max(r,g,b)-Math.min(r,g,b)<38)continue;
+   const distance=Math.hypot(r/sum-color[0],g/sum-color[1],b/sum-color[2]);
+   if(distance<.085){sx+=x;sy+=y;count++;}
+  }
+  if(count>=5)ballCenters[c]={x:sx/count,y:sy/count,count};
+ }
+ const d=ballSeparation();
+ if(d!==null){
+  ballLastSeen=now;
+  if(ballClosed!==null&&ballOpen!==null&&Math.abs(ballOpen-ballClosed)>3){
+   const next=THREE.MathUtils.clamp((d-ballClosed)/(ballOpen-ballClosed),0,1);
+   ballValue=ballValue*.35+next*.65;
+   const detail={type:'suturehero:jaw-opening',instrument:'forceps',opening:ballValue,seenAt:Date.now()};
+   if(embeddedTracking)window.dispatchEvent(new CustomEvent('suturehero:jaw-opening',{detail}));
+   else window.parent.postMessage(detail,location.origin);
+  }
+ }
+ ballReadout.textContent='A '+(ballCenters[0]?'found':'missing')+' · B '+(ballCenters[1]?'found':'missing')+
+  ' · separation '+(d===null?'—':d.toFixed(1)+'px')+' · closed '+(ballClosed?.toFixed(1)??'—')+
+  ' · open '+(ballOpen?.toFixed(1)??'—')+' · jaw '+Math.round(ballValue*100)+'%'+
+  (now-ballLastSeen>400?' · tracking lost':'');
+}
+function drawBallOutlines(){
+ if(!ballEnabled.checked)return;
+ for(let i=0;i<2;i++){
+  const p=ballCenters[i];if(!p)continue;
+  const x=p.x*overlay.width/ballCanvas.width,y=p.y*overlay.height/ballCanvas.height;
+  overlayContext.beginPath();overlayContext.arc(x,y,11,0,Math.PI*2);
+  overlayContext.lineWidth=3;overlayContext.strokeStyle=i===0?'#ff59cf':'#42dfff';overlayContext.stroke();
+  overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.fillText('Ball '+(i===0?'A':'B'),x+13,y);
+ }
+}
 function drawDetections(){
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
@@ -957,6 +1039,7 @@ function drawDetections(){
   // A flow-only outline is not proof that the printed face is still visible.
   if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>300)continue;
   const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ drawBallOutlines();
  updateLiveTargets();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
@@ -978,6 +1061,7 @@ const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
  if(!stream||!detectorReady||!video.videoWidth)return;
+ scanForcepsBalls(now);
  const doFast=!fastProcessing&&now-lastFastFrame>=33;
  // Run decode faster when flow has no usable marker; only one decode can be in flight.
  const recovering=idleNoMarkers||now-latestFlowAt>120;
