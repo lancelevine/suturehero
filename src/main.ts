@@ -29,7 +29,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.44 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Enable camera tracking</button></header>
+<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.45 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Enable camera tracking</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -223,10 +223,15 @@ try {
    // and makes the first detected frame free of sudden jumps.
    const desiredPosition=origin.scenePosition.clone().add(pose.position.clone().sub(origin.sourcePosition));
    desiredPosition.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
-   // The measured quaternion is in world/camera space, not instrument-local
-   // space. Left-multiply the world-frame delta to preserve the correct axes.
-   const delta=pose.quaternion.clone().multiply(origin.sourceRotation.clone().invert());
-   const desiredRotation=delta.multiply(origin.sceneRotation).normalize();
+   // Match the standalone tracking lab's exact shaft alignment.
+   // The prism's longitudinal axis is local +Y, while all three simulator
+   // instruments are modeled with their shaft along local +Z. Applying a
+   // relative world-space delta to the simulator's original resting pose
+   // does NOT align those axes; a prism face change then looks like a tilt.
+   // The tracking lab instead uses pose * rotationX(90deg) for every tool.
+   const shaftAlignment=new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(1,0,0),Math.PI/2);
+   const desiredRotation=pose.quaternion.clone().multiply(shaftAlignment).normalize();
    // Suppress subpixel bridge jitter without introducing another long
    // interpolation window. The lab's 40 ms interpolation remains authoritative.
    const positionError=object.position.distanceTo(desiredPosition);
