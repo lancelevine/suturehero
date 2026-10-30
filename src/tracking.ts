@@ -15,7 +15,7 @@ const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers. Outlines and IDs appear on the video.</p>
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
-<div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
+<div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-video"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
@@ -594,6 +594,9 @@ const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
  anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring';angularVelocity:THREE.Vector3
 }>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
+const depthMotionStates=new Map<InstrumentName,{pending:number;count:number;lastAt:number}>();
+const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
+stableDepth.addEventListener('change',()=>{depthMotionStates.clear();depthStates.clear();});
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
 function saveDepthCalibration(){
@@ -615,7 +618,7 @@ type RotationGeometryState={face:number;reference:{x:number;y:number}[];last:{x:
 const rotationGeometryStates=new Map<'needleDriver'|'forceps'|'scissors',RotationGeometryState>();
 const depthSamples=new Map<'needleDriver'|'forceps'|'scissors',number>();
 function depthRangeLabel(){const range=Math.max(50,Number(workingDepthInput.value)||400);depthRangeStatus.textContent=`Near: ${depthNearMm?.toFixed(0)??'unset'} mm · Far: ${depthFarMm?.toFixed(0)??'unset'} mm · working range: ${range} mm. ${depthNearMm===null?'Set Near first.':depthFarMm===null?'Set Far next.':'Calibrated.'}`;}
-function resetDepthFilters(){depthStates.clear();stationaryStates.clear();depthHistory.clear();}
+function resetDepthFilters(){depthStates.clear();depthMotionStates.clear();stationaryStates.clear();depthHistory.clear();}
 workingDepthInput.addEventListener('change',()=>{depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
 document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined){depthRangeStatus.textContent='No tracked prism visible. Start camera and show a marker.';return;}depthNearMm=z;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
 document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined||depthNearMm===null){depthRangeStatus.textContent='Set Near first with a tracked marker visible.';return;}if(z<=depthNearMm+20){depthRangeStatus.textContent='Far must be at least 20 mm farther from camera than Near.';return;}depthFarMm=z;workingDepthInput.value=String(Math.round(z-depthNearMm));resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
@@ -747,8 +750,36 @@ function updateLiveTargets(){
   const baseline=name==='needleDriver'?-.65:name==='forceps'?.15:1.05;
   const desiredZ=THREE.MathUtils.clamp(rawZ*Number(depthSensitivity.value),-2.3,2.3);
   const depthDelta=previousZ===undefined?0:desiredZ-previousZ;
-  const depthAlpha=Math.abs(depthDelta)>.12?.65:.25;
-  const z=lockedDepth?baseline:previousZ===undefined?desiredZ:previousZ+depthDelta*depthAlpha;
+  let z:number;
+  if(lockedDepth){
+   z=baseline;
+   depthMotionStates.delete(name);
+  }else if(stableDepth.checked&&trackingMode.value==='mono'&&previousZ!==undefined){
+   // Stationary jitter deadband and confirmation of isolated depth spikes.
+   // A sustained displacement is accepted after two measurements, while
+   // ordinary small changes retain a responsive adaptive low-pass filter.
+   const motion=depthMotionStates.get(name)??{pending:0,count:0,lastAt:now};
+   const delta=desiredZ-previousZ;
+   const abs=Math.abs(delta);
+   if(abs<.035){
+    z=previousZ;
+    motion.count=0;motion.pending=0;
+   }else if(abs>.30){
+    const consistent=motion.count>0&&Math.sign(delta)===Math.sign(motion.pending)&&now-motion.lastAt<400;
+    motion.count=consistent?motion.count+1:1;
+    motion.pending=delta;motion.lastAt=now;
+    z=motion.count>=2?previousZ+delta*.65:previousZ;
+   }else{
+    motion.count=0;motion.pending=0;
+    z=previousZ+delta*(abs>.12?.7:.35);
+   }
+   depthMotionStates.set(name,motion);
+  }else{
+   const depthAlpha=Math.abs(depthDelta)>.12?.65:.25;
+   z=previousZ===undefined?desiredZ:previousZ+depthDelta*depthAlpha;
+   depthMotionStates.delete(name);
+  }
+  if(previousZ===undefined&&!lockedDepth)z=desiredZ;
   depthStates.set(name,z);
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
   const x=THREE.MathUtils.clamp(-((markerCenter.x-overlay.width/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*7,-2.6,2.6);
