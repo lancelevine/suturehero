@@ -209,6 +209,12 @@ try {
   };
   window.addEventListener('suturehero:tracking-pose',(event)=>onTrackingData((event as CustomEvent).detail));
   window.addEventListener('suturehero:tracking-fps',(event)=>onTrackingData((event as CustomEvent).detail));
+  let forcepsJawTracking:{opening:number;seenAt:number}|null=null;
+  const onJawTracking=(data:any)=>{
+   if(!cameraEnabled||data?.type!=='suturehero:jaw-opening'||data.instrument!=='forceps'||!Number.isFinite(data.opening))return;
+   forcepsJawTracking={opening:THREE.MathUtils.clamp(data.opening,0,1),seenAt:performance.now()};
+  };
+  window.addEventListener('suturehero:jaw-opening',(event)=>onJawTracking((event as CustomEvent).detail));
   let frameDt=1/60;
   const applyCameraPose=(name:CameraInstrument,object:THREE.Object3D)=>{
    const pose=cameraPoses.get(name);
@@ -249,6 +255,7 @@ try {
       cameraPerformance.textContent='Simulator '+simulatorFps+' FPS · Tracking loop '+trackingLoopFps+' FPS';
      }
     }
+    if(cameraEnabled&&forcepsJawTracking&&time-forcepsJawTracking.seenAt<350)tools[0].setTrackedOpening(forcepsJawTracking.opening);
     if(cameraEnabled){
      applyCameraPose('forceps',tools[0].root);
      applyCameraPose('needleDriver',tools[1].root);
