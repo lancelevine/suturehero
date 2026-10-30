@@ -76,5 +76,6 @@ export class Instrument {
     }
     this.openness=THREE.MathUtils.clamp(this.openness+command.jaw*dt,0,1); this.updateJaws();
   }
+  setTrackedOpening(value:number){this.openness=THREE.MathUtils.clamp(value,0,1);this.updateJaws();}
   private updateJaws() { this.forcepsArms?.update(this.openness); this.jaws.forEach((jaw,i)=>{jaw.rotation.y=(i===0?1:-1)*this.openness*0.35;}); }
 }
