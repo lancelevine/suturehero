@@ -802,10 +802,17 @@ function updateLiveTargets(){
     // away from the last accepted pose. Do not freeze indefinitely because
     // the single-face angular gate was exceeded.
     const reacquire=staleMs>220&&rigid.error<(stereoUsable?4:5);
-    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||reacquire);
+    // Fast face-to-face rolls can exceed the single-face velocity gate while
+    // translation continues updating. Accept a well-fitted, freshly decoded
+    // face immediately instead of holding rotation until the 220 ms timeout.
+    // Keep the normal continuity gate for noisier optical-flow estimates.
+    const freshDecodedFace=rotationMarkers.some(m=>performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<110);
+    const fastFaceTransition=!stereoUsable&&rigid.faces===1&&freshDecodedFace&&
+     rigid.error<2.0&&angularDifference<Math.PI*.85;
+    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||fastFaceTransition||reacquire);
     document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=
      name+' · '+rotationSource+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
-     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(reacquire?'reacquired':'accepted'):'rejected');
+     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(fastFaceTransition?'fast face accepted':reacquire?'reacquired':'accepted'):'rejected');
     if(credible){
      // Track rotation in the prism's *local* coordinate frame. The virtual
      // models have their shafts aligned with local Y, just like the prism.
