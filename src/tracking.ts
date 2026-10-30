@@ -28,7 +28,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
  <div class="tracking-actions"><button id="capture-stereo-pair">Capture checkerboard pair</button><button id="export-stereo-pairs" disabled>Export captures</button><button id="clear-stereo-pairs">Clear captures</button></div>
  <p class="tracking-message" id="stereo-calibration-status">0 pairs captured. This stage records paired images; calibration solving and triangulation are not enabled yet.</p>
 </section>
-<label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
+<label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="roi-decode" type="checkbox"> Experimental ROI decode (faster; disable to restore baseline)</label><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
 <details class="tracking-details"><summary>Camera Focus &amp; Exposure</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Hold a tracked prism at the near boundary and click Set Near, then repeat at the far boundary.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
 <div><strong>Camera resolution</strong><span id="diag-resolution">Not started</span></div>
@@ -869,6 +869,8 @@ function drawDetections(){
   faceOverlapReadout.textContent=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
  }
 }
+const roiDecodeToggle=document.querySelector<HTMLInputElement>('#roi-decode')!;
+let lastFullDecodeAt=0;
 const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
@@ -906,21 +908,40 @@ async function detectFrame(now:number){
  }
  if(doSlow){
   processing=true;lastSlowFrame=now;
-  // Preserve native pixels for 12 mm marker decoding; flow stays at 960px.
-  if(decodeCanvas.width!==nativeW||decodeCanvas.height!==nativeH){decodeCanvas.width=nativeW;decodeCanvas.height=nativeH;}
-  decodeContext.drawImage(video,0,0,nativeW,nativeH);
-  const frame=decodeContext.getImageData(0,0,nativeW,nativeH);
+  // Keep full native resolution for small 12 mm markers. In experimental
+  // mode, decode a padded ROI around flow-tracked marker corners, with a
+  // periodic full-frame scan for new markers and recovery.
+  const recent=liveMarkers();
+  const roiPoints=recent.flatMap(m=>m.corners.map(p=>({x:p.x*decodeScaleX,y:p.y*decodeScaleY})));
+  const useRoi=roiDecodeToggle.checked&&!recovering&&roiPoints.length>=4&&now-lastFullDecodeAt<900;
+  let left=0,top=0,regionW=nativeW,regionH=nativeH;
+  if(useRoi){
+   const minX=Math.min(...roiPoints.map(p=>p.x)),maxX=Math.max(...roiPoints.map(p=>p.x));
+   const minY=Math.min(...roiPoints.map(p=>p.y)),maxY=Math.max(...roiPoints.map(p=>p.y));
+   // Allow nearby prism faces to enter the region during fast rotations.
+   const pad=Math.max(160,Math.max(maxX-minX,maxY-minY)*2);
+   left=Math.max(0,Math.floor(minX-pad));top=Math.max(0,Math.floor(minY-pad));
+   regionW=Math.min(nativeW-left,Math.ceil(maxX+pad)-left);
+   regionH=Math.min(nativeH-top,Math.ceil(maxY+pad)-top);
+   // Avoid ROI mode when it barely reduces work.
+   if(regionW*regionH>nativeW*nativeH*.75){left=0;top=0;regionW=nativeW;regionH=nativeH;}
+  }
+  const cropped=regionW<nativeW||regionH<nativeH;
+  if(!cropped)lastFullDecodeAt=now;
+  if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
+  decodeContext.drawImage(video,left,top,regionW,regionH,0,0,regionW,regionH);
+  const frame=decodeContext.getImageData(0,0,regionW,regionH);
   if(thresholdToggle.checked)renderThreshold(frame);
   if(cropToggle.checked)renderCrop(frame);
   void detector.detect(frame).then(nativeFound=>{
-   const found=toFlow(nativeFound);
+   const found=toFlow(nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))})));
    if(session!==cameraSession)return;
    slowFrames++;framesAnalyzed++;
    diag('frames').textContent=String(framesAnalyzed);
    diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);
    diag('outlines').textContent=String(detector.candidateCorners.length);
    diag('decoded').textContent=`${found.length} matched · ${detector.diagnostics.rawMarkerCount} total`;
-   diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms';
+   diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms · '+(cropped?'ROI':'full')+' '+regionW+'×'+regionH;
    diag('pass').textContent=detector.diagnostics.pass;
    diag('contrast').textContent=detector.diagnostics.contrast;
    diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
