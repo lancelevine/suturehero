@@ -1031,15 +1031,32 @@ async function detectFrame(now:number){
     const stale=capturedAt<lastAppliedFrameAt;
     for(const marker of found)markerLastDecoded.set(marker.id,decodeStamp);
     latestDecodeAt=decodeStamp;
+    // Preserve newer flow coordinates for existing IDs, but let an older
+    // decoder frame restore IDs that flow has completely lost. Limit how old
+    // a recovery frame can be so its seed is still useful for optical flow.
+    const active=liveMarkers();
+    const missing=found.filter(marker=>!active.some(m=>m.id===marker.id));
+    const recoveryFresh=decodeStamp-capturedAt<300;
     if(stale){
      staleDecodeDrops++;
-     diag('note').textContent='Stale decode skipped ('+staleDecodeDrops+') · '+detector.diagnostics.note;
+     if(missing.length&&recoveryFresh){
+      fastTracker.seed(missing);
+      for(const marker of missing)markerLastConfirmed.set(marker.id,decodeStamp);
+      observations=[...active,...missing];
+      observationsAt=decodeStamp;
+      idleNoMarkers=false;
+      drawDetections();
+     }
+     diag('note').textContent='Stale decode '+(missing.length&&recoveryFresh?'recovered '+missing.length+' ID(s)':'ignored')+' ('+staleDecodeDrops+') · '+detector.diagnostics.note;
     }else{
      lastAppliedFrameAt=capturedAt;
-     fastTracker.seed(found);
-     const merged=liveMarkers();
-     for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);markerLastConfirmed.set(marker.id,decodeStamp);}
-     observations=merged;observationsAt=decodeStamp;idleNoMarkers=false;drawDetections();
+     // Do not reset good flow positions with delayed decoder coordinates.
+     if(missing.length)fastTracker.seed(missing);
+     for(const marker of missing)markerLastConfirmed.set(marker.id,decodeStamp);
+     observations=[...active,...missing];
+     observationsAt=decodeStamp;
+     idleNoMarkers=observations.length===0;
+     drawDetections();
     }
    }
   }).catch(e=>{if(session===cameraSession){status.textContent='Detection error: '+String(e);diag('note').textContent='Decoder error';}}).finally(()=>{processing=false;});
