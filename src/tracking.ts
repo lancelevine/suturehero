@@ -751,9 +751,10 @@ function updateLiveTargets(){
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
   const x=THREE.MathUtils.clamp(-((markerCenter.x-overlay.width/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*7,-2.6,2.6);
   const y=THREE.MathUtils.clamp(-((markerCenter.y-overlay.height/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*4+.55,.15,2.8);
-  // The viewer's horizontal and forward axes are rotated relative to the webcam.
-  // Physical camera depth now drives scene forward/back; camera X drives screen-horizontal motion.
-  const position=new THREE.Vector3(-z,y,x);
+  // Match simulator world axes: camera horizontal -> scene X, camera vertical
+  // -> scene Y, and camera depth -> scene Z. Do not swap horizontal and depth:
+  // doing so makes a left/right physical movement appear forward/back.
+  const position=new THREE.Vector3(x,y,z);
   // Independent rigid-body rotation: never gate or alter the working translation.
   const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
    performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<350);
