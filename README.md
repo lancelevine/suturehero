@@ -2,6 +2,35 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Workspace and instrument calibration in 0.46
+
+The suturing view is now the first and largest part of the practice screen.
+The current maneuver and actions stay immediately below it. Practice setup,
+stitch planning, session review and full instructions open only when needed.
+**Calibrate** opens per-instrument settings and camera setup. During setup, the
+real camera and virtual instruments remain on screen while settings scroll
+inside their panels. **Done setting up** returns to the larger suturing view
+with a small camera preview; **Camera** expands it again. Disabling
+tracking stops both cameras. The standalone Tracking Lab uses the same panels.
+
+Use **Choose camera** to select a device card instead of the long device
+select. The currently running device can show a preview; other cameras start
+when selected. Exposure, focus, stereo and decoder diagnostics remain under
+**Camera settings, diagnostics & stereo**.
+
+Forceps, needle driver and scissors have independent profiles: movement and
+rotation sensitivity, translation/rotation axis mapping and inversion,
+mounting presets and offsets, mono depth lock, marker-frame tip offset in practice
+units, and jaw-opening reversal. **Set neutral pose** requires a recent marker
+sample and uses the current physical pose as neutral without jumping the tip
+position. Tip offsets rotate around the tracked marker rather than being added
+as a fixed world offset. Profile changes preview immediately. **Save** persists
+only the selected instrument in this browser; unsaved changes to other tools
+stay unsaved. Neutral-pose baselines are session-specific and are refreshed on
+camera restart. Ball colors and closed/open measurements also remain specific
+to the current camera session. Marker detection and physical geometry are not
+changed by calibration settings.
+
 ## Colored ball pairing and initial instrument orientation
 
 Camera ball outlines and selection-button swatches now use the sampled color.
@@ -48,7 +77,7 @@ Instrument grouping, pose filters and the one-bit decode tolerance are unchanged
 generated OpenCV marker images, including ROI decoding and rotated ring IDs.
 See `scripts/fixtures/README.md` for the fixture format and test command.
 
-## Current practice options (build 0.43)
+## Current practice options (build 0.46)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).
 

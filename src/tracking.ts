@@ -1,3 +1,6 @@
+import {instrumentCalibration} from './input/InstrumentCalibration';
+import {mountTrackingLayout} from './ui/TrackingLayout';
+import './ui/workspace.css';
 import {trackedInstrumentRotation} from './input/trackingFrame';
 import {selectBallPair,ballPairReference,predictBall,sampledBallColor,normalizedBallSeparation,type BallBlob,type BallMarker,type BallPairReference} from './input/ballPairTracking';
 import * as THREE from 'three';
@@ -71,14 +74,15 @@ const depthRangeStatus=document.querySelector<HTMLElement>('#depth-range-status'
 rotationSensitivity.addEventListener('input',()=>{rotationSensitivityValue.textContent=`${rotationSensitivity.value}°`;rotationFilterStates.clear();});
 rotationGain.addEventListener('input',()=>{rotationGainValue.textContent=`${Number(rotationGain.value).toFixed(2)}×`;});
 depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent=`${depthSensitivity.value}×`;depthStates.clear();});
-lockDepth.addEventListener('change',()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
+instrumentCalibration.subscribe(()=>{const locks=(['forceps','needleDriver','scissors'] as const).map(name=>instrumentCalibration.profile(name).depthLock);lockDepth.checked=locks.every(Boolean);lockDepth.indeterminate=locks.some(Boolean)&&!locks.every(Boolean);});
+lockDepth.addEventListener('change',()=>{for(const name of ['forceps','needleDriver','scissors'] as const)instrumentCalibration.update(name,{depthLock:lockDepth.checked});liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{
  liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();prismFaceOffsets.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
 });
-simulation.addEventListener('change',()=>{rotationTransitions.clear();stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{resetTrackerPose();rotationTransitions.clear();stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -194,6 +198,7 @@ const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
 const sixMarkerGroups:Record<InstrumentName,readonly number[]>={needleDriver:[0,1,2,3,4,5],forceps:[10,11,12,13,14,15],scissors:[20,21,22,23,24,25]};
 const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:trackerType==='ring6'?sixMarkerGroups:MARKER_GROUPS;
 function resetTrackerPose(){
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();
  rotationTransitions.clear();
  rigidBodyStates.clear();rotationSources.clear();prismFaceOffsets.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
@@ -655,7 +660,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;throw e;}
@@ -714,7 +719,7 @@ function previewScissorOpening(value:number){
 driver.position.z=-.85;forceps.position.z=.15;scissors.position.z=1.05;
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>keys.clear());
-document.querySelector('#reset-sim')!.addEventListener('click',()=>{driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.65);});
+document.querySelector('#reset-sim')!.addEventListener('click',()=>{resetTrackerPose();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);});
 /** Map webcam coordinates to the virtual scene. This is a visual mapping, not calibrated world-space tracking. */
 function updateLiveTargets(){
  if(!overlay.width||!overlay.height)return;
@@ -772,7 +777,7 @@ function updateLiveTargets(){
   const depthFraction=THREE.MathUtils.clamp((measuredDistance-near)/range,0,1);
   const rawZ=-2.3+depthFraction*4.6;
   const previousZ=depthStates.get(name);
-  const lockedDepth=trackingMode.value==='mono'&&lockDepth.checked;
+  const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
   const baseline=name==='needleDriver'?-.65:name==='forceps'?.15:1.05;
   const desiredZ=THREE.MathUtils.clamp(rawZ*Number(depthSensitivity.value),-2.3,2.3);
   const depthDelta=previousZ===undefined?0:desiredZ-previousZ;
@@ -1024,6 +1029,7 @@ let ballPick=-1,ballLastScan=0;
 const ballEnabled=document.querySelector<HTMLInputElement>('#ball-enable')!;
 const ballReadout=document.querySelector<HTMLElement>('#ball-readout')!;
 for(let i=0;i<2;i++)document.querySelector<HTMLButtonElement>(i===0?'#ball-pick-a':'#ball-pick-b')!.addEventListener('click',()=>{
+ ballEnabled.checked=true;
  ballPick=ballTrackingSlot(ballInstrument.value as BallInstrumentName,i as 0|1);
  ballReadout.textContent='Click the center of '+ballInstrument.selectedOptions[0].textContent+' ball '+(i===0?'A':'B')+' in the camera image';
  overlay.style.pointerEvents='auto';
@@ -1036,8 +1042,10 @@ overlay.addEventListener('click',event=>{
  if(ballPick<0||!video.videoWidth)return;
  ballCanvas.height=Math.max(1,Math.round(video.videoHeight/video.videoWidth*ballCanvas.width));
  const rect=overlay.getBoundingClientRect();
- const x=Math.max(0,Math.min(ballCanvas.width-1,Math.floor((event.clientX-rect.left)/rect.width*ballCanvas.width)));
- const y=Math.max(0,Math.min(ballCanvas.height-1,Math.floor((event.clientY-rect.top)/rect.height*ballCanvas.height)));
+ const fit=Math.min(rect.width/ballCanvas.width,rect.height/ballCanvas.height);
+ const x=Math.floor((event.clientX-rect.left-(rect.width-ballCanvas.width*fit)/2)/fit);
+ const y=Math.floor((event.clientY-rect.top-(rect.height-ballCanvas.height*fit)/2)/fit);
+ if(x<0||y<0||x>=ballCanvas.width||y>=ballCanvas.height)return;
  ballContext.drawImage(video,0,0,ballCanvas.width,ballCanvas.height);
  const data=ballContext.getImageData(0,0,ballCanvas.width,ballCanvas.height).data;
  let rgb=[0,0,0],n=0;
@@ -1155,10 +1163,11 @@ function scanForcepsBalls(now:number){
    const next=THREE.MathUtils.clamp((d-cal.closed)/(cal.open-cal.closed),0,1);
    cal.value=cal.value*.35+next*.65;
    const name=ballNames[pair];
-   if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(cal.value);
-   if(name==='needleDriver')previewInstrumentModels.get('right')?.setTrackedOpening(cal.value);
-   if(name==='scissors')previewScissorOpening(cal.value);
-   const detail={type:'suturehero:jaw-opening',instrument:name,opening:cal.value,seenAt:Date.now()};
+   const opening=instrumentCalibration.opening(name,cal.value);
+   if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(opening);
+   if(name==='needleDriver')previewInstrumentModels.get('right')?.setTrackedOpening(opening);
+   if(name==='scissors')previewScissorOpening(opening);
+   const detail={type:'suturehero:jaw-opening',instrument:name,opening,seenAt:Date.now()};
    if(embeddedTracking)window.dispatchEvent(new CustomEvent('suturehero:jaw-opening',{detail}));
    else window.parent.postMessage(detail,location.origin);
   }
@@ -1169,7 +1178,7 @@ function scanForcepsBalls(now:number){
   ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':!markers[pair]?'waiting for this instrument’s ArUco markers':d===null?'pair rejected or missing':'paired with instrument')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
-  ' · jaw '+Math.round(cal.value*100)+'%';
+  ' · jaw '+(cal.closed===null||cal.open===null?'—':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
 
 }
 function drawBallOutlines(){
@@ -1386,6 +1395,7 @@ async function detectFrame(now:number){
 }
 
 const resize=new ResizeObserver(()=>{if(embeddedTracking)return;const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});if(!embeddedTracking)resize.observe(mount);
+const rawRenderedPoses=new Map<InstrumentName,{position:THREE.Vector3;quaternion:THREE.Quaternion}>();
 const rotationTransitions=new Map<InstrumentName,{
  from:THREE.Quaternion;to:THREE.Quaternion;started:number;sample:THREE.Quaternion
 }>();
@@ -1401,21 +1411,24 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
    if(target&&now-target.lastSeen<trackingHoldMs){
     // Restore PR #67's frame-rate independent translation smoothing.
     const blend=1-Math.exp(-dt*24);
-    mesh.position.lerp(target.position,blend);
+    let raw=rawRenderedPoses.get(name);if(!raw){raw={position:target.position.clone(),quaternion:target.quaternion.clone()};rawRenderedPoses.set(name,raw);}
+    raw.position.lerp(target.position,blend);
     // Smooth only the rendered orientation, never the accepted solver pose.
     let transition=rotationTransitions.get(name);
     if(!transition){
-     transition={from:mesh.quaternion.clone(),to:target.quaternion.clone(),
+     transition={from:raw.quaternion.clone(),to:target.quaternion.clone(),
       started:now,sample:target.quaternion.clone()};
      rotationTransitions.set(name,transition);
     }else if(transition.sample.angleTo(target.quaternion)>1e-6){
-     transition.from.copy(mesh.quaternion);
+     transition.from.copy(raw.quaternion);
      transition.to.copy(target.quaternion);
      transition.sample.copy(target.quaternion);
      transition.started=now;
     }
     const progress=THREE.MathUtils.clamp((now-transition.started)/40,0,1);
-    mesh.quaternion.copy(transition.from).slerp(transition.to,progress);
+    raw.quaternion.copy(transition.from).slerp(transition.to,progress);
+    const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,now,stereoActive());
+    mesh.position.copy(calibrated.position);mesh.quaternion.copy(calibrated.quaternion);
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.
     if(embeddedTracking&&(root.dataset.embedded==='true'||now-lastPoseMessage>=32)){
@@ -1504,3 +1517,5 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
 }
 requestAnimationFrame(animate);
 window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit.dispose();renderer.dispose();});
+
+mountTrackingLayout(root);

@@ -25,7 +25,7 @@ try {
     const context=await browser.newContext({viewport:{width:1440,height:1000},deviceScaleFactor:scale});
     const page=await context.newPage(); const errors=[]; page.on('pageerror',error=>errors.push(error.message));
     await page.goto('http://127.0.0.1:4178/',{waitUntil:'domcontentloaded'});
-    await page.locator('canvas').waitFor();
+    await page.locator('#viewport > canvas').waitFor();
     await page.getByRole('button',{name:'Start guided pass',exact:true}).click();
     await page.getByRole('button',{name:'Close-up view',exact:true}).click();
     for(const width of [1440,900,768,1024,800,390,1920,980,1440]) {
@@ -34,7 +34,7 @@ try {
       for(let i=0;i<3;i++) {
         samples.push(await page.evaluate(()=>{
           const viewport=document.querySelector('#viewport').getBoundingClientRect();
-          const canvas=document.querySelector('canvas'),rect=canvas.getBoundingClientRect();
+          const canvas=document.querySelector('#viewport > canvas'),rect=canvas.getBoundingClientRect();
           return {pageWidth:document.documentElement.scrollWidth,pageHeight:document.documentElement.scrollHeight,viewportWidth:viewport.width,viewportHeight:viewport.height,canvasWidth:rect.width,canvasHeight:rect.height,inlineWidth:canvas.style.width,inlineHeight:canvas.style.height};
         }));
         await page.waitForTimeout(100);

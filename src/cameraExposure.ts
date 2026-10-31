@@ -9,7 +9,8 @@ function panel(videoId:string, label:string){
  container.className='tracking-panel';
  container.style.cssText='padding:12px;margin:8px 0 16px';
  container.innerHTML='<strong>'+label+' exposure</strong><p class="tracking-message" data-status>Start the camera to inspect browser-supported controls.</p><div data-controls></div>';
- video.closest('.tracking-video')?.after(container);
+ const advanced=video.closest('#tracking-app')?.querySelector('.tracking-advanced-body');
+ if(advanced)advanced.append(container);else video.closest('.tracking-video')?.after(container);
  const status=container.querySelector<HTMLElement>('[data-status]')!;
  const controls=container.querySelector<HTMLElement>('[data-controls]')!;
  let current:MediaStreamTrack|null=null;
