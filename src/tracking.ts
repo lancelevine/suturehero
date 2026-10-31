@@ -6,6 +6,7 @@ import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
 import {solvePrismPose,localCorners,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
+import {BALL_INSTRUMENTS,ballTrackingSlot,type BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
 import './tracking.css';
 
@@ -983,18 +984,23 @@ const ballCenters:Array<{x:number;y:number;count:number}|null>=Array(6).fill(nul
 const ballAnchors:Array<{x:number;y:number}|null>=Array(6).fill(null);
 const ballSeenAt=Array(6).fill(0);
 const ballInstrument=document.querySelector<HTMLSelectElement>('#ball-instrument')!;
-const ballNames=['forceps','needleDriver','scissors'] as const;
+const ballNames=BALL_INSTRUMENTS;
 // Physical measurements from the center of each hexagonal marker tracker to the tip.
 // Stored for future metric pose-to-tip calibration; do not treat these as scene units.
 const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
-const ballIndex=()=>ballNames.indexOf(ballInstrument.value as typeof ballNames[number])*2;
+const ballIndex=()=>ballTrackingSlot(ballInstrument.value as BallInstrumentName,0);
 const ballCalibrations=ballNames.map(()=>({closed:null as number|null,open:null as number|null,value:0}));
 let ballPick=-1,ballLastScan=0;
 const ballEnabled=document.querySelector<HTMLInputElement>('#ball-enable')!;
 const ballReadout=document.querySelector<HTMLElement>('#ball-readout')!;
 for(let i=0;i<2;i++)document.querySelector<HTMLButtonElement>(i===0?'#ball-pick-a':'#ball-pick-b')!.addEventListener('click',()=>{
- ballPick=i;ballReadout.textContent='Click the center of ball '+(i===0?'A':'B')+' in the camera image';
+ ballPick=ballTrackingSlot(ballInstrument.value as BallInstrumentName,i as 0|1);
+ ballReadout.textContent='Click the center of '+ballInstrument.selectedOptions[0].textContent+' ball '+(i===0?'A':'B')+' in the camera image';
  overlay.style.pointerEvents='auto';
+});
+ballInstrument.addEventListener('change',()=>{
+ // Do not accidentally assign a pending click to an instrument selected earlier.
+ ballPick=-1;overlay.style.pointerEvents='none';
 });
 overlay.addEventListener('click',event=>{
  if(ballPick<0||!video.videoWidth)return;
