@@ -984,6 +984,9 @@ const ballAnchors:Array<{x:number;y:number}|null>=Array(6).fill(null);
 const ballSeenAt=Array(6).fill(0);
 const ballInstrument=document.querySelector<HTMLSelectElement>('#ball-instrument')!;
 const ballNames=['forceps','needleDriver','scissors'] as const;
+// Physical measurements from the center of each hexagonal marker tracker to the tip.
+// Stored for future metric pose-to-tip calibration; do not treat these as scene units.
+const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
 const ballIndex=()=>ballNames.indexOf(ballInstrument.value as typeof ballNames[number])*2;
 const ballCalibrations=ballNames.map(()=>({closed:null as number|null,open:null as number|null,value:0}));
 let ballPick=-1,ballLastScan=0;
@@ -1100,7 +1103,7 @@ function scanForcepsBalls(now:number){
   }
  }
  const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair];
- ballReadout.textContent=ballNames[pair]+' · A '+(ballCenters[pair*2]?'found':'missing')+
+ ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':'missing')+
   ' · B '+(ballCenters[pair*2+1]?'found':'missing')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
