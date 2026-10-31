@@ -17,7 +17,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental forceps color-ball jaw tracking</summary><p>With camera 1 running, click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
+<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental three-instrument color-ball jaw tracking</summary><p>Select an instrument, then with camera 1 running click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><label>Instrument <select id="ball-instrument"><option value="forceps">Forceps</option><option value="needleDriver">Needle driver</option><option value="scissors">Scissors</option></select></label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
@@ -702,6 +702,14 @@ function scissorsModel(){
  const tracked=new THREE.Group();tracked.add(group);tracked.position.y=.25;scene.add(tracked);return tracked;
 }
 const scissors=scissorsModel();
+function previewScissorOpening(value:number){
+ const model=scissors.children[0] as THREE.Group;
+ // The preview's blade and ring meshes are siblings; rotate each blade pair around its pivot.
+ for(const side of [-1,1]){
+  const blade=model.children[side===-1?1:4] as THREE.Mesh;
+  if(blade instanceof THREE.Mesh)blade.rotation.y=side*(.03+value*.3);
+ }
+}
 driver.position.z=-.85;forceps.position.z=.15;scissors.position.z=1.05;
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>keys.clear());
@@ -970,11 +978,18 @@ function updateRotationStageReadout(){
 // Operates on a downscaled camera frame to avoid interfering with ArUco workers.
 const ballCanvas=document.createElement('canvas');ballCanvas.width=640;ballCanvas.height=360;
 const ballContext=ballCanvas.getContext('2d',{willReadFrequently:true})!;
-const ballColors:Array<[number,number,number]|null>=[null,null];
-const ballCenters:Array<{x:number;y:number;count:number}|null>=[null,null];
-const ballAnchors:Array<{x:number;y:number}|null>=[null,null];
-const ballSeenAt=[0,0];
-let ballPick=-1,ballClosed:number|null=null,ballOpen:number|null=null,ballLastScan=0,ballLastSeen=0,ballValue=0;
+const ballColors:Array<[number,number,number]|null>=Array(6).fill(null);
+const ballCenters:Array<{x:number;y:number;count:number}|null>=Array(6).fill(null);
+const ballAnchors:Array<{x:number;y:number}|null>=Array(6).fill(null);
+const ballSeenAt=Array(6).fill(0);
+const ballInstrument=document.querySelector<HTMLSelectElement>('#ball-instrument')!;
+const ballNames=['forceps','needleDriver','scissors'] as const;
+// Physical measurements from the center of each hexagonal marker tracker to the tip.
+// Stored for future metric pose-to-tip calibration; do not treat these as scene units.
+const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
+const ballIndex=()=>ballNames.indexOf(ballInstrument.value as typeof ballNames[number])*2;
+const ballCalibrations=ballNames.map(()=>({closed:null as number|null,open:null as number|null,value:0}));
+let ballPick=-1,ballLastScan=0;
 const ballEnabled=document.querySelector<HTMLInputElement>('#ball-enable')!;
 const ballReadout=document.querySelector<HTMLElement>('#ball-readout')!;
 for(let i=0;i<2;i++)document.querySelector<HTMLButtonElement>(i===0?'#ball-pick-a':'#ball-pick-b')!.addEventListener('click',()=>{
@@ -999,12 +1014,12 @@ overlay.addEventListener('click',event=>{
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
  ballPick=-1;overlay.style.pointerEvents='none';ballReadout.textContent='Color assigned; calibrate closed and open';
 });
-const ballSeparation=()=>ballCenters[0]&&ballCenters[1]?Math.hypot(ballCenters[0].x-ballCenters[1].x,ballCenters[0].y-ballCenters[1].y):null;
+const ballSeparation=(pair:number)=>{const a=ballCenters[pair*2],b=ballCenters[pair*2+1];return a&&b&&a.count>0&&b.count>0?Math.hypot(a.x-b.x,a.y-b.y)/((Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI))):null;};
 document.querySelector('#ball-closed')!.addEventListener('click',()=>{
- const d=ballSeparation();if(d!==null)ballClosed=d;else ballReadout.textContent='Both balls must be detected to calibrate';
+ const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].closed=d;else ballReadout.textContent='Both balls must be detected to calibrate';
 });
 document.querySelector('#ball-open')!.addEventListener('click',()=>{
- const d=ballSeparation();if(d!==null)ballOpen=d;else ballReadout.textContent='Both balls must be detected to calibrate';
+ const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].open=d;else ballReadout.textContent='Both balls must be detected to calibrate';
 });
 function scanForcepsBalls(now:number){
  if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
@@ -1013,7 +1028,7 @@ function scanForcepsBalls(now:number){
  if(ballCanvas.height!==h)ballCanvas.height=h;
  ballContext.drawImage(video,0,0,w,h);
  const pixels=ballContext.getImageData(0,0,w,h).data;
- for(let c=0;c<2;c++){
+ for(let c=0;c<6;c++){
   const color=ballColors[c],anchor=ballAnchors[c];
   if(!color||!anchor){ballCenters[c]=null;continue;}
   const previous=ballCenters[c];
@@ -1073,32 +1088,36 @@ function scanForcepsBalls(now:number){
    }
   }else if(now-ballSeenAt[c]>220)ballCenters[c]=null;
  }
- const d=ballSeparation();
- if(d!==null){
-  ballLastSeen=now;
-  if(ballClosed!==null&&ballOpen!==null&&Math.abs(ballOpen-ballClosed)>3){
-   const next=THREE.MathUtils.clamp((d-ballClosed)/(ballOpen-ballClosed),0,1);
-   ballValue=ballValue*.35+next*.65;
-   previewInstrumentModels.get('left')?.setTrackedOpening(ballValue);
-   const detail={type:'suturehero:jaw-opening',instrument:'forceps',opening:ballValue,seenAt:Date.now()};
+ for(let pair=0;pair<3;pair++){
+  const d=ballSeparation(pair),cal=ballCalibrations[pair];
+  if(d!==null&&cal.closed!==null&&cal.open!==null&&Math.abs(cal.open-cal.closed)>.08){
+   const next=THREE.MathUtils.clamp((d-cal.closed)/(cal.open-cal.closed),0,1);
+   cal.value=cal.value*.35+next*.65;
+   const name=ballNames[pair];
+   if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(cal.value);
+   if(name==='needleDriver')previewInstrumentModels.get('right')?.setTrackedOpening(cal.value);
+   if(name==='scissors')previewScissorOpening(cal.value);
+   const detail={type:'suturehero:jaw-opening',instrument:name,opening:cal.value,seenAt:Date.now()};
    if(embeddedTracking)window.dispatchEvent(new CustomEvent('suturehero:jaw-opening',{detail}));
    else window.parent.postMessage(detail,location.origin);
   }
  }
- ballReadout.textContent='A '+(ballCenters[0]?'found':'missing')+' · B '+(ballCenters[1]?'found':'missing')+
-  ' · separation '+(d===null?'—':d.toFixed(1)+'px')+' · closed '+(ballClosed?.toFixed(1)??'—')+
-  ' · open '+(ballOpen?.toFixed(1)??'—')+' · jaw '+Math.round(ballValue*100)+'%'+
-  (now-ballLastSeen>400?' · tracking lost':'')+
-  (ballClosed!==null&&ballOpen!==null?' · preview jaws linked':' · calibrate both positions');
+ const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair];
+ ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':'missing')+
+  ' · B '+(ballCenters[pair*2+1]?'found':'missing')+
+  ' · normalized separation '+(d===null?'—':d.toFixed(2))+
+  ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
+  ' · jaw '+Math.round(cal.value*100)+'%';
+
 }
 function drawBallOutlines(){
  if(!ballEnabled.checked)return;
- for(let i=0;i<2;i++){
+ for(let i=0;i<6;i++){
   const p=ballCenters[i];if(!p||performance.now()-ballSeenAt[i]>220)continue;
   const x=p.x*overlay.width/ballCanvas.width,y=p.y*overlay.height/ballCanvas.height;
   overlayContext.beginPath();overlayContext.arc(x,y,Math.max(5,Math.sqrt(p.count/Math.PI)*overlay.width/ballCanvas.width),0,Math.PI*2);
-  overlayContext.lineWidth=3;overlayContext.strokeStyle=i===0?'#ff59cf':'#42dfff';overlayContext.stroke();
-  overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.fillText('Ball '+(i===0?'A':'B'),x+13,y);
+  overlayContext.lineWidth=3;overlayContext.strokeStyle=i%2===0?'#ff59cf':'#42dfff';overlayContext.stroke();
+  overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.fillText(ballNames[Math.floor(i/2)]+' '+(i%2===0?'A':'B'),x+13,y);
  }
 }
 function drawCornerDebug(){

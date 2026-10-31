@@ -209,10 +209,10 @@ try {
   };
   window.addEventListener('suturehero:tracking-pose',(event)=>onTrackingData((event as CustomEvent).detail));
   window.addEventListener('suturehero:tracking-fps',(event)=>onTrackingData((event as CustomEvent).detail));
-  let forcepsJawTracking:{opening:number;seenAt:number}|null=null;
+  const jawTracking=new Map<CameraInstrument,{opening:number;seenAt:number}>();
   const onJawTracking=(data:any)=>{
-   if(!cameraEnabled||data?.type!=='suturehero:jaw-opening'||data.instrument!=='forceps'||!Number.isFinite(data.opening))return;
-   forcepsJawTracking={opening:THREE.MathUtils.clamp(data.opening,0,1),seenAt:performance.now()};
+   if(!cameraEnabled||data?.type!=='suturehero:jaw-opening'||!['forceps','needleDriver','scissors'].includes(data.instrument)||!Number.isFinite(data.opening))return;
+   jawTracking.set(data.instrument as CameraInstrument,{opening:THREE.MathUtils.clamp(data.opening,0,1),seenAt:performance.now()});
   };
   window.addEventListener('suturehero:jaw-opening',(event)=>onJawTracking((event as CustomEvent).detail));
   let frameDt=1/60;
@@ -255,13 +255,19 @@ try {
       cameraPerformance.textContent='Simulator '+simulatorFps+' FPS · Tracking loop '+trackingLoopFps+' FPS';
      }
     }
-    if(cameraEnabled&&forcepsJawTracking&&time-forcepsJawTracking.seenAt<350)tools[0].setTrackedOpening(forcepsJawTracking.opening);
+    if(cameraEnabled){
+     for(const [name,model] of [['forceps',tools[0]],['needleDriver',tools[1]]] as const){
+      const jaw=jawTracking.get(name);if(jaw&&time-jaw.seenAt<350)model.setTrackedOpening(jaw.opening);
+     }
+    }
     if(cameraEnabled){
      applyCameraPose('forceps',tools[0].root);
      applyCameraPose('needleDriver',tools[1].root);
     }
     if(!canUseScissors())input.scissorsActive=false;
     scissors.update(input.sampleScissors(),dt);
+    const scissorsJaw=jawTracking.get('scissors');
+    if(cameraEnabled&&scissorsJaw&&time-scissorsJaw.seenAt<350)scissors.setTrackedOpening(scissorsJaw.opening);
     if(cameraEnabled)applyCameraPose('scissors',scissors.root);
     const cuttingButton=document.querySelector('#select-scissors') as HTMLButtonElement;
     cuttingButton.disabled=!canUseScissors();cuttingButton.textContent=input.scissorsActive?'Use needle driver':'Use scissors';cuttingButton.setAttribute('aria-pressed',String(input.scissorsActive));
