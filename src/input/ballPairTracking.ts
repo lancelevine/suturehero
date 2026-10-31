@@ -17,14 +17,15 @@ export function selectBallPair(as:readonly BallBlob[],bs:readonly BallBlob[],mar
  if(!Number.isFinite(marker.side)||marker.side<=0)return null;
  let best:{a:BallBlob;b:BallBlob;separation:number;score:number}|null=null;
  const calibrated=limits.closed!==null&&limits.open!==null;
- const maxReach=limits.trackerToTipMm===null?Math.max(3,limits.reference.reach*1.6+2):limits.trackerToTipMm/12+3;
+ const learnedReach=Math.max(3,limits.reference.reach*1.5+2);
+ const maxReach=Math.max(learnedReach,limits.trackerToTipMm===null?0:limits.trackerToTipMm/12+3);
  for(const a of as)for(const b of bs){
   const ra=ballRadius(a),rb=ballRadius(b),distance=Math.hypot(a.x-b.x,a.y-b.y);
   if(Math.max(ra,rb)/Math.min(ra,rb)>2.5)continue;
-  // A 7 mm ball next to a 12 mm marker must have a plausible apparent size.
-  if([ra,rb].some(r=>2*r/marker.side<.15||2*r/marker.side>1.4))continue;
+  // Allow tilted faces and different print scales; pair geometry remains the main guard.
+  if([ra,rb].some(r=>2*r/marker.side<.08||2*r/marker.side>2.5))continue;
   const separation=distance/(ra+rb);
-  const maxDistance=calibrated?(Math.max(limits.closed!,limits.open!)*1.4+.5)*(ra+rb):Math.min(6,Math.max(2.5,limits.reference.separation*3+.6))*marker.side;
+  const maxDistance=calibrated?(Math.max(limits.closed!,limits.open!)*1.4+.5)*(ra+rb):Math.max(2.5,limits.reference.separation*1.8+.5)*marker.side;
   if(separation<.45||distance>maxDistance)continue;
   if([a,b].some(p=>Math.hypot(p.x-marker.x,p.y-marker.y)>maxReach*marker.side+maxDistance/2))continue;
   const reach=Math.hypot((a.x+b.x)/2-marker.x,(a.y+b.y)/2-marker.y)/marker.side;

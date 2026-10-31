@@ -13,8 +13,15 @@ with apparent ball size. Before calibration, a looser bound uses the selected
 pair and marker scale. Reacquisition regions move and scale with the ArUco
 marker rather than returning to a fixed background location.
 
-A missing marker, missing ball or rejected pair clears the pair's camera
-circles and stops fresh jaw-opening updates. The last jaw opening is retained;
+Individual balls remain visible as dashed circles while selecting the second
+color; these provisional tracks never supply a jaw measurement. Pair bounds
+learn the selected separation and reach so tilted markers and print-scale
+differences do not immediately reject the selection. Brightness and saturation
+thresholds follow the sampled color rather than rejecting accepted muted colors.
+
+A missing ball or rejected pair clears the confirmed pair and stops fresh
+jaw-opening updates. Brief ArUco dropouts can use the last associated marker
+for up to one second; sustained marker loss stops updates. The last jaw opening is retained;
 a background-colored blob cannot refresh it on its own. All three instruments
 retain separate color slots and calibration. Re-selecting a color requires
 recalibrating that instrument's closed/open positions. Known tracker-to-tip

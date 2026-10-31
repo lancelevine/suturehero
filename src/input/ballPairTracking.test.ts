@@ -16,7 +16,7 @@ describe('paired colored jaw balls',()=>{
  });
  it('rejects a close pair belonging to a distant instrument or implausible blob sizes',()=>{
   expect(selectBallPair([blob(110,180)],[blob(134,180)],{x:500,y:100,side:24},limits)).toBeNull();
-  expect(selectBallPair([blob(110,180,25)],[blob(134,180,25)],marker,limits)).toBeNull();
+  expect(selectBallPair([blob(110,180,40)],[blob(134,180,40)],marker,limits)).toBeNull();
   expect(selectBallPair([blob(110,180,2)],[blob(134,180,9)],marker,limits)).toBeNull();
  });
  it('scales pair bounds with apparent depth instead of fixing the maximum in pixels',()=>{
@@ -32,4 +32,12 @@ describe('paired colored jaw balls',()=>{
   expect(selectBallPair([blob(110,180)],[blob(500,180)],marker,{...limits,closed:null,open:null})).toBeNull();
   expect(sampledBallColor([225.2,49.7,60])).toBe('rgb(225, 50, 60)');
  });
+});
+
+it('learns legitimate reach and separation from selection instead of rejecting a foreshortened marker',()=>{
+ const smallMarker={x:100,y:100,side:12},a=blob(110,280,10),b=blob(140,280,10);
+ const selected=ballPairReference(a,b,smallMarker);
+ expect(selectBallPair([a],[b],smallMarker,{closed:null,open:null,reference:selected,trackerToTipMm:55})).not.toBeNull();
+ const wideA=blob(110,180),wideB=blob(278,180),wideReference=ballPairReference(wideA,wideB,marker);
+ expect(selectBallPair([wideA],[wideB],marker,{closed:null,open:null,reference:wideReference,trackerToTipMm:55})).not.toBeNull();
 });

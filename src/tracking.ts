@@ -984,10 +984,19 @@ const ballCenters:Array<{x:number;y:number;count:number}|null>=Array(6).fill(nul
 const ballAnchors:Array<{x:number;y:number}|null>=Array(6).fill(null);
 const ballSeenAt=Array(6).fill(0);
 const ballDisplayColors:Array<string|null>=Array(6).fill(null);
+const ballSampleBrightness=Array(6).fill(0);
 const ballAnchorMarkers:Array<BallMarker|null>=Array(6).fill(null);
 const ballPairStates:Array<{a:BallBlob;b:BallBlob;marker:BallMarker;seenAt:number}|null>=Array(3).fill(null);
 const ballPairReferences:Array<BallPairReference|null>=Array(3).fill(null);
 const ballPairValidAt=Array(3).fill(-Infinity);
+const ballProvisional:Array<{ball:BallBlob;seenAt:number;marker:BallMarker|null}|null>=Array(6).fill(null);
+const ballLastMarkers:Array<{marker:BallMarker;seenAt:number}|null>=Array(3).fill(null);
+function recentBallMarker(pair:number,now:number){
+ const marker=ballMarker(ballNames[pair],now);
+ if(marker){ballLastMarkers[pair]={marker,seenAt:now};return marker;}
+ const previous=ballLastMarkers[pair];
+ return previous&&ballPairStates[pair]&&now-previous.seenAt<1000?previous.marker:null;
+}
 const ballInstrument=document.querySelector<HTMLSelectElement>('#ball-instrument')!;
 const ballNames=BALL_INSTRUMENTS;
 // Physical measurements from the center of each hexagonal marker tracker to the tip.
@@ -1039,16 +1048,16 @@ overlay.addEventListener('click',event=>{
  rgb=rgb.map(v=>v/n);const total=rgb[0]+rgb[1]+rgb[2];
  if(total<70){ballReadout.textContent='Too dark; click the brightly colored center';return;}
  ballColors[ballPick]=[rgb[0]/total,rgb[1]/total,rgb[2]/total];
- ballDisplayColors[ballPick]=sampledBallColor(rgb);
+ ballDisplayColors[ballPick]=sampledBallColor(rgb);ballSampleBrightness[ballPick]=total;
  const pair=Math.floor(ballPick/2),marker=ballMarker(ballNames[pair],performance.now());
- ballAnchorMarkers[ballPick]=marker;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
+ ballAnchorMarkers[ballPick]=marker;ballProvisional[ballPick]=null;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
  ballPairReferences[pair]=null;ballCalibrations[pair].closed=ballCalibrations[pair].open=null;
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
  ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both balls and this instrument’s ArUco markers visible, then calibrate closed and open';
 });
 const ballSeparation=(pair:number)=>{
  const a=ballCenters[pair*2],b=ballCenters[pair*2+1];
- return performance.now()-ballPairValidAt[pair]<220&&ballMarker(ballNames[pair],performance.now())&&a&&b?normalizedBallSeparation({...a,score:0},{...b,score:0}):null;
+ return performance.now()-ballPairValidAt[pair]<220&&recentBallMarker(pair,performance.now())&&a&&b?normalizedBallSeparation({...a,score:0},{...b,score:0}):null;
 };
 document.querySelector('#ball-closed')!.addEventListener('click',()=>{
  const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].closed=d;else ballReadout.textContent='Both balls and this instrument’s ArUco markers must be detected to calibrate';
@@ -1064,17 +1073,19 @@ function scanForcepsBalls(now:number){
  ballContext.drawImage(video,0,0,w,h);
  const pixels=ballContext.getImageData(0,0,w,h).data;
  const candidates:BallBlob[][]=Array.from({length:6},()=>[]);
- const markers=ballNames.map(name=>ballMarker(name,now));
+ const markers=ballNames.map((_,pair)=>recentBallMarker(pair,now));
  for(let c=0;c<6;c++){
   const color=ballColors[c],anchor=ballAnchors[c];
   const pair=Math.floor(c/2),marker=markers[pair];
-  if(!color||!anchor||!marker)continue;
+  if(!color||!anchor)continue;
   const state=ballPairStates[pair],previous=state&&now-state.seenAt<600?(c%2===0?state.a:state.b):null;
   // Search around the last reliable position, not the entire frame.
   // Reacquire only near the original user-selected position after losing it.
-  const from=previous?state!.marker:ballAnchorMarkers[c];
-  const center=from?predictBall(previous??anchor,from,marker):anchor;
-  const radius=previous?68:90;
+  const provisional=ballProvisional[c],single=provisional&&now-provisional.seenAt<300?provisional:null;
+  const from=previous?state!.marker:single?.marker??ballAnchorMarkers[c];
+  const source=previous??single?.ball??anchor;
+  const center=from&&marker?predictBall(source,from,marker):source;
+  const radius=marker?(previous?68:90):26;
   const minX=Math.max(0,Math.floor(center.x-radius)),maxX=Math.min(w-1,Math.ceil(center.x+radius));
   const minY=Math.max(0,Math.floor(center.y-radius)),maxY=Math.min(h-1,Math.ceil(center.y+radius));
   // Binary color mask and eight-connected components, evaluated at full
@@ -1083,7 +1094,9 @@ function scanForcepsBalls(now:number){
   const mask=new Uint8Array(bw*bh);
   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
    const p=(y*w+x)*4,r=pixels[p],g=pixels[p+1],bl=pixels[p+2],sum=r+g+bl;
-   if(sum<95||Math.max(r,g,bl)-Math.min(r,g,bl)<38)continue;
+   const saturation=(Math.max(r,g,bl)-Math.min(r,g,bl))/Math.max(1,sum);
+   const selectedSaturation=Math.max(...color)-Math.min(...color);
+   if(sum<Math.max(40,ballSampleBrightness[c]*.25)||saturation<Math.max(.03,selectedSaturation*.35))continue;
    if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<.075)mask[(y-minY)*bw+x-minX]=1;
   }
   const queue=new Int32Array(mask.length);
@@ -1115,6 +1128,8 @@ function scanForcepsBalls(now:number){
    candidates[c].push({x,y,count,score});
   }
   candidates[c].sort((a,b)=>b.score-a.score);candidates[c]=candidates[c].slice(0,8);
+  const provisionalCandidate=candidates[c][0];
+  if(provisionalCandidate)ballProvisional[c]={ball:provisionalCandidate,seenAt:now,marker};
  }
  for(let pair=0;pair<3;pair++){
   const marker=markers[pair],a=pair*2,b=a+1,cal=ballCalibrations[pair];
@@ -1149,9 +1164,9 @@ function scanForcepsBalls(now:number){
   }
  }
  const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair];
- ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':'missing')+
-  ' · B '+(ballCenters[pair*2+1]?'found':'missing')+
-  ' · '+(!markers[pair]?'waiting for this instrument’s ArUco markers':d===null?'pair rejected or missing':'paired with instrument')+
+ ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':!ballColors[pair*2+1]&&ballProvisional[pair*2]&&now-ballProvisional[pair*2]!.seenAt<220?'acquiring':'missing')+
+  ' · B '+(ballCenters[pair*2+1]?'found':!ballColors[pair*2]&&ballProvisional[pair*2+1]&&now-ballProvisional[pair*2+1]!.seenAt<220?'acquiring':'missing')+
+  ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':!markers[pair]?'waiting for this instrument’s ArUco markers':d===null?'pair rejected or missing':'paired with instrument')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
   ' · jaw '+Math.round(cal.value*100)+'%';
@@ -1160,12 +1175,18 @@ function scanForcepsBalls(now:number){
 function drawBallOutlines(){
  if(!ballEnabled.checked)return;
  for(let i=0;i<6;i++){
-  const p=ballCenters[i];if(!p||performance.now()-ballSeenAt[i]>220)continue;
+  const pair=Math.floor(i/2),confirmed=performance.now()-ballPairValidAt[pair]<220;
+  const provisional=ballProvisional[i],acquiring=!ballColors[pair*2]||!ballColors[pair*2+1];
+  const p=confirmed?ballCenters[i]:acquiring&&provisional&&performance.now()-provisional.seenAt<220?provisional.ball:null;
+  if(!p)continue;
+  // Individual acquisition remains visible but never supplies a jaw measurement.
+  overlayContext.setLineDash(confirmed?[]:[5,4]);
   const x=p.x*overlay.width/ballCanvas.width,y=p.y*overlay.height/ballCanvas.height;
   overlayContext.beginPath();overlayContext.arc(x,y,Math.max(5,Math.sqrt(p.count/Math.PI)*overlay.width/ballCanvas.width),0,Math.PI*2);
   overlayContext.lineWidth=6;overlayContext.strokeStyle='rgba(0,0,0,.75)';overlayContext.stroke();
   overlayContext.lineWidth=3;overlayContext.strokeStyle=ballDisplayColors[i]??'#ffffff';overlayContext.stroke();
-  overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.fillText(ballNames[Math.floor(i/2)]+' '+(i%2===0?'A':'B'),x+13,y);
+  overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.fillText(ballNames[Math.floor(i/2)]+' '+(i%2===0?'A':'B')+(confirmed?'':' · unpaired'),x+13,y);
+  overlayContext.setLineDash([]);
  }
 }
 function drawCornerDebug(){
