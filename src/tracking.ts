@@ -17,7 +17,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental forceps color-ball jaw tracking</summary><p>With camera 1 running, click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
+<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction"> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental forceps color-ball jaw tracking</summary><p>With camera 1 running, click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
@@ -559,6 +559,9 @@ const frameCanvas=document.createElement('canvas');
 const frameContext=frameCanvas.getContext('2d',{willReadFrequently:true})!;
 const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
+const arucoCorrection=document.querySelector<HTMLInputElement>('#aruco-correction')!;
+const flowMotion=new Map<number,{corners:MarkerObservation['corners'];at:number;speed:number}>();
+arucoCorrection.addEventListener('change',()=>{flowMotion.clear();});
 const rawDecodedCorners=new Map<number,{marker:MarkerObservation;capturedAt:number;receivedAt:number}>();
 const cornerDebug=document.querySelector<HTMLInputElement>('#corner-debug')!;
 const cornerDebugStatus=document.querySelector<HTMLElement>('#corner-debug-status')!;
@@ -1118,7 +1121,15 @@ async function detectFrame(now:number){
    lastAppliedFrameAt=capturedAt;
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
-   if(found.length){for(const m of found)markerLastConfirmed.set(m.id,stamp);observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
+   if(found.length){
+    for(const m of found){
+     const prev=flowMotion.get(m.id);
+     const displacement=prev?m.corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-prev.corners[i].x,p.y-prev.corners[i].y),0)/4:0;
+     const speed=prev?displacement/Math.max(1,stamp-prev.at):Infinity;
+     flowMotion.set(m.id,{corners:m.corners.map(p=>({...p})),at:stamp,speed});
+     markerLastConfirmed.set(m.id,stamp);
+    }
+    observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
    else {observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;lastSlowFrame=Math.min(lastSlowFrame,stamp-65);drawDetections();}
    if(stamp-fastWindow>=1000){
     diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
@@ -1181,6 +1192,27 @@ async function detectFrame(now:number){
     const active=liveMarkers();
     const missing=found.filter(marker=>!active.some(m=>m.id===marker.id));
     const recoveryFresh=decodeStamp-capturedAt<300;
+    // Correct drift only when the marker has been nearly stationary across
+    // flow frames and the decoder image is recent. Never rewind a moving track.
+    const correctionCandidates=arucoCorrection.checked&&decodeStamp-capturedAt<180
+     ?found.filter(marker=>{
+       const flow=active.find(m=>m.id===marker.id);
+       const motion=flowMotion.get(marker.id);
+       if(!flow||!motion||decodeStamp-motion.at>120||motion.speed>0.035)return false;
+       const error=marker.corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-flow.corners[i].x,p.y-flow.corners[i].y),0)/4;
+       return error>1.5&&error<45;
+      }):[];
+    const corrected=correctionCandidates.map(marker=>({id:marker.id,corners:marker.corners.map(p=>({...p}))}));
+    const applyCorrections=()=>{
+     if(!corrected.length)return;
+     const ids=new Set(corrected.map(m=>m.id));
+     observations=[...observations.filter(m=>!ids.has(m.id)),...corrected];
+     fastTracker.seed(corrected);
+     detector.seed(toNative(corrected));
+     for(const marker of corrected)markerLastConfirmed.set(marker.id,decodeStamp);
+     observationsAt=decodeStamp;
+     drawDetections();
+    };
     if(stale){
      staleDecodeDrops++;
      if(missing.length&&recoveryFresh){
@@ -1191,6 +1223,7 @@ async function detectFrame(now:number){
       idleNoMarkers=false;
       drawDetections();
      }
+     applyCorrections();
      diag('note').textContent='Stale decode '+(missing.length&&recoveryFresh?'recovered '+missing.length+' ID(s)':'ignored')+' ('+staleDecodeDrops+') · '+detector.diagnostics.note;
     }else{
      lastAppliedFrameAt=capturedAt;
@@ -1200,6 +1233,7 @@ async function detectFrame(now:number){
      observations=[...active,...missing];
      observationsAt=decodeStamp;
      idleNoMarkers=observations.length===0;
+     applyCorrections();
      drawDetections();
     }
    }
