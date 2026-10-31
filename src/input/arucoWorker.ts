@@ -100,6 +100,40 @@ function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObser
  return {markers,candidates,pass:'ROI ('+regions.length+' regions)',durationMs:performance.now()-start};
 }
 
+// Refine decoded corners against the actual black/white boundary. A small
+// Harris response search corrects pixel quantization without changing IDs or
+// allowing corners to jump to a different square.
+function refineCorners(frame:ImageData,markers:MarkerObservation[]):MarkerObservation[]{
+ const w=frame.width,h=frame.height,data=frame.data;
+ const gray=new Uint8Array(w*h);
+ for(let i=0;i<gray.length;i++){const j=i*4;gray[i]=Math.round(.299*data[j]+.587*data[j+1]+.114*data[j+2]);}
+ const pixel=(x:number,y:number)=>gray[y*w+x];
+ const score=(x:number,y:number)=>{
+  if(x<3||y<3||x>=w-3||y>=h-3)return -Infinity;
+  let xx=0,xy=0,yy=0;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+   const px=x+dx,py=y+dy;
+   const gx=(pixel(px+1,py)-pixel(px-1,py))*.5;
+   const gy=(pixel(px,py+1)-pixel(px,py-1))*.5;
+   xx+=gx*gx;xy+=gx*gy;yy+=gy*gy;
+  }
+  return xx*yy-xy*xy-.04*(xx+yy)*(xx+yy);
+ };
+ return markers.map(marker=>({...marker,corners:marker.corners.map(c=>{
+  const x=Math.round(c.x),y=Math.round(c.y);
+  let best=score(x,y),bx=x,by=y;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+   const value=score(x+dx,y+dy);
+   if(value>best){best=value;bx=x+dx;by=y+dy;}
+  }
+  // Weak or ambiguous responses should preserve the decoder's original corner.
+  if(best<100000)return c;
+  const offsetX=Math.max(-2,Math.min(2,bx-c.x));
+  const offsetY=Math.max(-2,Math.min(2,by-c.y));
+  return {x:c.x+offsetX,y:c.y+offsetY};
+ })}));
+}
+
 function grayFrame(frame:ImageData):GrayFrame{
  const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
@@ -330,7 +364,7 @@ function detect(frame:ImageData){
    pass='Original + contrast + adaptive';contrast+=' · local mean threshold';
   }
  }
- const decoded=all.filter(m=>isSupportedMarkerId(m.id)&&m.corners.length===4);
+ const decoded=refineCorners(frame,all.filter(m=>isSupportedMarkerId(m.id)&&m.corners.length===4));
  if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
  // Expire stale search hints: a marker that has been absent should not
  // permanently trap the decoder in the wrong part of the image.
