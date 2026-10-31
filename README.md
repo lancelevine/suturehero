@@ -2,6 +2,19 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Camera marker dictionary
+
+Both the classic detector worker (full-frame and tracked-region searches) and
+main-thread fallback recognize the complete OpenCV `DICT_4X4_50` dictionary,
+IDs 0–49. The legacy prism groups remain driver 0–2, forceps 3–5 and scissors
+6–8. Six-face rings use 0–5 / 10–15 / 20–25; eight-face rings use
+0–7 / 10–17 / 20–27. Recognition no longer drops the higher ring IDs.
+Instrument grouping, pose filters and the one-bit decode tolerance are unchanged.
+
+`scripts/check-ring-markers.mjs` checks both decoder paths against independently
+generated OpenCV marker images, including ROI decoding and rotated ring IDs.
+See `scripts/fixtures/README.md` for the fixture format and test command.
+
 ## Current practice options (build 0.43)
 
 The setup bar selects skin or microsurgery, tissue target, needle, suture material, and guided knot technique. Setup changes restart practice; the choices are kept in the URL. The build number stays visible in the mobile header. Movement currently requires a keyboard. **Graphics → Fast** disables shadows and caps rendering resolution; it can be toggled during practice without restarting. The choice stays in the URL (`graphics=low`).

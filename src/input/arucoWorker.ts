@@ -1,5 +1,14 @@
 /// <reference lib="webworker" />
-const MARKER_CODES=[0xb532,0x0f9a,0x332d,0x9946,0x549e,0x79cd,0x9e2e,0xc4f2,0xfeda];
+// Classic worker: keep these codes in sync with arucoDictionary.ts.
+// check-ring-markers.mjs exercises both decoders against an OpenCV fixture.
+const MARKER_CODES = [
+  0xb532, 0x0f9a, 0x332d, 0x9946, 0x549e, 0x79cd, 0x9e2e, 0xc4f2, 0xfeda, 0xcf56,
+  0xf991, 0x11a7, 0x0eb7, 0x2a0f, 0x24b1, 0x263e, 0x4665, 0x6600, 0x6c5e, 0x76af,
+  0x868b, 0xb02b, 0xccd5, 0xdd82, 0xfe47, 0x9471, 0xace4, 0xa554, 0x2123, 0x346f,
+  0x4415, 0x57b2, 0x9ecf, 0xf0cb, 0x08ae, 0x0929, 0x1875, 0x04ff, 0x0df6, 0x1c5a,
+  0x1718, 0x2a28, 0x328c, 0x38b2, 0x24e8, 0x2eeb, 0x2d3f, 0x4b64, 0x502e, 0x5013
+];
+function isSupportedMarkerId(id:number){return Number.isInteger(id)&&id>=0&&id<MARKER_CODES.length;}
 type MarkerObservation={id:number;corners:Array<{x:number;y:number}>};
 type LegacyDetector={detect:(frame:ImageData)=>MarkerObservation[];candidates?:unknown[];polys?:unknown[]};
 type ArucoGlobal={DICTIONARIES:Record<string,{nBits:number;tau:number;codeList:number[]}>;Detector:new(options:{dictionaryName:string;maxHammingDistance:number})=>LegacyDetector};
@@ -82,7 +91,7 @@ function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObser
     found=detector!.detect(enhanced);
    }
   }
-  for(const marker of found)if(marker.id>=0&&marker.id<=8&&!markers.some(m=>m.id===marker.id))markers.push({...marker,corners:marker.corners.map(p=>({x:p.x+region.x,y:p.y+region.y}))});
+  for(const marker of found)if(isSupportedMarkerId(marker.id)&&!markers.some(m=>m.id===marker.id))markers.push({...marker,corners:marker.corners.map(p=>({x:p.x+region.x,y:p.y+region.y}))});
   for(const candidate of candidatesOf()){
    const corners=cornersOf(candidate,1);
    if(corners)candidates.push(corners.map(p=>({x:p.x+region.x,y:p.y+region.y})));
@@ -319,7 +328,7 @@ function detect(frame:ImageData){
    pass='Original + contrast + adaptive';contrast+=' · local mean threshold';
   }
  }
- const decoded=all.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4);
+ const decoded=all.filter(m=>isSupportedMarkerId(m.id)&&m.corners.length===4);
  if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
  // Expire stale search hints: a marker that has been absent should not
  // permanently trap the decoder in the wrong part of the image.

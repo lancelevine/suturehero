@@ -1,8 +1,7 @@
 import type {MarkerObservation} from './arucoTracking';
 
-/** OpenCV DICT_4X4_50, first nine IDs, generated from OpenCV 4.13's
- * generateImageMarker and encoded as row-major white=1 bits. */
-export const MARKER_CODES = [0xb532,0x0f9a,0x332d,0x9946,0x549e,0x79cd,0x9e2e,0xc4f2,0xfeda];
+import {MARKER_CODES,isSupportedMarkerId} from './arucoDictionary';
+export {MARKER_CODES} from './arucoDictionary';
 
 interface LegacyDetector {detect(frame:ImageData):MarkerObservation[];candidates?:unknown[];polys?:unknown[]}
 interface LegacyAR {DICTIONARIES:Record<string,{nBits:number;tau:number;codeList:number[]}>;Detector:new(options:{dictionaryName:string;maxHammingDistance:number})=>LegacyDetector}
@@ -114,7 +113,7 @@ export class BrowserArucoDetector implements ArucoDetector {
    scale=1;
    pass='Original + half-resolution contrast';
   }
-  const recognized=raw.filter(m=>m.id>=0&&m.id<=8&&m.corners.length===4).map(m=>({...m,corners:m.corners.map(p=>({x:p.x*scale,y:p.y*scale}))}));
+  const recognized=raw.filter(m=>isSupportedMarkerId(m.id)&&m.corners.length===4).map(m=>({...m,corners:m.corners.map(p=>({x:p.x*scale,y:p.y*scale}))}));
   const cornersOf=(candidate:unknown):Array<{x:number;y:number}>|null=>{
    const object=candidate as {corners?:unknown;points?:unknown;vertices?:unknown}|null;
    const vertices=Array.isArray(candidate)?candidate:object?.corners??object?.points??object?.vertices;
