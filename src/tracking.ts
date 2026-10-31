@@ -17,7 +17,7 @@ root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳<
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction"> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental forceps color-ball jaw tracking</summary><p>With camera 1 running, click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
+<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental forceps color-ball jaw tracking</summary><p>With camera 1 running, click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
@@ -969,6 +969,8 @@ const ballCanvas=document.createElement('canvas');ballCanvas.width=320;ballCanva
 const ballContext=ballCanvas.getContext('2d',{willReadFrequently:true})!;
 const ballColors:Array<[number,number,number]|null>=[null,null];
 const ballCenters:Array<{x:number;y:number;count:number}|null>=[null,null];
+const ballAnchors:Array<{x:number;y:number}|null>=[null,null];
+const ballSeenAt=[0,0];
 let ballPick=-1,ballClosed:number|null=null,ballOpen:number|null=null,ballLastScan=0,ballLastSeen=0,ballValue=0;
 const ballEnabled=document.querySelector<HTMLInputElement>('#ball-enable')!;
 const ballReadout=document.querySelector<HTMLElement>('#ball-readout')!;
@@ -991,6 +993,7 @@ overlay.addEventListener('click',event=>{
  rgb=rgb.map(v=>v/n);const total=rgb[0]+rgb[1]+rgb[2];
  if(total<70){ballReadout.textContent='Too dark; click the brightly colored center';return;}
  ballColors[ballPick]=[rgb[0]/total,rgb[1]/total,rgb[2]/total];
+ ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
  ballPick=-1;overlay.style.pointerEvents='none';ballReadout.textContent='Color assigned; calibrate closed and open';
 });
 const ballSeparation=()=>ballCenters[0]&&ballCenters[1]?Math.hypot(ballCenters[0].x-ballCenters[1].x,ballCenters[0].y-ballCenters[1].y):null;
@@ -1008,16 +1011,35 @@ function scanForcepsBalls(now:number){
  ballContext.drawImage(video,0,0,w,h);
  const pixels=ballContext.getImageData(0,0,w,h).data;
  for(let c=0;c<2;c++){
-  const color=ballColors[c];ballCenters[c]=null;if(!color)continue;
-  let sx=0,sy=0,count=0;
-  // Saturation and chromatic distance reject gray/white background.
-  for(let y=0;y<h;y+=2)for(let x=0;x<w;x+=2){
-   const p=(y*w+x)*4,r=pixels[p],g=pixels[p+1],b=pixels[p+2],sum=r+g+b;
-   if(sum<95||Math.max(r,g,b)-Math.min(r,g,b)<38)continue;
-   const distance=Math.hypot(r/sum-color[0],g/sum-color[1],b/sum-color[2]);
-   if(distance<.085){sx+=x;sy+=y;count++;}
+  const color=ballColors[c],anchor=ballAnchors[c];
+  if(!color||!anchor){ballCenters[c]=null;continue;}
+  const previous=ballCenters[c];
+  // Search around the last reliable position, not the entire frame.
+  // Reacquire only near the original user-selected position after losing it.
+  const center=previous&&now-ballSeenAt[c]<600?previous:anchor;
+  const radius=previous&&now-ballSeenAt[c]<600?34:45;
+  const minX=Math.max(0,Math.floor(center.x-radius)),maxX=Math.min(w-1,Math.ceil(center.x+radius));
+  const minY=Math.max(0,Math.floor(center.y-radius)),maxY=Math.min(h-1,Math.ceil(center.y+radius));
+  const candidates:Array<{x:number;y:number}>=[];
+  for(let y=minY;y<=maxY;y+=2)for(let x=minX;x<=maxX;x+=2){
+   const p=(y*w+x)*4,r=pixels[p],g=pixels[p+1],bl=pixels[p+2],sum=r+g+bl;
+   if(sum<95||Math.max(r,g,bl)-Math.min(r,g,bl)<38)continue;
+   if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<.065)candidates.push({x,y});
   }
-  if(count>=5)ballCenters[c]={x:sx/count,y:sy/count,count};
+  // Find the densest compact neighborhood. A few distant matching pixels
+  // must not pull the center away from the physical ball.
+  let best:{x:number;y:number;count:number}|null=null;
+  for(let i=0;i<candidates.length;i+=Math.max(1,Math.floor(candidates.length/120))){
+   const p=candidates[i];let sx=0,sy=0,count=0;
+   for(const q of candidates)if(Math.abs(q.x-p.x)<=9&&Math.abs(q.y-p.y)<=9){sx+=q.x;sy+=q.y;count++;}
+   if(count>=4&&(!best||count>best.count))best={x:sx/count,y:sy/count,count};
+  }
+  if(best&&Math.hypot(best.x-center.x,best.y-center.y)<=radius){
+   const blend=previous?.count&&now-ballSeenAt[c]<600?.65:1;
+   ballCenters[c]={x:previous?previous.x*(1-blend)+best.x*blend:best.x,
+                   y:previous?previous.y*(1-blend)+best.y*blend:best.y,count:best.count};
+   ballSeenAt[c]=now;
+  }else if(now-ballSeenAt[c]>220)ballCenters[c]=null;
  }
  const d=ballSeparation();
  if(d!==null){
@@ -1038,7 +1060,7 @@ function scanForcepsBalls(now:number){
 function drawBallOutlines(){
  if(!ballEnabled.checked)return;
  for(let i=0;i<2;i++){
-  const p=ballCenters[i];if(!p)continue;
+  const p=ballCenters[i];if(!p||performance.now()-ballSeenAt[i]>220)continue;
   const x=p.x*overlay.width/ballCanvas.width,y=p.y*overlay.height/ballCanvas.height;
   overlayContext.beginPath();overlayContext.arc(x,y,11,0,Math.PI*2);
   overlayContext.lineWidth=3;overlayContext.strokeStyle=i===0?'#ff59cf':'#42dfff';overlayContext.stroke();
