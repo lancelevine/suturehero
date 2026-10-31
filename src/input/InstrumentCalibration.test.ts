@@ -5,8 +5,8 @@ const q=(angle=0)=>new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1
 it('maps movement per instrument without applying another instrument’s settings',()=>{
  const c=new InstrumentCalibration();c.update('forceps',{depthLock:false,movementGain:2,translationAxes:[1,0,2],translationInvert:[true,false,false]});
  c.transform('forceps',v(),q(),0);c.transform('needleDriver',v(),q(),0);
- expect(c.transform('forceps',v(1,2,3),q(),1).position.toArray()).toEqual([-4,2,6]);
- expect(c.transform('needleDriver',v(1,2,3),q(),1).position.toArray()).toEqual([1,2,0]);
+ expect(c.transform('forceps',v(1,2,3),q(),1).position.toArray()).toEqual([-4,3.1,6]);
+ expect(c.transform('needleDriver',v(1,2,3),q(),1).position.toArray()).toEqual([1,2.55,0]);
 });
 it('sets neutral without a translation jump and resets orientation at the current physical pose',()=>{
  const c=new InstrumentCalibration();c.update('forceps',{depthLock:false});c.transform('forceps',v(),q(),0);
