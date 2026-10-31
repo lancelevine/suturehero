@@ -14,13 +14,16 @@ it('sets neutral without a translation jump and resets orientation at the curren
  const after=c.transform('forceps',v(1,2,3),q(.7),12);expect(after.position.distanceTo(before.position)).toBeLessThan(1e-10);expect(after.quaternion.angleTo(q())).toBeLessThan(1e-8);
  expect(c.captureNeutral('forceps',1000)).toBe(false);
 });
-it('reanchors sensitivity edits and integrates scaled rotation continuously through multiple turns',()=>{
+it('reanchors sensitivity edits and preserves continuous turns without return-to-neutral drift',()=>{
  const c=new InstrumentCalibration();c.transform('forceps',v(),q(),0);const before=c.transform('forceps',v(1,0,0),q(),1);
  c.update('forceps',{movementGain:2,rotationGain:.5});expect(c.transform('forceps',v(1,0,0),q(),2).position.equals(before.position)).toBe(true);
  expect(c.transform('forceps',v(1.5,0,0),q(),3).position.x).toBe(2);
  let result=c.transform('forceps',v(),q(),4);
  for(let i=1;i<=160;i++)result=c.transform('forceps',v(),q(i*.05),5+i);
  expect(result.quaternion.angleTo(q(4))).toBeLessThan(1e-7);
+ // Reverse the entire motion: neutral must be recovered despite fractional gain.
+ for(let i=159;i>=0;i--)result=c.transform('forceps',v(),q(i*.05),166+(160-i));
+ expect(result.quaternion.angleTo(q())).toBeLessThan(1e-7);
 });
 it('applies mounting offsets, marker-frame tip offsets and jaw inversion independently',()=>{
  const c=new InstrumentCalibration();c.update('scissors',{mountingDegrees:[0,0,90],tipOffset:[1,0,0],jawInverted:true});

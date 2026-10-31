@@ -10,7 +10,7 @@ export const defaultCalibration=():CalibrationProfile=>({movementGain:1,rotation
 const KEY='suturehero.instrument-calibration.v1';
 type StorageLike=Pick<Storage,'getItem'|'setItem'>;
 type Pose={position:THREE.Vector3;quaternion:THREE.Quaternion};
-type Session={origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;neutralQuaternion:THREE.Quaternion;seenAt:number};
+type Session={origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;unwrappedRotation:THREE.Vector3;neutralQuaternion:THREE.Quaternion;seenAt:number};
 function validProfile(value:unknown):CalibrationProfile{
  const d=defaultCalibration(),v=value as Partial<CalibrationProfile>|null;if(!v||typeof v!=='object')return d;
  for(const key of ['movementGain','rotationGain'] as const)if(typeof v[key]==='number'&&Number.isFinite(v[key]))d[key]=THREE.MathUtils.clamp(v[key]!,key==='movementGain'?.1:.1,key==='movementGain'?4:3);
@@ -39,24 +39,41 @@ export class InstrumentCalibration {
   const s=this.sessions.get(name);if(!s||now-s.seenAt>=700)return false;
   const tip=new THREE.Vector3(...this.profiles.get(name)!.tipOffset);
   s.base.add(tip.clone().applyQuaternion(s.rotation).sub(tip));
-  s.origin.copy(s.last.position);s.anchor.copy(s.base);s.neutralQuaternion.copy(s.last.quaternion);s.rotation.identity();this.notify(name,'neutral');return true;
+  s.origin.copy(s.last.position);s.anchor.copy(s.base);s.neutralQuaternion.copy(s.last.quaternion);s.unwrappedRotation.set(0,0,0);s.rotation.identity();this.notify(name,'neutral');return true;
  }
  clearSessions(){for(const n of BALL_INSTRUMENTS){this.sessions.delete(n);this.notify(n,'reset');}}
  transform(name:BallInstrumentName,position:THREE.Vector3,quaternion:THREE.Quaternion,now=performance.now(),metricDepth=false):Pose{
   const p=this.profiles.get(name)!;let s=this.sessions.get(name);
-  if(!s){s={origin:position.clone(),anchor:position.clone(),last:{position:position.clone(),quaternion:quaternion.clone()},base:position.clone(),rotation:new THREE.Quaternion(),neutralQuaternion:quaternion.clone(),seenAt:now};this.sessions.set(name,s);}
-  // Compute orientation from neutral every frame; do not integrate frame deltas.
+  if(!s){s={origin:position.clone(),anchor:position.clone(),last:{position:position.clone(),quaternion:quaternion.clone()},base:position.clone(),rotation:new THREE.Quaternion(),unwrappedRotation:new THREE.Vector3(),neutralQuaternion:quaternion.clone(),seenAt:now};this.sessions.set(name,s);}
+  // Derive rotation from the neutral pose rather than integrating frame errors.
+  // Select the equivalent axis-angle branch nearest the previous unwrapped
+  // measurement, preserving continuous turns at fractional rotation gains.
   const relative=s.neutralQuaternion.clone().invert().multiply(quaternion).normalize();
   if(relative.w<0)relative.set(-relative.x,-relative.y,-relative.z,-relative.w);
-  const v=new THREE.Vector3(relative.x,relative.y,relative.z),length=v.length();
-  s.rotation.identity();
-  if(length>1e-10){
-   v.multiplyScalar(2*Math.atan2(length,relative.w)/length);
-   const a=v.toArray();
-   v.set(...p.rotationAxes.map((axis,i)=>a[axis]*(p.rotationInvert[i]?-1:1)*p.rotationGain) as [number,number,number]);
-   const angle=v.length();
-   if(angle>1e-10)s.rotation.setFromAxisAngle(v.multiplyScalar(1/angle),angle);
+  const axis=new THREE.Vector3(relative.x,relative.y,relative.z);
+  const sinHalf=axis.length(),previous=s.unwrappedRotation;
+  const unwrapped=new THREE.Vector3();
+  if(sinHalf>1e-8){
+   axis.multiplyScalar(1/sinHalf);
+   const angle=2*Math.atan2(sinHalf,relative.w);
+   const turns=Math.round((previous.dot(axis)-angle)/(2*Math.PI));
+   let best=Infinity;
+   for(let k=turns-1;k<=turns+1;k++){
+    const candidate=axis.clone().multiplyScalar(angle+2*Math.PI*k);
+    const distance=candidate.distanceToSquared(previous);
+    if(distance<best){best=distance;unwrapped.copy(candidate);}
+   }
+  }else if(previous.lengthSq()>1e-12){
+   // At precisely one full turn the quaternion has no measurable axis;
+   // retain the nearest continuous winding rather than snapping to zero.
+   unwrapped.copy(previous).normalize().multiplyScalar(2*Math.PI*Math.round(previous.length()/(2*Math.PI)));
   }
+  previous.copy(unwrapped);
+  const a=unwrapped.toArray();
+  unwrapped.set(...p.rotationAxes.map((axis,i)=>a[axis]*(p.rotationInvert[i]?-1:1)*p.rotationGain) as [number,number,number]);
+  const angle=unwrapped.length();
+  s.rotation.identity();
+  if(angle>1e-10)s.rotation.setFromAxisAngle(unwrapped.multiplyScalar(1/angle),angle);
   const movement=position.clone().sub(s.origin).toArray();
   s.base.copy(s.anchor).add(new THREE.Vector3(...p.translationAxes.map((axis,i)=>movement[axis]*(p.translationInvert[i]?-1:1)*p.movementGain) as [number,number,number]));
   if(p.depthLock&&!metricDepth)s.base.z=s.anchor.z;
