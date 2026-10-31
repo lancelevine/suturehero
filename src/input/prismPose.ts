@@ -6,6 +6,8 @@ import {estimateMarkerPose} from './markerPose';
 // Local Y is the instrument shaft axis, with marker tops aligned along +Y.
 const PRISM_SIDE_MM=12;
 const RING_SIDE_MM=19;
+// 19 mm printed face, 16 mm outer marker square.
+const RING_MARKER_MM=16;
 export type TrackerType='prism'|'ring6'|'ring8';
 const ringRadius=RING_SIDE_MM/(2*Math.tan(Math.PI/6));
 const prismRadius=PRISM_SIDE_MM/(2*Math.tan(Math.PI/3));
@@ -23,7 +25,7 @@ export function faceGeometry(index:number,type:TrackerType='prism'){
  return {rotation:q,center};
 }
 export const localCorners=(index:number,type:TrackerType='prism')=>{
- const {rotation,center}=faceGeometry(index,type),s=(type==='prism'?PRISM_SIDE_MM:RING_SIDE_MM)/2;
+ const {rotation,center}=faceGeometry(index,type),s=(type==='prism'?PRISM_SIDE_MM:RING_MARKER_MM)/2;
  return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,0).applyQuaternion(rotation).add(center));
 };
 export interface PrismPose {quaternion:THREE.Quaternion;translation:THREE.Vector3;error:number;faces:number}

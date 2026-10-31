@@ -929,7 +929,8 @@ function updateLiveTargets(){
      // instrument about its shaft, regardless of how the prism is tilted.
      // Keep the instrument's existing tip pivot and stereo translation.
      const motion=state.lastRaw.clone().invert().multiply(rigid.quaternion).normalize();
-     quaternion.multiply(motion).normalize();
+     // Derive orientation from the absolute ring pose to avoid accumulated face-switch errors.
+     quaternion.copy(state.anchorOutput).multiply(state.anchorRaw.clone().invert().multiply(rigid.quaternion)).normalize();
      const axis=new THREE.Vector3(motion.x,motion.y,motion.z);
      if(axis.lengthSq()>1e-9&&angularDifference<1.2){
       axis.normalize().multiplyScalar(angularDifference/elapsed*(motion.w<0?-1:1));
