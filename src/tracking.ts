@@ -965,7 +965,7 @@ function updateRotationStageReadout(){
 }
 // Experimental forceps jaw sensor: chromaticity-based two-color ball centroids.
 // Operates on a downscaled camera frame to avoid interfering with ArUco workers.
-const ballCanvas=document.createElement('canvas');ballCanvas.width=320;ballCanvas.height=180;
+const ballCanvas=document.createElement('canvas');ballCanvas.width=640;ballCanvas.height=360;
 const ballContext=ballCanvas.getContext('2d',{willReadFrequently:true})!;
 const ballColors:Array<[number,number,number]|null>=[null,null];
 const ballCenters:Array<{x:number;y:number;count:number}|null>=[null,null];
@@ -1006,7 +1006,7 @@ document.querySelector('#ball-open')!.addEventListener('click',()=>{
 function scanForcepsBalls(now:number){
  if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
  ballLastScan=now;
- const w=320,h=Math.max(1,Math.round(video.videoHeight/video.videoWidth*w));
+ const w=640,h=Math.max(1,Math.round(video.videoHeight/video.videoWidth*w));
  if(ballCanvas.height!==h)ballCanvas.height=h;
  ballContext.drawImage(video,0,0,w,h);
  const pixels=ballContext.getImageData(0,0,w,h).data;
@@ -1017,28 +1017,57 @@ function scanForcepsBalls(now:number){
   // Search around the last reliable position, not the entire frame.
   // Reacquire only near the original user-selected position after losing it.
   const center=previous&&now-ballSeenAt[c]<600?previous:anchor;
-  const radius=previous&&now-ballSeenAt[c]<600?34:45;
+  const radius=previous&&now-ballSeenAt[c]<600?68:90;
   const minX=Math.max(0,Math.floor(center.x-radius)),maxX=Math.min(w-1,Math.ceil(center.x+radius));
   const minY=Math.max(0,Math.floor(center.y-radius)),maxY=Math.min(h-1,Math.ceil(center.y+radius));
-  const candidates:Array<{x:number;y:number}>=[];
-  for(let y=minY;y<=maxY;y+=2)for(let x=minX;x<=maxX;x+=2){
+  // Binary color mask and eight-connected components, evaluated at full
+  // 640px width so a 7mm ball spans enough pixels for shape localization.
+  const bw=maxX-minX+1,bh=maxY-minY+1;
+  const mask=new Uint8Array(bw*bh);
+  for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
    const p=(y*w+x)*4,r=pixels[p],g=pixels[p+1],bl=pixels[p+2],sum=r+g+bl;
    if(sum<95||Math.max(r,g,bl)-Math.min(r,g,bl)<38)continue;
-   if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<.065)candidates.push({x,y});
+   if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<.075)mask[(y-minY)*bw+x-minX]=1;
   }
-  // Find the densest compact neighborhood. A few distant matching pixels
-  // must not pull the center away from the physical ball.
-  let best:{x:number;y:number;count:number}|null=null;
-  for(let i=0;i<candidates.length;i+=Math.max(1,Math.floor(candidates.length/120))){
-   const p=candidates[i];let sx=0,sy=0,count=0;
-   for(const q of candidates)if(Math.abs(q.x-p.x)<=9&&Math.abs(q.y-p.y)<=9){sx+=q.x;sy+=q.y;count++;}
-   if(count>=4&&(!best||count>best.count))best={x:sx/count,y:sy/count,count};
+  let best:{x:number;y:number;count:number;score:number}|null=null;
+  const queue=new Int32Array(mask.length);
+  for(let index=0;index<mask.length;index++){
+   if(mask[index]!==1)continue;
+   let head=0,tail=1;queue[0]=index;mask[index]=2;
+   let sx=0,sy=0,count=0,minCx=bw,maxCx=0,minCy=bh,maxCy=0;
+   while(head<tail){
+    const v=queue[head++],px=v%bw,py=Math.floor(v/bw);
+    sx+=px;sy+=py;count++;
+    minCx=Math.min(minCx,px);maxCx=Math.max(maxCx,px);
+    minCy=Math.min(minCy,py);maxCy=Math.max(maxCy,py);
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+     if(!dx&&!dy)continue;
+     const nx=px+dx,ny=py+dy;
+     if(nx<0||nx>=bw||ny<0||ny>=bh)continue;
+     const ni=ny*bw+nx;
+     if(mask[ni]===1){mask[ni]=2;queue[tail++]=ni;}
+    }
+   }
+   if(count<8||count>900)continue;
+   const cw=maxCx-minCx+1,ch=maxCy-minCy+1,aspect=Math.max(cw,ch)/Math.max(1,Math.min(cw,ch));
+   const fill=count/(cw*ch);
+   if(aspect>1.9||fill<.32)continue;
+   const x=minX+sx/count,y=minY+sy/count;
+   const distance=Math.hypot(x-center.x,y-center.y);
+   if(distance>radius)continue;
+   const score=Math.log1p(count)*3-distance*.16-Math.abs(1-aspect)*3;
+   if(!best||score>best.score)best={x,y,count,score};
   }
-  if(best&&Math.hypot(best.x-center.x,best.y-center.y)<=radius){
-   const blend=previous?.count&&now-ballSeenAt[c]<600?.65:1;
-   ballCenters[c]={x:previous?previous.x*(1-blend)+best.x*blend:best.x,
-                   y:previous?previous.y*(1-blend)+best.y*blend:best.y,count:best.count};
-   ballSeenAt[c]=now;
+  if(best){
+   const fresh=previous&&now-ballSeenAt[c]<350;
+   const displacement=fresh?Math.hypot(best.x-previous.x,best.y-previous.y):0;
+   // Reject implausible single-frame leaps while preserving genuine movement.
+   if(!fresh||displacement<26){
+    const blend=fresh?.38:1;
+    ballCenters[c]={x:fresh?previous.x*(1-blend)+best.x*blend:best.x,
+                    y:fresh?previous.y*(1-blend)+best.y*blend:best.y,count:best.count};
+    ballSeenAt[c]=now;
+   }
   }else if(now-ballSeenAt[c]>220)ballCenters[c]=null;
  }
  const d=ballSeparation();
@@ -1062,7 +1091,7 @@ function drawBallOutlines(){
  for(let i=0;i<2;i++){
   const p=ballCenters[i];if(!p||performance.now()-ballSeenAt[i]>220)continue;
   const x=p.x*overlay.width/ballCanvas.width,y=p.y*overlay.height/ballCanvas.height;
-  overlayContext.beginPath();overlayContext.arc(x,y,11,0,Math.PI*2);
+  overlayContext.beginPath();overlayContext.arc(x,y,Math.max(5,Math.sqrt(p.count/Math.PI)*overlay.width/ballCanvas.width),0,Math.PI*2);
   overlayContext.lineWidth=3;overlayContext.strokeStyle=i===0?'#ff59cf':'#42dfff';overlayContext.stroke();
   overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.fillText('Ball '+(i===0?'A':'B'),x+13,y);
  }
