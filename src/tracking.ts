@@ -1176,7 +1176,8 @@ function scanForcepsBalls(now:number){
 
  for(let pair=0;pair<3;pair++){
   const d=ballSeparation(pair),cal=ballCalibrations[pair];
-  if(d!==null&&cal.closed!==null&&cal.open!==null&&Math.abs(cal.open-cal.closed)>.08){
+  if(d!==null&&cal.closed!==null&&cal.open!==null&&Math.abs(cal.open-cal.closed)>.02){
+   // Map measured separation directly onto the two user-calibrated endpoints.
    const next=THREE.MathUtils.clamp((d-cal.closed)/(cal.open-cal.closed),0,1);
    cal.value=cal.value*.35+next*.65;
    const name=ballNames[pair];
@@ -1195,7 +1196,7 @@ function scanForcepsBalls(now:number){
   ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':d===null?'pair rejected or missing':'paired with instrument')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
-  ' · jaw '+(cal.closed===null||cal.open===null?'—':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
+  ' · jaw '+(cal.closed===null||cal.open===null?'not calibrated':Math.abs(cal.open-cal.closed)<=.02?'recalibrate: open/closed too similar':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
 
 }
 function drawBallOutlines(){
