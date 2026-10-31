@@ -33,3 +33,9 @@
  .workspace-first.camera-setup-active .workspace-camera-dock{height:min(75dvh,750px);min-height:350px;}
  .workspace-first.camera-setup-active .workspace-camera-dock #tracking-app{overflow-y:auto;}
 }
+
+/* Illustrated neutral-pose reference for each instrument. */
+.neutral-reference{border:1px solid #d9e7de;border-radius:9px;background:#f8fbf8;padding:12px;margin:0 0 14px;}
+.neutral-reference>strong{display:block;font-size:12px;color:#345f4e;margin-bottom:8px;}
+.neutral-reference svg{display:block;width:100%;max-width:310px;height:auto;margin:auto;}
+.neutral-reference .calibration-hint{margin:8px 0 0;}
