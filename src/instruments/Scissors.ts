@@ -51,6 +51,7 @@ export class Scissors {
   this.root.name=westcott?'westcott-scissors':'mayo-scissors';this.root.traverse(o=>{if(o instanceof THREE.Mesh)o.castShadow=true;});
  }
  reset(){this.root.position.set(2.3,1.1,.2);this.root.quaternion.identity();this.openness=.8;this.closedLast=false;this.pose();}
+ setTrackedOpening(value:number){this.openness=THREE.MathUtils.clamp(value,0,1);this.pose();}
  private pose(){this.blades.forEach((blade,i)=>blade.rotation.y=(i===0?-1:1)*this.openness*.45);}
  update(command:ToolCommand,dt:number){
   const step=Math.max(0,Math.min(dt,.05)),move=new THREE.Vector3(...command.translation);if(move.lengthSq()>1)move.normalize();
