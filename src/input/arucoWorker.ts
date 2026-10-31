@@ -29,7 +29,7 @@ async function initialize(){
  importScripts(base+'cv.js',base+'aruco.js');
  if(!workerScope.AR)throw Error('ArUco library did not initialize in worker');
  workerScope.AR.DICTIONARIES.SUTUREHERO_4X4_50={nBits:16,tau:2,codeList:MARKER_CODES};
- detector=new workerScope.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:1});
+ detector=new workerScope.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:2});
 }
 
 type GrayFrame={width:number;height:number;pixels:Uint8Array};
@@ -289,7 +289,9 @@ function detect(frame:ImageData){
  const start=performance.now();
  const now=performance.now();
  const recovering=consecutiveRoiMisses>0||[...recoveryMisses.values()].some(n=>n>0);
- const useFull=now-lastFullScan>=(recovering?300:FULL_SCAN_INTERVAL_MS)||roiHints.length===0||consecutiveRoiMisses>=3;
+ // Prioritize reliable reacquisition over ROI speed: stale ROI hints can
+ // repeatedly miss a perfectly still, clearly visible marker.
+ const useFull=true;
  const local=useFull?null:decodeRegions(frame);
  // If the marker rotated outside its normal crop, expand locally before
  // paying for a full-frame scan. A stationary instrument stays in one area.
