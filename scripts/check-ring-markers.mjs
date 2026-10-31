@@ -48,8 +48,8 @@ try{
  },process.env.SUTURE_WORKER_PATH??'/src/input/arucoWorker.ts?worker_file&type=classic');
  const all=Array.from({length:50},(_,i)=>i);
  for(const path of ['fallback','full','roi'])assert.deepEqual(results[path],all,path+' must decode every OpenCV ID');
- assert.match(results.roiPass,/ROI/,'second worker request must exercise ROI decoding');
- assert.equal(results.roiDecoded,50,'ROI must decode all IDs rather than relying on optical flow');
+ assert.match(results.roiPass,/Full frame/,'repeat request must preserve full-frame reacquisition');
+ assert.equal(results.roiDecoded,50,'Repeated full scan must decode all IDs rather than relying on optical flow');
  for(const {id,turn,found} of results.rotations)assert.deepEqual(found,[id],`ID ${id} at ${turn*90} degrees`);
- assert.deepEqual(errors,[]);console.log('Passed: both decoders recognize all 50 OpenCV IDs, worker ROI retains them, and prism/ring boundary IDs decode at all four rotations.');
+ assert.deepEqual(errors,[]);console.log('Passed: both decoders recognize all 50 OpenCV IDs, repeated worker scans retain them, and prism/ring boundary IDs decode at all four rotations.');
 }finally{await browser.close();}

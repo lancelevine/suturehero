@@ -97,7 +97,7 @@ class WorkerDetector {
  diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting',pass:'—',contrast:'—'};
  async initialize(flowOnly=false){
   this.dispose();
-  const worker=new Worker(new URL('./input/arucoWorker.ts',import.meta.url));
+  const worker=flowOnly?new Worker(new URL('./input/arucoFlowWorker.ts',import.meta.url),{type:'module'}):new Worker(new URL('./input/arucoWorker.ts',import.meta.url));
   this.worker=worker;
   await new Promise<void>((resolve,reject)=>{
    const timeout=window.setTimeout(()=>reject(new Error('Detector worker initialization timed out')),15000);
@@ -117,7 +117,8 @@ class WorkerDetector {
    worker.postMessage({type:'init',flowOnly});
   });
  }
- seed(markers:MarkerObservation[]){this.worker?.postMessage({type:'seed',markers});}
+ confirm(markers:MarkerObservation[]){this.worker?.postMessage({type:'confirm',ids:markers.map(m=>m.id)});}
+ seed(markers:MarkerObservation[],frame?:ImageData){this.worker?.postMessage({type:'seed',markers,frame});}
  detect(frame:ImageData):Promise<MarkerObservation[]>{
   if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
   const id=++this.sequence;
@@ -430,6 +431,8 @@ stereoQuick.addEventListener('click',async()=>{
  finally{stereoQuick.disabled=false;}
 });
 select2.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_SECONDARY,select2.value);if(stream2)void stopSecondCamera();});
+const captureCanvas2=document.createElement('canvas');
+const captureContext2=captureCanvas2.getContext('2d')!;
 async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
  const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
@@ -443,7 +446,11 @@ async function detectSecondFrame(now:number){
  const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*sx,y:p.y*sy}))}));
  const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/sx,y:p.y/sy}))}));
  if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
- context2.drawImage(video2,0,0,w,h);
+ if(doSlow){
+  if(captureCanvas2.width!==nativeW||captureCanvas2.height!==nativeH){captureCanvas2.width=nativeW;captureCanvas2.height=nativeH;}
+  captureContext2.drawImage(video2,0,0,nativeW,nativeH);
+ }
+ context2.drawImage(doSlow?captureCanvas2:video2,0,0,w,h);
  const render=()=>{
   const fresh=liveSecondMarkers();
   overlayContext2.clearRect(0,0,w,h);
@@ -486,19 +493,20 @@ async function detectSecondFrame(now:number){
  }
  if(doSlow){
   processing2=true;lastSlowFrame2=now;
+  const flowSeedFrame=context2.getImageData(0,0,w,h);
   // Decode at native resolution, matching Camera 1. Optical flow stays at
   // the smaller preview resolution for speed.
   if(decodeCanvas2.width!==nativeW||decodeCanvas2.height!==nativeH){
    decodeCanvas2.width=nativeW;decodeCanvas2.height=nativeH;
   }
-  decodeContext2.drawImage(video2,0,0,nativeW,nativeH);
+  decodeContext2.drawImage(captureCanvas2,0,0,nativeW,nativeH);
   void detector2.detect(decodeContext2.getImageData(0,0,nativeW,nativeH)).then(nativeFound=>{
    if(currentSession!==session2)return;
    decodedFrames2++;
    const found=toFlow(nativeFound),stamp=performance.now();
    if(found.length){
     for(const marker of found)decoded2.set(marker.id,stamp);
-    fastTracker2.seed(found);
+    fastTracker2.seed(found,flowSeedFrame);
     const merged=liveSecondMarkers();
     for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);confirmed2.set(marker.id,stamp);}
     secondaryObservations=merged;secondaryObservationsAt=stamp;
@@ -1262,6 +1270,8 @@ function drawDetections(){
 }
 const roiDecodeToggle=document.querySelector<HTMLInputElement>('#roi-decode')!;
 let lastFullDecodeAt=0;
+const captureCanvas=document.createElement('canvas');
+const captureContext=captureCanvas.getContext('2d')!;
 const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
@@ -1280,11 +1290,16 @@ async function detectFrame(now:number){
  const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*decodeScaleX,y:p.y*decodeScaleY}))}));
  const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/decodeScaleX,y:p.y/decodeScaleY}))}));
  if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
- frameContext.drawImage(video,0,0,w,h);
+ if(doSlow){
+  if(captureCanvas.width!==nativeW||captureCanvas.height!==nativeH){captureCanvas.width=nativeW;captureCanvas.height=nativeH;}
+  captureContext.drawImage(video,0,0,nativeW,nativeH);
+ }
+ frameContext.drawImage(doSlow?captureCanvas:video,0,0,w,h);
+ const frameCapturedAt=performance.now();
  if(doFast){
   fastProcessing=true;lastFastFrame=now;
   const frame=frameContext.getImageData(0,0,w,h);
-  const capturedAt=performance.now();
+  const capturedAt=frameCapturedAt;
   void fastTracker.detect(frame).then(found=>{
    if(session!==cameraSession)return;
    fastFrames++;
@@ -1319,7 +1334,8 @@ async function detectFrame(now:number){
  }
  if(doSlow){
   processing=true;lastSlowFrame=now;
-  // Keep full native resolution for small 12 mm markers. In experimental
+  const flowSeedFrame=frameContext.getImageData(0,0,w,h);
+  // Keep full native resolution for small printed markers. In experimental
   // mode, decode a padded ROI around flow-tracked marker corners, with a
   // periodic full-frame scan for new markers and recovery.
   const recent=liveMarkers();
@@ -1340,9 +1356,9 @@ async function detectFrame(now:number){
   const cropped=regionW<nativeW||regionH<nativeH;
   if(!cropped)lastFullDecodeAt=now;
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
-  decodeContext.drawImage(video,left,top,regionW,regionH,0,0,regionW,regionH);
+  decodeContext.drawImage(captureCanvas,left,top,regionW,regionH,0,0,regionW,regionH);
   const frame=decodeContext.getImageData(0,0,regionW,regionH);
-  const capturedAt=performance.now();
+  const capturedAt=frameCapturedAt;
   if(thresholdToggle.checked)renderThreshold(frame);
   if(cropToggle.checked)renderCrop(frame);
   void detector.detect(frame).then(nativeFound=>{
@@ -1365,6 +1381,7 @@ async function detectFrame(now:number){
     // but must not move either translation or rotation backward in time.
     const stale=capturedAt<lastAppliedFrameAt;
     for(const marker of found)markerLastDecoded.set(marker.id,decodeStamp);
+    fastTracker.confirm(found);
     latestDecodeAt=decodeStamp;
     // Preserve newer flow coordinates for existing IDs, but let an older
     // decoder frame restore IDs that flow has completely lost. Limit how old
@@ -1372,6 +1389,9 @@ async function detectFrame(now:number){
     const active=liveMarkers();
     const missing=found.filter(marker=>!active.some(m=>m.id===marker.id));
     const recoveryFresh=decodeStamp-capturedAt<300;
+    // The flow worker projects decoded geometry from this exact source image
+    // into its next image before correcting a live, moving quadrilateral.
+    if(recoveryFresh)fastTracker.seed(found,flowSeedFrame);
     // Correct drift only when the marker has been nearly stationary across
     // flow frames and the decoder image is recent. Never rewind a moving track.
     const correctionCandidates=arucoCorrection.checked&&decodeStamp-capturedAt<180
@@ -1387,7 +1407,6 @@ async function detectFrame(now:number){
      if(!corrected.length)return;
      const ids=new Set(corrected.map(m=>m.id));
      observations=[...observations.filter(m=>!ids.has(m.id)),...corrected];
-     fastTracker.seed(corrected);
      detector.seed(toNative(corrected));
      for(const marker of corrected)markerLastConfirmed.set(marker.id,decodeStamp);
      observationsAt=decodeStamp;
@@ -1396,7 +1415,6 @@ async function detectFrame(now:number){
     if(stale){
      staleDecodeDrops++;
      if(missing.length&&recoveryFresh){
-      fastTracker.seed(missing);
       for(const marker of missing)markerLastConfirmed.set(marker.id,decodeStamp);
       observations=[...active,...missing];
       observationsAt=decodeStamp;
@@ -1408,7 +1426,7 @@ async function detectFrame(now:number){
     }else{
      lastAppliedFrameAt=capturedAt;
      // Do not reset good flow positions with delayed decoder coordinates.
-     if(missing.length)fastTracker.seed(missing);
+     if(missing.length&&!recoveryFresh)fastTracker.seed(missing,flowSeedFrame);
      for(const marker of missing)markerLastConfirmed.set(marker.id,decodeStamp);
      observations=[...active,...missing];
      observationsAt=decodeStamp;

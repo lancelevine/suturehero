@@ -2,6 +2,30 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Motion tracking in 0.47
+
+Optical flow now uses a separate module worker, retaining the matching source
+image for each marker. Decoded seeds carry the image in which their corners
+were measured, so asynchronous decoding cannot seed an old quadrilateral
+against newer pixels. Failed flow frames leave the last successful reference
+intact for up to 450 ms of recovery; fresh decoded geometry is projected into
+the current image before correcting an existing track, including during turns. Unconfirmed tracks still expire.
+
+Small markers use fewer pyramid levels so their detail survives downsampling.
+The flow image is antialiased, whole-marker appearance guides movement searches,
+and a shared rotation/scale fit lets the outline turn between decodes. Motion
+matches still require image evidence and forward/backward validation; hiding a
+marker does not indefinitely extrapolate its movement. Native-resolution marker
+recognition, refined decoded corners and physical tracker geometry are unchanged.
+
+`src/input/markerFlow.test.ts` covers small-marker translation, reversals,
+rotation and rejection of blank images. `scripts/check-marker-motion.mjs`
+exercises the actual flow worker, including delayed decoded seeds and recovery
+after a failed frame. Run it against the dev server with `SUTURE_TEST_URL`, or
+supply `SUTURE_FLOW_WORKER_PATH` for the bundled production worker. `scripts/check-tracking-motion.mjs` also exercises a moving synthetic camera
+through the real decoder, flow bridge and instrument pose. Synthetic
+checks do not reproduce every camera's motion blur or lighting conditions.
+
 ## Workspace and instrument calibration in 0.46
 
 The suturing view is now the first and largest part of the practice screen.
