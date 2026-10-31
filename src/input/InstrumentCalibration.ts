@@ -10,7 +10,7 @@ export const defaultCalibration=():CalibrationProfile=>({movementGain:1,rotation
 const KEY='suturehero.instrument-calibration.v1';
 type StorageLike=Pick<Storage,'getItem'|'setItem'>;
 type Pose={position:THREE.Vector3;quaternion:THREE.Quaternion};
-type Session={origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;seenAt:number};
+type Session={origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;neutralQuaternion:THREE.Quaternion;seenAt:number};
 function validProfile(value:unknown):CalibrationProfile{
  const d=defaultCalibration(),v=value as Partial<CalibrationProfile>|null;if(!v||typeof v!=='object')return d;
  for(const key of ['movementGain','rotationGain'] as const)if(typeof v[key]==='number'&&Number.isFinite(v[key]))d[key]=THREE.MathUtils.clamp(v[key]!,key==='movementGain'?.1:.1,key==='movementGain'?4:3);
@@ -39,16 +39,24 @@ export class InstrumentCalibration {
   const s=this.sessions.get(name);if(!s||now-s.seenAt>=700)return false;
   const tip=new THREE.Vector3(...this.profiles.get(name)!.tipOffset);
   s.base.add(tip.clone().applyQuaternion(s.rotation).sub(tip));
-  s.origin.copy(s.last.position);s.anchor.copy(s.base);s.rotation.identity();this.notify(name,'neutral');return true;
+  s.origin.copy(s.last.position);s.anchor.copy(s.base);s.neutralQuaternion.copy(s.last.quaternion);s.rotation.identity();this.notify(name,'neutral');return true;
  }
  clearSessions(){for(const n of BALL_INSTRUMENTS){this.sessions.delete(n);this.notify(n,'reset');}}
  transform(name:BallInstrumentName,position:THREE.Vector3,quaternion:THREE.Quaternion,now=performance.now(),metricDepth=false):Pose{
   const p=this.profiles.get(name)!;let s=this.sessions.get(name);
-  if(!s){s={origin:position.clone(),anchor:position.clone(),last:{position:position.clone(),quaternion:quaternion.clone()},base:position.clone(),rotation:new THREE.Quaternion(),seenAt:now};this.sessions.set(name,s);}
-  const delta=s.last.quaternion.clone().invert().multiply(quaternion).normalize();
-  if(delta.w<0)delta.set(-delta.x,-delta.y,-delta.z,-delta.w);
-  const v=new THREE.Vector3(delta.x,delta.y,delta.z),length=v.length();
-  if(length>1e-10){v.multiplyScalar(2*Math.atan2(length,delta.w)/length);const a=v.toArray();v.set(...p.rotationAxes.map((axis,i)=>a[axis]*(p.rotationInvert[i]?-1:1)*p.rotationGain) as [number,number,number]);const angle=v.length();if(angle>1e-10)s.rotation.multiply(new THREE.Quaternion().setFromAxisAngle(v.multiplyScalar(1/angle),angle)).normalize();}
+  if(!s){s={origin:position.clone(),anchor:position.clone(),last:{position:position.clone(),quaternion:quaternion.clone()},base:position.clone(),rotation:new THREE.Quaternion(),neutralQuaternion:quaternion.clone(),seenAt:now};this.sessions.set(name,s);}
+  // Compute orientation from neutral every frame; do not integrate frame deltas.
+  const relative=s.neutralQuaternion.clone().invert().multiply(quaternion).normalize();
+  if(relative.w<0)relative.set(-relative.x,-relative.y,-relative.z,-relative.w);
+  const v=new THREE.Vector3(relative.x,relative.y,relative.z),length=v.length();
+  s.rotation.identity();
+  if(length>1e-10){
+   v.multiplyScalar(2*Math.atan2(length,relative.w)/length);
+   const a=v.toArray();
+   v.set(...p.rotationAxes.map((axis,i)=>a[axis]*(p.rotationInvert[i]?-1:1)*p.rotationGain) as [number,number,number]);
+   const angle=v.length();
+   if(angle>1e-10)s.rotation.setFromAxisAngle(v.multiplyScalar(1/angle),angle);
+  }
   const movement=position.clone().sub(s.origin).toArray();
   s.base.copy(s.anchor).add(new THREE.Vector3(...p.translationAxes.map((axis,i)=>movement[axis]*(p.translationInvert[i]?-1:1)*p.movementGain) as [number,number,number]));
   if(p.depthLock&&!metricDepth)s.base.z=s.anchor.z;
