@@ -14,7 +14,7 @@ declare const __SUTUREHERO_REVISION__: string;
 const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
 root.innerHTML=`<header><a class="brand" href="./"><span class="brand-icon">✳</span> SUTURE<span class="muted">HERO</span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
 <main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers. Outlines and IDs appear on the video.</p>
-<div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
+<div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
 <div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental forceps color-ball jaw tracking</summary><p>With camera 1 running, click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
@@ -188,7 +188,8 @@ const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
  forceps:[10,11,12,13,14,15,16,17],
  scissors:[20,21,22,23,24,25,26,27]
 };
-const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:MARKER_GROUPS;
+const sixMarkerGroups:Record<InstrumentName,readonly number[]>={needleDriver:[0,1,2,3,4,5],forceps:[10,11,12,13,14,15],scissors:[20,21,22,23,24,25]};
+const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:trackerType==='ring6'?sixMarkerGroups:MARKER_GROUPS;
 function resetTrackerPose(){
  rotationTransitions.clear();
  rigidBodyStates.clear();rotationSources.clear();prismFaceOffsets.clear();
@@ -197,14 +198,14 @@ function resetTrackerPose(){
  poseHistory.clear();
 }
 trackerTypeSelect.addEventListener('change',()=>{
- trackerType=trackerTypeSelect.value==='ring8'?'ring8':'prism';
+ trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value==='ring6'?'ring6':'prism';
  resetTrackerPose();
- trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
+ trackerTypeStatus.textContent=trackerType==='ring8'?'8-face ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':trackerType==='ring6'?'6-face ring: IDs 0–5 needle driver, 10–15 forceps, 20–25 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
  try{localStorage.setItem('suturehero.trackerType',trackerType);}catch{/* unavailable */}
 });
-try{trackerTypeSelect.value=localStorage.getItem('suturehero.trackerType')==='ring8'?'ring8':'prism';}catch{/* unavailable */}
-trackerType=trackerTypeSelect.value==='ring8'?'ring8':'prism';
-trackerTypeStatus.textContent=trackerType==='ring8'?'Ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
+try{trackerTypeSelect.value=(['ring8','ring6'].includes(localStorage.getItem('suturehero.trackerType')??'')?localStorage.getItem('suturehero.trackerType'):'prism')!;}catch{/* unavailable */}
+trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value==='ring6'?'ring6':'prism';
+trackerTypeStatus.textContent=trackerType==='ring8'?'8-face ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':trackerType==='ring6'?'6-face ring: IDs 0–5 needle driver, 10–15 forceps, 20–25 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
 
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
