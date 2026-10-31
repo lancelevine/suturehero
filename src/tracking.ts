@@ -671,8 +671,10 @@ const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=tr
 document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>{camera.position.set(0,3.7,6);orbit.target.set(0,.5,0);orbit.update();});
 scene.add(new THREE.HemisphereLight(0xffffff,0x63788a,2));
 const grid=new THREE.GridHelper(5,10,0x527d85,0x304852);scene.add(grid);
+const previewInstrumentModels=new Map<'left'|'right',Instrument>();
 function instrument(id:'left'|'right',color:number){
  const model=new Instrument(id,color);
+ previewInstrumentModels.set(id,model);
  if(id==='right')model.setDriverStyle('castro');
  const group=new THREE.Group();
  // Instrument.reset() positions/rotates the model for the main game.
@@ -689,6 +691,7 @@ function instrument(id:'left'|'right',color:number){
  return group;
 }
 const driver=instrument('right',0xe3b47e),forceps=instrument('left',0x68d1bb);
+
 // Scissors: two crossing blades and finger rings, sharing the same tracked rigid pose.
 function scissorsModel(){
  const group=new THREE.Group(),steel=new THREE.MeshStandardMaterial({color:0xc5d1d5,metalness:.85,roughness:.27});
@@ -1076,6 +1079,7 @@ function scanForcepsBalls(now:number){
   if(ballClosed!==null&&ballOpen!==null&&Math.abs(ballOpen-ballClosed)>3){
    const next=THREE.MathUtils.clamp((d-ballClosed)/(ballOpen-ballClosed),0,1);
    ballValue=ballValue*.35+next*.65;
+   previewInstrumentModels.get('left')?.setTrackedOpening(ballValue);
    const detail={type:'suturehero:jaw-opening',instrument:'forceps',opening:ballValue,seenAt:Date.now()};
    if(embeddedTracking)window.dispatchEvent(new CustomEvent('suturehero:jaw-opening',{detail}));
    else window.parent.postMessage(detail,location.origin);
@@ -1084,7 +1088,8 @@ function scanForcepsBalls(now:number){
  ballReadout.textContent='A '+(ballCenters[0]?'found':'missing')+' · B '+(ballCenters[1]?'found':'missing')+
   ' · separation '+(d===null?'—':d.toFixed(1)+'px')+' · closed '+(ballClosed?.toFixed(1)??'—')+
   ' · open '+(ballOpen?.toFixed(1)??'—')+' · jaw '+Math.round(ballValue*100)+'%'+
-  (now-ballLastSeen>400?' · tracking lost':'');
+  (now-ballLastSeen>400?' · tracking lost':'')+
+  (ballClosed!==null&&ballOpen!==null?' · preview jaws linked':' · calibrate both positions');
 }
 function drawBallOutlines(){
  if(!ballEnabled.checked)return;
