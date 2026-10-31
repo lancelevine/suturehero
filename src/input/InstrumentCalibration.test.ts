@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import * as THREE from 'three';
-import {InstrumentCalibration} from './InstrumentCalibration';
+import {InstrumentCalibration,trackerTipDistanceMm} from './InstrumentCalibration';
 const q=(angle=0)=>new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle),v=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
 it('maps movement per instrument without applying another instrument’s settings',()=>{
  const c=new InstrumentCalibration();c.update('forceps',{depthLock:false,movementGain:2,translationAxes:[1,0,2],translationInvert:[true,false,false]});
@@ -55,4 +55,17 @@ it('keeps metric stereo depth available while the mono depth lock is enabled',()
  expect(c.transform('forceps',v(0,0,2),q(),1,true).position.z).toBe(2);
  c.clearSessions();c.transform('forceps',v(),q(),2);
  expect(c.transform('forceps',v(0,0,2),q(),3).position.z).toBe(0);
+});
+
+it('applies measured tracker-to-tip distances along the instrument shaft and rotates them about the ring',()=>{
+ expect(trackerTipDistanceMm.needleDriver).toBe(55);
+ expect(trackerTipDistanceMm.forceps).toBe(110);
+ for(const [name,distance] of [['needleDriver',.55],['forceps',1.1]] as const){
+  const c=new InstrumentCalibration();
+  const initial=c.transform(name,v(),q(),0);
+  expect(initial.position.distanceTo(v(0,distance,0))).toBeLessThan(1e-8);
+  const rotated=c.transform(name,v(),q(Math.PI/2),1);
+  expect(rotated.position.distanceTo(v(0,distance,0))).toBeLessThan(1e-8);
+  expect(rotated.quaternion.angleTo(q(Math.PI/2))).toBeLessThan(1e-8);
+ }
 });

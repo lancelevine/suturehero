@@ -7,6 +7,11 @@ export interface CalibrationProfile {
  mountingDegrees:[number,number,number];tipOffset:[number,number,number];depthLock:boolean;jawInverted:boolean;
 }
 export const defaultCalibration=():CalibrationProfile=>({movementGain:1,rotationGain:1,translationAxes:[0,1,2],rotationAxes:[0,1,2],translationInvert:[false,false,false],rotationInvert:[false,false,false],mountingDegrees:[0,0,0],tipOffset:[0,0,0],depthLock:true,jawInverted:false});
+// Tracker center to tip, measured on the physical instruments. The shaft is +Y.
+// Mono translation is in practice units, not metric: 100 mm per practice unit
+// is a visual scale until metric camera translation is available.
+export const trackerTipDistanceMm={forceps:110,needleDriver:55,scissors:0} as const;
+const MM_PER_PRACTICE_UNIT=100;
 const KEY='suturehero.instrument-calibration.v1';
 type StorageLike=Pick<Storage,'getItem'|'setItem'>;
 type Pose={position:THREE.Vector3;quaternion:THREE.Quaternion};
@@ -37,7 +42,7 @@ export class InstrumentCalibration {
  hasFreshPose(name:BallInstrumentName,now=performance.now()){const s=this.sessions.get(name);return !!s&&now-s.seenAt<700;}
  captureNeutral(name:BallInstrumentName,now=performance.now()){
   const s=this.sessions.get(name);if(!s||now-s.seenAt>=700)return false;
-  const tip=new THREE.Vector3(...this.profiles.get(name)!.tipOffset);
+  const tip=this.tipOffset(name);
   s.base.add(tip.clone().applyQuaternion(s.rotation).sub(tip));
   s.origin.copy(s.last.position);s.anchor.copy(s.base);s.neutralQuaternion.copy(s.last.quaternion);s.unwrappedRotation.set(0,0,0);s.rotation.identity();this.notify(name,'neutral');return true;
  }
@@ -79,9 +84,13 @@ export class InstrumentCalibration {
   if(p.depthLock&&!metricDepth)s.base.z=s.anchor.z;
   const mount=new THREE.Quaternion().setFromEuler(new THREE.Euler(...p.mountingDegrees.map(THREE.MathUtils.degToRad) as [number,number,number],'XYZ'));
   const rotation=s.rotation.clone().multiply(mount).normalize();
-  const output=s.base.clone().add(new THREE.Vector3(...p.tipOffset).applyQuaternion(s.rotation));
+  const output=s.base.clone().add(this.tipOffset(name).applyQuaternion(s.rotation));
   s.last.position.copy(position);s.last.quaternion.copy(quaternion);s.seenAt=now;
   return {position:output,quaternion:rotation};
+ }
+ private tipOffset(name:BallInstrumentName){
+  const p=this.profiles.get(name)!;
+  return new THREE.Vector3(p.tipOffset[0],p.tipOffset[1]+trackerTipDistanceMm[name]/MM_PER_PRACTICE_UNIT,p.tipOffset[2]);
  }
  /** Rotation observed from neutral before axis remapping. */
  rawNeutralRotation(name:BallInstrumentName,now=performance.now()):THREE.Vector3|null{

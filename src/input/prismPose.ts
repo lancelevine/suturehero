@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import type {MarkerObservation} from './arucoTracking';
 import {estimateMarkerPose} from './markerPose';
 
-// Each face is a 12 mm square tangent to a regular triangular prism.
-// Local Y is the prism/shaft axis; all face marker tops point along +Y.
-const SIDE=12;
+// The legacy prism has 12 mm faces; both hexagonal rings have 19 mm faces.
+// Local Y is the instrument shaft axis, with marker tops aligned along +Y.
+const PRISM_SIDE_MM=12;
+const RING_SIDE_MM=19;
 export type TrackerType='prism'|'ring6'|'ring8';
-const ringRadius=SIDE/(2*Math.tan(Math.PI/6));
-const prismRadius=SIDE/(2*Math.tan(Math.PI/3));
+const ringRadius=RING_SIDE_MM/(2*Math.tan(Math.PI/6));
+const prismRadius=PRISM_SIDE_MM/(2*Math.tan(Math.PI/3));
 export function faceGeometry(index:number,type:TrackerType='prism'){
  const ring=type==='ring8'||type==='ring6';
  // IDs 0–5 wrap around the ring. IDs 6 and 7 are opposite each
@@ -18,11 +19,11 @@ export function faceGeometry(index:number,type:TrackerType='prism'){
  const q=yaw.clone();
  // Both inclined faces lean toward the tip (+Y in the mount frame).
  if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/6));
- const center=new THREE.Vector3(0,ring&&index>=6?SIDE:0,radius).applyQuaternion(yaw);
+ const center=new THREE.Vector3(0,ring&&index>=6?RING_SIDE_MM:0,radius).applyQuaternion(yaw);
  return {rotation:q,center};
 }
 export const localCorners=(index:number,type:TrackerType='prism')=>{
- const {rotation,center}=faceGeometry(index,type),s=SIDE/2;
+ const {rotation,center}=faceGeometry(index,type),s=(type==='prism'?PRISM_SIDE_MM:RING_SIDE_MM)/2;
  return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,0).applyQuaternion(rotation).add(center));
 };
 export interface PrismPose {quaternion:THREE.Quaternion;translation:THREE.Vector3;error:number;faces:number}

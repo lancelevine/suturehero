@@ -608,7 +608,7 @@ const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,TH
 const prismAxis=new THREE.Vector3(0,1,0);
 function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number){
  const index=(markerGroups()[name] as readonly number[]).indexOf(id);
- return new THREE.Quaternion().setFromAxisAngle(prismAxis,-index*(trackerType==='ring8'?Math.PI/3:2*Math.PI/3));
+ return new THREE.Quaternion().setFromAxisAngle(prismAxis,-index*(trackerType==='prism'?2*Math.PI/3:Math.PI/3));
 }
 // Rotation-only rigid-body state. Never used to accept/reject translation.
 const rotationSources=new Map<InstrumentName,'mono'|'stereo'>();
