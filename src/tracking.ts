@@ -1062,17 +1062,17 @@ overlay.addEventListener('click',event=>{
  ballAnchorMarkers[ballPick]=marker;ballProvisional[ballPick]=null;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
  ballPairReferences[pair]=null;ballCalibrations[pair].closed=ballCalibrations[pair].open=null;
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
- ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both balls and this instrument’s ArUco markers visible, then calibrate closed and open';
+ ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both colored balls visible, then calibrate closed and open';
 });
 const ballSeparation=(pair:number)=>{
  const a=ballCenters[pair*2],b=ballCenters[pair*2+1];
- return performance.now()-ballPairValidAt[pair]<220&&recentBallMarker(pair,performance.now())&&a&&b?normalizedBallSeparation({...a,score:0},{...b,score:0}):null;
+ return performance.now()-ballPairValidAt[pair]<350&&a&&b?normalizedBallSeparation({...a,score:0},{...b,score:0}):null;
 };
 document.querySelector('#ball-closed')!.addEventListener('click',()=>{
- const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].closed=d;else ballReadout.textContent='Both balls and this instrument’s ArUco markers must be detected to calibrate';
+ const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].closed=d;else ballReadout.textContent='Both colored balls must be paired to calibrate';
 });
 document.querySelector('#ball-open')!.addEventListener('click',()=>{
- const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].open=d;else ballReadout.textContent='Both balls and this instrument’s ArUco markers must be detected to calibrate';
+ const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].open=d;else ballReadout.textContent='Both colored balls must be paired to calibrate';
 });
 function scanForcepsBalls(now:number){
  if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
@@ -1094,7 +1094,7 @@ function scanForcepsBalls(now:number){
   const from=previous?state!.marker:single?.marker??ballAnchorMarkers[c];
   const source=previous??single?.ball??anchor;
   const center=from&&marker?predictBall(source,from,marker):source;
-  const radius=marker?(previous?68:90):26;
+  const radius=previous?100:single?110:marker?125:105;
   const minX=Math.max(0,Math.floor(center.x-radius)),maxX=Math.min(w-1,Math.ceil(center.x+radius));
   const minY=Math.max(0,Math.floor(center.y-radius)),maxY=Math.min(h-1,Math.ceil(center.y+radius));
   // Binary color mask and eight-connected components, evaluated at full
@@ -1148,14 +1148,30 @@ function scanForcepsBalls(now:number){
    ballPairReferences[pair]=ballPairReference(pa,pb,marker);
   }
   const reference=ballPairReferences[pair];
-  const found=marker&&reference?selectBallPair(candidates[a],candidates[b],marker,{...cal,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]}):null;
-  if(!found||!marker){ballCenters[a]=ballCenters[b]=null;ballPairValidAt[pair]=-Infinity;continue;}
+  const prior=ballPairStates[pair];
+  const expectedA=prior&&now-prior.seenAt<1500?prior.a:ballProvisional[a]?.ball??ballAnchors[a];
+  const expectedB=prior&&now-prior.seenAt<1500?prior.b:ballProvisional[b]?.ball??ballAnchors[b];
+  let found:{a:BallBlob;b:BallBlob}|null=null;
+  if(marker&&reference)found=selectBallPair(candidates[a],candidates[b],marker,{...cal,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]});
+  if(!found&&expectedA&&expectedB){
+   let best=-Infinity;
+   for(const aa of candidates[a])for(const bb of candidates[b]){
+    const ra=Math.sqrt(aa.count/Math.PI),rb=Math.sqrt(bb.count/Math.PI);
+    const separation=Math.hypot(aa.x-bb.x,aa.y-bb.y);
+    if(separation<Math.max(3,(ra+rb)*.4)||Math.max(ra,rb)/Math.max(1,Math.min(ra,rb))>2.8)continue;
+    const travel=Math.hypot(aa.x-expectedA.x,aa.y-expectedA.y)+Math.hypot(bb.x-expectedB.x,bb.y-expectedB.y);
+    if(travel>220)continue;
+    const score=aa.score+bb.score-travel*.22;
+    if(score>best){best=score;found={a:aa,b:bb};}
+   }
+  }
+  if(!found){ballCenters[a]=ballCenters[b]=null;ballPairValidAt[pair]=-Infinity;continue;}
   const previous=ballPairStates[pair],blend=previous&&now-previous.seenAt<350?.38:1;
   const smooth=(next:BallBlob,old:BallBlob|undefined):BallBlob=>old?{...next,x:old.x*(1-blend)+next.x*blend,y:old.y*(1-blend)+next.y*blend}:next;
   const acceptedA=smooth(found.a,previous?.a),acceptedB=smooth(found.b,previous?.b);
   // Preserve the calibrated normalized distance by smoothing both centroids together.
   ballCenters[a]=acceptedA;ballCenters[b]=acceptedB;ballSeenAt[a]=ballSeenAt[b]=now;
-  ballPairStates[pair]={a:acceptedA,b:acceptedB,marker,seenAt:now};ballPairValidAt[pair]=now;
+  ballPairStates[pair]={a:acceptedA,b:acceptedB,marker:marker??prior?.marker??{x:(acceptedA.x+acceptedB.x)/2,y:(acceptedA.y+acceptedB.y)/2,side:40},seenAt:now};ballPairValidAt[pair]=now;
  }
 
  for(let pair=0;pair<3;pair++){
@@ -1176,7 +1192,7 @@ function scanForcepsBalls(now:number){
  const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair];
  ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':!ballColors[pair*2+1]&&ballProvisional[pair*2]&&now-ballProvisional[pair*2]!.seenAt<220?'acquiring':'missing')+
   ' · B '+(ballCenters[pair*2+1]?'found':!ballColors[pair*2]&&ballProvisional[pair*2+1]&&now-ballProvisional[pair*2+1]!.seenAt<220?'acquiring':'missing')+
-  ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':!markers[pair]?'waiting for this instrument’s ArUco markers':d===null?'pair rejected or missing':'paired with instrument')+
+  ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':d===null?'pair rejected or missing':'paired with instrument')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
   ' · jaw '+(cal.closed===null||cal.open===null?'—':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
@@ -1186,8 +1202,8 @@ function drawBallOutlines(){
  if(!ballEnabled.checked)return;
  for(let i=0;i<6;i++){
   const pair=Math.floor(i/2),confirmed=performance.now()-ballPairValidAt[pair]<220;
-  const provisional=ballProvisional[i],acquiring=!ballColors[pair*2]||!ballColors[pair*2+1];
-  const p=confirmed?ballCenters[i]:acquiring&&provisional&&performance.now()-provisional.seenAt<220?provisional.ball:null;
+  const provisional=ballProvisional[i];
+  const p=confirmed?ballCenters[i]:provisional&&performance.now()-provisional.seenAt<500?provisional.ball:null;
   if(!p)continue;
   // Individual acquisition remains visible but never supplies a jaw measurement.
   overlayContext.setLineDash(confirmed?[]:[5,4]);
