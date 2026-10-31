@@ -5,11 +5,11 @@ import {estimateMarkerPose} from './markerPose';
 // Each face is a 12 mm square tangent to a regular triangular prism.
 // Local Y is the prism/shaft axis; all face marker tops point along +Y.
 const SIDE=12;
-export type TrackerType='prism'|'ring8';
+export type TrackerType='prism'|'ring6'|'ring8';
 const ringRadius=SIDE/(2*Math.tan(Math.PI/6));
 const prismRadius=SIDE/(2*Math.tan(Math.PI/3));
 export function faceGeometry(index:number,type:TrackerType='prism'){
- const ring=type==='ring8';
+ const ring=type==='ring8'||type==='ring6';
  // IDs 0–5 wrap around the ring. IDs 6 and 7 are opposite each
  // other circumferentially (0° and 180°), both on the tip-facing end.
  const angle=ring?(index<6?index*Math.PI/3:(index===6?0:Math.PI)):index*2*Math.PI/3;
@@ -45,7 +45,7 @@ export function solvePrismPose(
  const fx=width/(2*Math.tan(70*Math.PI/360/2)),cx=width/2,cy=height/2;
  const points=markers.flatMap(marker=>{
   const index=marker.id-firstId;
-  if(index<0||index>=(trackerType==='ring8'?8:3)||marker.corners.length!==4)return [];
+  if(index<0||index>=(trackerType==='ring8'?8:trackerType==='ring6'?6:3)||marker.corners.length!==4)return [];
   return localCorners(index,trackerType).map((p,i)=>({p,uv:marker.corners[i]}));
  });
  if(points.length<4)return null;
@@ -66,7 +66,7 @@ export function solvePrismPose(
  if(predicted)seeds.push({q:predicted.quaternion.clone(),t:predicted.translation.clone()});
  if(previous)seeds.push({q:previous.quaternion.clone(),t:previous.translation.clone()});
  for(const marker of markers){
-  const index=marker.id-firstId;if(index<0||index>=(trackerType==='ring8'?8:3))continue;
+  const index=marker.id-firstId;if(index<0||index>=(trackerType==='ring8'?8:trackerType==='ring6'?6:3))continue;
   const pose=estimateMarkerPose(marker,width,height);
   if(!pose)continue;
   const geometry=faceGeometry(index,trackerType);
