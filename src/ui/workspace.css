@@ -18,3 +18,18 @@
 .tracking-camera-feeds{display:grid;grid-template-columns:minmax(0,1fr)}.tracking-camera-feeds.two-cameras{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;background:#f1f5ec}.tracking-camera-feeds .tracking-video{border-radius:0;min-width:0;aspect-ratio:16/9}.tracking-camera-feeds .tracking-video:after{content:attr(data-camera-label);position:absolute;left:7px;bottom:5px;color:#c6d8ce;font-size:9px;z-index:5;pointer-events:none;text-shadow:0 1px 3px #10282b}.tracking-clean .tracking-camera-feeds.two-cameras #primary-camera-preview{min-height:0}.tracking-clean .tracking-camera-feeds #primary-camera-preview{min-height:0}
 .workspace-header-actions button[aria-pressed=true]{background:#e8f3eb;border-color:#a8c9b5;color:#357354}.tracking-setup-page.tracking-camera-enlarged #tracking-app>.tracking-layout{grid-template-columns:minmax(0,1.8fr) minmax(200px,.65fr) 330px}
 @media(max-width:1150px){.tracking-setup-page.tracking-camera-enlarged #tracking-app>.tracking-layout{grid-template-columns:minmax(0,1.5fr) minmax(130px,.7fr)}}
+
+/* Camera setup: keep advanced diagnostics and stereo controls reachable. */
+.workspace-first.camera-setup-active .workspace-stage{height:max(680px,calc(100dvh - 170px));}
+.workspace-first.camera-setup-active .workspace-visuals{min-height:0;}
+.workspace-first.camera-setup-active .workspace-camera-dock{min-height:0;overflow:hidden;}
+.workspace-first.camera-setup-active .workspace-camera-dock #tracking-app{min-height:0;overflow-y:auto;overscroll-behavior:contain;}
+.workspace-first.camera-setup-active .workspace-camera-dock .tracking-camera-card{height:auto;min-height:100%;overflow:visible;}
+.workspace-first.camera-setup-active .workspace-camera-dock .tracking-advanced{flex:none;min-height:260px;overflow:visible;}
+@media(max-width:760px){
+ .workspace-first.camera-setup-active .workspace-stage{height:auto;min-height:0;}
+ .workspace-first.camera-setup-active .workspace-visuals{height:auto;min-height:0;grid-template-columns:minmax(0,1fr);}
+ .workspace-first.camera-setup-active #viewport{height:300px;min-height:300px;}
+ .workspace-first.camera-setup-active .workspace-camera-dock{height:min(75dvh,750px);min-height:350px;}
+ .workspace-first.camera-setup-active .workspace-camera-dock #tracking-app{overflow-y:auto;}
+}
