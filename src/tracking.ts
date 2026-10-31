@@ -1302,7 +1302,15 @@ async function detectFrame(now:number){
      markerLastConfirmed.set(m.id,stamp);
     }
     observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
-   else {observations=[];markerLastConfirmed.clear();observationsAt=stamp;idleNoMarkers=true;lastSlowFrame=Math.min(lastSlowFrame,stamp-65);drawDetections();}
+   else {
+     // A missing optical-flow frame must not erase a freshly decoded stationary marker.
+     const decodedHold=observations.filter(m=>stamp-(markerLastDecoded.get(m.id)??-Infinity)<300);
+     observations=decodedHold;
+     for(const id of [...markerLastConfirmed.keys()])if(!decodedHold.some(m=>m.id===id))markerLastConfirmed.delete(id);
+     for(const marker of decodedHold)markerLastConfirmed.set(marker.id,stamp);
+     observationsAt=stamp;idleNoMarkers=decodedHold.length===0;
+     lastSlowFrame=Math.min(lastSlowFrame,stamp-65);drawDetections();
+    }
    if(stamp-fastWindow>=1000){
     diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
     fastFrames=0;slowFrames=0;fastWindow=stamp;
