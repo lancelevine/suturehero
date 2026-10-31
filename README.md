@@ -2,6 +2,32 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Colored ball pairing and initial instrument orientation
+
+Camera ball outlines and selection-button swatches now use the sampled color.
+Balls are selected jointly for each instrument: both blobs must have plausible
+size, remain within a bounded separation and stay near recent ArUco observations
+from that instrument's configured marker group. After closed/open calibration,
+the separation bound follows the calibrated range with tolerance and scales
+with apparent ball size. Before calibration, a looser bound uses the selected
+pair and marker scale. Reacquisition regions move and scale with the ArUco
+marker rather than returning to a fixed background location.
+
+A missing marker, missing ball or rejected pair clears the pair's camera
+circles and stops fresh jaw-opening updates. The last jaw opening is retained;
+a background-colored blob cannot refresh it on its own. All three instruments
+retain separate color slots and calibration. Re-selecting a color requires
+recalibrating that instrument's closed/open positions. Known tracker-to-tip
+measurements supply a loose association bound, not calibrated tip poses.
+
+The Tracking Lab previews and simulator share a fixed mounting transform that
+starts neutral instruments with handles up and tips down. ArUco IDs, solver
+corner ordering and estimated rotation are unchanged. Focused geometry tests
+cover this orientation, while `scripts/check-ball-pairs.mjs` exercises color
+swatches, calibration, distractor rejection, marker loss and reacquisition with
+a synthetic camera (run with the same development server and optional
+`ARUCO_LIBRARY_DIR` as the marker test).
+
 ## Camera marker dictionary
 
 Both the classic detector worker (full-frame and tracked-region searches) and

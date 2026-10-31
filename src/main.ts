@@ -1,3 +1,4 @@
+import {trackedInstrumentRotation} from './input/trackingFrame';
 import {EpidermalAlignmentGuide} from './scene/EpidermalAlignmentGuide';
 import {CrossSectionView} from './scene/CrossSectionView';
 import {DEFAULT_BITE_WIDTH} from './tissue/BitePlan';
@@ -229,15 +230,8 @@ try {
    // and makes the first detected frame free of sudden jumps.
    const desiredPosition=origin.scenePosition.clone().add(pose.position.clone().sub(origin.sourcePosition));
    desiredPosition.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
-   // Match the standalone tracking lab's exact shaft alignment.
-   // The prism's longitudinal axis is local +Y, while all three simulator
-   // instruments are modeled with their shaft along local +Z. Applying a
-   // relative world-space delta to the simulator's original resting pose
-   // does NOT align those axes; a prism face change then looks like a tilt.
-   // The tracking lab instead uses pose * rotationX(90deg) for every tool.
-   const shaftAlignment=new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(1,0,0),Math.PI/2);
-   const desiredRotation=pose.quaternion.clone().multiply(shaftAlignment).normalize();
+   // Use the same neutral handle-up mounting orientation as the lab previews.
+   const desiredRotation=trackedInstrumentRotation(pose.quaternion);
    // Suppress subpixel bridge jitter without introducing another long
    // interpolation window. The lab's 40 ms interpolation remains authoritative.
    const positionError=object.position.distanceTo(desiredPosition);

@@ -1,3 +1,5 @@
+import {trackedInstrumentRotation} from './input/trackingFrame';
+import {selectBallPair,ballPairReference,predictBall,sampledBallColor,normalizedBallSeparation,type BallBlob,type BallMarker,type BallPairReference} from './input/ballPairTracking';
 import * as THREE from 'three';
 import {parseCalibration,triangulate,calibrationMatches,type StereoCalibration} from './input/stereoGeometry';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -681,10 +683,8 @@ function instrument(id:'left'|'right',color:number){
  // Instrument.reset() positions/rotates the model for the main game.
  // In tracking, the parent group's origin is the measured prism center/tip.
  model.root.position.set(0,0,0);
- // Instrument local +Z points from tip toward handle. Align that shaft
-  // with prism local +Y mapped into scene -Y (camera Y points down).
-  // A roll about the prism's long axis now rolls the virtual shaft.
-  model.root.rotation.set(Math.PI/2,0,0);
+ // Shared mounting transform keeps the neutral handle up and tip down.
+ model.root.quaternion.copy(trackedInstrumentRotation());
  model.root.scale.setScalar(.72);
  group.add(model.root);
  group.position.y=.25;
@@ -699,7 +699,7 @@ function scissorsModel(){
  const rod=(a:THREE.Vector3,b:THREE.Vector3,r:number)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,a.distanceTo(b),12),steel);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());group.add(m);};
  for(const side of [-1,1]){rod(new THREE.Vector3(side*.11,0,1.4),new THREE.Vector3(side*.015,0,.7),.043);const blade=new THREE.Mesh(new THREE.BoxGeometry(.075,.035,.85),steel);blade.position.set(side*.055,0,.3);blade.rotation.y=side*.14;group.add(blade);const ring=new THREE.Mesh(new THREE.TorusGeometry(.18,.045,10,32),steel);ring.rotation.x=Math.PI/2;ring.position.set(side*.25,0,1.67);group.add(ring);}
  const pivot=new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),steel);pivot.position.z=.72;group.add(pivot);group.scale.setScalar(.8);// Scissors are also modeled along +Z; use the same shaft alignment.
- group.rotation.set(Math.PI/2,0,0);
+ group.quaternion.copy(trackedInstrumentRotation());
  const tracked=new THREE.Group();tracked.add(group);tracked.position.y=.25;scene.add(tracked);return tracked;
 }
 const scissors=scissorsModel();
@@ -983,13 +983,34 @@ const ballColors:Array<[number,number,number]|null>=Array(6).fill(null);
 const ballCenters:Array<{x:number;y:number;count:number}|null>=Array(6).fill(null);
 const ballAnchors:Array<{x:number;y:number}|null>=Array(6).fill(null);
 const ballSeenAt=Array(6).fill(0);
+const ballDisplayColors:Array<string|null>=Array(6).fill(null);
+const ballAnchorMarkers:Array<BallMarker|null>=Array(6).fill(null);
+const ballPairStates:Array<{a:BallBlob;b:BallBlob;marker:BallMarker;seenAt:number}|null>=Array(3).fill(null);
+const ballPairReferences:Array<BallPairReference|null>=Array(3).fill(null);
+const ballPairValidAt=Array(3).fill(-Infinity);
 const ballInstrument=document.querySelector<HTMLSelectElement>('#ball-instrument')!;
 const ballNames=BALL_INSTRUMENTS;
 // Physical measurements from the center of each hexagonal marker tracker to the tip.
-// Stored for future metric pose-to-tip calibration; do not treat these as scene units.
+// Used only as a loose image-space association bound, not metric pose-to-tip calibration.
 const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
 const ballIndex=()=>ballTrackingSlot(ballInstrument.value as BallInstrumentName,0);
 const ballCalibrations=ballNames.map(()=>({closed:null as number|null,open:null as number|null,value:0}));
+function ballMarker(name:BallInstrumentName,now:number):BallMarker|null{
+ const ids:readonly number[]=markerGroups()[name];
+ const markers=observations.filter(m=>ids.includes(m.id)&&now-(markerLastConfirmed.get(m.id)??-Infinity)<250&&now-(markerLastDecoded.get(m.id)??-Infinity)<650);
+ if(!markers.length||!overlay.width)return null;
+ const ranked=markers.map(m=>{const side=m.corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-m.corners[(i+1)%4].x,p.y-m.corners[(i+1)%4].y),0)/4;return {m,side};}).sort((a,b)=>b.side-a.side);
+ const {m,side}=ranked[0],scale=ballCanvas.width/overlay.width;
+ if(!Number.isFinite(side)||side*scale<2)return null;
+ return {x:m.corners.reduce((sum,p)=>sum+p.x,0)/4*scale,y:m.corners.reduce((sum,p)=>sum+p.y,0)/4*scale,side:side*scale};
+}
+function renderBallSwatches(){
+ for(let side=0;side<2;side++){
+  const color=ballDisplayColors[ballTrackingSlot(ballInstrument.value as BallInstrumentName,side as 0|1)];
+  const button=document.querySelector<HTMLButtonElement>(side===0?'#ball-pick-a':'#ball-pick-b')!;
+  button.style.borderColor=color??'';button.style.boxShadow=color?`inset 0 -4px ${color}`:'';
+ }
+}
 let ballPick=-1,ballLastScan=0;
 const ballEnabled=document.querySelector<HTMLInputElement>('#ball-enable')!;
 const ballReadout=document.querySelector<HTMLElement>('#ball-readout')!;
@@ -1000,10 +1021,11 @@ for(let i=0;i<2;i++)document.querySelector<HTMLButtonElement>(i===0?'#ball-pick-
 });
 ballInstrument.addEventListener('change',()=>{
  // Do not accidentally assign a pending click to an instrument selected earlier.
- ballPick=-1;overlay.style.pointerEvents='none';
+ ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();
 });
 overlay.addEventListener('click',event=>{
  if(ballPick<0||!video.videoWidth)return;
+ ballCanvas.height=Math.max(1,Math.round(video.videoHeight/video.videoWidth*ballCanvas.width));
  const rect=overlay.getBoundingClientRect();
  const x=Math.max(0,Math.min(ballCanvas.width-1,Math.floor((event.clientX-rect.left)/rect.width*ballCanvas.width)));
  const y=Math.max(0,Math.min(ballCanvas.height-1,Math.floor((event.clientY-rect.top)/rect.height*ballCanvas.height)));
@@ -1017,15 +1039,22 @@ overlay.addEventListener('click',event=>{
  rgb=rgb.map(v=>v/n);const total=rgb[0]+rgb[1]+rgb[2];
  if(total<70){ballReadout.textContent='Too dark; click the brightly colored center';return;}
  ballColors[ballPick]=[rgb[0]/total,rgb[1]/total,rgb[2]/total];
+ ballDisplayColors[ballPick]=sampledBallColor(rgb);
+ const pair=Math.floor(ballPick/2),marker=ballMarker(ballNames[pair],performance.now());
+ ballAnchorMarkers[ballPick]=marker;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
+ ballPairReferences[pair]=null;ballCalibrations[pair].closed=ballCalibrations[pair].open=null;
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
- ballPick=-1;overlay.style.pointerEvents='none';ballReadout.textContent='Color assigned; calibrate closed and open';
+ ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both balls and this instrument’s ArUco markers visible, then calibrate closed and open';
 });
-const ballSeparation=(pair:number)=>{const a=ballCenters[pair*2],b=ballCenters[pair*2+1];return a&&b&&a.count>0&&b.count>0?Math.hypot(a.x-b.x,a.y-b.y)/((Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI))):null;};
+const ballSeparation=(pair:number)=>{
+ const a=ballCenters[pair*2],b=ballCenters[pair*2+1];
+ return performance.now()-ballPairValidAt[pair]<220&&ballMarker(ballNames[pair],performance.now())&&a&&b?normalizedBallSeparation({...a,score:0},{...b,score:0}):null;
+};
 document.querySelector('#ball-closed')!.addEventListener('click',()=>{
- const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].closed=d;else ballReadout.textContent='Both balls must be detected to calibrate';
+ const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].closed=d;else ballReadout.textContent='Both balls and this instrument’s ArUco markers must be detected to calibrate';
 });
 document.querySelector('#ball-open')!.addEventListener('click',()=>{
- const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].open=d;else ballReadout.textContent='Both balls must be detected to calibrate';
+ const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].open=d;else ballReadout.textContent='Both balls and this instrument’s ArUco markers must be detected to calibrate';
 });
 function scanForcepsBalls(now:number){
  if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
@@ -1034,14 +1063,18 @@ function scanForcepsBalls(now:number){
  if(ballCanvas.height!==h)ballCanvas.height=h;
  ballContext.drawImage(video,0,0,w,h);
  const pixels=ballContext.getImageData(0,0,w,h).data;
+ const candidates:BallBlob[][]=Array.from({length:6},()=>[]);
+ const markers=ballNames.map(name=>ballMarker(name,now));
  for(let c=0;c<6;c++){
   const color=ballColors[c],anchor=ballAnchors[c];
-  if(!color||!anchor){ballCenters[c]=null;continue;}
-  const previous=ballCenters[c];
+  const pair=Math.floor(c/2),marker=markers[pair];
+  if(!color||!anchor||!marker)continue;
+  const state=ballPairStates[pair],previous=state&&now-state.seenAt<600?(c%2===0?state.a:state.b):null;
   // Search around the last reliable position, not the entire frame.
   // Reacquire only near the original user-selected position after losing it.
-  const center=previous&&now-ballSeenAt[c]<600?previous:anchor;
-  const radius=previous&&now-ballSeenAt[c]<600?68:90;
+  const from=previous?state!.marker:ballAnchorMarkers[c];
+  const center=from?predictBall(previous??anchor,from,marker):anchor;
+  const radius=previous?68:90;
   const minX=Math.max(0,Math.floor(center.x-radius)),maxX=Math.min(w-1,Math.ceil(center.x+radius));
   const minY=Math.max(0,Math.floor(center.y-radius)),maxY=Math.min(h-1,Math.ceil(center.y+radius));
   // Binary color mask and eight-connected components, evaluated at full
@@ -1053,7 +1086,6 @@ function scanForcepsBalls(now:number){
    if(sum<95||Math.max(r,g,bl)-Math.min(r,g,bl)<38)continue;
    if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<.075)mask[(y-minY)*bw+x-minX]=1;
   }
-  let best:{x:number;y:number;count:number;score:number}|null=null;
   const queue=new Int32Array(mask.length);
   for(let index=0;index<mask.length;index++){
    if(mask[index]!==1)continue;
@@ -1080,20 +1112,28 @@ function scanForcepsBalls(now:number){
    const distance=Math.hypot(x-center.x,y-center.y);
    if(distance>radius)continue;
    const score=Math.log1p(count)*3-distance*.16-Math.abs(1-aspect)*3;
-   if(!best||score>best.score)best={x,y,count,score};
+   candidates[c].push({x,y,count,score});
   }
-  if(best){
-   const fresh=previous&&now-ballSeenAt[c]<350;
-   const displacement=fresh?Math.hypot(best.x-previous.x,best.y-previous.y):0;
-   // Reject implausible single-frame leaps while preserving genuine movement.
-   if(!fresh||displacement<26){
-    const blend=fresh?.38:1;
-    ballCenters[c]={x:fresh?previous.x*(1-blend)+best.x*blend:best.x,
-                    y:fresh?previous.y*(1-blend)+best.y*blend:best.y,count:best.count};
-    ballSeenAt[c]=now;
-   }
-  }else if(now-ballSeenAt[c]>220)ballCenters[c]=null;
+  candidates[c].sort((a,b)=>b.score-a.score);candidates[c]=candidates[c].slice(0,8);
  }
+ for(let pair=0;pair<3;pair++){
+  const marker=markers[pair],a=pair*2,b=a+1,cal=ballCalibrations[pair];
+  if(marker&&!ballPairReferences[pair]&&ballAnchors[a]&&ballAnchors[b]){
+   const pa=ballAnchorMarkers[a]?predictBall(ballAnchors[a]!,ballAnchorMarkers[a]!,marker):ballAnchors[a]!;
+   const pb=ballAnchorMarkers[b]?predictBall(ballAnchors[b]!,ballAnchorMarkers[b]!,marker):ballAnchors[b]!;
+   ballPairReferences[pair]=ballPairReference(pa,pb,marker);
+  }
+  const reference=ballPairReferences[pair];
+  const found=marker&&reference?selectBallPair(candidates[a],candidates[b],marker,{...cal,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]}):null;
+  if(!found||!marker){ballCenters[a]=ballCenters[b]=null;ballPairValidAt[pair]=-Infinity;continue;}
+  const previous=ballPairStates[pair],blend=previous&&now-previous.seenAt<350?.38:1;
+  const smooth=(next:BallBlob,old:BallBlob|undefined):BallBlob=>old?{...next,x:old.x*(1-blend)+next.x*blend,y:old.y*(1-blend)+next.y*blend}:next;
+  const acceptedA=smooth(found.a,previous?.a),acceptedB=smooth(found.b,previous?.b);
+  // Preserve the calibrated normalized distance by smoothing both centroids together.
+  ballCenters[a]=acceptedA;ballCenters[b]=acceptedB;ballSeenAt[a]=ballSeenAt[b]=now;
+  ballPairStates[pair]={a:acceptedA,b:acceptedB,marker,seenAt:now};ballPairValidAt[pair]=now;
+ }
+
  for(let pair=0;pair<3;pair++){
   const d=ballSeparation(pair),cal=ballCalibrations[pair];
   if(d!==null&&cal.closed!==null&&cal.open!==null&&Math.abs(cal.open-cal.closed)>.08){
@@ -1111,6 +1151,7 @@ function scanForcepsBalls(now:number){
  const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair];
  ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':'missing')+
   ' · B '+(ballCenters[pair*2+1]?'found':'missing')+
+  ' · '+(!markers[pair]?'waiting for this instrument’s ArUco markers':d===null?'pair rejected or missing':'paired with instrument')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
   ' · jaw '+Math.round(cal.value*100)+'%';
@@ -1122,7 +1163,8 @@ function drawBallOutlines(){
   const p=ballCenters[i];if(!p||performance.now()-ballSeenAt[i]>220)continue;
   const x=p.x*overlay.width/ballCanvas.width,y=p.y*overlay.height/ballCanvas.height;
   overlayContext.beginPath();overlayContext.arc(x,y,Math.max(5,Math.sqrt(p.count/Math.PI)*overlay.width/ballCanvas.width),0,Math.PI*2);
-  overlayContext.lineWidth=3;overlayContext.strokeStyle=i%2===0?'#ff59cf':'#42dfff';overlayContext.stroke();
+  overlayContext.lineWidth=6;overlayContext.strokeStyle='rgba(0,0,0,.75)';overlayContext.stroke();
+  overlayContext.lineWidth=3;overlayContext.strokeStyle=ballDisplayColors[i]??'#ffffff';overlayContext.stroke();
   overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.fillText(ballNames[Math.floor(i/2)]+' '+(i%2===0?'A':'B'),x+13,y);
  }
 }
