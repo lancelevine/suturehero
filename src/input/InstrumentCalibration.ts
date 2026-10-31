@@ -83,6 +83,15 @@ export class InstrumentCalibration {
   s.last.position.copy(position);s.last.quaternion.copy(quaternion);s.seenAt=now;
   return {position:output,quaternion:rotation};
  }
+ /** Rotation observed from neutral before axis remapping. */
+ rawNeutralRotation(name:BallInstrumentName,now=performance.now()):THREE.Vector3|null{
+  const s=this.sessions.get(name);if(!s||now-s.seenAt>=700)return null;
+  const q=s.neutralQuaternion.clone().invert().multiply(s.last.quaternion).normalize();
+  if(q.w<0)q.set(-q.x,-q.y,-q.z,-q.w);
+  const v=new THREE.Vector3(q.x,q.y,q.z),length=v.length();
+  if(length<1e-8)return new THREE.Vector3();
+  return v.multiplyScalar(2*Math.atan2(length,q.w)/length);
+ }
  opening(name:BallInstrumentName,value:number){return this.profiles.get(name)!.jawInverted?1-value:value;}
 }
 function browserStorage(){try{return typeof window==='undefined'?undefined:window.localStorage;}catch{return undefined;}}
