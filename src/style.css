@@ -23,3 +23,4 @@ button:disabled{opacity:.45;cursor:default;background:transparent}.toolbar{flex-
 #cross-section {margin-top:12px;padding:10px;border:1px solid #34515b;border-radius:8px;min-width:0}
 #cross-section-canvas {display:block;width:100%;height:auto;max-height:260px;object-fit:contain}
 #cross-section-readout {overflow-wrap:anywhere}
+\n/* SutureHero branding: compact emblem stays clear of the simulation workspace. */\n.brand{gap:9px;letter-spacing:0;text-transform:none;flex-shrink:0}.brand-logo{display:block;width:47px;height:52px;object-fit:contain;flex-shrink:0}.brand-name{font-size:22px;font-weight:800;font-style:italic;color:#052b69;white-space:nowrap}.brand-name .muted{color:#075bf1;font-weight:800;margin:0}@media(max-width:760px){.brand-logo{width:35px;height:40px}.brand-name{font-size:18px}}@media(max-width:420px){.brand-logo{width:30px;height:35px}.brand-name{font-size:16px}}\n
