@@ -25,6 +25,9 @@ try{
   assert(await page.evaluate(()=>window.__originalCameraVideo===document.querySelector('#camera-video')&&document.querySelector('#camera-video').srcObject?.active));
  };
  for(const tool of ['forceps','needleDriver','scissors']){await page.locator(`[data-calibration-tool=${tool}]`).click();for(const pane of ['pose','jaws','axes']){await page.locator(`[data-calibration-pane=${pane}]`).click();await visible();}}
+ await page.locator('.tracking-advanced').evaluate(e=>e.open=true);
+ for(const checked of [false,true]){await page.locator('#lock-depth').setChecked(checked);for(const tool of ['forceps','needleDriver','scissors']){await page.locator(`[data-calibration-tool=${tool}]`).click();await page.locator('[data-calibration-pane=pose]').click();assert.equal(await page.locator('[data-profile-check=depthLock]').isChecked(),checked);}}
+ await page.locator('.tracking-advanced').evaluate(e=>e.open=false);
  await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-calibration-pane=pose]').click();
  await page.waitForFunction(()=>!document.querySelector('[data-neutral]').disabled,{},{timeout:15000});await page.locator('[data-neutral]').click();assert.match(await page.locator('[data-calibration-message]').innerText(),/Neutral pose set/);
  await page.locator('[data-gain=movementGain]').fill('2');await page.locator('[data-gain=movementGain]').dispatchEvent('input');

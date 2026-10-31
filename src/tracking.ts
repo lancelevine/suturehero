@@ -74,8 +74,9 @@ const depthRangeStatus=document.querySelector<HTMLElement>('#depth-range-status'
 rotationSensitivity.addEventListener('input',()=>{rotationSensitivityValue.textContent=`${rotationSensitivity.value}°`;rotationFilterStates.clear();});
 rotationGain.addEventListener('input',()=>{rotationGainValue.textContent=`${Number(rotationGain.value).toFixed(2)}×`;});
 depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent=`${depthSensitivity.value}×`;depthStates.clear();});
-instrumentCalibration.subscribe(()=>{const locks=(['forceps','needleDriver','scissors'] as const).map(name=>instrumentCalibration.profile(name).depthLock);lockDepth.checked=locks.every(Boolean);lockDepth.indeterminate=locks.some(Boolean)&&!locks.every(Boolean);});
-lockDepth.addEventListener('change',()=>{for(const name of ['forceps','needleDriver','scissors'] as const)instrumentCalibration.update(name,{depthLock:lockDepth.checked});liveTargets.clear();stationaryStates.clear();depthStates.clear();});
+const syncDepthLock=()=>{const locks=(['forceps','needleDriver','scissors'] as const).map(name=>instrumentCalibration.profile(name).depthLock);lockDepth.checked=locks.every(Boolean);lockDepth.indeterminate=locks.some(Boolean)&&!locks.every(Boolean);};
+instrumentCalibration.subscribe(syncDepthLock);syncDepthLock();
+lockDepth.addEventListener('change',()=>{const checked=lockDepth.checked;for(const name of ['forceps','needleDriver','scissors'] as const)instrumentCalibration.update(name,{depthLock:checked});liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{
  liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();prismFaceOffsets.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
