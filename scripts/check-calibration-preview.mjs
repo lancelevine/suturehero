@@ -11,6 +11,8 @@ try{
  await page.addInitScript(()=>{const original=HTMLCanvasElement.prototype.getContext;window.__glContexts=new Set();HTMLCanvasElement.prototype.getContext=function(kind,...args){const ctx=original.call(this,kind,...args);if(ctx&&(kind==='webgl'||kind==='webgl2'))window.__glContexts.add(ctx);return ctx;};});
  await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/').href,{waitUntil:'domcontentloaded'});
  await page.locator('#workspace-calibrate-toggle').click();await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();
+ assert.deepEqual(await page.locator('[data-calibration-tool]').allTextContents(),['Needle driver','Forceps','Scissors']);assert.equal(await page.locator('[data-calibration-tool=needleDriver]').getAttribute('aria-pressed'),'true');assert(await page.locator('.calibration-fixed-axes').isVisible());
+ await page.locator('[data-calibration-tool=forceps]').click();
  const preview=page.locator('.calibration-live-preview'),line=page.locator('[data-preview-tool] path').first();
  await page.waitForFunction(()=>document.querySelector('.calibration-live-preview').dataset.tracking==='live',{},{timeout:30000});
  await page.locator('[data-neutral]').click();await page.waitForTimeout(200);

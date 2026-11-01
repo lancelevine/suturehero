@@ -2,6 +2,14 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Calibration order and axes in 0.51
+
+The calibration instrument tabs start with needle driver, then forceps and
+scissors. Needle driver is selected initially. A larger fixed X/Y/Z guide in
+the preview stays visible as the instrument moves: red X for left/right,
+green Y for up/down, and blue Z for depth. Tracking slots and saved profile
+keys retain their existing assignments.
+
 ## Live calibration preview in 0.50
 
 Open **Calibrate** and select forceps, needle driver or scissors. A live
