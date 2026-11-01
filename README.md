@@ -2,6 +2,27 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Hexagonal ring audit and neutral placement in 0.57
+
+Six-face mode already passes the 60° hexagonal model to both monocular and
+stereo orientation estimation for needle driver IDs 0–5, forceps 10–15 and
+scissors 20–25. New synthetic projection tests exercise every face, adjacent
+handoffs including face 5→0, forward pitch direction and noisy overlaps for all
+three ID ranges. They validate the software model, not the physical print order.
+
+Active-model metadata now supplies marker size consistently: ring squares are
+16 mm, legacy prism squares 12 mm. Planar translation and pose seeds previously
+still defaulted to the legacy size. Diagnostics now show the selected geometry,
+correct ID groups, visible face count and spacing instead of static 120° prism
+text and a misleading "3 learned" count. Hexagonal overlap diagnostics permit
+three visible sides and use the selected instrument ID groups.
+
+Set neutral now places the selected instrument at its calibrated tracked X/Y in
+the main workspace using the existing tracking scale, preserving current depth
+and workspace limits. First acquisition still preserves the original placement;
+subsequent movement continues relative to the new anchor. Other tools and saved
+axis mappings are unaffected. This is not pixel-perfect camera registration.
+
 ## Post-recognition smoothing in 0.56
 
 The existing published-pose filter now smooths small fluctuations more strongly

@@ -1,3 +1,4 @@
+import {TrackedPositionBridge} from './input/TrackedPositionBridge';
 import {mountWorkspaceLayout} from './ui/WorkspaceLayout';
 import {mountCalibrationPanel} from './ui/InstrumentCalibrationPanel';
 import {instrumentCalibration} from './input/InstrumentCalibration';
@@ -34,7 +35,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.56 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.57 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -172,7 +173,7 @@ try {
   type CameraInstrument='needleDriver'|'forceps'|'scissors';
   type CameraPose={position:THREE.Vector3;quaternion:THREE.Quaternion;seenAt:number};
   const cameraPoses=new Map<CameraInstrument,CameraPose>();
-  const cameraOrigins=new Map<CameraInstrument,{sourcePosition:THREE.Vector3;sourceRotation:THREE.Quaternion;scenePosition:THREE.Vector3;sceneRotation:THREE.Quaternion}>();
+  const cameraOrigins=new Map<CameraInstrument,TrackedPositionBridge>();
   const cameraToggle=document.querySelector<HTMLButtonElement>('#camera-tracking-toggle')!;
   const cameraPanel=document.querySelector<HTMLElement>('#camera-tracking-panel')!;
   let trackingModuleLoaded=false;
@@ -200,7 +201,7 @@ try {
   window.addEventListener('suturehero:open-camera-setup',()=>{if(cameraEnabled){cameraPanel.hidden=false;cameraPanel.style.display='flex';workspaceLayout.openSetup();}else void setCameraMode(true);});
   void setCameraMode(true); // Open setup without starting a camera stream.
   document.querySelector('#disable-camera-tracking')!.addEventListener('click',()=>{void setCameraMode(false);});
-  instrumentCalibration.subscribe((name,reason)=>{if(reason==='reset')cameraOrigins.delete(name);});
+  instrumentCalibration.subscribe((name,reason)=>{if(reason==='reset')cameraOrigins.delete(name);if(reason==='neutral'){let bridge=cameraOrigins.get(name);if(!bridge){bridge=new TrackedPositionBridge();cameraOrigins.set(name,bridge);}bridge.alignOnNeutral();}});
   const onTrackingData=(data:any)=>{
    if(!cameraEnabled)return;
    if(data?.type==='suturehero:tracking-fps'&&typeof data.fps==='number'){
@@ -227,15 +228,10 @@ try {
   const applyCameraPose=(name:CameraInstrument,object:THREE.Object3D)=>{
    const pose=cameraPoses.get(name);
    if(!pose||performance.now()-pose.seenAt>350)return;
-   let origin=cameraOrigins.get(name);
-   if(!origin){
-    origin={sourcePosition:pose.position.clone(),sourceRotation:pose.quaternion.clone(),
-     scenePosition:object.position.clone(),sceneRotation:object.quaternion.clone()};
-    cameraOrigins.set(name,origin);
-   }
-   // Relative calibration preserves the simulator's initial tool placement
-   // and makes the first detected frame free of sudden jumps.
-   const desiredPosition=origin.scenePosition.clone().add(pose.position.clone().sub(origin.sourcePosition));
+   let bridge=cameraOrigins.get(name);if(!bridge){bridge=new TrackedPositionBridge();cameraOrigins.set(name,bridge);}
+   // First acquisition preserves placement; explicit neutral aligns tracked XY,
+   // retaining the instrument's current depth and subsequent relative motion.
+   const desiredPosition=bridge.target(pose.position,object.position);
    desiredPosition.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
    // Use the same neutral handle-up mounting orientation as the lab previews.
    const desiredRotation=trackedInstrumentRotation(pose.quaternion);

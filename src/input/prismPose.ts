@@ -9,13 +9,14 @@ const RING_SIDE_MM=19;
 // 19 mm printed face, 16 mm outer marker square.
 const RING_MARKER_MM=16;
 export type TrackerType='prism'|'ring6'|'ring8';
+export const trackerGeometry=(type:TrackerType)=>({faceCount:type==='ring8'?8:type==='ring6'?6:3,sideStepRadians:type==='prism'?2*Math.PI/3:Math.PI/3,markerSizeMm:type==='prism'?PRISM_SIDE_MM:RING_MARKER_MM});
 const ringRadius=RING_SIDE_MM/(2*Math.tan(Math.PI/6));
 const prismRadius=PRISM_SIDE_MM/(2*Math.tan(Math.PI/3));
 export function faceGeometry(index:number,type:TrackerType='prism'){
  const ring=type==='ring8'||type==='ring6';
  // IDs 0–5 wrap around the ring. IDs 6 and 7 are opposite each
  // other circumferentially (0° and 180°), both on the tip-facing end.
- const angle=ring?(index<6?index*Math.PI/3:(index===6?0:Math.PI)):index*2*Math.PI/3;
+ const angle=ring?(index<6?index*trackerGeometry(type).sideStepRadians:(index===6?0:Math.PI)):index*trackerGeometry(type).sideStepRadians;
  const radius=ring?ringRadius:prismRadius;
  const yaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle);
  const q=yaw.clone();
@@ -25,7 +26,7 @@ export function faceGeometry(index:number,type:TrackerType='prism'){
  return {rotation:q,center};
 }
 export const localCorners=(index:number,type:TrackerType='prism')=>{
- const {rotation,center}=faceGeometry(index,type),s=(type==='prism'?PRISM_SIDE_MM:RING_MARKER_MM)/2;
+ const {rotation,center}=faceGeometry(index,type),s=trackerGeometry(type).markerSizeMm/2;
  return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,0).applyQuaternion(rotation).add(center));
 };
 export interface PrismPose {quaternion:THREE.Quaternion;translation:THREE.Vector3;error:number;faces:number}
@@ -48,7 +49,7 @@ export function solvePrismPose(
  const fx=width/(2*Math.tan(70*Math.PI/360/2)),cx=width/2,cy=height/2;
  const points=markers.flatMap(marker=>{
   const index=marker.id-firstId;
-  if(index<0||index>=(trackerType==='ring8'?8:trackerType==='ring6'?6:3)||marker.corners.length!==4)return [];
+  if(index<0||index>=trackerGeometry(trackerType).faceCount||marker.corners.length!==4)return [];
   return localCorners(index,trackerType).map((p,i)=>({p,uv:marker.corners[i]}));
  });
  if(points.length<4)return null;
@@ -69,8 +70,8 @@ export function solvePrismPose(
  if(predicted)seeds.push({q:predicted.quaternion.clone(),t:predicted.translation.clone()});
  if(previous)seeds.push({q:previous.quaternion.clone(),t:previous.translation.clone()});
  for(const marker of markers){
-  const index=marker.id-firstId;if(index<0||index>=(trackerType==='ring8'?8:trackerType==='ring6'?6:3))continue;
-  const pose=estimateMarkerPose(marker,width,height);
+  const index=marker.id-firstId;if(index<0||index>=trackerGeometry(trackerType).faceCount)continue;
+  const pose=estimateMarkerPose(marker,width,height,trackerGeometry(trackerType).markerSizeMm);
   if(!pose)continue;
   const geometry=faceGeometry(index,trackerType);
   const q=pose.quaternion.clone().multiply(geometry.rotation.clone().invert()).normalize();

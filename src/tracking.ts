@@ -10,7 +10,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
-import {solvePrismPose,localCorners,type PrismPose,type TrackerType} from './input/prismPose';
+import {solvePrismPose,localCorners,trackerGeometry,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import {BALL_INSTRUMENTS,ballTrackingSlot,type BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
@@ -47,7 +47,7 @@ root.innerHTML=`<header><a class="brand" href="./"><img class="brand-logo" src="
 </div>
 </div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
 <p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D, scissors I/J/K/L (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div id="stereo-view-indicator" role="status" aria-live="off" style="display:flex;align-items:center;gap:8px;margin:8px 0 12px;font-size:13px"><span id="stereo-view-dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#89939e"></span><span id="stereo-view-label">Stereo triangulation: off</span></div><details class="tracking-details"><summary>Virtual View Controls &amp; Diagnostics</summary><div class="tracking-details-body"><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>Rotation solver</strong><span id="rotation-solver-status">Waiting for markers</span></div><div><strong>Rotation stages (°)</strong><span id="rotation-stage-readout" style="white-space:pre-line;font-variant-numeric:tabular-nums">Waiting for markers</span></div><div><strong>V5 prism faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message">ArUco dictionary: DICT_4X4_50 · Driver IDs 0–2 (V5) · Forceps IDs 3–5. Single-camera relative 3D rotation tracking enabled (roll, pitch, yaw), with angular smoothing. Coordinates are camera-relative; depth and angles are approximate until webcam calibration. Instrument rotation uses nominal 120° V5 face offsets; exact marker print orientation may require calibration.</p><div class="tracking-tuning"><label>Rotation sensitivity <input id="rotation-sensitivity" type="range" min="0.5" max="8" step="0.5" value="3"><output id="rotation-sensitivity-value">3°</output></label><label>Rotation gain <input id="rotation-gain" type="range" min="0.1" max="1" step="0.05" value="0.1"><output id="rotation-gain-value">0.10×</output></label><label>Depth sensitivity <input id="depth-sensitivity" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="depth-sensitivity-value">1.5×</output></label><p class="tracking-message" id="tracking-filter-diagnostics">Raw and filtered depth/rotation diagnostics appear during tracking.</p></div></div></details></section></main>`;
+</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div id="stereo-view-indicator" role="status" aria-live="off" style="display:flex;align-items:center;gap:8px;margin:8px 0 12px;font-size:13px"><span id="stereo-view-dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#89939e"></span><span id="stereo-view-label">Stereo triangulation: off</span></div><details class="tracking-details"><summary>Virtual View Controls &amp; Diagnostics</summary><div class="tracking-details-body"><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>Rotation solver</strong><span id="rotation-solver-status">Waiting for markers</span></div><div><strong>Rotation stages (°)</strong><span id="rotation-stage-readout" style="white-space:pre-line;font-variant-numeric:tabular-nums">Waiting for markers</span></div><div><strong>Tracker faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message" id="tracker-geometry-description"></p><div class="tracking-tuning"><label>Rotation sensitivity <input id="rotation-sensitivity" type="range" min="0.5" max="8" step="0.5" value="3"><output id="rotation-sensitivity-value">3°</output></label><label>Rotation gain <input id="rotation-gain" type="range" min="0.1" max="1" step="0.05" value="0.1"><output id="rotation-gain-value">0.10×</output></label><label>Depth sensitivity <input id="depth-sensitivity" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="depth-sensitivity-value">1.5×</output></label><p class="tracking-message" id="tracking-filter-diagnostics">Raw and filtered depth/rotation diagnostics appear during tracking.</p></div></div></details></section></main>`;
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const cameraExpand=document.querySelector<HTMLButtonElement>('#camera-expand')!;
@@ -79,7 +79,7 @@ const syncDepthLock=()=>{const locks=(['forceps','needleDriver','scissors'] as c
 instrumentCalibration.subscribe(syncDepthLock);syncDepthLock();
 lockDepth.addEventListener('change',()=>{const checked=lockDepth.checked;for(const name of ['forceps','needleDriver','scissors'] as const)instrumentCalibration.update(name,{depthLock:checked});liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{
- liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();prismFaceOffsets.clear();depthStates.clear();
+ liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
@@ -200,9 +200,15 @@ const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
 };
 const sixMarkerGroups:Record<InstrumentName,readonly number[]>={needleDriver:[0,1,2,3,4,5],forceps:[10,11,12,13,14,15],scissors:[20,21,22,23,24,25]};
 const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:trackerType==='ring6'?sixMarkerGroups:MARKER_GROUPS;
+function updateTrackerDescription(){
+ const geometry=trackerGeometry(trackerType),groups=markerGroups(),spacing=THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0);
+ trackerTypeStatus.textContent=`${geometry.faceCount}-face ${trackerType==='prism'?'prism':'ring'} · ${spacing}° side spacing for all instruments · `+(['needleDriver','forceps','scissors'] as const).map(n=>`${n==='needleDriver'?'Needle driver':n==='forceps'?'Forceps':'Scissors'} IDs ${groups[n][0]}–${groups[n].at(-1)}`).join(' · ');
+ document.querySelector('#tracker-geometry-description')!.textContent=`DICT_4X4_50 · ${geometry.markerSizeMm} mm marker squares. All instruments use the selected ${geometry.faceCount}-face geometry with ${spacing}° side spacing${trackerType==='ring8'?' plus two inclined end faces':''}. Face ID order and printed corner orientation must match the physical tracker. Camera depth and angles remain approximate until camera calibration.`;
+}
+
 function resetTrackerPose(){
  instrumentCalibration.clearSessions();rawRenderedPoses.clear();
- rigidBodyStates.clear();rotationSources.clear();prismFaceOffsets.clear();
+ rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
  poseHistory.clear();
@@ -210,12 +216,12 @@ function resetTrackerPose(){
 trackerTypeSelect.addEventListener('change',()=>{
  trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value==='ring6'?'ring6':'prism';
  resetTrackerPose();
- trackerTypeStatus.textContent=trackerType==='ring8'?'8-face ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':trackerType==='ring6'?'6-face ring: IDs 0–5 needle driver, 10–15 forceps, 20–25 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
+ updateTrackerDescription();
  try{localStorage.setItem('suturehero.trackerType',trackerType);}catch{/* unavailable */}
 });
 try{trackerTypeSelect.value=(['ring8','ring6'].includes(localStorage.getItem('suturehero.trackerType')??'')?localStorage.getItem('suturehero.trackerType'):'prism')!;}catch{/* unavailable */}
 trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value==='ring6'?'ring6':'prism';
-trackerTypeStatus.textContent=trackerType==='ring8'?'8-face ring: IDs 0–7 needle driver, 10–17 forceps, 20–27 scissors.':trackerType==='ring6'?'6-face ring: IDs 0–5 needle driver, 10–15 forceps, 20–25 scissors.':'Prism: IDs 0–2 needle driver, 3–5 forceps, 6–8 scissors.';
+updateTrackerDescription();
 
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
@@ -223,7 +229,7 @@ const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:nu
 type StereoRotation={quaternion:THREE.Quaternion;errorMm:number;faces:number;corners:number};
 // Recover rigid-body orientation from corresponding 3D ArUco corners.
 // Camera 1 coordinates are the shared reference frame. The physical mount
-// remains the existing 3-face, 12 mm prism; no eight-face assumption here.
+// uses localCorners from the selected tracker geometry, just like the mono solver.
 function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null{
  if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
@@ -597,8 +603,8 @@ const verifiedMarkers=()=>{
    const age=now-(markerLastDecoded.get(m.id)??0);
    return {marker:m,score:Math.log1p(area)-age*.009};
   }).sort((a,b)=>b.score-a.score);
-  // A triangular prism has at most two camera-facing sides.
-  selected.push(...ranked.slice(0,2).map(item=>item.marker));
+  // A hexagonal ring can expose three side faces; ring8 adds inclined end faces.
+  selected.push(...ranked.slice(0,trackerType==='prism'?2:trackerType==='ring6'?3:5).map(item=>item.marker));
  }
  return selected;
 };
@@ -610,14 +616,6 @@ function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MAR
 let observationsAt=0;
 const trackingHoldMs=650;
 const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
-// Learned face-to-face transforms from simultaneous marker sightings.
-// Do not assume printed face orientation from nominal prism dimensions alone.
-const prismFaceOffsets=new Map<'needleDriver'|'forceps'|'scissors',Map<number,THREE.Quaternion>>();
-const prismAxis=new THREE.Vector3(0,1,0);
-function nominalV5FaceOffset(name:'needleDriver'|'forceps'|'scissors',id:number){
- const index=(markerGroups()[name] as readonly number[]).indexOf(id);
- return new THREE.Quaternion().setFromAxisAngle(prismAxis,-index*(trackerType==='prism'?2*Math.PI/3:Math.PI/3));
-}
 // Rotation-only rigid-body state. Never used to accept/reject translation.
 const rotationSources=new Map<InstrumentName,'mono'|'stereo'>();
 const faceTransitionStates=new Map<InstrumentName,{faceId:number;candidateId:number|null;candidateCount:number}>();
@@ -739,7 +737,7 @@ function updateLiveTargets(){
  for(const name of ['needleDriver','forceps','scissors'] as const){
   const ids:readonly number[]=markerGroups()[name];
   const candidates=liveMarkers().filter(m=>ids.includes(m.id)).map(marker=>{
-   const pose=estimateMarkerPose(marker,overlay.width,overlay.height);
+   const pose=estimateMarkerPose(marker,overlay.width,overlay.height,trackerGeometry(trackerType).markerSizeMm);
    return pose?{marker,pose}:null;
   }).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item!==null);
   candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
@@ -751,11 +749,6 @@ function updateLiveTargets(){
   // Pose reprojection error gates rotation confidence, not marker-center translation.
   // Optical flow can track a valid 2D square even when the planar 3D fit is poor.
   const {pose}=chosen;
-  // Nominal V5 triangular prism: consecutive marker IDs are 120 degrees apart.
-  // Face transforms share one reference even when only one marker is visible.
-  const offsets=prismFaceOffsets.get(name)??new Map<number,THREE.Quaternion>();
-  prismFaceOffsets.set(name,offsets);
-  for(const faceId of ids)if(!offsets.has(faceId))offsets.set(faceId,nominalV5FaceOffset(name,faceId));
   // Translation comes directly from the displayed marker quadrilateral, not PnP pose.
   // The size-derived distance is approximate until camera intrinsics are calibrated.
   const markerCenter={x:chosen.marker.corners.reduce((sum,p)=>sum+p.x,0)/4,y:chosen.marker.corners.reduce((sum,p)=>sum+p.y,0)/4};
@@ -763,7 +756,7 @@ function updateLiveTargets(){
   const markerSidePx=sideLengths.reduce((sum,n)=>sum+n,0)/4;
   if(markerSidePx<2)continue;
   const focalPx=overlay.width/(2*Math.tan(70*Math.PI/360/2));
-  const sizeDistance=12*focalPx/markerSidePx;
+  const sizeDistance=trackerGeometry(trackerType).markerSizeMm*focalPx/markerSidePx;
   // First step toward rigid-body pose: estimate orientation and distance
   // together from the same four corners. A tilted face looks smaller even
   // when its actual depth is unchanged, so side length alone is misleading.
@@ -886,8 +879,7 @@ function updateLiveTargets(){
     // continuity, but do not impose a hard angular ceiling on real motion.
     const staleMs=now-state.lastAt;
     const singleFaceLimit=Math.max(.35,elapsed*10);
-    // Reacquire after a face transition: a valid new face may be ~90–120°
-    // away from the last accepted pose. Do not freeze indefinitely because
+    // Reacquire after a sufficiently large real rotation between observations. Do not freeze indefinitely because
     // the single-face angular gate was exceeded.
     const reacquire=staleMs>220&&rigid.error<(stereoUsable?4:5);
     // Fast face-to-face rolls can exceed the single-face velocity gate while
@@ -1253,7 +1245,7 @@ function drawDetections(){
  for(const marker of observations){
   // A flow-only outline is not proof that the printed face is still visible.
   if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>650)continue;
-  const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+  const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(markerGroups()[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  drawBallOutlines();
  drawCornerDebug();
  updateLiveTargets();
@@ -1268,7 +1260,7 @@ function drawDetections(){
   };
   driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
   filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':'tracking'}`:`${name}: waiting`;}).join(' | ');
-  faceOverlapReadout.textContent=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id)).map(m=>m.id);const learned=prismFaceOffsets.get(name)?.size??0;return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${learned}/3 learned`;}).join(' | ');
+  faceOverlapReadout.textContent=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id)).map(m=>m.id);const geometry=trackerGeometry(trackerType);return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${visible.length}/${geometry.faceCount} visible · ${THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0)}° side spacing`;}).join(' | ');
  }
 }
 const roiDecodeToggle=document.querySelector<HTMLInputElement>('#roi-decode')!;

@@ -39,7 +39,7 @@ export class InstrumentCalibrationPanel {
   }
   if(b.hasAttribute('data-guide-cancel')){this.guide=undefined;this.updateGuide();return;}
   if(b.hasAttribute('data-guide-capture')){this.captureGuide();return;}
-  if(b.hasAttribute('data-neutral')){this.guide=undefined;this.updateGuide();this.message(instrumentCalibration.captureNeutral(this.selected)?'Neutral pose set. Physical movement starts from this pose.':'A recent marker pose is needed.');return;}
+  if(b.hasAttribute('data-neutral')){this.guide=undefined;this.updateGuide();this.message(instrumentCalibration.captureNeutral(this.selected)?'Neutral pose set. Main view aligns to tracked X/Y and keeps its depth.':'A recent marker pose is needed.');return;}
   if(b.hasAttribute('data-save')){this.message(instrumentCalibration.save(this.selected)?'Profile saved in this browser.':'Browser storage is unavailable; settings remain active for this session.');return;}
   if(b.hasAttribute('data-reset')){instrumentCalibration.reset(this.selected);this.render();this.message('This instrument’s live settings were reset. Save to keep the reset.');return;}
   if(b.dataset.mount){this.guide=undefined;instrumentCalibration.update(this.selected,{mountingDegrees:b.dataset.mount==='flip'?[180,0,0]:b.dataset.mount==='side'?[0,0,90]:[0,0,0]});this.render();this.message('Mounting orientation updated.');}
