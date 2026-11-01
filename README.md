@@ -2,6 +2,23 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Guided calibration checks in 0.52
+
+Calibration opens on page load, with camera setup ready but no camera stream
+started. The rotation guide checks right/left, forward/back, and clockwise/
+counterclockwise roll. Each capture needs fresh, steady observations and a
+return to neutral between directions. All three opposite pairs must identify
+distinct, consistent axes before the mapping is applied; failed checks keep the
+previous mapping. This checks axis direction, not metric angle or translation scale.
+
+A green square in the live preview shows the tracker center computed from the
+same calibrated offset as the instrument tip (55 mm for the needle driver), with
+a corner dot to show roll and a dashed connection to the tip. It is an assumed
+mounting reference, not a camera measurement; custom tip offsets move it too.
+
+The guided UI regression can be run with a Vite dev server on port 5175 using
+`node scripts/check-guided-calibration.mjs` (or set `SUTURE_TEST_URL`).
+
 ## Calibration order and axes in 0.51
 
 The calibration instrument tabs start with needle driver, then forceps and

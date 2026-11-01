@@ -39,6 +39,7 @@ export function mountWorkspaceLayout(app:HTMLElement){
  const toggleCalibration=(open?:boolean)=>{calibration.hidden=open===undefined?!calibration.hidden:!open;app.querySelector('#workspace-calibrate-toggle')!.setAttribute('aria-expanded',String(!calibration.hidden));};
  app.querySelector('#close-calibration')!.addEventListener('click',()=>toggleCalibration(false));
  app.querySelector('#workspace-calibrate-toggle')!.addEventListener('click',()=>{const open=calibration.hidden;toggleCalibration(open);if(open)window.dispatchEvent(new Event('suturehero:open-camera-setup'));});
+ toggleCalibration(true);
  end.addEventListener('click',()=>{document.body.classList.remove('camera-setup-active');toggleCalibration(false);});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleCalibration(false);});
  return {calibrationHost:calibration.querySelector<HTMLElement>('#instrument-calibration')!,openSetup:()=>document.body.classList.add('camera-setup-active')};

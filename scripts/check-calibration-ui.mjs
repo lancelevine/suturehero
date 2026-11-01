@@ -11,7 +11,7 @@ try{
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await installSyntheticCamera(page);
  await page.goto(new URL('?graphics=low',base).href);
  const frame=await page.locator('#viewport').boundingBox();assert(frame.y<110&&frame.height>650,'suturing window should be large and at the top');
- await page.locator('#workspace-calibrate-toggle').click();await page.locator('#choose-primary-camera').waitFor();
+ assert(await page.locator('#workspace-calibration-drawer').isVisible());await page.locator('#choose-primary-camera').waitFor();
  await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});
  await page.locator('.tracking-advanced').evaluate(e=>e.open=true);
@@ -36,6 +36,6 @@ try{
  await page.locator('#camera-tracking-hide').click();await visible();assert(await page.locator('#workspace-calibration-drawer').isHidden());
  await page.locator('#workspace-calibrate-toggle').click();await visible();
  for(const width of [390,768,1440]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(150);await visible();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow at '+width);}
- await page.setViewportSize({width:1440,height:1000});await page.reload();await page.locator('#workspace-calibrate-toggle').click();await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-gain=movementGain]').waitFor();assert.equal(await page.locator('[data-gain=movementGain]').inputValue(),'2');await page.locator('[data-calibration-tool=needleDriver]').click();assert.equal(await page.locator('[data-mount=upright]').getAttribute('aria-pressed'),'true','unsaved driver edits must not persist');
+ await page.setViewportSize({width:1440,height:1000});await page.reload();assert(await page.locator('#workspace-calibration-drawer').isVisible());await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-gain=movementGain]').waitFor();assert.equal(await page.locator('[data-gain=movementGain]').inputValue(),'2');await page.locator('[data-calibration-tool=needleDriver]').click();assert.equal(await page.locator('[data-mount=upright]').getAttribute('aria-pressed'),'true','unsaved driver edits must not persist');
  assert.deepEqual(errors,[]);console.log('Passed: large top workspace, device cards, persistent primary/secondary camera views through every instrument/tab, neutral pose, separate saved profiles, unsaved isolation, and mobile layout.');
 }finally{await browser.close();}

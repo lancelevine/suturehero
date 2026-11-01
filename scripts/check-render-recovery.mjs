@@ -17,7 +17,7 @@ try{
  assert.equal(await page.evaluate(()=>window.__gpu.length),1);
  await page.locator('#begin-pass').click();const maneuver=await page.locator('#exercise-title').textContent();
  for(const withCamera of [false,true]){
-  if(withCamera){await page.locator('#workspace-calibrate-toggle').click();await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent==='3',{},{timeout:30000});assert.equal(await page.evaluate(()=>window.__gpu.length),1,'embedded camera tracking must not allocate another WebGL context');}
+  if(withCamera){assert(await page.locator('#workspace-calibration-drawer').isVisible());await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent==='3',{},{timeout:30000});assert.equal(await page.evaluate(()=>window.__gpu.length),1,'embedded camera tracking must not allocate another WebGL context');}
   for(let attempt=0;attempt<2;attempt++){
    await page.evaluate(()=>{const item=window.__gpu[0];window.__lossExtension=item.gl.getExtension('WEBGL_lose_context');window.__lossExtension.loseContext();});
    await page.waitForFunction(()=>document.querySelector('#viewport>canvas').dataset.renderState==='lost');

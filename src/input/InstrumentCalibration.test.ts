@@ -85,3 +85,16 @@ it('recenters preview readings on neutral without changing the tracked tip posit
  expect(preview.rawMovement.length()).toBeLessThan(1e-8);expect(preview.movement.length()).toBeLessThan(1e-8);expect(preview.rawRotation.length()).toBeLessThan(1e-8);expect(preview.position.distanceTo(output.position)).toBeLessThan(1e-8);
  c.clearSessions();expect(c.preview('forceps',14)).toBeNull();
 });
+it('places the preview marker at the calibrated tracker center through turns, mounting edits and neutral resets',()=>{
+ const c=new InstrumentCalibration();c.update('needleDriver',{depthLock:false,tipOffset:[.1,.2,-.05],mountingDegrees:[25,0,90]});
+ c.transform('needleDriver',v(),q(),0);
+ for(const angle of [.4,.8]){
+  c.transform('needleDriver',v(.3,.2,.1),q(angle),10);
+  const s=c.preview('needleDriver',10)!;
+  expect(s.markerMovement.clone().add(v(.1,.75,-.05).applyQuaternion(s.markerRotation)).distanceTo(s.movement)).toBeLessThan(1e-9);
+  expect(s.observedAt).toBe(10);
+ }
+ c.captureNeutral('needleDriver',11);c.transform('needleDriver',v(.3,.2,.1),q(.8),12);
+ const s=c.preview('needleDriver',12)!;
+ expect(s.markerMovement.clone().add(v(.1,.75,-.05).applyQuaternion(s.markerRotation)).distanceTo(s.movement)).toBeLessThan(1e-9);
+});

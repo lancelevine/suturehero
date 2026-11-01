@@ -95,7 +95,7 @@ export class InstrumentCalibration {
  preview(name:BallInstrumentName,now=performance.now()){
   const s=this.sessions.get(name);if(!s?.output||!s.previewOrigin||!this.hasFreshPose(name,now))return null;
   const p=this.profiles.get(name)!,raw=s.unwrappedRotation.toArray();
-  return {position:s.output.position.clone(),quaternion:s.output.quaternion.clone(),depthLocked:p.depthLock&&!s.metricDepth,
+  return {observedAt:s.seenAt,markerMovement:s.base.clone().sub(s.previewOrigin),markerRotation:s.rotation.clone(),position:s.output.position.clone(),quaternion:s.output.quaternion.clone(),depthLocked:p.depthLock&&!s.metricDepth,
    movement:s.output.position.clone().sub(s.previewOrigin),rawMovement:s.last.position.clone().sub(s.neutralPosition),
    rawRotation:s.unwrappedRotation.clone(),mappedRotation:new THREE.Vector3(...p.rotationAxes.map((axis,i)=>raw[axis]*(p.rotationInvert[i]?-1:1)*p.rotationGain) as [number,number,number])};
  }
