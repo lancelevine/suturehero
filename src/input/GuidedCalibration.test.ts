@@ -5,7 +5,8 @@ const v=(x=0,y=0,z=0)=>new Vector3(x,y,z);
 const samples=[v(.6),v(-.5),v(0,.55),v(0,-.6),v(0,0,.6),v(0,0,-.55)];
 it('resolves all axis permutations and signs from six opposite checks',()=>{
  for(const axes of [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]])for(let bits=0;bits<8;bits++){
-  const measured=samples.map((s,i)=>v().setComponent(axes[Math.floor(i/2)],s.length()*(i%2?-1:1)*(bits&(1<<Math.floor(i/2))?-1:1)));
+  const desired=[v(0,0,-.6),v(0,0,.5),v(.55),v(-.6),v(0,-.6),v(0,.55)];
+  const measured=desired.map(target=>{const raw=v();for(let output=0;output<3;output++)raw.setComponent(axes[output],target.getComponent(output)*(bits&(1<<output)?-1:1));return raw;});
   expect(solveGuidedRotation(measured)).toEqual({rotationAxes:axes,rotationInvert:[0,1,2].map(i=>!!(bits&(1<<i)))});
  }
 });
@@ -44,4 +45,9 @@ it('still rejects continuing motion and isolated large spikes',()=>{
  for(let i=0;i<8;i++)g.observe(v(.4+i*.025),1000+i*100,1000+i*100);
  expect(g.capture()).toBe(false);
  hold(g,v(.6),2500);g.observe(v(.9),3300,3300);expect(g.capture()).toBe(false);
+});
+
+it('maps the actual upright instrument tilt and roll axes without swapping left/right tilt into pitch',()=>{
+ const result=solveGuidedRotation([v(0,0,-.6),v(0,0,.6),v(.6),v(-.6),v(0,-.6),v(0,.6)]);
+ expect(result).toEqual({rotationAxes:[0,1,2],rotationInvert:[false,false,false]});
 });

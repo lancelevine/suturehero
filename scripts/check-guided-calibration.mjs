@@ -9,13 +9,18 @@ await page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src
 await page.waitForFunction(()=>!document.querySelector('[data-neutral]').disabled);
 await page.locator('.rotation-guide').evaluate(e=>e.open=true);await page.locator('[data-guide-start]').click();
 const capture=page.locator('[data-guide-capture]');
+// Readiness can change between automation round trips under the synthetic 20 Hz
+// noise. Dispatch an ordinary DOM click while the actual button is enabled,
+// and verify the controller advanced; disabled clicks are never bypassed.
+const captureReady=()=>page.waitForFunction(()=>{const button=document.querySelector('[data-guide-capture]'),instruction=document.querySelector('[data-guide-instruction]');if(!button||button.disabled)return false;const before=instruction.textContent;button.click();return instruction.textContent!==before;});
 page.on('pageerror',e=>console.log('ERROR',e.message));
 
-for(const pose of [[.6,0,0],[-.6,0,0],[0,.6,0],[0,-.6,0],[0,0,.6],[0,0,-.6]]){
- await page.evaluate(()=>window.pose=[0,0,0]);await capture.waitFor();await page.waitForFunction(()=>!document.querySelector('[data-guide-capture]').disabled);assert.match(await capture.textContent(),/Confirm neutral/);await capture.click();assert.match(await page.locator('[data-guide-instruction]').textContent(),/^Check /);
- assert(await capture.isDisabled());await page.evaluate(p=>window.pose=p,pose);await page.waitForFunction(()=>!document.querySelector('[data-guide-capture]').disabled);await capture.click();
+for(const pose of [[0,0,-.6],[0,0,.6],[.6,0,0],[-.6,0,0],[0,-.6,0],[0,.6,0]]){
+ await page.evaluate(()=>window.pose=[0,0,0]);await capture.waitFor();await page.waitForFunction(()=>!document.querySelector('[data-guide-capture]').disabled);assert.match(await capture.textContent(),/Confirm neutral/);await captureReady();assert.match(await page.locator('[data-guide-instruction]').textContent(),/^Check /);
+ assert(await capture.isDisabled());await page.evaluate(p=>window.pose=p,pose);await page.waitForFunction(()=>!document.querySelector('[data-guide-capture]').disabled);await captureReady();
 }
 assert.match(await page.locator('[data-calibration-message]').textContent(),/All six rotation checks passed/);
 assert.match(await page.locator('[data-guide-instruction]').textContent(),/Six checks passed/);
+assert.deepEqual(await page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return {axes:c.profile('needleDriver').rotationAxes,invert:c.profile('needleDriver').rotationInvert};}),{axes:[0,1,2],invert:[false,false,false]});
 await page.evaluate(()=>clearInterval(window.feed));console.log('PASS: all six guided UI steps with noisy poses through the live filter, stable holds, neutral gates and final apply');
 }finally{await browser.close();}

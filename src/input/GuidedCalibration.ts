@@ -9,15 +9,17 @@ export const guidedDirections=[
 /** Only independent, opposite pairs can define a signed axis permutation. */
 export function solveGuidedRotation(samples:Vector3[]){
  if(samples.length!==6)return null;
- const axes:Axis[]=[],invert:boolean[]=[];
+ const used:Axis[]=[],axes:[Axis,Axis,Axis]=[0,1,2],invert:[boolean,boolean,boolean]=[false,false,false];
+ // Right tilt is negative Z, forward tilt positive X, clockwise shaft roll negative Y.
+ const outputs=[{axis:2,sign:-1},{axis:0,sign:1},{axis:1,sign:-1}] as const;
  for(let pair=0;pair<3;pair++){
   const a=samples[pair*2],b=samples[pair*2+1],length=a.length(),other=b.length();
   if(length<.35||other<.35||length>1.4||other>1.4)return null;
   if(a.dot(b)/(length*other)>-.85||Math.min(length,other)/Math.max(length,other)<.55)return null;
   const direction=a.clone().sub(b).normalize(),values=direction.toArray().map(Math.abs),axis=values.indexOf(Math.max(...values)) as Axis;
   // Axis swaps cannot correct an oblique mount. Do not silently invent one.
-  if(values[axis]<.9||axes.includes(axis))return null;
-  axes.push(axis);invert.push(a.getComponent(axis)<0);
+  if(values[axis]<.9||used.includes(axis))return null;
+  used.push(axis);const output=outputs[pair];axes[output.axis]=axis;invert[output.axis]=a.getComponent(axis)*output.sign<0;
  }
  return {rotationAxes:axes as [Axis,Axis,Axis],rotationInvert:invert as [boolean,boolean,boolean]};
 }

@@ -2,6 +2,20 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Rotation control directions in 0.55
+
+Rotation controls now name their actual effect on the upright instrument:
+left/right tilt about Z, forward/back tilt about X, and shaft roll about Y.
+Previously the rotation table reused translation labels, so the row labeled
+"X · left/right" inverted pitch rather than the visible left/right tilt.
+The controls retain their original saved axis keys, and guided calibration now
+assigns its three direction pairs to these actual rotation axes and signs.
+Existing saved profiles are preserved; use the Left/right tilt invert control,
+or repeat guided calibration to learn all three directions again.
+
+`node scripts/check-calibration-rotation.mjs` checks all three rotation controls
+and visibly verifies forceps left/right reversal against the Vite dev server.
+
 ## Handle-side tracker offset in 0.54
 
 The measured tracker-to-tip offset points toward the tip (-Y), placing the
