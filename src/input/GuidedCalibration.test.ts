@@ -32,3 +32,16 @@ it('completes all six poses without changing the measured neutral or accepting u
  for(const pose of samples){hold(g,v(),time+=2000);expect(g.capture()).toBe(true);hold(g,pose,time+=2000);expect(g.capture()).toBe(true);}
  expect(g.step).toBe(6);expect(g.capture()).toBe(false);expect(solveGuidedRotation(g.samples)).not.toBeNull();
 });
+it('accepts modest alternating hand jitter by averaging rather than rejecting every noisy frame',()=>{
+ const g=new GuidedCalibration();
+ for(let i=0;i<8;i++)g.observe(v(i%2?.055:-.055),i*100,i*100);
+ expect(g.readiness()).toBe('Ready');expect(g.capture()).toBe(true);
+ for(let i=0;i<8;i++)g.observe(v(.6+(i%2?.055:-.055)),1000+i*100,1000+i*100);
+ expect(g.capture()).toBe(true);expect(g.samples[0].x).toBeCloseTo(.6,6);
+});
+it('still rejects continuing motion and isolated large spikes',()=>{
+ const g=new GuidedCalibration();hold(g,v(),0);expect(g.capture()).toBe(true);
+ for(let i=0;i<8;i++)g.observe(v(.4+i*.025),1000+i*100,1000+i*100);
+ expect(g.capture()).toBe(false);
+ hold(g,v(.6),2500);g.observe(v(.9),3300,3300);expect(g.capture()).toBe(false);
+});

@@ -32,9 +32,14 @@ export class GuidedCalibration {
  }
  readiness(){
   if(this.step>=6)return 'Calibration complete';
-  if(this.window.length<3||this.window.at(-1)!.at-this.window[0].at<500)return 'Hold steady with the marker visible for half a second';
+  if(this.window.length<5||this.window.at(-1)!.at-this.window[0].at<500)return 'Hold steady with the marker visible for half a second';
   const mean=this.window.reduce((v,s)=>v.add(s.rotation),new Vector3()).multiplyScalar(1/this.window.length);
-  if(this.window.some(s=>s.rotation.distanceTo(mean)>.045))return 'Still moving or tracking is noisy — hold steady';
+  const rms=Math.sqrt(this.window.reduce((sum,s)=>sum+s.rotation.distanceToSquared(mean),0)/this.window.length);
+  const count=Math.max(1,Math.floor(this.window.length/3));
+  const average=(samples:typeof this.window)=>samples.reduce((v,s)=>v.add(s.rotation),new Vector3()).multiplyScalar(1/samples.length);
+  const drift=average(this.window.slice(0,count)).distanceTo(average(this.window.slice(-count)));
+  // Allow small zero-mean hand/pose jitter, but not a continuing tilt or a large jump.
+  if(rms>.06||drift>.055||this.window.some(s=>s.rotation.distanceTo(mean)>.16))return 'Still moving or tracking is noisy — hold steady';
   if(this.neutral)return mean.length()<.12?'Ready':'Return to your original neutral pose (within 7°)';
   return mean.length()<.35?'Rotate at least 20°':mean.length()>1.4?'Use a smaller rotation (20–80°)':'Ready';
  }

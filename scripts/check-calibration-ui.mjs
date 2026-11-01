@@ -36,6 +36,15 @@ try{
  await page.locator('#camera-tracking-hide').click();await visible();assert(await page.locator('#workspace-calibration-drawer').isHidden());
  await page.locator('#workspace-calibrate-toggle').click();await visible();
  for(const width of [390,768,1440]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(150);await visible();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow at '+width);}
+ for(const width of [390,768,1440]){
+  await page.setViewportSize({width,height:1000});await page.locator('[data-show-guide]').click();
+  assert.equal(await page.locator('.rotation-guide').evaluate(e=>e.open),true);
+  assert(await page.locator('.calibration-live-preview>svg').evaluate(e=>e.getBoundingClientRect().height<=130));
+  for(const selector of ['.instrument-calibration-panel','.calibration-body','.calibration-live-preview'])assert.equal(await page.locator(selector).first().evaluate(e=>getComputedStyle(e).overflowY),'visible','calibration must have one outer scrollbar');
+  await page.locator('[data-guide-start]').scrollIntoViewIfNeeded();
+  const box=await page.locator('[data-guide-start]').boundingBox(),drawer=await page.locator('#workspace-calibration-drawer').boundingBox();
+  assert(box.y>=drawer.y&&box.y+box.height<=drawer.y+drawer.height+1,'guided controls must be reachable in the outer drawer');await visible();
+ }
  await page.setViewportSize({width:1440,height:1000});await page.reload();assert(await page.locator('#workspace-calibration-drawer').isVisible());await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-gain=movementGain]').waitFor();assert.equal(await page.locator('[data-gain=movementGain]').inputValue(),'2');await page.locator('[data-calibration-tool=needleDriver]').click();assert.equal(await page.locator('[data-mount=upright]').getAttribute('aria-pressed'),'true','unsaved driver edits must not persist');
  assert.deepEqual(errors,[]);console.log('Passed: large top workspace, device cards, persistent primary/secondary camera views through every instrument/tab, neutral pose, separate saved profiles, unsaved isolation, and mobile layout.');
 }finally{await browser.close();}

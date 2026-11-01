@@ -1,3 +1,4 @@
+import {TrackedPoseFilter} from './input/TrackedPoseFilter';
 import {instrumentCalibration} from './input/InstrumentCalibration';
 import {mountTrackingLayout} from './ui/TrackingLayout';
 import './ui/workspace.css';
@@ -83,7 +84,7 @@ trackingMode.addEventListener('change',()=>{
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
   :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
 });
-simulation.addEventListener('change',()=>{resetTrackerPose();rotationTransitions.clear();stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{resetTrackerPose();stereoPositions.clear();rotationFaceStates.clear();liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -201,7 +202,6 @@ const sixMarkerGroups:Record<InstrumentName,readonly number[]>={needleDriver:[0,
 const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:trackerType==='ring6'?sixMarkerGroups:MARKER_GROUPS;
 function resetTrackerPose(){
  instrumentCalibration.clearSessions();rawRenderedPoses.clear();
- rotationTransitions.clear();
  rigidBodyStates.clear();rotationSources.clear();prismFaceOffsets.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -1443,10 +1443,7 @@ async function detectFrame(now:number){
 }
 
 const resize=new ResizeObserver(()=>{if(!renderer)return;const w=mount.clientWidth,h=mount.clientHeight;if(w<1||h<1)return;renderer.setDrawingBufferSize(w,h,Math.min(window.devicePixelRatio,1.5,Math.sqrt(1500000/(w*h))));camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});if(!embeddedTracking)resize.observe(mount);
-const rawRenderedPoses=new Map<InstrumentName,{position:THREE.Vector3;quaternion:THREE.Quaternion}>();
-const rotationTransitions=new Map<InstrumentName,{
- from:THREE.Quaternion;to:THREE.Quaternion;started:number;sample:THREE.Quaternion
-}>();
+const rawRenderedPoses=new Map<InstrumentName,TrackedPoseFilter>();
 let last=performance.now();
 let lastPoseMessage=0;
 let lastEmbeddedFpsReport=0;
@@ -1457,24 +1454,9 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
    const target=liveTargets.get(name);
    if(target&&now-target.lastSeen<trackingHoldMs){
-    // Restore PR #67's frame-rate independent translation smoothing.
-    const blend=1-Math.exp(-dt*24);
-    let raw=rawRenderedPoses.get(name);if(!raw){raw={position:target.position.clone(),quaternion:target.quaternion.clone()};rawRenderedPoses.set(name,raw);}
-    raw.position.lerp(target.position,blend);
-    // Smooth only the rendered orientation, never the accepted solver pose.
-    let transition=rotationTransitions.get(name);
-    if(!transition){
-     transition={from:raw.quaternion.clone(),to:target.quaternion.clone(),
-      started:now,sample:target.quaternion.clone()};
-     rotationTransitions.set(name,transition);
-    }else if(transition.sample.angleTo(target.quaternion)>1e-6){
-     transition.from.copy(raw.quaternion);
-     transition.to.copy(target.quaternion);
-     transition.sample.copy(target.quaternion);
-     transition.started=now;
-    }
-    const progress=THREE.MathUtils.clamp((now-transition.started)/40,0,1);
-    raw.quaternion.copy(transition.from).slerp(transition.to,progress);
+    // Stabilize only the published instrument pose, keeping fast marker detection intact.
+    let raw=rawRenderedPoses.get(name);if(!raw){raw=new TrackedPoseFilter();rawRenderedPoses.set(name,raw);}
+    raw.update(target.position,target.quaternion,now);
     const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,target.lastSeen,stereoActive());
     mesh.position.copy(calibrated.position);mesh.quaternion.copy(calibrated.quaternion);
     // The standalone lab remains the camera/diagnostic owner. When embedded,

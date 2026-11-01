@@ -2,6 +2,22 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Calibration usability in 0.53
+
+The calibration drawer has one scrollbar for the entire section, a compact
+live preview, and a shortcut that opens and scrolls to the guided checks.
+The published instrument pose uses a light adaptive position/quaternion filter:
+small residual motion is smoothed, with a 0.6° rotation and 0.002 practice-unit
+position deadband; larger movements use a shorter time constant. Marker
+recognition and solver acceptance are unchanged, and each instrument filters
+independently. Tracking resets clear filter state.
+
+Guided captures average fresh observations and permit modest zero-mean jitter.
+They still reject continuing drift, large spikes, stale tracking, incorrect
+neutral poses, and inconsistent opposite-axis checks. Focused tests cover jitter
+attenuation, deliberate and slow movement, refresh rates, shortest quaternion
+arcs, reacquisition, and noisy guided captures.
+
 ## Guided calibration checks in 0.52
 
 Calibration opens on page load, with camera setup ready but no camera stream
