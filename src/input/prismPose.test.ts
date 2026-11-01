@@ -1,6 +1,7 @@
+import {estimateMarkerPose} from './markerPose';
 import {expect,it} from 'vitest';
 import * as THREE from 'three';
-import {faceGeometry,localCorners,solvePrismPose,trackerGeometry} from './prismPose';
+import {faceGeometry,localCorners,solvePrismPose,trackerGeometry,bodyPoseFromMarker} from './prismPose';
 const width=1280,height=720,focal=width/(2*Math.tan(70*Math.PI/360/2));
 const axisY=new THREE.Vector3(0,1,0);
 // Independent hexagonal reference: 19 mm faces, 16 mm marker, 60 degree stations.
@@ -58,4 +59,11 @@ it('keeps face count, angular spacing and marker size explicit for each model',(
  expect(trackerGeometry('ring6')).toEqual({faceCount:6,sideStepRadians:Math.PI/3,markerSizeMm:16});
  expect(trackerGeometry('prism')).toEqual({faceCount:3,sideStepRadians:2*Math.PI/3,markerSizeMm:12});
  expect(trackerGeometry('ring8')).toEqual({faceCount:8,sideStepRadians:Math.PI/3,markerSizeMm:16});
+});
+
+it('removes radial marker-face depth so a stationary ring center stays fixed when switching faces',()=>{
+ const rotation=new THREE.Quaternion().setFromEuler(new THREE.Euler(.2,Math.PI-.2,.08,'YXZ'));
+ const faces=[0,1].map(face=>estimateMarkerPose(observe(0,face,rotation),width,height,16)!);
+ expect(Math.abs(faces[0].position.z-faces[1].position.z)).toBeGreaterThan(2);
+ for(let i=0;i<2;i++)expect(bodyPoseFromMarker(faces[i],i,'ring6').translation.z).toBeCloseTo(240,5);
 });

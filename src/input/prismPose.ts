@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type {MarkerObservation} from './arucoTracking';
-import {estimateMarkerPose} from './markerPose';
+import {estimateMarkerPose,type MarkerPose} from './markerPose';
 
 // The legacy prism has 12 mm faces; both hexagonal rings have 19 mm faces.
 // Local Y is the instrument shaft axis, with marker tops aligned along +Y.
@@ -30,6 +30,12 @@ export const localCorners=(index:number,type:TrackerType='prism')=>{
  return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,0).applyQuaternion(rotation).add(center));
 };
 export interface PrismPose {quaternion:THREE.Quaternion;translation:THREE.Vector3;error:number;faces:number}
+/** Remove the face's radial offset so changing faces does not move the tracker center. */
+export function bodyPoseFromMarker(pose:MarkerPose,index:number,type:TrackerType){
+ const geometry=faceGeometry(index,type),quaternion=pose.quaternion.clone().multiply(geometry.rotation.clone().invert()).normalize();
+ return {quaternion,translation:pose.position.clone().sub(geometry.center.clone().applyQuaternion(quaternion))};
+}
+
 function linearSolve(A:number[][],b:number[]):number[]|null{
  const n=b.length,rows=A.map((r,i)=>[...r,b[i]]);
  for(let i=0;i<n;i++){
@@ -73,10 +79,8 @@ export function solvePrismPose(
   const index=marker.id-firstId;if(index<0||index>=trackerGeometry(trackerType).faceCount)continue;
   const pose=estimateMarkerPose(marker,width,height,trackerGeometry(trackerType).markerSizeMm);
   if(!pose)continue;
-  const geometry=faceGeometry(index,trackerType);
-  const q=pose.quaternion.clone().multiply(geometry.rotation.clone().invert()).normalize();
-  const t=pose.position.clone().sub(geometry.center.clone().applyQuaternion(q));
-  seeds.push({q,t});
+  const body=bodyPoseFromMarker(pose,index,trackerType);
+  seeds.push({q:body.quaternion,t:body.translation});
  }
  let best:PrismPose|null=null,bestScore=Infinity;
  for(const seed of seeds){

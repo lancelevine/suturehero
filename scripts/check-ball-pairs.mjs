@@ -26,17 +26,32 @@ try{
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
  assert.match(await page.locator('#ball-pick-a').evaluate(e=>e.style.borderColor),process.env.SUTURE_BALL_MUTED?/rgb\(120, 95, 90\)/:/rgb\(225, 50, 60\)/);
  assert.match(await page.locator('#ball-pick-b').evaluate(e=>e.style.borderColor),process.env.SUTURE_BALL_MUTED?/rgb\(90, 100, 130\)/:/rgb\(30, 100, 235\)/);
- await page.locator('#ball-closed').click();await page.evaluate(()=>window.__ballScene.open=true);
+ await page.locator('#ball-closed').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near closed recorded'));await page.evaluate(()=>window.__ballScene.open=true);
  await page.waitForFunction(()=>Number(document.querySelector('#ball-readout').textContent.match(/normalized separation ([0-9.]+)/)?.[1])>2.5,{},{timeout:20000});
- await page.locator('#ball-open').click();
+ await page.waitForTimeout(600);await page.locator('#ball-open').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near open recorded'));
  await page.waitForFunction(()=>window.__jawEvents.length>0,{},{timeout:10000});
+ if(process.env.SUTURE_JAW_DEPTH){
+  await page.locator('#ball-calibration-distance').selectOption('far');
+  await page.evaluate(()=>{window.__ballScene.scale=.7;window.__ballScene.separationBias=4;window.__ballScene.open=false;});await page.waitForTimeout(1200);
+  await page.locator('#ball-closed').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Far closed recorded'));
+  await page.evaluate(()=>window.__ballScene.open=true);await page.waitForTimeout(900);await page.locator('#ball-open').click();
+  await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near/Far compensation ready'));
+  for(const [scale,bias] of [[1,0],[.85,2],[.7,4]]){
+   await page.evaluate(({scale,bias})=>{window.__ballScene.scale=scale;window.__ballScene.separationBias=bias;window.__ballScene.open=false;},{scale,bias});
+   await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('jaw 0%'),{},{timeout:10000});
+   await page.evaluate(()=>window.__ballScene.open=true);await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening>.85,{},{timeout:10000});
+  }
+  await page.locator('[data-calibration-tool=needleDriver]').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near: closed — / open —'));
+  await page.locator('[data-calibration-tool=forceps]').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near/Far compensation ready'));
+  await page.evaluate(()=>{window.__ballScene.scale=1;window.__ballScene.separationBias=0;});await page.waitForTimeout(800);
+ }
  await page.evaluate(()=>window.__ballScene.distractor=true);
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('pair rejected or missing'),{},{timeout:15000});
  await page.waitForTimeout(400);const count=await page.evaluate(()=>window.__jawEvents.length);await page.waitForTimeout(450);
  assert.equal(await page.evaluate(()=>window.__jawEvents.length),count,'invalid pair must not refresh jaw readings');
  await page.evaluate(()=>{window.__ballScene.distractor=false;window.__ballScene.marker=false;});
- await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('waiting for this instrument'),{},{timeout:10000});
+ await page.waitForTimeout(1200);assert.match(await page.locator('#ball-readout').textContent(),/paired with instrument/,'calibrated ball pair can bridge a temporary marker loss');
  await page.evaluate(()=>{window.__ballScene.marker=true;window.__ballScene.shift=80;});
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
- assert.deepEqual(errors,[]);console.log('Passed: persistent single-ball acquisition, sampled overlay colors, calibrated pair tracking, background rejection, missing-ArUco hold, and marker-relative reacquisition.');
+ assert.deepEqual(errors,[]);console.log(process.env.SUTURE_JAW_DEPTH?'Passed: averaged near/far closed/open captures, closed zero and opening across three depths, and per-instrument isolation.':'Jaw baseline check.');console.log('Passed: persistent single-ball acquisition, sampled overlay colors, calibrated pair tracking, background rejection, missing-ArUco hold, and marker-relative reacquisition.');
 }finally{await browser.close();}

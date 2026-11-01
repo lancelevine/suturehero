@@ -2,6 +2,35 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Near/Far jaw calibration in 0.59
+
+In Jaws, assign both ball colors, select Near working distance and capture closed
+and open. Hold each pose and distance steady while eight unique video frames are
+averaged (usually about one second). Then select Far and repeat at the same
+instrument angle. Captures trim isolated outliers; unstable poses, insufficient
+depth range, missing frames and inconsistent opening direction retain previous
+measurements. Reset jaw measurements affects only the selected instrument.
+
+A completed single distance remains usable while the second is captured. With
+both distances, closed and open endpoints interpolate using apparent ball radii,
+independently of ArUco face size or face switches. Values clamp beyond the sampled
+range. A 4% closed tolerance, releasing at 6%, snaps the closed output to exactly
+zero. This compensates depth-dependent segmentation bias, not arbitrary tilt or
+occlusion; keep a typical instrument angle, both balls visible and consistent
+lighting. Calibration remains per instrument and per camera session.
+
+Run `SUTURE_JAW_DEPTH=1 node scripts/check-ball-pairs.mjs` against a Vite server
+(or set `SUTURE_TEST_URL`) for real synthetic-camera depth/capture checks.
+
+Unlocked single-camera depth now uses tracker-center distance rather than the
+visible radial face's distance. Unique-frame median filtering, a small stationary
+deadband, multi-frame spike confirmation and a bounded movement rate reduce
+jumps. Unlocking starts from the existing depth. These are post-estimation
+changes; decoding and the rotation/XY calibration mappings are unchanged.
+Single-camera depth remains approximate; the existing depth range and sensitivity
+controls still apply. Calibrated ball-pair fallback also keeps its separation
+bound so background blobs cannot bypass the near/far association envelope.
+
 ## Consistent rotation frames in 0.58
 
 A reproduced reversal came from a reflected rotation mapping, including swapping

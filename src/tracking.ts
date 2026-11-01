@@ -1,3 +1,5 @@
+import {MonocularDepthFilter} from './input/MonocularDepthFilter';
+import {JawCalibration,type JawDistance,type JawEndpoint} from './input/JawCalibration';
 import {TrackedPoseFilter} from './input/TrackedPoseFilter';
 import {instrumentCalibration} from './input/InstrumentCalibration';
 import {mountTrackingLayout} from './ui/TrackingLayout';
@@ -10,7 +12,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
-import {solvePrismPose,localCorners,trackerGeometry,type PrismPose,type TrackerType} from './input/prismPose';
+import {solvePrismPose,localCorners,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import {BALL_INSTRUMENTS,ballTrackingSlot,type BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
@@ -24,7 +26,7 @@ root.innerHTML=`<header><a class="brand" href="./"><img class="brand-logo" src="
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental three-instrument color-ball jaw tracking</summary><p>Select an instrument, then with camera 1 running click Assign ball A, then click its ball in the camera image. Repeat for ball B. Record closed and open separation. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><label>Instrument <select id="ball-instrument"><option value="forceps">Forceps</option><option value="needleDriver">Needle driver</option><option value="scissors">Scissors</option></select></label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><button id="ball-closed">Calibrate closed</button><button id="ball-open">Calibrate open</button></div><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
+<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental three-instrument color-ball jaw tracking</summary><p>Select an instrument, then with camera 1 running click Assign ball A, then click its ball in the camera image. Repeat for ball B. At Near, capture closed and open while holding still; repeat at Far at the same typical angle. Each capture averages about one second of frames. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><label>Instrument <select id="ball-instrument"><option value="forceps">Forceps</option><option value="needleDriver">Needle driver</option><option value="scissors">Scissors</option></select></label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><label>Capture distance <select id="ball-calibration-distance"><option value="near">Near working distance</option><option value="far">Far working distance</option></select></label><button id="ball-closed">Capture closed · Near</button><button id="ball-open">Capture open · Near</button><button id="ball-calibration-reset" type="button">Reset jaw measurements</button></div><p id="ball-calibration-status" class="tracking-message" role="status"></p><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
@@ -207,11 +209,11 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
- poseHistory.clear();
+ poseHistory.clear();depthHistory.clear();depthHistoryStamps.clear();
 }
 trackerTypeSelect.addEventListener('change',()=>{
  trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value==='ring6'?'ring6':'prism';
@@ -623,9 +625,9 @@ const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
  anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring';angularVelocity:THREE.Vector3
 }>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
-const depthMotionStates=new Map<InstrumentName,{pending:number;count:number;lastAt:number}>();
+const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
-stableDepth.addEventListener('change',()=>{depthMotionStates.clear();depthStates.clear();});
+stableDepth.addEventListener('change',()=>{monoDepthFilters.clear();depthStates.clear();});
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
 function saveDepthCalibration(){
@@ -642,12 +644,13 @@ function restoreDepthCalibration(){
 }
 restoreDepthCalibration();
 const depthHistory=new Map<'needleDriver'|'forceps'|'scissors',number[]>();
+const depthHistoryStamps=new Map<InstrumentName,number>();
 const poseHistory=new Map<'needleDriver'|'forceps'|'scissors',THREE.Quaternion[]>();
 type RotationGeometryState={face:number;reference:{x:number;y:number}[];last:{x:number;y:number}[];moving:boolean;pending:number;still:number};
 const rotationGeometryStates=new Map<'needleDriver'|'forceps'|'scissors',RotationGeometryState>();
 const depthSamples=new Map<'needleDriver'|'forceps'|'scissors',number>();
 function depthRangeLabel(){const range=Math.max(50,Number(workingDepthInput.value)||400);depthRangeStatus.textContent=`Near: ${depthNearMm?.toFixed(0)??'unset'} mm · Far: ${depthFarMm?.toFixed(0)??'unset'} mm · working range: ${range} mm. ${depthNearMm===null?'Set Near first.':depthFarMm===null?'Set Far next.':'Calibrated.'}`;}
-function resetDepthFilters(){depthStates.clear();depthMotionStates.clear();stationaryStates.clear();depthHistory.clear();}
+function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();depthHistory.clear();depthHistoryStamps.clear();}
 workingDepthInput.addEventListener('change',()=>{depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
 document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined){depthRangeStatus.textContent='No tracked prism visible. Start camera and show a marker.';return;}depthNearMm=z;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
 document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined||depthNearMm===null){depthRangeStatus.textContent='Set Near first with a tracked marker visible.';return;}if(z<=depthNearMm+20){depthRangeStatus.textContent='Far must be at least 20 mm farther from camera than Near.';return;}depthFarMm=z;workingDepthInput.value=String(Math.round(z-depthNearMm));resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
@@ -762,18 +765,15 @@ function updateLiveTargets(){
   // when its actual depth is unchanged, so side length alone is misleading.
   // Only trust perspective-corrected depth when the planar fit is good.
   // Translation on screen still follows the observed marker center.
-  const normal=new THREE.Vector3(0,0,1).applyQuaternion(pose.quaternion);
-  const faceTilt=Math.acos(THREE.MathUtils.clamp(Math.abs(normal.z),0,1));
-  const poseDepthValid=Number.isFinite(pose.position.z)&&pose.position.z>20&&pose.reprojectionError<2.5;
-  const correctedDistance=poseDepthValid?pose.position.z:sizeDistance;
-  // Use the perspective solution progressively as tilt increases. When
-  // nearly face-on, side-length depth is stable and less ambiguous.
-  const tiltWeight=poseDepthValid?THREE.MathUtils.smoothstep(faceTilt,THREE.MathUtils.degToRad(8),THREE.MathUtils.degToRad(35)):0;
-  const rawDistance=THREE.MathUtils.lerp(sizeDistance,correctedDistance,tiltWeight);
+  const bodyPose=bodyPoseFromMarker(pose,ids.indexOf(pose.id),trackerType);
+  const poseDepthValid=Number.isFinite(bodyPose.translation.z)&&bodyPose.translation.z>20&&pose.reprojectionError<2.5;
+  // Use the tracker center, not whichever radial face happens to be visible.
+  // The planar fit accounts for foreshortening; the downstream filter handles noise.
+  const rawDistance=poseDepthValid?bodyPose.translation.z:sizeDistance;
   // Camera-relative X/Y continue to follow the green-square center.
   // Depth is corrected for face orientation when the fit supports it.
   const samples=depthHistory.get(name)??[];
-  samples.push(rawDistance);if(samples.length>5)samples.shift();depthHistory.set(name,samples);
+  if(depthHistoryStamps.get(name)!==now){samples.push(rawDistance);if(samples.length>5)samples.shift();depthHistory.set(name,samples);depthHistoryStamps.set(name,now);}
   const sorted=[...samples].sort((a,b)=>a-b);
   const measuredDistance=sorted[Math.floor(sorted.length/2)];
   depthSamples.set(name,measuredDistance);
@@ -785,38 +785,11 @@ function updateLiveTargets(){
   const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
   const baseline=name==='needleDriver'?-.65:name==='forceps'?.15:1.05;
   const desiredZ=THREE.MathUtils.clamp(rawZ*Number(depthSensitivity.value),-2.3,2.3);
-  const depthDelta=previousZ===undefined?0:desiredZ-previousZ;
+  let filter=monoDepthFilters.get(name);if(!filter){filter=new MonocularDepthFilter();monoDepthFilters.set(name,filter);}
   let z:number;
-  if(lockedDepth){
-   z=baseline;
-   depthMotionStates.delete(name);
-  }else if(stableDepth.checked&&trackingMode.value==='mono'&&previousZ!==undefined){
-   // Stationary jitter deadband and confirmation of isolated depth spikes.
-   // A sustained displacement is accepted after two measurements, while
-   // ordinary small changes retain a responsive adaptive low-pass filter.
-   const motion=depthMotionStates.get(name)??{pending:0,count:0,lastAt:now};
-   const delta=desiredZ-previousZ;
-   const abs=Math.abs(delta);
-   if(abs<.035){
-    z=previousZ;
-    motion.count=0;motion.pending=0;
-   }else if(abs>.30){
-    const consistent=motion.count>0&&Math.sign(delta)===Math.sign(motion.pending)&&now-motion.lastAt<400;
-    motion.count=consistent?motion.count+1:1;
-    motion.pending=delta;motion.lastAt=now;
-    z=motion.count>=2?previousZ+delta*.65:previousZ;
-   }else{
-    motion.count=0;motion.pending=0;
-    z=previousZ+delta*(abs>.12?.7:.35);
-   }
-   depthMotionStates.set(name,motion);
-  }else{
-   const depthAlpha=Math.abs(depthDelta)>.12?.65:.25;
-   z=previousZ===undefined?desiredZ:previousZ+depthDelta*depthAlpha;
-   depthMotionStates.delete(name);
-  }
-  if(previousZ===undefined&&!lockedDepth)z=desiredZ;
-  depthStates.set(name,z);
+  if(trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth))z=filter.update(desiredZ,now,lockedDepth,baseline,poseDepthValid);
+  else {const delta=previousZ===undefined?0:desiredZ-previousZ;z=previousZ===undefined?desiredZ:previousZ+delta*(Math.abs(delta)>.12?.65:.25);}
+  depthStates.set(name,z);filterMeasurements.set(name,{rawZ:measuredDistance,filteredZ:z,angle:filterMeasurements.get(name)?.angle??0,locked:lockedDepth});
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
   const x=THREE.MathUtils.clamp(-((markerCenter.x-overlay.width/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*7,-2.6,2.6);
   const y=THREE.MathUtils.clamp(-((markerCenter.y-overlay.height/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*4+.55,.15,2.8);
@@ -875,6 +848,7 @@ function updateLiveTargets(){
    }else{
     const elapsed=Math.max(.016,Math.min(.15,(now-state.lastAt)/1000));
     const angularDifference=rigid.quaternion.angleTo(state.lastRaw);
+    const depthMeasurement=filterMeasurements.get(name);if(depthMeasurement)depthMeasurement.angle=THREE.MathUtils.radToDeg(angularDifference);
     // A lone planar face can briefly return a mirrored solution. Prefer
     // continuity, but do not impose a hard angular ceiling on real motion.
     const staleMs=now-state.lastAt;
@@ -1013,7 +987,7 @@ const ballNames=BALL_INSTRUMENTS;
 // Used only as a loose image-space association bound, not metric pose-to-tip calibration.
 const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
 const ballIndex=()=>ballTrackingSlot(ballInstrument.value as BallInstrumentName,0);
-const ballCalibrations=ballNames.map(()=>({closed:null as number|null,open:null as number|null,value:0}));
+const ballCalibrations=ballNames.map(()=>new JawCalibration());
 function ballMarker(name:BallInstrumentName,now:number):BallMarker|null{
  const ids:readonly number[]=markerGroups()[name];
  const markers=observations.filter(m=>ids.includes(m.id)&&now-(markerLastConfirmed.get(m.id)??-Infinity)<250&&now-(markerLastDecoded.get(m.id)??-Infinity)<650);
@@ -1041,7 +1015,7 @@ for(let i=0;i<2;i++)document.querySelector<HTMLButtonElement>(i===0?'#ball-pick-
 });
 ballInstrument.addEventListener('change',()=>{
  // Do not accidentally assign a pending click to an instrument selected earlier.
- ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();
+ ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();for(const cal of ballCalibrations)if(cal.capturing)cal.cancel('Capture cancelled when changing instrument. Measurements kept.');
 });
 overlay.addEventListener('click',event=>{
  if(ballPick<0||!video.videoWidth)return;
@@ -1064,7 +1038,7 @@ overlay.addEventListener('click',event=>{
  ballDisplayColors[ballPick]=sampledBallColor(rgb);ballSampleBrightness[ballPick]=total;
  const pair=Math.floor(ballPick/2),marker=ballMarker(ballNames[pair],performance.now());
  ballAnchorMarkers[ballPick]=marker;ballProvisional[ballPick]=null;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
- ballPairReferences[pair]=null;ballCalibrations[pair].closed=ballCalibrations[pair].open=null;
+ ballPairReferences[pair]=null;ballCalibrations[pair].reset();
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
  ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both colored balls visible, then calibrate closed and open';
 });
@@ -1072,12 +1046,21 @@ const ballSeparation=(pair:number)=>{
  const a=ballCenters[pair*2],b=ballCenters[pair*2+1];
  return performance.now()-ballPairValidAt[pair]<350&&a&&b?normalizedBallSeparation({...a,score:0},{...b,score:0}):null;
 };
-document.querySelector('#ball-closed')!.addEventListener('click',()=>{
- const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].closed=d;else ballReadout.textContent='Both colored balls must be paired to calibrate';
+const jawDistance=document.querySelector<HTMLSelectElement>('#ball-calibration-distance')!;
+const jawStatus=document.querySelector<HTMLElement>('#ball-calibration-status')!;
+function updateJawCalibrationStatus(){
+ const cal=ballCalibrations[ballIndex()/2];cal.poll(performance.now());
+ jawStatus.textContent=`Near: closed ${cal.has('near','closed')?'✓':'—'} / open ${cal.has('near','open')?'✓':'—'} · Far: closed ${cal.has('far','closed')?'✓':'—'} / open ${cal.has('far','open')?'✓':'—'}. ${cal.message}`;
+ for(const endpoint of ['closed','open'] as const){const button=document.querySelector<HTMLButtonElement>('#ball-'+endpoint)!;button.disabled=cal.capturing;button.textContent=`Capture ${endpoint} · ${jawDistance.value==='near'?'Near':'Far'}`;}
+}
+for(const endpoint of ['closed','open'] as JawEndpoint[])document.querySelector('#ball-'+endpoint)!.addEventListener('click',()=>{
+ const pair=ballIndex()/2,cal=ballCalibrations[pair];if(ballSeparation(pair)===null){cal.cancel('Both colored balls must be paired to capture.');updateJawCalibrationStatus();return;}
+ cal.start(jawDistance.value as JawDistance,endpoint,performance.now());updateJawCalibrationStatus();
 });
-document.querySelector('#ball-open')!.addEventListener('click',()=>{
- const pair=ballIndex()/2,d=ballSeparation(pair);if(d!==null)ballCalibrations[pair].open=d;else ballReadout.textContent='Both colored balls must be paired to calibrate';
-});
+jawDistance.addEventListener('change',()=>{const cal=ballCalibrations[ballIndex()/2];if(cal.capturing)cal.cancel('Capture cancelled when changing distance. Measurements kept.');updateJawCalibrationStatus();});
+document.querySelector('#ball-calibration-reset')!.addEventListener('click',()=>{ballCalibrations[ballIndex()/2].reset();updateJawCalibrationStatus();});
+ballEnabled.addEventListener('change',()=>{if(!ballEnabled.checked)for(const cal of ballCalibrations)if(cal.capturing)cal.cancel('Capture cancelled: ball tracking is off.');});
+setInterval(updateJawCalibrationStatus,150);updateJawCalibrationStatus();
 function scanForcepsBalls(now:number){
  if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
  ballLastScan=now;
@@ -1156,13 +1139,14 @@ function scanForcepsBalls(now:number){
   const expectedA=prior&&now-prior.seenAt<1500?prior.a:ballProvisional[a]?.ball??ballAnchors[a];
   const expectedB=prior&&now-prior.seenAt<1500?prior.b:ballProvisional[b]?.ball??ballAnchors[b];
   let found:{a:BallBlob;b:BallBlob}|null=null;
-  if(marker&&reference)found=selectBallPair(candidates[a],candidates[b],marker,{...cal,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]});
+  if(marker&&reference)found=selectBallPair(candidates[a],candidates[b],marker,{...cal.limits,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]});
   if(!found&&expectedA&&expectedB){
    let best=-Infinity;
    for(const aa of candidates[a])for(const bb of candidates[b]){
     const ra=Math.sqrt(aa.count/Math.PI),rb=Math.sqrt(bb.count/Math.PI);
     const separation=Math.hypot(aa.x-bb.x,aa.y-bb.y);
     if(separation<Math.max(3,(ra+rb)*.4)||Math.max(ra,rb)/Math.max(1,Math.min(ra,rb))>2.8)continue;
+    const limits=cal.limits;if(limits.closed!==null&&limits.open!==null&&separation/(ra+rb)>Math.max(limits.closed,limits.open)*1.4+.5)continue;
     const travel=Math.hypot(aa.x-expectedA.x,aa.y-expectedA.y)+Math.hypot(bb.x-expectedB.x,bb.y-expectedB.y);
     if(travel>220)continue;
     const score=aa.score+bb.score-travel*.22;
@@ -1179,11 +1163,10 @@ function scanForcepsBalls(now:number){
  }
 
  for(let pair=0;pair<3;pair++){
-  const d=ballSeparation(pair),cal=ballCalibrations[pair];
-  if(d!==null&&cal.closed!==null&&cal.open!==null&&Math.abs(cal.open-cal.closed)>.02){
-   // Map measured separation directly onto the two user-calibrated endpoints.
-   const next=THREE.MathUtils.clamp((d-cal.closed)/(cal.open-cal.closed),0,1);
-   cal.value=cal.value*.35+next*.65;
+  const d=ballSeparation(pair),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1];
+  if(d!==null&&a&&b){
+   const scale=Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI);
+   cal.observe(d,scale,now,video.currentTime);const value=cal.update(d,scale);if(value===null)continue;
    const name=ballNames[pair];
    const opening=instrumentCalibration.opening(name,cal.value);
    if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(opening);
@@ -1194,13 +1177,13 @@ function scanForcepsBalls(now:number){
    else window.parent.postMessage(detail,location.origin);
   }
  }
- const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair];
+ const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1],ends=a&&b?cal.endpoints(Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI)):null;
  ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':!ballColors[pair*2+1]&&ballProvisional[pair*2]&&now-ballProvisional[pair*2]!.seenAt<220?'acquiring':'missing')+
   ' · B '+(ballCenters[pair*2+1]?'found':!ballColors[pair*2]&&ballProvisional[pair*2+1]&&now-ballProvisional[pair*2+1]!.seenAt<220?'acquiring':'missing')+
   ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':d===null?'pair rejected or missing':'paired with instrument')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
-  ' · closed '+(cal.closed?.toFixed(2)??'—')+' · open '+(cal.open?.toFixed(2)??'—')+
-  ' · jaw '+(cal.closed===null||cal.open===null?'not calibrated':Math.abs(cal.open-cal.closed)<=.02?'recalibrate: open/closed too similar':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
+  ' · closed '+(ends?.closed.toFixed(2)??'—')+' · open '+(ends?.open.toFixed(2)??'—')+
+  ' · jaw '+(!ends?'not calibrated':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
 
 }
 function drawBallOutlines(){
