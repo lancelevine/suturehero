@@ -38,3 +38,8 @@ it('supports endpoints whose separation decreases when opening and bounds associ
  const c=new JawCalibration();capture(c,'near','closed',5,20,0);capture(c,'near','open',2,20,1000);capture(c,'far','closed',5.3,10,2000);capture(c,'far','open',2.3,10,3000);
  expect(c.update(5.15,15)).toBe(0);for(let i=0;i<20;i++)c.update(2.15,15);expect(c.value).toBeCloseTo(1,6);expect(c.limits).toEqual({closed:2,open:5.3});
 });
+it('restores independent saved endpoints without saving live jaw state or pending captures',()=>{
+ const a=calibrated();a.update(5,15);a.start('near','closed',5000);const saved=a.snapshot(),b=new JawCalibration();expect(b.restore(saved)).toBe(true);expect(b.endpoints(15)).toEqual(a.endpoints(15));expect(b.capturing).toBe(false);expect(b.value).toBe(0);
+ saved.near.closed!.separation=999;expect(b.endpoints(15)!.closed).toBeCloseTo(2.15);
+ const before=b.endpoints(15);expect(b.restore({near:{closed:{separation:2,scale:-1}},far:{}})).toBe(false);expect(b.endpoints(15)).toEqual(before);
+});

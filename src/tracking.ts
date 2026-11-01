@@ -1,3 +1,5 @@
+import {loadJawTracking,saveJawTracking,type SavedJawTracking} from './input/jawTrackingStorage';
+import {MarkerRestLatch} from './input/MarkerRestLatch';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
 import {JawCalibration,type JawDistance,type JawEndpoint} from './input/JawCalibration';
 import {TrackedPoseFilter} from './input/TrackedPoseFilter';
@@ -657,7 +659,7 @@ document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const z=
 document.querySelector('#reset-depth-range')!.addEventListener('click',()=>{depthNearMm=null;depthFarMm=null;workingDepthInput.value='400';resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
 const rotationFilterStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Quaternion;pending:number;moving:boolean}>();
 const filterMeasurements=new Map<'needleDriver'|'forceps'|'scissors',{rawZ:number;filteredZ:number;angle:number;locked:boolean}>();
-const stationaryStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Vector3;moving:boolean;pending:number}>();
+const stationaryStates=new Map<InstrumentName,MarkerRestLatch>();
 const liveTargets=new Map<'needleDriver'|'forceps'|'scissors',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,processing=false,lastDetection=0,cameraSession=0;
 let idleNoMarkers=true,skippedFrames=0,renderFrames=0,renderFps=0,lastFpsTime=performance.now();
@@ -749,6 +751,9 @@ function updateLiveTargets(){
   // switching IDs based on marker area on every frame.
   const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];
   if(!chosen)continue;
+  let rest=stationaryStates.get(name);if(!rest){rest=new MarkerRestLatch();stationaryStates.set(name,rest);}
+  const stationary=rest.observe(candidates.map(c=>c.marker),now);
+
   // Pose reprojection error gates rotation confidence, not marker-center translation.
   // Optical flow can track a valid 2D square even when the planar 3D fit is poor.
   const {pose}=chosen;
@@ -769,7 +774,8 @@ function updateLiveTargets(){
   const poseDepthValid=Number.isFinite(bodyPose.translation.z)&&bodyPose.translation.z>20&&pose.reprojectionError<2.5;
   // Use the tracker center, not whichever radial face happens to be visible.
   // The planar fit accounts for foreshortening; the downstream filter handles noise.
-  const rawDistance=poseDepthValid?bodyPose.translation.z:sizeDistance;
+  const estimatedDistance=poseDepthValid?bodyPose.translation.z:sizeDistance;
+  const rawDistance=stationary?(depthHistory.get(name)?.at(-1)??estimatedDistance):estimatedDistance;
   // Camera-relative X/Y continue to follow the green-square center.
   // Depth is corrected for face orientation when the fit supports it.
   const samples=depthHistory.get(name)??[];
@@ -797,6 +803,19 @@ function updateLiveTargets(){
   // -> scene Y, and camera depth -> scene Z. Do not swap horizontal and depth:
   // doing so makes a left/right physical movement appear forward/back.
   const position=new THREE.Vector3(x,y,z);
+  if(stationary&&previous&&now-previous.lastSeen<700){
+   // Recognition and overlap indicators keep updating; an unchanged shared
+   // face is evidence that a different face count is not physical movement.
+   const state=rigidBodyStates.get(name);if(state){state.lastAt=now;state.angularVelocity.set(0,0,0);state.stallSince=null;}
+   // Let a real depth move finish filtering after the instrument stops. The
+   // held raw distance above prevents face-count changes from creating new depth.
+   position.x=previous.position.x;position.y=previous.position.y;
+   liveTargets.set(name,{...previous,position,lastSeen:now,id:chosen.pose.id,pose:chosen.pose});
+   rotationStageStatus.set(name,'stationary image geometry · pose held');
+   document.querySelector('#rotation-solver-status')!.textContent=name+' · stationary image geometry · pose held';
+   continue;
+  }
+
   // Independent rigid-body rotation: never gate or alter the working translation.
   const continuousFlowRotation=document.querySelector<HTMLInputElement>('#flow-rotation')!.checked&&trackingMode.value==='mono';
   // Baseline requires a recent decode. Experimental mode additionally uses
@@ -1040,7 +1059,7 @@ overlay.addEventListener('click',event=>{
  ballAnchorMarkers[ballPick]=marker;ballProvisional[ballPick]=null;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
  ballPairReferences[pair]=null;ballCalibrations[pair].reset();
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
- ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both colored balls visible, then calibrate closed and open';
+ ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both colored balls visible, then calibrate closed and open';persistJaws();
 });
 const ballSeparation=(pair:number)=>{
  const a=ballCenters[pair*2],b=ballCenters[pair*2+1];
@@ -1048,9 +1067,31 @@ const ballSeparation=(pair:number)=>{
 };
 const jawDistance=document.querySelector<HTMLSelectElement>('#ball-calibration-distance')!;
 const jawStatus=document.querySelector<HTMLElement>('#ball-calibration-status')!;
+let savedJawRevision='',jawStorageFailed=false;
+function persistJaws(){
+ const tools:SavedJawTracking['tools']={};
+ for(let pair=0;pair<ballNames.length;pair++){
+  const a=pair*2,b=a+1;
+  tools[ballNames[pair]]={colors:[ballColors[a],ballColors[b]],displayColors:[ballDisplayColors[a],ballDisplayColors[b]],brightness:[ballSampleBrightness[a],ballSampleBrightness[b]],anchors:[ballAnchors[a],ballAnchors[b]],anchorMarkers:[ballAnchorMarkers[a],ballAnchorMarkers[b]],reference:ballPairReferences[pair],calibration:ballCalibrations[pair].snapshot()};
+ }
+ try{jawStorageFailed=!saveJawTracking(localStorage,{version:1,enabled:ballEnabled.checked,tools});}catch{jawStorageFailed=true;}
+ savedJawRevision=ballCalibrations.map(c=>c.revision).join(',');
+}
+function restoreJaws(){
+ let saved:SavedJawTracking|null=null;try{saved=loadJawTracking(localStorage);}catch{/* blocked storage keeps session defaults */}
+ if(!saved)return;ballEnabled.checked=saved.enabled;
+ for(let pair=0;pair<ballNames.length;pair++){
+  const tool=saved.tools[ballNames[pair]];if(!tool)continue;
+  for(const side of [0,1] as const){const i=pair*2+side;ballColors[i]=tool.colors[side];ballDisplayColors[i]=tool.displayColors[side];ballSampleBrightness[i]=tool.brightness[side];ballAnchors[i]=tool.anchors[side];ballAnchorMarkers[i]=tool.anchorMarkers[side];}
+  ballPairReferences[pair]=tool.reference;ballCalibrations[pair].restore(tool.calibration);
+ }
+ savedJawRevision=ballCalibrations.map(c=>c.revision).join(',');renderBallSwatches();
+}
+restoreJaws();
+
 function updateJawCalibrationStatus(){
- const cal=ballCalibrations[ballIndex()/2];cal.poll(performance.now());
- jawStatus.textContent=`Near: closed ${cal.has('near','closed')?'✓':'—'} / open ${cal.has('near','open')?'✓':'—'} · Far: closed ${cal.has('far','closed')?'✓':'—'} / open ${cal.has('far','open')?'✓':'—'}. ${cal.message}`;
+ const cal=ballCalibrations[ballIndex()/2];cal.poll(performance.now());if(savedJawRevision!==ballCalibrations.map(c=>c.revision).join(','))persistJaws();
+ jawStatus.textContent=`Near: closed ${cal.has('near','closed')?'✓':'—'} / open ${cal.has('near','open')?'✓':'—'} · Far: closed ${cal.has('far','closed')?'✓':'—'} / open ${cal.has('far','open')?'✓':'—'}. ${cal.message}${jawStorageFailed?' Browser storage unavailable; current session still works.':' Colors and measurements save automatically in this browser.'}`;
  for(const endpoint of ['closed','open'] as const){const button=document.querySelector<HTMLButtonElement>('#ball-'+endpoint)!;button.disabled=cal.capturing;button.textContent=`Capture ${endpoint} · ${jawDistance.value==='near'?'Near':'Far'}`;}
 }
 for(const endpoint of ['closed','open'] as JawEndpoint[])document.querySelector('#ball-'+endpoint)!.addEventListener('click',()=>{
@@ -1059,7 +1100,7 @@ for(const endpoint of ['closed','open'] as JawEndpoint[])document.querySelector(
 });
 jawDistance.addEventListener('change',()=>{const cal=ballCalibrations[ballIndex()/2];if(cal.capturing)cal.cancel('Capture cancelled when changing distance. Measurements kept.');updateJawCalibrationStatus();});
 document.querySelector('#ball-calibration-reset')!.addEventListener('click',()=>{ballCalibrations[ballIndex()/2].reset();updateJawCalibrationStatus();});
-ballEnabled.addEventListener('change',()=>{if(!ballEnabled.checked)for(const cal of ballCalibrations)if(cal.capturing)cal.cancel('Capture cancelled: ball tracking is off.');});
+ballEnabled.addEventListener('change',()=>{if(!ballEnabled.checked)for(const cal of ballCalibrations)if(cal.capturing)cal.cancel('Capture cancelled: ball tracking is off.');persistJaws();});
 setInterval(updateJawCalibrationStatus,150);updateJawCalibrationStatus();
 function scanForcepsBalls(now:number){
  if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
@@ -1132,7 +1173,7 @@ function scanForcepsBalls(now:number){
   if(marker&&!ballPairReferences[pair]&&ballAnchors[a]&&ballAnchors[b]){
    const pa=ballAnchorMarkers[a]?predictBall(ballAnchors[a]!,ballAnchorMarkers[a]!,marker):ballAnchors[a]!;
    const pb=ballAnchorMarkers[b]?predictBall(ballAnchors[b]!,ballAnchorMarkers[b]!,marker):ballAnchors[b]!;
-   ballPairReferences[pair]=ballPairReference(pa,pb,marker);
+   ballPairReferences[pair]=ballPairReference(pa,pb,marker);persistJaws();
   }
   const reference=ballPairReferences[pair];
   const prior=ballPairStates[pair];

@@ -2,6 +2,29 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Rest stability and saved jaw tracking in 0.60
+
+The published pose now holds when a previously observed face's image corners
+remain stationary, even if recognition alternates between one face and overlap.
+New faces can join the stationary reference; movement is compared with the fixed
+reference so slow motion accumulates and releases the hold. Reacquisition after
+a gap or an unseen face does not inherit a stationary lock. Recognition, green/
+orange overlays, jaw tracking and frame freshness continue independently.
+
+Each instrument's ball colors, sampled brightness, marker-relative acquisition
+references and Near/Far jaw measurements now save automatically in this browser.
+Reloading restores them and enables previously enabled ball tracking; after
+starting the camera, the pair can reacquire without assigning colors again.
+Pending captures, live centroids and jaw output are not restored. Reset jaw
+measurements keeps selected colors; assigning a new color replaces that color
+and clears that instrument's measurements. Recalibrate if camera or ball setup
+changes. Blocked or corrupt storage retains session functionality.
+
+`SUTURE_JAW_DEPTH=1 SUTURE_JAW_PERSIST=1 node scripts/check-ball-pairs.mjs`
+checks real camera calibration, reload and reacquisition. `scripts/check-marker-rest.mjs`
+checks alternating one/two-face recognition without virtual oscillation and
+verifies deliberate movement releases the hold.
+
 ## Near/Far jaw calibration in 0.59
 
 In Jaws, assign both ball colors, select Near working distance and capture closed

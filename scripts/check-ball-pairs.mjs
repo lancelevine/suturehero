@@ -53,5 +53,14 @@ try{
  await page.waitForTimeout(1200);assert.match(await page.locator('#ball-readout').textContent(),/paired with instrument/,'calibrated ball pair can bridge a temporary marker loss');
  await page.evaluate(()=>{window.__ballScene.marker=true;window.__ballScene.shift=80;});
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
+ if(process.env.SUTURE_JAW_PERSIST){
+  await page.waitForFunction(()=>{const saved=JSON.parse(localStorage.getItem('suturehero.jaw-tracking.v1')??'null');return saved?.tools?.forceps?.calibration?.far?.open;});
+  await page.reload();await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-calibration-pane=jaws]').click();
+  assert(await page.locator('#ball-enable').isChecked());assert.match(await page.locator('#ball-pick-a').evaluate(e=>e.style.borderColor),/rgb/);
+  await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Far: closed ✓ / open ✓'));
+  await page.locator('#start-camera').click();await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
+  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('jaw 0%'),{},{timeout:10000});
+  console.log('Passed: saved ball colors, enabled state, marker references and Near/Far measurements restore and reacquire without assigning colors or calibrating again.');
+ }
  assert.deepEqual(errors,[]);console.log(process.env.SUTURE_JAW_DEPTH?'Passed: averaged near/far closed/open captures, closed zero and opening across three depths, and per-instrument isolation.':'Jaw baseline check.');console.log('Passed: persistent single-ball acquisition, sampled overlay colors, calibrated pair tracking, background rejection, missing-ArUco hold, and marker-relative reacquisition.');
 }finally{await browser.close();}

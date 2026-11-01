@@ -12,6 +12,7 @@ export async function installSyntheticCamera(page,options={}){
     const s=window.__ballScene;c.fillStyle='#eeeeee';c.fillRect(0,0,960,540);
     c.save();c.translate(480,270);c.scale(s.scale??1,s.scale??1);c.translate(-480,-270);
     if(s.marker){c.save();c.translate(398+s.shift,218);c.rotate(s.angle??0);c.drawImage(image,320,20,60,60,-18,-18,36,36);c.restore();}
+    if(s.extraMarker)c.drawImage(image,420,20,60,60,424+s.shift,200,36,36);
     c.fillStyle=s.muted?'rgb(120,95,90)':'rgb(225,50,60)';c.beginPath();c.arc((s.distractor?310:400)+s.shift,340,10,0,2*Math.PI);c.fill();
     c.fillStyle=s.muted?'rgb(90,100,130)':'rgb(30,100,235)';c.beginPath();c.arc((s.open?460:430)+(s.separationBias??0)+s.shift,340,10,0,2*Math.PI);c.fill();
     c.restore();requestAnimationFrame(draw);
