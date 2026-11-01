@@ -1,3 +1,4 @@
+import {rotationFrameHandedness} from './rotationFrame';
 import {Vector3} from 'three';
 import type {Axis} from './InstrumentCalibration';
 export const guidedDirections=[
@@ -21,6 +22,7 @@ export function solveGuidedRotation(samples:Vector3[]){
   if(values[axis]<.9||used.includes(axis))return null;
   used.push(axis);const output=outputs[pair];axes[output.axis]=axis;invert[output.axis]=a.getComponent(axis)*output.sign<0;
  }
+ if(rotationFrameHandedness(axes,invert)<0)return null;
  return {rotationAxes:axes as [Axis,Axis,Axis],rotationInvert:invert as [boolean,boolean,boolean]};
 }
 export class GuidedCalibration {

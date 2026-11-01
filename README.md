@@ -2,6 +2,26 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Consistent rotation frames in 0.58
+
+A reproduced reversal came from a reflected rotation mapping, including swapping
+X/Z without a companion sign change. Mapping an absolute quaternion's rotation
+vector through a reflection reverses composition order: a tilt that works near
+neutral can reverse after shaft roll, even with exact marker poses.
+
+Rotation profiles now always form a proper coordinate frame. Loading a reflected
+saved profile keeps its axis selections and both tilt signs, correcting shaft
+roll. Axis edits do the same; explicit roll inversion instead adjusts pitch as
+the companion so the requested roll edit remains effective. The live checkboxes
+and status report companion adjustments. Valid profiles, position mappings,
+marker recognition and smoothing are unchanged. Guided calibration rejects
+contradictory tilt/roll results instead of accepting a reflected frame.
+
+Tests reproduce the X/Z reversal before the change, verify all six shaft-roll
+stations and both directions, check all 48 signed permutations, saved-profile
+repair, explicit invert edits and noisy hexagonal face transitions. Browser
+checks exercise the real controls and repaired live preview.
+
 ## Hexagonal ring audit and neutral placement in 0.57
 
 Six-face mode already passes the 60° hexagonal model to both monocular and

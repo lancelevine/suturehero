@@ -1,13 +1,16 @@
 import {expect,it} from 'vitest';
-import {Vector3} from 'three';
+import {Vector3,Matrix3} from 'three';
 import {GuidedCalibration,solveGuidedRotation} from './GuidedCalibration';
 const v=(x=0,y=0,z=0)=>new Vector3(x,y,z);
 const samples=[v(.6),v(-.5),v(0,.55),v(0,-.6),v(0,0,.6),v(0,0,-.55)];
-it('resolves all axis permutations and signs from six opposite checks',()=>{
+it('accepts consistent frames and rejects reflected frames across all axis permutations and signs',()=>{
  for(const axes of [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]])for(let bits=0;bits<8;bits++){
   const desired=[v(0,0,-.6),v(0,0,.5),v(.55),v(-.6),v(0,-.6),v(0,.55)];
   const measured=desired.map(target=>{const raw=v();for(let output=0;output<3;output++)raw.setComponent(axes[output],target.getComponent(output)*(bits&(1<<output)?-1:1));return raw;});
-  expect(solveGuidedRotation(measured)).toEqual({rotationAxes:axes,rotationInvert:[0,1,2].map(i=>!!(bits&(1<<i)))});
+  const rows=axes.flatMap((axis,i)=>[0,1,2].map(j=>axis===j?(bits&(1<<i)?-1:1):0));
+  const determinant=new Matrix3().set(...rows as [number,number,number,number,number,number,number,number,number]).determinant();
+  if(determinant>0)expect(solveGuidedRotation(measured)).toEqual({rotationAxes:axes,rotationInvert:[0,1,2].map(i=>!!(bits&(1<<i)))});
+  else expect(solveGuidedRotation(measured)).toBeNull();
  }
 });
 it('rejects missing, repeated, non-opposite, oblique and too-small motions',()=>{
@@ -50,4 +53,8 @@ it('still rejects continuing motion and isolated large spikes',()=>{
 it('maps the actual upright instrument tilt and roll axes without swapping left/right tilt into pitch',()=>{
  const result=solveGuidedRotation([v(0,0,-.6),v(0,0,.6),v(.6),v(-.6),v(0,-.6),v(0,.6)]);
  expect(result).toEqual({rotationAxes:[0,1,2],rotationInvert:[false,false,false]});
+});
+
+it('rejects a reversed roll check instead of accepting three individually distinct but inconsistent directions',()=>{
+ expect(solveGuidedRotation([v(0,0,-.6),v(0,0,.6),v(.6),v(-.6),v(0,.6),v(0,-.6)])).toBeNull();
 });

@@ -18,18 +18,19 @@ try{
  await page.waitForFunction(()=>Number(document.querySelector('[data-preview-tool] path').getAttribute('d').match(/^M(-?\d+\.?\d*)/)[1])>155);
  assert(await handleX()>before+15,'left/right invert must visibly reverse the handle tilt');
  const profile=await page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return {forceps:c.profile('forceps'),driver:c.profile('needleDriver')};});
- assert.deepEqual(profile.forceps.rotationInvert,[false,false,true]);assert.deepEqual(profile.driver.rotationInvert,[false,false,false]);
+ assert.deepEqual(profile.forceps.rotationInvert,[false,true,true]);assert.deepEqual(profile.driver.rotationInvert,[false,false,false]);
  assert.deepEqual(profile.forceps.translationInvert,[false,false,false]);
  await leftRight.uncheck();await page.waitForFunction(()=>Number(document.querySelector('[data-preview-tool] path').getAttribute('d').match(/^M(-?\d+\.?\d*)/)[1])<145);
  // Check the other two physical rotation rows independently using the actual mapped output.
  for(const [label,input,axis] of [['Forward/back tilt · about X',[.4,0,0],0],['Axial roll · about Y',[0,.4,0],1]]){
   await page.evaluate(p=>window.rotation=p,input);
-  await page.waitForFunction(async axis=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('forceps')?.mappedRotation.getComponent(axis)>.35;},axis);
-  await page.getByRole('checkbox',{name:'Invert rotation '+label,exact:true}).check();
-  await page.waitForFunction(async axis=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('forceps')?.mappedRotation.getComponent(axis)<-.35;},axis);
+  await page.waitForFunction(async axis=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('forceps')?.mappedRotation.getComponent(axis)??0)>.35;},axis);
+  const sign=await page.evaluate(async axis=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.sign(c.preview('forceps').mappedRotation.getComponent(axis));},axis);
+  const invert=page.getByRole('checkbox',{name:'Invert rotation '+label,exact:true});await invert.setChecked(!await invert.isChecked());
+  await page.waitForFunction(async({axis,sign})=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('forceps')?.mappedRotation.getComponent(axis)*sign<-.35;},{axis,sign});
  }
  await leftRight.check();await page.locator('[data-save]').click();await page.evaluate(()=>clearInterval(window.feed));await page.reload();
  await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-calibration-pane=axes]').click();
- for(const index of [0,1,2])assert(await page.locator(`[data-invert=rotation][data-index="${index}"]`).isChecked());
+ for(const index of [0,1,2])assert.equal(await page.locator(`[data-invert=rotation][data-index="${index}"]`).isChecked(),[false,true,true][index]);
  assert.deepEqual(errors,[]);console.log('Passed: forceps left/right checkbox visibly reverses tilt, all three rotation rows invert their intended output, movement/driver isolation and saved profile reload.');
 }finally{await browser.close();}

@@ -1,3 +1,4 @@
+import {coherentRotationInvert} from './rotationFrame';
 import * as THREE from 'three';
 import {BALL_INSTRUMENTS,type BallInstrumentName} from './ballTrackingSlots';
 export type Axis=0|1|2;
@@ -21,13 +22,14 @@ const KEY='suturehero.instrument-calibration.v1';
 type StorageLike=Pick<Storage,'getItem'|'setItem'>;
 type Pose={position:THREE.Vector3;quaternion:THREE.Quaternion};
 type Session={metricDepth:boolean;neutralPosition:THREE.Vector3;output?:Pose;previewOrigin?:THREE.Vector3;origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;unwrappedRotation:THREE.Vector3;neutralQuaternion:THREE.Quaternion;seenAt:number};
-function validProfile(value:unknown):CalibrationProfile{
+function validProfile(value:unknown,companion:Axis=1):CalibrationProfile{
  const d=defaultCalibration(),v=value as Partial<CalibrationProfile>|null;if(!v||typeof v!=='object')return d;
  for(const key of ['movementGain','rotationGain'] as const)if(typeof v[key]==='number'&&Number.isFinite(v[key]))d[key]=THREE.MathUtils.clamp(v[key]!,key==='movementGain'?.1:.1,key==='movementGain'?4:3);
  for(const key of ['translationAxes','rotationAxes'] as const){const a=v[key];if(Array.isArray(a)&&a.length===3&&new Set(a).size===3&&a.every(n=>[0,1,2].includes(n)))d[key]=[...a] as [Axis,Axis,Axis];}
  for(const key of ['translationInvert','rotationInvert'] as const){const a=v[key];if(Array.isArray(a)&&a.length===3&&a.every(n=>typeof n==='boolean'))d[key]=[...a];}
  for(const key of ['mountingDegrees','tipOffset'] as const){const a=v[key];if(Array.isArray(a)&&a.length===3&&a.every(Number.isFinite))d[key]=a.map(n=>THREE.MathUtils.clamp(n,key==='tipOffset'?-2:-180,key==='tipOffset'?2:180)) as [number,number,number];}
  for(const key of ['depthLock','jawInverted'] as const)if(typeof v[key]==='boolean')d[key]=v[key]!;
+ d.rotationInvert=coherentRotationInvert(d.rotationAxes,d.rotationInvert,companion);
  return d;
 }
 export class InstrumentCalibration {
@@ -40,7 +42,12 @@ export class InstrumentCalibration {
  private notify(name:BallInstrumentName,reason:'profile'|'neutral'|'reset'){for(const listener of this.listeners)listener(name,reason);}
  update(name:BallInstrumentName,change:Partial<CalibrationProfile>){
   const s=this.sessions.get(name);if(s){s.origin.copy(s.last.position);s.anchor.copy(s.base);}
-  this.profiles.set(name,validProfile({...this.profiles.get(name),...change}));this.notify(name,'profile');
+  const previous=this.profiles.get(name)!;
+  const flipped=change.rotationInvert?.flatMap((v,i)=>v!==previous.rotationInvert[i]?[i]:[])??[];
+  // Preserve the requested edit. A roll-only edit uses pitch as its companion;
+  // all other edits and stored-profile repairs preserve both tilt directions.
+  const companion:Axis=!change.rotationAxes&&flipped.length===1&&flipped[0]===1?0:1;
+  this.profiles.set(name,validProfile({...previous,...change},companion));this.notify(name,'profile');
  }
  save(name?:BallInstrumentName){if(!this.storage)return false;try{let saved:Record<string,unknown>={};try{const raw=JSON.parse(this.storage.getItem(KEY)??'{}');if(raw&&typeof raw==='object'&&!Array.isArray(raw))saved=raw;}catch{}this.storage.setItem(KEY,JSON.stringify(name?{...saved,[name]:this.profile(name)}:Object.fromEntries(this.profiles)));return true;}catch{return false;}}
  reset(name:BallInstrumentName){this.update(name,defaultCalibration());this.captureNeutral(name);}
