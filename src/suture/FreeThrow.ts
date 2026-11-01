@@ -38,6 +38,8 @@ export class FreeThrow {
   private longCorrections?:Float64Array;
   private shortCorrections?:Float64Array;
   private normal=new THREE.Vector3(0,0,1);
+  private materialFrame?:THREE.Quaternion;
+  private shaftFrame=false;
   private postLimit(short:ThreadStrand,grip:number){
     // A collar cannot slide all the way into the closed driver jaws.
     // Preserve enough held post for the knot to clear the metal while seating.
@@ -54,9 +56,9 @@ export class FreeThrow {
     if(this.active)this.retentionAge+=Math.max(0,Math.min(dt,.05));
     if(this.phase==='passed')this.passageAge+=Math.max(0,Math.min(dt,.05));
   }
-  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.crossingMissTime=0;this.captureHint='';this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;}
+  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.crossingMissTime=0;this.captureHint='';this.materialFrame=undefined;this.shaftFrame=false;this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
-  update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driverSupportsLoop:(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>boolean,longGrip:number|undefined,shortGrip:number|undefined){
+  update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driverSupportsLoop:(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>boolean,longGrip:number|undefined,shortGrip:number|undefined,driverAxis?:THREE.Vector3){
     // Keep recovery instructions until a fresh opening or successful retry,
     // rather than erasing the reason while the user is repositioning.
     if(this.phase==='idle'&&passage.hasOpening&&!passage.lastFailure)this.notice='';
@@ -64,7 +66,7 @@ export class FreeThrow {
     if((this.phase==='idle'||this.phase==='passed'&&passage.passage&&passage.passage.wraps>this.wraps) && passage.passage){
       const event=passage.passage;
       if(event.first<1 || event.last-event.first<7 || event.last>=long.count-1){this.reset('Leave free working thread beyond a complete wrap');passage.reset();return;}
-      this.notice='';this.captureHint='';
+      this.notice='';this.captureHint='';this.materialFrame=undefined;this.shaftFrame=false;
       this.passageAge=this.crossingMissTime=0;this.pendingPost=undefined;
       this.passageVia=event.via;this.wraps=event.wraps;this.direction=event.direction;this.minimumSegments=this.wraps*6;
       this.first=event.first;this.last=event.last;this.initialSegments=this.last-this.first;this.exitSide=event.side;this.normal.copy(event.normal);this.phase='passed';
@@ -73,18 +75,36 @@ export class FreeThrow {
     const center=this.center(long);
     if(this.phase==='passed'){
       if(shortGrip===undefined){this.reset('Short tail released · Regrasp the gold end and pass it through the loop');passage.reset();return;}
+      const loop=long.points.slice(this.first,this.last+1);
+      const shaftNormal=driverAxis?driverAxis.clone().normalize().multiplyScalar(this.direction):this.normal.clone();
+      const supported=driverSupportsLoop(loop,shaftNormal);
       const liveNormal=new THREE.Vector3();
       for(let i=this.first;i<=this.last;i++)liveNormal.add(long.points[i].clone().sub(center).cross(long.points[i===this.last?this.first:i+1].clone().sub(center)));
+      // Keep the shaft opening while supported. After departure, transport
+      // that same opening with the material instead of jumping to the very
+      // different best-fit plane of a helical coil.
+      let frame:THREE.Quaternion|undefined;
       if(liveNormal.lengthSq()>1e-8){
         liveNormal.normalize();
-        if(liveNormal.dot(this.normal)<0)liveNormal.negate();
-        this.normal.copy(liveNormal);
+        const previousNormal=this.materialFrame?new THREE.Vector3(0,0,1).applyQuaternion(this.materialFrame):this.normal;
+        if(liveNormal.dot(previousNormal)<0)liveNormal.negate();
+        // Nearly planar bights retain their existing material-plane behavior.
+        // Only a substantially oblique helix needs a transported shaft frame.
+        if(supported&&liveNormal.dot(shaftNormal)<Math.cos(Math.PI/6))this.shaftFrame=true;
+        if(!this.shaftFrame)this.normal.copy(liveNormal);
+        const horizontal=long.points[this.first].clone().sub(center).projectOnPlane(liveNormal);
+        if(this.shaftFrame&&horizontal.lengthSq()>1e-10){
+          horizontal.normalize();const vertical=liveNormal.clone().cross(horizontal);
+          frame=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(horizontal,vertical,liveNormal));
+        }
       }
+      if(this.shaftFrame&&supported&&driverAxis)this.normal.copy(shaftNormal);
+      else if(this.shaftFrame&&frame&&this.materialFrame)this.normal.applyQuaternion(frame.clone().multiply(this.materialFrame.clone().invert())).normalize();
+      if(frame)this.materialFrame=frame;
       const crossingCenter=center.clone();
       if(this.wraps>1){const axis=this.normal.clone().multiplyScalar(this.direction);let leading=Infinity;for(let i=this.first;i<=this.last;i++)leading=Math.min(leading,long.points[i].dot(axis));crossingCenter.addScaledVector(axis,leading-crossingCenter.dot(axis));}
       const side=short.points.at(-1)!.clone().sub(crossingCenter).dot(this.normal);
       if(this.passageVia==='tip'&&side*this.exitSide< -0.02){this.reset('Tail moved back out · Pull the gold end completely through the loop');passage.reset();return;}
-      const loop=long.points.slice(this.first,this.last+1);
       const opening=new MaterialOpening(loop,this.normal),crossing=opening.crossingCoordinate(short.points,THREAD_CONTACT_DISTANCE);
       if(crossing!==undefined){this.pendingPost=crossing;this.crossingMissTime=0;}
       else{
@@ -96,7 +116,7 @@ export class FreeThrow {
         // coordinate, within the live bight's slab and rim, for a short grace.
         this.pendingPost=candidate!==undefined&&this.crossingMissTime<.1&&opening.containsPost(short.pointAt(candidate),THREAD_CONTACT_DISTANCE*2)?candidate:undefined;
       }
-      const clear=!driverSupportsLoop(loop,this.normal);
+      const clear=this.shaftFrame?!supported:!driverSupportsLoop(loop,this.normal);
       this.captureHint=clear?'Keep the short strand through the loop while pulling clear':'Slide the loop clear of the driver working tip';
       if(!clear)return;
       if(crossing===undefined){

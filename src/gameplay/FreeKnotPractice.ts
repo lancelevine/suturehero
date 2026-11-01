@@ -350,6 +350,7 @@ export class FreeKnotPractice {
       }
       const validEvent=!this.sequence||!event||this.sequence.acceptsGeometry(event.wraps,event.direction);
       const driverSupportsLoop=(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>this.contact.supportsOpening(driver.id,points,normal);
+      const driverAxis=new THREE.Vector3(0,0,1).transformDirection(driver.root.matrixWorld);
       const stitchHeight=(this.entry.y+this.exit.y)*.5;
       const lowHands=longGrip!==undefined&&shortGrip!==undefined&&[this.long.points[longGrip],this.short.points[shortGrip]].every(p=>p.y<stitchHeight+.2&&p.y>stitchHeight-.1);
       if(paired&&(this.retainedThrow.phase==='passed'||this.retainedThrow.phase==='retained'||this.retainedThrow.active&&!lowHands))this.seatingArmed=true;
@@ -366,7 +367,7 @@ export class FreeKnotPractice {
         if(this.tissueSeat.contact)this.retainedThrow.minimumPostCoordinate=previous.shortMaterialCoordinate+1;
       }
       this.retainedThrow.sliding=!!this.sequence?.sliding&&this.postTaut&&!this.groundedThrows.has(this.retainedThrow);
-      if(validEvent)this.retainedThrow.update(step,this.passage,this.long,this.short,driverSupportsLoop,longGrip,shortGrip);
+      if(validEvent)this.retainedThrow.update(step,this.passage,this.long,this.short,driverSupportsLoop,longGrip,shortGrip,driverAxis);
       const constraints=[...this.earlierThrows,this.retainedThrow];
       for(const previous of this.earlierThrows){
         previous.seatingRequested=!this.groundedThrows.has(previous)&&this.seatingArmed&&!!this.sequence?.sliding&&lowHands&&workingTaut&&this.postTaut&&this.tissueSeat.load<.99;
