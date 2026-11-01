@@ -2,6 +2,29 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Live calibration preview in 0.50
+
+Open **Calibrate** and select forceps, needle driver or scissors. A live
+instrument schematic shows the selected tool's calibrated translation,
+rotation and tracked jaw opening, with a faint upright reference and labeled
+X/Y/Z axes. Move or turn one axis at a time to see which marker axis maps to
+which virtual axis; **Input → mapped readings** shows the corresponding
+neutral-relative values. Changes to mapping, sensitivity and mounting settings
+appear in the preview through the same transform used by the tracking bridge.
+
+The preview uses CPU-projected SVG and adds no WebGL context. On larger desktop
+screens it stays above the scrolling settings. The camera and suturing scene
+remain visible during setup. Missing markers dim and freeze the last pose;
+selecting a tool with no tracked marker shows a waiting state. **Center view**
+recenters only the illustration; **Set neutral pose** resets calibration's
+reference as before. Position readings include the tracker-to-tip offset and
+rotation about the tracker. The preview shows input before workspace collision
+and reach limits, and its instrument shapes are schematic.
+
+`scripts/check-calibration-preview.mjs` exercises real synthetic-camera motion,
+rotation, axis reversal, jaw updates, tool isolation, marker loss/reacquisition,
+neutral and visual centering, responsive layout, and the single-context budget.
+
 ## First-throw capture in 0.49
 
 A wrap can spiral along the needle driver before the short tail is picked up.

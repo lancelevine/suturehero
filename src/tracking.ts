@@ -1475,7 +1475,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
     }
     const progress=THREE.MathUtils.clamp((now-transition.started)/40,0,1);
     raw.quaternion.copy(transition.from).slerp(transition.to,progress);
-    const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,now,stereoActive());
+    const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,target.lastSeen,stereoActive());
     mesh.position.copy(calibrated.position);mesh.quaternion.copy(calibrated.quaternion);
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.

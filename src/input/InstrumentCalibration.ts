@@ -15,7 +15,7 @@ const MM_PER_PRACTICE_UNIT=100;
 const KEY='suturehero.instrument-calibration.v1';
 type StorageLike=Pick<Storage,'getItem'|'setItem'>;
 type Pose={position:THREE.Vector3;quaternion:THREE.Quaternion};
-type Session={origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;unwrappedRotation:THREE.Vector3;neutralQuaternion:THREE.Quaternion;seenAt:number};
+type Session={metricDepth:boolean;neutralPosition:THREE.Vector3;output?:Pose;previewOrigin?:THREE.Vector3;origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;unwrappedRotation:THREE.Vector3;neutralQuaternion:THREE.Quaternion;seenAt:number};
 function validProfile(value:unknown):CalibrationProfile{
  const d=defaultCalibration(),v=value as Partial<CalibrationProfile>|null;if(!v||typeof v!=='object')return d;
  for(const key of ['movementGain','rotationGain'] as const)if(typeof v[key]==='number'&&Number.isFinite(v[key]))d[key]=THREE.MathUtils.clamp(v[key]!,key==='movementGain'?.1:.1,key==='movementGain'?4:3);
@@ -44,12 +44,13 @@ export class InstrumentCalibration {
   const s=this.sessions.get(name);if(!s||now-s.seenAt>=700)return false;
   const tip=this.tipOffset(name);
   s.base.add(tip.clone().applyQuaternion(s.rotation).sub(tip));
+  s.neutralPosition.copy(s.last.position);s.previewOrigin=s.base.clone().add(tip);
   s.origin.copy(s.last.position);s.anchor.copy(s.base);s.neutralQuaternion.copy(s.last.quaternion);s.unwrappedRotation.set(0,0,0);s.rotation.identity();this.notify(name,'neutral');return true;
  }
  clearSessions(){for(const n of BALL_INSTRUMENTS){this.sessions.delete(n);this.notify(n,'reset');}}
  transform(name:BallInstrumentName,position:THREE.Vector3,quaternion:THREE.Quaternion,now=performance.now(),metricDepth=false):Pose{
   const p=this.profiles.get(name)!;let s=this.sessions.get(name);
-  if(!s){s={origin:position.clone(),anchor:position.clone(),last:{position:position.clone(),quaternion:quaternion.clone()},base:position.clone(),rotation:new THREE.Quaternion(),unwrappedRotation:new THREE.Vector3(),neutralQuaternion:quaternion.clone(),seenAt:now};this.sessions.set(name,s);}
+  if(!s){s={metricDepth,neutralPosition:position.clone(),origin:position.clone(),anchor:position.clone(),last:{position:position.clone(),quaternion:quaternion.clone()},base:position.clone(),rotation:new THREE.Quaternion(),unwrappedRotation:new THREE.Vector3(),neutralQuaternion:quaternion.clone(),seenAt:now};this.sessions.set(name,s);}
   // Derive rotation from the neutral pose rather than integrating frame errors.
   // Select the equivalent axis-angle branch nearest the previous unwrapped
   // measurement, preserving continuous turns at fractional rotation gains.
@@ -86,7 +87,17 @@ export class InstrumentCalibration {
   const rotation=s.rotation.clone().multiply(mount).normalize();
   const output=s.base.clone().add(this.tipOffset(name).applyQuaternion(s.rotation));
   s.last.position.copy(position);s.last.quaternion.copy(quaternion);s.seenAt=now;
+  s.metricDepth=metricDepth;
+  s.output={position:output.clone(),quaternion:rotation.clone()};s.previewOrigin??=output.clone();
   return {position:output,quaternion:rotation};
+ }
+ /** Read-only input/output snapshot for the calibration display; never advances tracking. */
+ preview(name:BallInstrumentName,now=performance.now()){
+  const s=this.sessions.get(name);if(!s?.output||!s.previewOrigin||!this.hasFreshPose(name,now))return null;
+  const p=this.profiles.get(name)!,raw=s.unwrappedRotation.toArray();
+  return {position:s.output.position.clone(),quaternion:s.output.quaternion.clone(),depthLocked:p.depthLock&&!s.metricDepth,
+   movement:s.output.position.clone().sub(s.previewOrigin),rawMovement:s.last.position.clone().sub(s.neutralPosition),
+   rawRotation:s.unwrappedRotation.clone(),mappedRotation:new THREE.Vector3(...p.rotationAxes.map((axis,i)=>raw[axis]*(p.rotationInvert[i]?-1:1)*p.rotationGain) as [number,number,number])};
  }
  private tipOffset(name:BallInstrumentName){
   const p=this.profiles.get(name)!;

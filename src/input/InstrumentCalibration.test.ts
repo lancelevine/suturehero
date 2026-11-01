@@ -52,9 +52,9 @@ it('keeps a calibrated tip in place when resetting neutral or changing model mou
 });
 it('keeps metric stereo depth available while the mono depth lock is enabled',()=>{
  const c=new InstrumentCalibration();c.transform('forceps',v(),q(),0,true);
- expect(c.transform('forceps',v(0,0,2),q(),1,true).position.z).toBe(2);
+ expect(c.transform('forceps',v(0,0,2),q(),1,true).position.z).toBe(2);expect(c.preview('forceps',1)!.depthLocked).toBe(false);
  c.clearSessions();c.transform('forceps',v(),q(),2);
- expect(c.transform('forceps',v(0,0,2),q(),3).position.z).toBe(0);
+ expect(c.transform('forceps',v(0,0,2),q(),3).position.z).toBe(0);expect(c.preview('forceps',3)!.depthLocked).toBe(true);
 });
 
 it('applies measured tracker-to-tip distances along the instrument shaft and rotates them about the ring',()=>{
@@ -68,4 +68,20 @@ it('applies measured tracker-to-tip distances along the instrument shaft and rot
   expect(rotated.position.distanceTo(v(0,distance,0))).toBeLessThan(1e-8);
   expect(rotated.quaternion.angleTo(q(Math.PI/2))).toBeLessThan(1e-8);
  }
+});
+
+it('provides independent, defensive preview snapshots matching the mapped output',()=>{
+ const c=new InstrumentCalibration();expect(c.preview('forceps',0)).toBeNull();
+ c.update('forceps',{depthLock:false,movementGain:2,rotationGain:.5,translationAxes:[1,0,2],translationInvert:[true,false,false]});
+ c.transform('forceps',v(),q(),0);const output=c.transform('forceps',v(1,2,3),q(.4),10),preview=c.preview('forceps',11)!;
+ expect(preview.position.distanceTo(output.position)).toBeLessThan(1e-8);expect(preview.quaternion.angleTo(output.quaternion)).toBeLessThan(1e-8);
+ expect(preview.rawMovement.toArray()).toEqual([1,2,3]);expect(preview.mappedRotation.y).toBeCloseTo(.2);
+ expect(c.preview('needleDriver',11)).toBeNull();preview.position.set(99,99,99);expect(c.preview('forceps',12)!.position.distanceTo(output.position)).toBeLessThan(1e-8);
+ expect(c.preview('forceps',1000)).toBeNull();
+});
+it('recenters preview readings on neutral without changing the tracked tip position',()=>{
+ const c=new InstrumentCalibration();c.update('forceps',{depthLock:false});c.transform('forceps',v(),q(),0);const output=c.transform('forceps',v(1,2,3),q(.4),10);
+ c.captureNeutral('forceps',11);c.transform('forceps',v(1,2,3),q(.4),12);const preview=c.preview('forceps',13)!;
+ expect(preview.rawMovement.length()).toBeLessThan(1e-8);expect(preview.movement.length()).toBeLessThan(1e-8);expect(preview.rawRotation.length()).toBeLessThan(1e-8);expect(preview.position.distanceTo(output.position)).toBeLessThan(1e-8);
+ c.clearSessions();expect(c.preview('forceps',14)).toBeNull();
 });
