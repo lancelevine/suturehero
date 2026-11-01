@@ -1,12 +1,13 @@
 import {expect,it} from 'vitest';
 import * as THREE from 'three';
+import {trackedInstrumentRotation} from './trackingFrame';
 import {InstrumentCalibration,trackerTipDistanceMm} from './InstrumentCalibration';
 const q=(angle=0)=>new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle),v=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
 it('maps movement per instrument without applying another instrument’s settings',()=>{
  const c=new InstrumentCalibration();c.update('forceps',{depthLock:false,movementGain:2,translationAxes:[1,0,2],translationInvert:[true,false,false]});
  c.transform('forceps',v(),q(),0);c.transform('needleDriver',v(),q(),0);
- expect(c.transform('forceps',v(1,2,3),q(),1).position.toArray()).toEqual([-4,3.1,6]);
- expect(c.transform('needleDriver',v(1,2,3),q(),1).position.toArray()).toEqual([1,2.55,0]);
+ expect(c.transform('forceps',v(1,2,3),q(),1).position.distanceTo(v(-4,.9,6))).toBeLessThan(1e-9);
+ expect(c.transform('needleDriver',v(1,2,3),q(),1).position.toArray()).toEqual([1,1.45,0]);
 });
 it('sets neutral without a translation jump and resets orientation at the current physical pose',()=>{
  const c=new InstrumentCalibration();c.update('forceps',{depthLock:false});c.transform('forceps',v(),q(),0);
@@ -63,9 +64,9 @@ it('applies measured tracker-to-tip distances along the instrument shaft and rot
  for(const [name,distance] of [['needleDriver',.55],['forceps',1.1]] as const){
   const c=new InstrumentCalibration();
   const initial=c.transform(name,v(),q(),0);
-  expect(initial.position.distanceTo(v(0,distance,0))).toBeLessThan(1e-8);
+  expect(initial.position.distanceTo(v(0,-distance,0))).toBeLessThan(1e-8);
   const rotated=c.transform(name,v(),q(Math.PI/2),1);
-  expect(rotated.position.distanceTo(v(0,distance,0))).toBeLessThan(1e-8);
+  expect(rotated.position.distanceTo(v(0,-distance,0))).toBeLessThan(1e-8);
   expect(rotated.quaternion.angleTo(q(Math.PI/2))).toBeLessThan(1e-8);
  }
 });
@@ -91,10 +92,24 @@ it('places the preview marker at the calibrated tracker center through turns, mo
  for(const angle of [.4,.8]){
   c.transform('needleDriver',v(.3,.2,.1),q(angle),10);
   const s=c.preview('needleDriver',10)!;
-  expect(s.markerMovement.clone().add(v(.1,.75,-.05).applyQuaternion(s.markerRotation)).distanceTo(s.movement)).toBeLessThan(1e-9);
+  expect(s.markerMovement.clone().add(v(.1,-.35,-.05).applyQuaternion(s.markerRotation)).distanceTo(s.movement)).toBeLessThan(1e-9);
   expect(s.observedAt).toBe(10);
  }
  c.captureNeutral('needleDriver',11);c.transform('needleDriver',v(.3,.2,.1),q(.8),12);
  const s=c.preview('needleDriver',12)!;
- expect(s.markerMovement.clone().add(v(.1,.75,-.05).applyQuaternion(s.markerRotation)).distanceTo(s.movement)).toBeLessThan(1e-9);
+ expect(s.markerMovement.clone().add(v(.1,-.35,-.05).applyQuaternion(s.markerRotation)).distanceTo(s.movement)).toBeLessThan(1e-9);
+});
+
+it('keeps the tracker 55 mm behind the tip toward the handle through pitch and roll',()=>{
+ const c=new InstrumentCalibration();c.transform('needleDriver',v(),new THREE.Quaternion(),0);
+ for(const axis of [v(1,0,0),v(0,1,0),v(0,0,1)])for(const angle of [0,.4,Math.PI/2,-Math.PI/2]){
+  const rotation=new THREE.Quaternion().setFromAxisAngle(axis,angle);
+  const output=c.transform('needleDriver',v(),rotation,10);
+  const preview=c.preview('needleDriver',10)!;
+  const towardHandle=v(0,0,1).applyQuaternion(trackedInstrumentRotation(output.quaternion));
+  const tipToMarker=preview.markerMovement.clone().sub(preview.movement);
+  expect(tipToMarker.length()).toBeCloseTo(.55,9);
+  expect(tipToMarker.clone().normalize().dot(towardHandle)).toBeCloseTo(1,9);
+  expect(output.position.clone().add(towardHandle.multiplyScalar(.55)).length()).toBeLessThan(1e-9);
+ }
 });

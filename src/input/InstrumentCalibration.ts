@@ -7,11 +7,16 @@ export interface CalibrationProfile {
  mountingDegrees:[number,number,number];tipOffset:[number,number,number];depthLock:boolean;jawInverted:boolean;
 }
 export const defaultCalibration=():CalibrationProfile=>({movementGain:1,rotationGain:1,translationAxes:[0,1,2],rotationAxes:[0,1,2],translationInvert:[false,false,false],rotationInvert:[false,false,false],mountingDegrees:[0,0,0],tipOffset:[0,0,0],depthLock:true,jawInverted:false});
-// Tracker center to tip, measured on the physical instruments. The shaft is +Y.
+// Tracker center is on the handle (+Y from the tip in the neutral view).
+// Therefore the vector FROM the tracker TO the tip points along -Y.
 // Mono translation is in practice units, not metric: 100 mm per practice unit
 // is a visual scale until metric camera translation is available.
 export const trackerTipDistanceMm={forceps:110,needleDriver:55,scissors:0} as const;
 const MM_PER_PRACTICE_UNIT=100;
+/** Marker-frame correction plus the measured handle-side tracker-to-tip vector. */
+export function trackerToTipOffset(name:BallInstrumentName,profile:CalibrationProfile){
+ return new THREE.Vector3(profile.tipOffset[0],profile.tipOffset[1]-trackerTipDistanceMm[name]/MM_PER_PRACTICE_UNIT,profile.tipOffset[2]);
+}
 const KEY='suturehero.instrument-calibration.v1';
 type StorageLike=Pick<Storage,'getItem'|'setItem'>;
 type Pose={position:THREE.Vector3;quaternion:THREE.Quaternion};
@@ -100,8 +105,7 @@ export class InstrumentCalibration {
    rawRotation:s.unwrappedRotation.clone(),mappedRotation:new THREE.Vector3(...p.rotationAxes.map((axis,i)=>raw[axis]*(p.rotationInvert[i]?-1:1)*p.rotationGain) as [number,number,number])};
  }
  private tipOffset(name:BallInstrumentName){
-  const p=this.profiles.get(name)!;
-  return new THREE.Vector3(p.tipOffset[0],p.tipOffset[1]+trackerTipDistanceMm[name]/MM_PER_PRACTICE_UNIT,p.tipOffset[2]);
+  return trackerToTipOffset(name,this.profiles.get(name)!);
  }
  /** Rotation observed from neutral before axis remapping. */
  rawNeutralRotation(name:BallInstrumentName,now=performance.now()):THREE.Vector3|null{

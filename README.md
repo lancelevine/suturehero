@@ -2,6 +2,16 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Handle-side tracker offset in 0.54
+
+The measured tracker-to-tip offset points toward the tip (-Y), placing the
+tracker center on the handle side (+Y from the tip). The previous sign placed
+the tracker beyond the tip and reversed the rotation-induced tip displacement.
+Tracking and the calibration illustration now share one offset helper. Needle
+driver distance remains 55 mm, forceps 110 mm; custom marker-frame corrections
+retain their existing meaning. Tests check physical handle-side placement through
+pitch, roll and yaw, including the actual virtual instrument mounting rotation.
+
 ## Calibration usability in 0.53
 
 The calibration drawer has one scrollbar for the entire section, a compact

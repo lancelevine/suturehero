@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {instrumentCalibration,trackerTipDistanceMm,type InstrumentCalibration} from '../input/InstrumentCalibration';
+import {instrumentCalibration,trackerTipDistanceMm,trackerToTipOffset,type InstrumentCalibration} from '../input/InstrumentCalibration';
 import type {BallInstrumentName} from '../input/ballTrackingSlots';
 import {trackedInstrumentRotation} from '../input/trackingFrame';
 const names={forceps:'Forceps',needleDriver:'Needle driver',scissors:'Scissors'};
@@ -61,13 +61,13 @@ export class CalibrationPreview {
   paint('[data-preview-tool]',tool,true);paint('[data-preview-ghost]',ghost);
   // Use the actual calibrated tracker center, not an arbitrary point on the drawing.
   // Tool geometry is schematic; tracker offset is in the same practice units as output.
-  const profile=this.calibration.profile(this.selected),offset=new THREE.Vector3(...profile.tipOffset);offset.y+=trackerTipDistanceMm[this.selected]/100;
+  const profile=this.calibration.profile(this.selected),offset=trackerToTipOffset(this.selected,profile);
   const markerMovement=(last?.markerMovement.clone()??offset.negate()).sub(this.centers.get(this.selected)??new THREE.Vector3());
   const markerRotation=last?.markerRotation??new THREE.Quaternion();
   const corners=[[-.08,-.08],[.08,-.08],[.08,.08],[-.08,.08],[-.08,-.08]].map(([x,y])=>this.project(new THREE.Vector3(x,y,0).applyQuaternion(markerRotation).add(markerMovement)));
   const center=this.project(markerMovement),tip=this.project(movement),marker=this.element.querySelector('[data-preview-marker]')!;
   marker.innerHTML=`<path d="M${tip.x} ${tip.y}L${center.x} ${center.y}" fill="none" stroke-dasharray="3 3" opacity=".65"/><path d="${corners.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' ')}"/><circle cx="${corners[0].x}" cy="${corners[0].y}" r="2.5" fill="#23724f"/><circle cx="${center.x}" cy="${center.y}" r="1.5"/>`;
-  this.element.querySelector('[data-preview-marker-label]')!.textContent=`Tracker reference · ${trackerTipDistanceMm[this.selected]} mm to tip${profile.tipOffset.some(v=>v!==0)?' + custom offset':''} · corner dot shows roll.`;
+  this.element.querySelector('[data-preview-marker-label]')!.textContent=`Tracker reference · ${trackerTipDistanceMm[this.selected]} mm toward handle${profile.tipOffset.some(v=>v!==0)?' + custom offset':''} · corner dot shows roll.`;
   const origin=this.project(movement),axes=this.element.querySelector('[data-preview-axes]')!;
   axes.innerHTML=[new THREE.Vector3(.42,0,0),new THREE.Vector3(0,.42,0),new THREE.Vector3(0,0,.42)].map((axis,i)=>{const end=this.project(axis.add(movement));return `<path d="M${origin.x} ${origin.y}L${end.x} ${end.y}" stroke="${axisColors[i]}"/><text x="${end.x+3}" y="${end.y-3}" fill="${axisColors[i]}">${'XYZ'[i]}</text>`;}).join('');
   if(sample){

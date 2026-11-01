@@ -12,7 +12,7 @@ try{
  await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/').href,{waitUntil:'domcontentloaded'});
  assert(await page.locator('#workspace-calibration-drawer').isVisible());await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();
  assert.deepEqual(await page.locator('[data-calibration-tool]').allTextContents(),['Needle driver','Forceps','Scissors']);assert.equal(await page.locator('[data-calibration-tool=needleDriver]').getAttribute('aria-pressed'),'true');assert(await page.locator('.calibration-fixed-axes').isVisible());
- assert(await page.locator('[data-preview-marker]').isVisible());assert.match(await page.locator('[data-preview-marker-label]').textContent(),/55 mm/);
+ assert(await page.locator('[data-preview-marker]').isVisible());assert.match(await page.locator('[data-preview-marker-label]').textContent(),/55 mm toward handle/);assert(await page.locator('[data-preview-marker] circle').last().evaluate(e=>Number(e.getAttribute('cy'))<130),'neutral driver tracker must be above the tip, on the handle');
  await page.locator('[data-calibration-tool=forceps]').click();
  const preview=page.locator('.calibration-live-preview'),line=page.locator('[data-preview-tool] path').first();
  await page.waitForFunction(()=>document.querySelector('.calibration-live-preview').dataset.tracking==='live',{},{timeout:30000});
