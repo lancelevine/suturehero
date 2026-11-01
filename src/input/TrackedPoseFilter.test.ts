@@ -15,11 +15,11 @@ it('suppresses stationary camera jitter before it reaches the rotating tip offse
 });
 it('follows deliberate tilts quickly and preserves small continuous movement',()=>{
  const filter=new TrackedPoseFilter();filter.update(new Vector3(),q(0),0);
- for(let frame=1;frame<=12;frame++)filter.update(new Vector3(.3,0,0),q(35),frame*1000/60);
- expect(MathUtils.radToDeg(filter.quaternion.angleTo(q(35)))).toBeLessThan(1.5);
- expect(filter.position.x).toBeGreaterThan(.29);
- for(let frame=13;frame<=132;frame++)filter.update(new Vector3(.3,0,0),q(35+(frame-12)*.1),frame*1000/60);
- expect(MathUtils.radToDeg(filter.quaternion.angleTo(q(47)))).toBeLessThan(1.7);
+ for(let frame=1;frame<=18;frame++)filter.update(new Vector3(.3,0,0),q(35),frame*1000/60);
+ expect(MathUtils.radToDeg(filter.quaternion.angleTo(q(35)))).toBeLessThan(2);
+ expect(filter.position.x).toBeGreaterThan(.285);
+ for(let frame=19;frame<=138;frame++)filter.update(new Vector3(.3,0,0),q(35+(frame-18)*.1),frame*1000/60);
+ expect(MathUtils.radToDeg(filter.quaternion.angleTo(q(47)))).toBeLessThan(2);
 });
 it('uses independent state, shortest quaternion arcs, and fresh initialization after tracking loss',()=>{
  const a=new TrackedPoseFilter(),b=new TrackedPoseFilter();a.update(new Vector3(),q(179),0);b.update(new Vector3(),q(0),0);
@@ -31,4 +31,16 @@ it('uses independent state, shortest quaternion arcs, and fresh initialization a
 it('gives similar settling across monitor refresh rates',()=>{
  const output=[30,60,120].map(fps=>{const filter=new TrackedPoseFilter();filter.update(new Vector3(),q(0),0);for(let i=1;i<=fps;i++)filter.update(new Vector3(.1,0,0),q(10),i*1000/fps);return filter;});
  for(const filter of output){expect(MathUtils.radToDeg(filter.quaternion.angleTo(output[0].quaternion))).toBeLessThan(.15);expect(filter.position.distanceTo(output[0].position)).toBeLessThan(.0005);}
+});
+
+it('reduces several-degree detection wobble without promoting it into the fast-motion branch',()=>{
+ const filter=new TrackedPoseFilter();filter.update(new Vector3(),q(0),0);const angles:number[]=[],positions:number[]=[];
+ for(let frame=1;frame<=600;frame++){
+  // Camera updates at 15 Hz, rendered at 60 Hz; alternate +/-4 degree detections.
+  const noise=Math.floor(frame/4)%2?1:-1;
+  filter.update(new Vector3(noise*.02,0,0),q(noise*4),frame*1000/60);
+  if(frame>120){angles.push(MathUtils.radToDeg(filter.quaternion.angleTo(q(0))));positions.push(filter.position.x);}
+ }
+ const rms=(a:number[])=>Math.sqrt(a.reduce((sum,v)=>sum+v*v,0)/a.length);
+ expect(rms(angles)).toBeLessThan(.9);expect(rms(positions)).toBeLessThan(.005);
 });

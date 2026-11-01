@@ -2,6 +2,17 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Post-recognition smoothing in 0.56
+
+The existing published-pose filter now smooths small fluctuations more strongly
+(110 ms position / 140 ms rotation time constants), retaining a faster 25 ms
+branch for larger changes. The angular fast branch begins beyond typical small
+camera wobble, so several-degree jitter does not accelerate its own response.
+Marker decoding, green outlines, flow tracking and solver acceptance are unchanged.
+The same stabilized pose drives the calibration preview and simulator; saved
+axis mappings and gains are preserved. Tests cover alternating 15 Hz camera
+jitter, deliberate and slow movements, refresh rates and reacquisition.
+
 ## Rotation control directions in 0.55
 
 Rotation controls now name their actual effect on the upright instrument:
