@@ -432,7 +432,7 @@ stereoQuick.addEventListener('click',async()=>{
 });
 select2.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_SECONDARY,select2.value);if(stream2)void stopSecondCamera();});
 const captureCanvas2=document.createElement('canvas');
-const captureContext2=captureCanvas2.getContext('2d')!;
+const captureContext2=captureCanvas2.getContext('2d',{willReadFrequently:true})!;
 async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
  const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
@@ -457,7 +457,7 @@ async function detectSecondFrame(now:number){
   for(const marker of fresh){
    // Same green-outline rule as Camera 1: require a recent decoded ID,
    // not merely an optical-flow prediction of an old marker.
-   if(performance.now()-(decoded2.get(marker.id)??-Infinity)>300)continue;
+   if(performance.now()-(decoded2.get(marker.id)??-Infinity)>650)continue;
    const pts=marker.corners;
    overlayContext2.beginPath();overlayContext2.moveTo(pts[0].x,pts[0].y);
    for(let i=1;i<pts.length;i++)overlayContext2.lineTo(pts[i].x,pts[i].y);
@@ -681,11 +681,14 @@ void refreshCameras();
 const embeddedTracking=window.parent!==window||root.dataset.embedded==='true';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x15242c);
 const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,4.5,7.6);camera.lookAt(0,0,0);
-const renderer=new THREE.WebGLRenderer({antialias:!embeddedTracking});renderer.setPixelRatio(embeddedTracking?1:Math.min(window.devicePixelRatio,2));
+// Embedded tracking publishes poses into the main scene; it needs no second GPU context.
+const renderer=embeddedTracking?null:new THREE.WebGLRenderer({antialias:true});
+renderer?.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
 const mount=document.querySelector<HTMLElement>('#tracking-scene')!;
-if(embeddedTracking)mount.style.display='none';else mount.append(renderer.domElement);
-const orbit=new OrbitControls(camera,renderer.domElement);orbit.enableDamping=true;orbit.minDistance=1.4;orbit.maxDistance=18;orbit.target.set(0,.5,0);orbit.update();
-document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>{camera.position.set(0,3.7,6);orbit.target.set(0,.5,0);orbit.update();});
+if(embeddedTracking)mount.style.display='none';else if(renderer)mount.append(renderer.domElement);
+const orbit=renderer?new OrbitControls(camera,renderer.domElement):null;
+if(orbit){orbit.enableDamping=true;orbit.minDistance=1.4;orbit.maxDistance=18;orbit.target.set(0,.5,0);orbit.update();}
+document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>{camera.position.set(0,3.7,6);orbit?.target.set(0,.5,0);orbit?.update();});
 scene.add(new THREE.HemisphereLight(0xffffff,0x63788a,2));
 const grid=new THREE.GridHelper(5,10,0x527d85,0x304852);scene.add(grid);
 const previewInstrumentModels=new Map<'left'|'right',Instrument>();
@@ -1249,7 +1252,7 @@ function drawDetections(){
  pruneMarkers();
  for(const marker of observations){
   // A flow-only outline is not proof that the printed face is still visible.
-  if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>300)continue;
+  if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>650)continue;
   const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(MARKER_GROUPS[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  drawBallOutlines();
  drawCornerDebug();
@@ -1271,7 +1274,7 @@ function drawDetections(){
 const roiDecodeToggle=document.querySelector<HTMLInputElement>('#roi-decode')!;
 let lastFullDecodeAt=0;
 const captureCanvas=document.createElement('canvas');
-const captureContext=captureCanvas.getContext('2d')!;
+const captureContext=captureCanvas.getContext('2d',{willReadFrequently:true})!;
 const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
@@ -1439,7 +1442,7 @@ async function detectFrame(now:number){
  }
 }
 
-const resize=new ResizeObserver(()=>{if(embeddedTracking)return;const w=mount.clientWidth,h=mount.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});if(!embeddedTracking)resize.observe(mount);
+const resize=new ResizeObserver(()=>{if(!renderer)return;const w=mount.clientWidth,h=mount.clientHeight;if(w<1||h<1)return;renderer.setDrawingBufferSize(w,h,Math.min(window.devicePixelRatio,1.5,Math.sqrt(1500000/(w*h))));camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});if(!embeddedTracking)resize.observe(mount);
 const rawRenderedPoses=new Map<InstrumentName,{position:THREE.Vector3;quaternion:THREE.Quaternion}>();
 const rotationTransitions=new Map<InstrumentName,{
  from:THREE.Quaternion;to:THREE.Quaternion;started:number;sample:THREE.Quaternion
@@ -1548,7 +1551,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
   }
  }
  updateStereoViewIndicator(now);
- if(!embeddedTracking){orbit.update();renderer.render(scene,camera);}
+ if(renderer){orbit?.update();renderer.render(scene,camera);}
  else{
   embeddedFrames++;
   if(now-lastEmbeddedFpsReport>=1000){
@@ -1561,6 +1564,6 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
  requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
-window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit.dispose();renderer.dispose();});
+window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit?.dispose();renderer?.dispose();});
 
 mountTrackingLayout(root);

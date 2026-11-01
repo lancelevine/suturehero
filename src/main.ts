@@ -34,7 +34,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.47 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.48 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -103,6 +103,9 @@ try {
   const graphicsSelect=document.querySelector('#graphics-quality') as HTMLSelectElement;
   graphicsSelect.value=params.get('graphics')==='low'?'low':'standard';view.setFastGraphics(graphicsSelect.value==='low');
   graphicsSelect.addEventListener('change',()=>{view.setFastGraphics(graphicsSelect.value==='low');const url=new URL(location.href);url.searchParams.set('graphics',graphicsSelect.value);history.replaceState(null,'',url);});
+  document.querySelector('#viewport')!.addEventListener('suturehero:graphics-recovered',()=>{
+    graphicsSelect.value='low';const url=new URL(location.href);url.searchParams.set('graphics','low');history.replaceState(null,'',url);
+  });
   const skinSelect=document.querySelector('#skin-type') as HTMLSelectElement;skinSelect.value=PRACTICE_SETUP.skin.id;
   const microSelect=document.querySelector('#micro-target') as HTMLSelectElement;microSelect.value=resolveMicroTarget(params.get('target'));
   const needleSelect=document.querySelector('#needle-type') as HTMLSelectElement;
@@ -244,7 +247,7 @@ try {
     object.quaternion.slerp(desiredRotation,1-Math.exp(-Math.min(frameDt,.05)*50));
   };
   let last=performance.now();
-  view.renderer.setAnimationLoop((time)=>{const dt=Math.min((time-last)/1000,.05);frameDt=dt;session.update(dt); last=time;
+  view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable){last=time;return;}const dt=Math.min((time-last)/1000,.05);frameDt=dt;session.update(dt); last=time;
     if(cameraEnabled){
      simulatorFrames++;
      if(time-lastSimulatorFps>=1000){

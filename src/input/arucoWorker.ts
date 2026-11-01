@@ -10,12 +10,19 @@ const MARKER_CODES = [
 ];
 function isSupportedMarkerId(id:number){return Number.isInteger(id)&&id>=0&&id<MARKER_CODES.length;}
 type MarkerObservation={id:number;corners:Array<{x:number;y:number}>};
-type LegacyDetector={detect:(frame:ImageData)=>MarkerObservation[];candidates?:unknown[];polys?:unknown[]};
+type GrayImage={width:number;height:number;data:number[]};
+type LegacyDetector={grey:GrayImage;thres:GrayImage;binary:number[];contours:Point[][];
+ findCandidates:(contours:Point[][],minSize:number,epsilon:number,minLength:number)=>Point[][];
+ clockwiseCorners:(candidates:Point[][])=>Point[][];notTooNear:(candidates:Point[][],distance:number)=>Point[][];
+ findMarkers:(image:GrayImage,candidates:Point[][],size:number)=>Array<MarkerObservation&{hammingDistance?:number}>;
+ detect:(frame:ImageData)=>MarkerObservation[];candidates?:unknown[];polys?:unknown[]};
 type ArucoGlobal={DICTIONARIES:Record<string,{nBits:number;tau:number;codeList:number[]}>;Detector:new(options:{dictionaryName:string;maxHammingDistance:number})=>LegacyDetector};
-const workerScope=self as DedicatedWorkerGlobalScope & {AR?:ArucoGlobal};
+type CvGlobal={grayscale:(frame:ImageData,image:GrayImage)=>void;adaptiveThreshold:(gray:GrayImage,binary:GrayImage,radius:number,bias:number)=>void;findContours:(image:GrayImage,binary:number[])=>Point[][]};
+const workerScope=self as DedicatedWorkerGlobalScope & {AR?:ArucoGlobal;CV?:CvGlobal};
 const base='https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
 let detector:LegacyDetector|null=null;
 const canvas=new OffscreenCanvas(1,1),ctx=canvas.getContext('2d',{willReadFrequently:true})!;
+const source=new OffscreenCanvas(1,1),sourceContext=source.getContext('2d',{willReadFrequently:true})!;
 function candidatesOf(){return (Array.isArray(detector?.candidates)?detector.candidates:Array.isArray(detector?.polys)?detector.polys:[])??[];}
 function cornersOf(candidate:unknown,ratio:number):Array<{x:number;y:number}>|null{
  const obj=candidate as {corners?:unknown;points?:unknown;vertices?:unknown}|null;
@@ -37,6 +44,7 @@ type Point={x:number;y:number};
 
 const lastMotion=new Map<number,Point>();
 let roiHints:MarkerObservation[]=[];
+const hintSeenAt=new Map<number,number>();
 let lastFullScan=0;
 const FULL_SCAN_INTERVAL_MS=1200;
 let consecutiveRoiMisses=0;
@@ -121,6 +129,63 @@ function refineCorners(frame:ImageData,markers:MarkerObservation[]):MarkerObserv
  })}));
 }
 
+const adaptiveProfiles=[[2,3],[5,5],[9,7]] as const;
+let adaptiveProfile=0,lastAdaptiveScan=-Infinity,lastAdaptiveExplore=-Infinity;
+function decodedCandidates(width:number,epsilons:readonly number[]){
+ const d=detector!;const found:MarkerObservation[]=[];
+ for(const epsilon of epsilons){
+  const quads=d.notTooNear(d.clockwiseCorners(d.findCandidates(d.contours,Math.max(16,width*.005),epsilon,6)),3);
+  // Bound candidate work on busy backgrounds; retries require an exact code.
+  const score=(quad:Point[])=>quad.reduce((n,p,i)=>n+Math.hypot(p.x-quad[(i+1)%4].x,p.y-quad[(i+1)%4].y),0);
+  quads.sort((a,b)=>score(b)-score(a));
+  // A 4x4 code plus border has six cells: warp to an exact 6x10 grid.
+  found.push(...d.findMarkers(d.grey,quads.slice(0,64),60).filter(m=>m.hammingDistance===0));
+ }
+ return found;
+}
+function adaptiveDecode(frame:ImageData,profile:number){
+ const d=detector!,cv=workerScope.CV!,[radius,bias]=adaptiveProfiles[profile];
+ cv.grayscale(frame,d.grey);cv.adaptiveThreshold(d.grey,d.thres,radius,bias);
+ d.contours=cv.findContours(d.thres,d.binary);
+ return decodedCandidates(frame.width,[.025,.05]);
+}
+function recoverNative(frame:ImageData,original:MarkerObservation[]){
+ const found=[...decodedCandidates(frame.width,[.025,.075])];
+ const ids=new Set([...original,...found].map(m=>m.id));
+ // Recover recently seen faces locally at native resolution. Recognizing one
+ // easy face must not suppress recovery of the other instruments/faces.
+ for(const marker of roiHints.filter(m=>!ids.has(m.id)&&performance.now()-(hintSeenAt.get(m.id)??-Infinity)<1500).slice(0,3)){
+  const xs=marker.corners.map(p=>p.x),ys=marker.corners.map(p=>p.y);
+  const side=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));
+  if(side>240)continue;
+  const pad=Math.max(12,side*.6),left=Math.max(0,Math.floor(Math.min(...xs)-pad)),top=Math.max(0,Math.floor(Math.min(...ys)-pad));
+  const width=Math.min(frame.width-left,Math.ceil(side+pad*2)),height=Math.min(frame.height-top,Math.ceil(side+pad*2));
+  if(width<12||height<12)continue;
+  const crop=new ImageData(width,height);
+  for(let y=0;y<height;y++)crop.data.set(frame.data.subarray(((top+y)*frame.width+left)*4,((top+y)*frame.width+left+width)*4),y*width*4);
+  for(let profile=0;profile<adaptiveProfiles.length;profile++){
+   const recovered=adaptiveDecode(crop,profile).filter(m=>m.id===marker.id);
+   if(recovered.length){found.push(...recovered.map(m=>({...m,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))})));ids.add(marker.id);break;}
+  }
+ }
+ // Always retain the baseline full scan. Periodic alternate full scans also
+ // discover new weak faces, even while another marker is recognized.
+ if(original.length===0||performance.now()-lastAdaptiveScan>=500){
+  lastAdaptiveScan=performance.now();
+  const explore=lastAdaptiveScan-lastAdaptiveExplore>=1000;
+  if(explore){lastAdaptiveExplore=lastAdaptiveScan;adaptiveProfile=(adaptiveProfile+1)%adaptiveProfiles.length;}
+  let adaptiveFound=false;
+  const passes=frame.width*frame.height<=640*480?3:1;
+  for(let attempt=0;attempt<passes;attempt++){
+   const profile=(adaptiveProfile+attempt)%adaptiveProfiles.length;
+   const recovered=adaptiveDecode(frame,profile);found.push(...recovered);
+   if(recovered.length){adaptiveProfile=profile;adaptiveFound=true;break;}
+  }
+  if(!adaptiveFound)adaptiveProfile=(adaptiveProfile+1)%adaptiveProfiles.length;
+ }
+ return found;
+}
+
 
 function detect(frame:ImageData){
  const start=performance.now();
@@ -137,14 +202,16 @@ function detect(frame:ImageData){
  const raw=effectiveLocal?effectiveLocal.markers:detector!.detect(frame);
  if(effectiveLocal){consecutiveRoiMisses=raw.length?0:consecutiveRoiMisses+1;}else{consecutiveRoiMisses=0;}
  if(!effectiveLocal)lastFullScan=now;
- const all=[...raw],candidates:Point[][]=effectiveLocal?[...effectiveLocal.candidates]:[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Point[]=>!!c);
+ const nativeRecovery=effectiveLocal?[]:recoverNative(frame,raw);
+ const all=[...raw,...nativeRecovery],candidates:Point[][]=effectiveLocal?[...effectiveLocal.candidates]:[...candidatesOf()].map(c=>cornersOf(c,1)).filter((c):c is Point[]=>!!c);
  let pass=effectiveLocal?effectiveLocal.pass+(expanded&&expanded.markers.length?' · expanded':''):'Full frame',contrast='Unmodified';
+ if(nativeRecovery.length)pass+=' + native candidate/adaptive recovery';
  // Expensive fallback passes only run during periodic full-frame reacquisition.
- if(raw.length===0&&!effectiveLocal){
+ if(all.length===0&&!effectiveLocal){
   const w=Math.max(1,Math.round(frame.width/2)),h=Math.max(1,Math.round(frame.height/2)),ratio=frame.width/w;
-  canvas.width=w;canvas.height=h;
-  const source=new OffscreenCanvas(frame.width,frame.height);
-  source.getContext('2d')!.putImageData(frame,0,0);
+  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+  if(source.width!==frame.width||source.height!==frame.height){source.width=frame.width;source.height=frame.height;}
+  sourceContext.putImageData(frame,0,0);
   ctx.drawImage(source,0,0,w,h);
   const reduced=ctx.getImageData(0,0,w,h);
   const histogram=new Uint32Array(256);
@@ -167,13 +234,15 @@ function detect(frame:ImageData){
    pass='Original + contrast + adaptive';contrast+=' · local mean threshold';
   }
  }
- const decoded=refineCorners(frame,all.filter(m=>isSupportedMarkerId(m.id)&&m.corners.length===4));
- if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded)merged.set(m.id,m);roiHints=[...merged.values()];}
+ const unique=new Map<number,MarkerObservation>();
+ for(const marker of all)if(isSupportedMarkerId(marker.id)&&marker.corners.length===4&&!unique.has(marker.id))unique.set(marker.id,marker);
+ const decoded=refineCorners(frame,[...unique.values()]);
+ if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded){merged.set(m.id,m);hintSeenAt.set(m.id,performance.now());}roiHints=[...merged.values()];}
  // Expire stale search hints: a marker that has been absent should not
  // permanently trap the decoder in the wrong part of the image.
  if(!decoded.length&&performance.now()-lastSuccessfulDecodeAt>4000){roiHints=[];consecutiveRoiMisses=0;}
  const found=[...decoded];
- return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:all.length,recognizedCount:found.length,rejectedCount:all.length-found.length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':'No tracked marker'),pass,contrast}};
+ return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:new Set(all.map(m=>m.id)).size,recognizedCount:found.length,rejectedCount:all.filter(m=>!isSupportedMarkerId(m.id)).length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':'No tracked marker'),pass,contrast}};
 }
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{
@@ -181,7 +250,7 @@ self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flo
   else if(e.data.type==='seed'){
    const markers=e.data.markers??[];
    const merged=new Map(roiHints.map(m=>[m.id,m]));
-   for(const marker of markers){merged.set(marker.id,marker);recoveryMisses.delete(marker.id);}
+   for(const marker of markers){merged.set(marker.id,marker);hintSeenAt.set(marker.id,performance.now());recoveryMisses.delete(marker.id);}
    roiHints=[...merged.values()];
   }
   else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}

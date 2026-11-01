@@ -2,6 +2,43 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Marker recognition retries in 0.48
+
+The native-resolution baseline decoder and its refined corners are preserved.
+Additional candidate fits use a six-cell-aligned sampling grid and require an
+exact dictionary match; error tolerance is not increased. Native adaptive
+threshold retries handle low contrast, modest blur and foreshortened faces.
+Recent missing faces get bounded local retries even when a different marker
+is already recognized. Periodic alternate full-frame scans still discover new
+faces; local hints expire and never replace full-frame reacquisition.
+
+The green outline can bridge up to 650 ms between decodes while image-validated
+flow remains live. Hiding a marker still stops live observations; this does not
+keep an unsupported prediction on screen. Duplicate retry results are merged
+by ID before pose solving. `scripts/check-marker-recognition.mjs` tests 144
+transformed cases from independent OpenCV markers across size, contrast, rotation,
+foreshortening and blur, and checks plain-square rejection and incorrect IDs.
+
+## Graphics stability in 0.48
+
+Embedded camera tracking shares the main scene instead of creating an unused
+second WebGL context. Native camera capture and decoder recovery reuse their
+2D buffers, with CPU-read hints for frames processed in JavaScript. The main
+scene caps its drawing buffer at two million pixels (750,000 in Fast mode),
+independent of window size and display pixel density, and uses a smaller shadow
+map. CSS layout and the camera's native marker decoding resolution are unchanged.
+
+If the browser loses the graphics context, the stitch simulation pauses and a
+status replaces the blank scene. When the browser restores the context, Three.js
+rebuilds its GPU resources, the same stitch resumes, and graphics switch to Fast
+mode. This handles recoverable context loss; it cannot repair a crashed browser
+process or guarantee recovery from every hardware/driver failure.
+
+`scripts/check-render-recovery.mjs` forces real WebGL context loss/restoration
+with the camera on and off, checks that stitch state survives and drawing
+resumes, and verifies high-DPI buffer limits and a single embedded WebGL context.
+Set `SUTURE_RENDER_SOAK_MS=60000` to include a sustained moving-camera session.
+
 ## Motion tracking in 0.47
 
 Optical flow now uses a separate module worker, retaining the matching source
