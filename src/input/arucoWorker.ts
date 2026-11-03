@@ -53,6 +53,7 @@ type Point={x:number;y:number};
 
 const lastMotion=new Map<number,Point>();
 let roiHints:MarkerObservation[]=[];
+let frameOrigin={x:0,y:0};
 const hintSeenAt=new Map<number,number>();
 let lastFullScan=0;
 const FULL_SCAN_INTERVAL_MS=1200;
@@ -108,10 +109,10 @@ function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObser
 // Harris response search corrects pixel quantization without changing IDs or
 // allowing corners to jump to a different square.
 function refineCorners(frame:ImageData,markers:MarkerObservation[]):MarkerObservation[]{
+ if(!markers.length)return markers;
  const w=frame.width,h=frame.height,data=frame.data;
- const gray=new Uint8Array(w*h);
- for(let i=0;i<gray.length;i++){const j=i*4;gray[i]=Math.round(.299*data[j]+.587*data[j+1]+.114*data[j+2]);}
- const pixel=(x:number,y:number)=>gray[y*w+x];
+ let patch=new Uint8Array(0),patchX=0,patchY=0,patchW=0;
+ const pixel=(x:number,y:number)=>patch[(y-patchY)*patchW+x-patchX];
  const score=(x:number,y:number)=>{
   if(x<3||y<3||x>=w-3||y>=h-3)return -Infinity;
   let xx=0,xy=0,yy=0;
@@ -124,7 +125,10 @@ function refineCorners(frame:ImageData,markers:MarkerObservation[]):MarkerObserv
   return xx*yy-xy*xy-.04*(xx+yy)*(xx+yy);
  };
  return markers.map(marker=>({...marker,corners:marker.corners.map(c=>{
-  const x=Math.round(c.x),y=Math.round(c.y);
+  const x=Math.round(c.x),y=Math.round(c.y);if(x<-2||y<-2||x>w+1||y>h+1)return c;
+  patchX=Math.max(0,x-5);patchY=Math.max(0,y-5);patchW=Math.min(w-1,x+5)-patchX+1;
+  const patchH=Math.min(h-1,y+5)-patchY+1;patch=new Uint8Array(patchW*patchH);
+  for(let py=0;py<patchH;py++)for(let px=0;px<patchW;px++){const j=((patchY+py)*w+patchX+px)*4;patch[py*patchW+px]=Math.round(.299*data[j]+.587*data[j+1]+.114*data[j+2]);}
   let best=score(x,y),bx=x,by=y;
   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
    const value=score(x+dx,y+dy);
@@ -254,15 +258,15 @@ function detect(frame:ImageData){
  const found=[...decoded];
  return {found,candidates,diagnostics:{timings,candidateCount:candidates.length,rawMarkerCount:new Set(all.map(m=>m.id)).size,recognizedCount:found.length,rejectedCount:all.filter(m=>!isSupportedMarkerId(m.id)).length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':'No tracked marker'),pass,contrast}};
 }
-self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
+self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[];origin?:{x:number;y:number}}>)=>{
  try{
   if(e.data.type==='init'){await initialize();self.postMessage({type:'ready'});}
   else if(e.data.type==='seed'){
-   const markers=e.data.markers??[];
+   const markers=(e.data.markers??[]).map(m=>({...m,corners:m.corners.map(p=>({x:p.x-frameOrigin.x,y:p.y-frameOrigin.y}))}));
    const merged=new Map(roiHints.map(m=>[m.id,m]));
    for(const marker of markers){merged.set(marker.id,marker);hintSeenAt.set(marker.id,performance.now());recoveryMisses.delete(marker.id);}
    roiHints=[...merged.values()];
   }
-  else if(e.data.type==='detect'&&e.data.frame){const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
+  else if(e.data.type==='detect'&&e.data.frame){const origin=e.data.origin??{x:0,y:0},dx=frameOrigin.x-origin.x,dy=frameOrigin.y-origin.y;if(dx||dy)roiHints=roiHints.map(m=>({...m,corners:m.corners.map(p=>({x:p.x+dx,y:p.y+dy}))}));frameOrigin=origin;const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };

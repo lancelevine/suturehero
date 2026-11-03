@@ -2,6 +2,33 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Predictive native-resolution decoding in 0.62
+
+Baseline profiling at 1920×1080 showed full-image grayscale, thresholding and
+contours dominating decode time. The decoder now searches native-pixel regions
+predicted from recent flow positions and velocity. A miss expands the search;
+a second miss forces full-frame recovery until reacquisition. Global scans become due every 350 ms; completion depends on decoder workload.
+They discover instruments outside the tracked area. Large regions, expired hints and resolution/model
+changes use full frames. Group-aware recovery accepts a new face of the same
+instrument but detects a missing second instrument. Uncheck **Predictive region
+decode** to compare with full-frame decoding. Predictive scheduling targets a
+65 ms interval; jobs never overlap within one decoder worker.
+
+An owned VideoFrame (when supported) supplies the same image to flow and decode,
+removing the redundant full-size canvas copy. Frames always close in finally;
+the original canvas snapshot remains a tested browser fallback. Recovery hints
+translate with crop origins. Corner refinement converts only the required 11×11
+neighborhoods rather than converting the entire native frame a second time.
+The luminance formula, Harris search, dictionary and recognition thresholds are
+unchanged. Baseline/new refinement agreed for 1,760 random and border corners.
+
+A local synthetic 1080p A/B measured 5.4 → 9 decode FPS and 73 → 28 ms mean worker
+time; these are test-machine results, not a promise for other hardware. All 50
+IDs and rotated boundary IDs still decode. The existing difficult-recognition
+suite remains 139/144 with no wrong IDs. Browser checks cover out-of-region
+marker discovery, abrupt movement, both snapshot backends and frame cleanup.
+Collect another Performance report on the actual camera to compare with 0.61.
+
 ## Performance instrumentation in 0.61
 
 Use the **Performance** button above the camera preview. Run tracking for at

@@ -1,3 +1,5 @@
+import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
+import {videoSnapshot} from './input/videoSnapshot';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {mountPerformancePanel,measureCameraFrames} from './ui/PerformancePanel';
 import {loadJawTracking,saveJawTracking,type SavedJawTracking} from './input/jawTrackingStorage';
@@ -41,7 +43,7 @@ root.innerHTML=`<header><a class="brand" href="./"><img class="brand-logo" src="
  <div class="tracking-actions"><button id="capture-stereo-pair">Capture checkerboard pair</button><button id="export-stereo-pairs" disabled>Export captures</button><button id="clear-stereo-pairs">Clear captures</button></div>
  <p class="tracking-message" id="stereo-calibration-status">0 pairs captured. This stage records paired images; calibration solving and triangulation are not enabled yet.</p>
 </section>
-<label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="roi-decode" type="checkbox"> Experimental ROI decode (faster; disable to restore baseline)</label><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
+<label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="roi-decode" type="checkbox" checked> Predictive region decode · full-frame fallback (uncheck for full-frame baseline)</label><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
 <details class="tracking-details"><summary>Camera Focus &amp; Exposure</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Hold a tracked prism at the near boundary and click Set Near, then repeat at the far boundary.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
 <div><strong>Camera resolution</strong><span id="diag-resolution">Not started</span></div>
@@ -130,10 +132,10 @@ class WorkerDetector {
  }
  confirm(markers:MarkerObservation[]){this.worker?.postMessage({type:'confirm',ids:markers.map(m=>m.id)});}
  seed(markers:MarkerObservation[],frame?:ImageData){this.worker?.postMessage({type:'seed',markers,frame});}
- detect(frame:ImageData):Promise<MarkerObservation[]>{
+ detect(frame:ImageData,origin={x:0,y:0}):Promise<MarkerObservation[]>{
   if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
   const id=++this.sequence;this.lastFrameSize={width:frame.width,height:frame.height};
-  return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,frame},[frame.data.buffer]);});
+  return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,frame,origin},[frame.data.buffer]);});
  }
  dispose(){this.worker?.terminate();this.worker=null;for(const p of this.pending.values())p.reject(new Error('Worker stopped'));this.pending.clear();}
 }
@@ -217,7 +219,7 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -453,7 +455,7 @@ async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
  const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
  const doFast=!fastProcessing2&&now-lastFastFrame2>=33;
- const doSlow=!processing2&&now-lastSlowFrame2>=(recovering?65:110);
+ const doSlow=!processing2&&now-lastSlowFrame2>=(recovering||roiDecodeToggle.checked?65:110);
  if(processing2)perf.count('Camera 2 decode busy checks');
  if(!doFast&&!doSlow)return;
  perf.tick('Camera 2 capture attempts');if(video2.currentTime===lastCamera2CaptureTime)perf.count('Camera 2 duplicate captures');lastCamera2CaptureTime=video2.currentTime;
@@ -465,11 +467,10 @@ async function detectSecondFrame(now:number){
  const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*sx,y:p.y*sy}))}));
  const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/sx,y:p.y/sy}))}));
  if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
- if(doSlow){
-  if(captureCanvas2.width!==nativeW||captureCanvas2.height!==nativeH){captureCanvas2.width=nativeW;captureCanvas2.height=nativeH;}
-  perf.measure('Camera 2 native capture',()=>captureContext2.drawImage(video2,0,0,nativeW,nativeH));
- }
- perf.measure('Camera 2 flow resize',()=>context2.drawImage(doSlow?captureCanvas2:video2,0,0,w,h));
+ const snapshot=doSlow?perf.measure('Camera 2 video snapshot',()=>videoSnapshot(video2,captureCanvas2,captureContext2)):null;
+ if(snapshot){snapshotBackend2=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 2 snapshot fallback');}
+ try{
+ perf.measure('Camera 2 flow resize',()=>context2.drawImage(snapshot?.source??video2,0,0,w,h));
  const secondaryCaptureAt=performance.now();if(primaryCaptureAt)perf.sample('Camera capture skew',Math.abs(secondaryCaptureAt-primaryCaptureAt));
  const render=()=>{
   const fresh=liveSecondMarkers();
@@ -514,16 +515,15 @@ async function detectSecondFrame(now:number){
  if(doSlow){
   processing2=true;lastSlowFrame2=now;
   const flowSeedFrame=readFrame(context2,'Camera 2 flow readback',0,0,w,h);
-  // Decode at native resolution, matching Camera 1. Optical flow stays at
-  // the smaller preview resolution for speed.
-  if(decodeCanvas2.width!==nativeW||decodeCanvas2.height!==nativeH){
-   decodeCanvas2.width=nativeW;decodeCanvas2.height=nativeH;
-  }
-  perf.measure('Camera 2 decode copy',()=>decodeContext2.drawImage(captureCanvas2,0,0,nativeW,nativeH));
-  void detector2.detect(readFrame(decodeContext2,'Camera 2 decode readback',0,0,nativeW,nativeH)).then(nativeFound=>{
+  const region=secondarySearch.plan(toNative(liveSecondMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,Object.values(markerGroups()));
+  const {left,top,width:regionW,height:regionH}=region;perf.count('Camera 2 search '+region.kind);perf.count('Camera 2 searched pixels',regionW*regionH);
+  if(decodeCanvas2.width!==regionW||decodeCanvas2.height!==regionH){decodeCanvas2.width=regionW;decodeCanvas2.height=regionH;}
+  perf.measure('Camera 2 decode crop',()=>decodeContext2.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
+  void detector2.detect(readFrame(decodeContext2,'Camera 2 decode readback',0,0,regionW,regionH),{x:left,y:top}).then(nativeFound=>{
    if(currentSession!==session2)return;
    perf.sample('Camera 2 decode frame age',performance.now()-secondaryCaptureAt);decodedFrames2++;
-   const found=toFlow(nativeFound),stamp=performance.now();
+   const nativeMarkers=nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))}));secondarySearch.result(nativeMarkers);
+   const found=toFlow(nativeMarkers),stamp=performance.now();
    if(found.length){
     for(const marker of found)decoded2.set(marker.id,stamp);
     fastTracker2.seed(found,flowSeedFrame);
@@ -535,6 +535,7 @@ async function detectSecondFrame(now:number){
   }).catch(error=>{if(currentSession===session2)status2.textContent='Camera 2 decode error: '+String(error);})
    .finally(()=>{if(currentSession===session2)processing2=false;});
  }
+ }finally{snapshot?.close();}
 }
 const decodeCanvas2=document.createElement('canvas');
 const decodeContext2=decodeCanvas2.getContext('2d',{willReadFrequently:true})!;
@@ -1302,7 +1303,8 @@ function drawDetections(){
  perf.sample('Tracking status UI',performance.now()-uiStarted);
 }
 const roiDecodeToggle=document.querySelector<HTMLInputElement>('#roi-decode')!;
-let lastFullDecodeAt=0;
+const primarySearch=new PredictiveDecodeSearch(),secondarySearch=new PredictiveDecodeSearch();
+let snapshotBackend1='unknown',snapshotBackend2='unknown';
 const captureCanvas=document.createElement('canvas');
 const captureContext=captureCanvas.getContext('2d',{willReadFrequently:true})!;
 let lastCamera1CaptureTime=-1,lastCamera1DecodeTime=-1,lastCamera2CaptureTime=-1,lastCamera2DecodeTime=-1;
@@ -1316,7 +1318,7 @@ async function detectFrame(now:number){
  const doFast=!fastProcessing&&now-lastFastFrame>=33;
  // Run decode faster when flow has no usable marker; only one decode can be in flight.
  const recovering=idleNoMarkers||now-latestFlowAt>120;
- const decodeInterval=recovering?65:110;
+ const decodeInterval=recovering||roiDecodeToggle.checked?65:110;
  const doSlow=!processing&&now-lastSlowFrame>=decodeInterval;
  if(processing)perf.count('Camera 1 decode busy checks');
  if(!doFast&&!doSlow)return;
@@ -1329,11 +1331,10 @@ async function detectFrame(now:number){
  const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*decodeScaleX,y:p.y*decodeScaleY}))}));
  const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/decodeScaleX,y:p.y/decodeScaleY}))}));
  if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
- if(doSlow){
-  if(captureCanvas.width!==nativeW||captureCanvas.height!==nativeH){captureCanvas.width=nativeW;captureCanvas.height=nativeH;}
-  perf.measure('Camera 1 native capture',()=>captureContext.drawImage(video,0,0,nativeW,nativeH));
- }
- perf.measure('Camera 1 flow resize',()=>frameContext.drawImage(doSlow?captureCanvas:video,0,0,w,h));
+ const snapshot=doSlow?perf.measure('Camera 1 video snapshot',()=>videoSnapshot(video,captureCanvas,captureContext)):null;
+ if(snapshot){snapshotBackend1=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 1 snapshot fallback');}
+ try{
+ perf.measure('Camera 1 flow resize',()=>frameContext.drawImage(snapshot?.source??video,0,0,w,h));
  const frameCapturedAt=performance.now();primaryCaptureAt=frameCapturedAt;
  if(doFast){
   fastProcessing=true;lastFastFrame=now;
@@ -1374,35 +1375,19 @@ async function detectFrame(now:number){
  if(doSlow){
   processing=true;lastSlowFrame=now;
   const flowSeedFrame=readFrame(frameContext,'Camera 1 flow readback',0,0,w,h);
-  // Keep full native resolution for small printed markers. In experimental
-  // mode, decode a padded ROI around flow-tracked marker corners, with a
-  // periodic full-frame scan for new markers and recovery.
-  const recent=liveMarkers();
-  const roiPoints=recent.flatMap(m=>m.corners.map(p=>({x:p.x*decodeScaleX,y:p.y*decodeScaleY})));
-  const useRoi=roiDecodeToggle.checked&&!recovering&&roiPoints.length>=4&&now-lastFullDecodeAt<900;
-  let left=0,top=0,regionW=nativeW,regionH=nativeH;
-  if(useRoi){
-   const minX=Math.min(...roiPoints.map(p=>p.x)),maxX=Math.max(...roiPoints.map(p=>p.x));
-   const minY=Math.min(...roiPoints.map(p=>p.y)),maxY=Math.max(...roiPoints.map(p=>p.y));
-   // Allow nearby prism faces to enter the region during fast rotations.
-   const pad=Math.max(160,Math.max(maxX-minX,maxY-minY)*2);
-   left=Math.max(0,Math.floor(minX-pad));top=Math.max(0,Math.floor(minY-pad));
-   regionW=Math.min(nativeW-left,Math.ceil(maxX+pad)-left);
-   regionH=Math.min(nativeH-top,Math.ceil(maxY+pad)-top);
-   // Avoid ROI mode when it barely reduces work.
-   if(regionW*regionH>nativeW*nativeH*.75){left=0;top=0;regionW=nativeW;regionH=nativeH;}
-  }
-  const cropped=regionW<nativeW||regionH<nativeH;
-  if(!cropped)lastFullDecodeAt=now;
+  const region=primarySearch.plan(toNative(liveMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,Object.values(markerGroups()));
+  const {left,top,width:regionW,height:regionH}=region,cropped=region.kind!=='full';
+  perf.count('Camera 1 search '+region.kind);perf.count('Camera 1 searched pixels',regionW*regionH);
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
-  perf.measure('Camera 1 decode crop',()=>decodeContext.drawImage(captureCanvas,left,top,regionW,regionH,0,0,regionW,regionH));
+  perf.measure('Camera 1 decode crop',()=>decodeContext.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
   const frame=readFrame(decodeContext,'Camera 1 decode readback',0,0,regionW,regionH);
   const capturedAt=frameCapturedAt;
   if(thresholdToggle.checked)renderThreshold(frame);
   if(cropToggle.checked)renderCrop(frame);
-  void detector.detect(frame).then(nativeFound=>{
-   const found=toFlow(nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))})));
-   if(session!==cameraSession)return;
+  void detector.detect(frame,{x:left,y:top}).then(nativeFound=>{
+   const nativeMarkers=nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))}));
+   const found=toFlow(nativeMarkers);
+   if(session!==cameraSession)return;primarySearch.result(nativeMarkers);
    if(cornerDebug.checked)for(const marker of found)rawDecodedCorners.set(marker.id,{marker,capturedAt,receivedAt:performance.now()});
    perf.sample('Camera 1 decode frame age',performance.now()-capturedAt);slowFrames++;framesAnalyzed++;
    diag('frames').textContent=String(framesAnalyzed);
@@ -1410,7 +1395,7 @@ async function detectFrame(now:number){
    diag('outlines').textContent=String(detector.candidateCorners.length);
    diag('decoded').textContent=`${found.length} matched · ${detector.diagnostics.rawMarkerCount} total`;
    diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms · '+(cropped?'ROI':'full')+' '+regionW+'×'+regionH;
-   diag('pass').textContent=detector.diagnostics.pass;
+   diag('pass').textContent=region.kind+' · '+detector.diagnostics.pass;
    diag('contrast').textContent=detector.diagnostics.contrast;
    diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
    if(found.length){
@@ -1476,6 +1461,7 @@ async function detectFrame(now:number){
    }
   }).catch(e=>{if(session===cameraSession){status.textContent='Detection error: '+String(e);diag('note').textContent='Decoder error';}}).finally(()=>{processing=false;});
  }
+ }finally{snapshot?.close();}
 }
 
 const resize=new ResizeObserver(()=>{if(!renderer)return;const w=mount.clientWidth,h=mount.clientHeight;if(w<1||h<1)return;renderer.setDrawingBufferSize(w,h,Math.min(window.devicePixelRatio,1.5,Math.sqrt(1500000/(w*h))));camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});if(!embeddedTracking)resize.observe(mount);
@@ -1587,4 +1573,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 
 mountTrackingLayout(root);
 measureCameraFrames(video,'Camera 1');measureCameraFrames(video2,'Camera 2');
-mountPerformancePanel(root,()=>({build:'0.61',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:110,recoveryIntervalMs:65,roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
+mountPerformancePanel(root,()=>({build:'0.62',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
