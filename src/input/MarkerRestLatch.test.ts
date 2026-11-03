@@ -13,3 +13,9 @@ it('releases on accumulated slow movement, translation, scale or rotation',()=>{
 it('does not freeze an unseen face, a stale reacquisition or another instrument',()=>{
  const a=new MarkerRestLatch(),b=new MarkerRestLatch();a.observe([face(0)],0);expect(a.observe([face(1)],70)).toBe(false);expect(a.observe([face(1)],1000)).toBe(false);expect(b.observe([face(10)],1000)).toBe(false);
 });
+
+it('releases on a coherent subpixel scale trend so resting-pose stability does not mask depth motion',()=>{
+ const latch=new MarkerRestLatch();latch.observe([face(0)],0);let released=false;
+ for(let i=1;i<=6;i++){const marker=face(0);marker.corners=marker.corners.map(p=>({x:115+(p.x-115)*(1+i*.01),y:115+(p.y-115)*(1+i*.01)}));if(!latch.observe([marker],i*70))released=true;}
+ expect(released).toBe(true);
+});

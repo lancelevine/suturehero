@@ -2,6 +2,38 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Frame-efficient flow and fallback diagnosis in 0.63
+
+The follow-up 1080p report measured 10.6 decode FPS versus 5.4 before optimization,
+48 ms versus 144 ms mean decoder work, and 69 ms versus 162 ms decode-frame age.
+Camera presentation remained 25 FPS, while capture attempts were 31.8/sec and
+flow readbacks 37.8/sec. Flow-frame age increased from 19 to 29 ms, identifying
+readback/flow work as the next target rather than graphics submission.
+
+Optical flow now consumes newly presented camera-frame notifications. It takes
+the latest available frame without queueing stale ones and avoids repeated
+processing of the same presentation. Browsers without video-frame callbacks
+retain the previous timed path, also used if callbacks stall. Decode recovery remains independently scheduled,
+so it may still retry a frame with an expanded/full search. When flow and decode
+coincide, an owned byte copy supplies the decoder's seed; the flow worker can
+transfer its input without requiring a second canvas readback. Both cameras use
+this path. Full-resolution recognition, recovery thresholds and global scan
+frequency are unchanged.
+
+Performance reports now split worker timings by full/predicted/expanded search
+and count why full frames were used: periodic discovery, missing hints, repeated
+misses, large regions, or explicitly selected baseline. These counters are since
+reset, unlike the rolling five-second timing averages. Use them to identify the
+reason for full-frame work before changing recovery policy.
+
+Unlocked depth also no longer saturates at the configured Near/Far span before
+relative motion is calculated. For example, both 600 and 650 mm were previously
+clipped to the same default far value, producing no depth response. The span now
+sets gain; final workspace limits still constrain the tool. The rest hold also
+releases on coherent subpixel scale changes so gentle depth motion can be seen.
+Depth-only damping is stronger to suppress far-distance measurement noise. Reports
+include per-instrument depth lock state, estimated distance and source Z.
+
 ## Predictive native-resolution decoding in 0.62
 
 Baseline profiling at 1920×1080 showed full-image grayscale, thresholding and

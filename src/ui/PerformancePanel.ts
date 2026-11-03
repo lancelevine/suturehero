@@ -19,9 +19,3 @@ export function mountPerformancePanel(root:HTMLElement,context:()=>Record<string
  panel.querySelector('[data-perf-copy]')!.addEventListener('click',async()=>{const text=JSON.stringify(report(),null,2),area=panel.querySelector<HTMLTextAreaElement>('[data-perf-report]')!;area.value=text;area.hidden=false;try{await navigator.clipboard.writeText(text);panel.querySelector('[data-perf-copy-status]')!.textContent='Report copied.';}catch{area.focus();area.select();panel.querySelector('[data-perf-copy-status]')!.textContent='Select and copy the report below.';}});
  window.addEventListener('pagehide',()=>{clearInterval(timer);observer?.disconnect();},{once:true});
 }
-export function measureCameraFrames(video:HTMLVideoElement,name:string){
- if(!video.requestVideoFrameCallback)return;
- let stopped=false,lastFrames=0,id=0,lastSource:MediaProvider|null=null;
- const frame:VideoFrameRequestCallback=(_now,metadata)=>{if(stopped)return;if(video.srcObject!==lastSource){lastSource=video.srcObject;lastFrames=0;}const count=lastFrames?Math.max(1,metadata.presentedFrames-lastFrames):1;lastFrames=metadata.presentedFrames;perf.tick(name+' presented frames',count);id=video.requestVideoFrameCallback(frame);};
- id=video.requestVideoFrameCallback(frame);window.addEventListener('pagehide',()=>{stopped=true;video.cancelVideoFrameCallback(id);},{once:true});
-}

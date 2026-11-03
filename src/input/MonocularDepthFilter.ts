@@ -20,6 +20,6 @@ export class MonocularDepthFilter {
    this.pending.target=target;this.pending.count++;
    if(this.pending.count<3||stamp-this.pending.at<120)return this.value;
   }else this.pending=undefined;
-  const step=error*(1-Math.exp(-dt/.2));this.value+=clamp(step,-1.4*dt,1.4*dt);return this.value;
+  const step=error*(1-Math.exp(-dt/.45));this.value+=clamp(step,-1.4*dt,1.4*dt);return this.value;
  }
 }

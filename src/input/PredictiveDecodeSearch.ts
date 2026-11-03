@@ -1,5 +1,5 @@
 import type {MarkerObservation} from './arucoTracking';
-export interface DecodeRegion {left:number;top:number;width:number;height:number;kind:'predicted'|'expanded'|'full'}
+export interface DecodeRegion {left:number;top:number;width:number;height:number;kind:'predicted'|'expanded'|'full';reason:string}
 /** Native-pixel searches: flow-guided prediction -> expanded search -> full frame.
  * Periodic global scans discover instruments outside the current search region. */
 export class PredictiveDecodeSearch {
@@ -15,8 +15,11 @@ export class PredictiveDecodeSearch {
    this.hints.set(marker.id,{marker:structuredClone(marker),at:now,vx:dt>10?(a.x-b.x)/dt:previous?.vx??0,vy:dt>10?(a.y-b.y)/dt:previous?.vy??0});}
   for(const [id,hint] of this.hints)if(now-hint.at>500)this.hints.delete(id);
   this.expected=new Set([...this.hints.keys()].map(id=>this.group(id)));
-  const full=():DecodeRegion=>{this.lastFull=now;return {left:0,top:0,width,height,kind:'full'};};
-  if(!enabled||!this.hints.size||this.misses>=2||now-this.lastFull>=350)return full();
+  const full=(reason:string):DecodeRegion=>{this.lastFull=now;return {left:0,top:0,width,height,kind:'full',reason};};
+  if(!enabled)return full('baseline selected');
+  if(!this.hints.size)return full('no recent hints');
+  if(this.misses>=2)return full('repeated region misses');
+  if(now-this.lastFull>=350)return full('periodic discovery');
   let minX=width,minY=height,maxX=0,maxY=0;
   for(const hint of this.hints.values()){
    const corners=hint.marker.corners,side=corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-corners[(i+1)%4].x,p.y-corners[(i+1)%4].y),0)/4;
@@ -25,8 +28,8 @@ export class PredictiveDecodeSearch {
    for(const p of corners){minX=Math.min(minX,p.x+Math.min(0,dx)-pad);maxX=Math.max(maxX,p.x+Math.max(0,dx)+pad);minY=Math.min(minY,p.y+Math.min(0,dy)-pad);maxY=Math.max(maxY,p.y+Math.max(0,dy)+pad);}
   }
   const left=Math.max(0,Math.floor(minX)),top=Math.max(0,Math.floor(minY)),w=Math.min(width,Math.ceil(maxX))-left,h=Math.min(height,Math.ceil(maxY))-top;
-  if(w<=0||h<=0||w*h>width*height*.75)return full();
-  return {left,top,width:w,height:h,kind:this.misses?'expanded':'predicted'};
+  if(w<=0||h<=0||w*h>width*height*.75)return full('region too large or invalid');
+  return {left,top,width:w,height:h,kind:this.misses?'expanded':'predicted',reason:this.misses?'region miss':'flow prediction'};
  }
  result(markers:readonly MarkerObservation[]){const found=new Set(markers.map(m=>this.group(m.id)));this.misses=markers.length&&[...this.expected].every(group=>found.has(group))?0:this.misses+1;}
 }
