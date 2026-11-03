@@ -10,10 +10,10 @@ try{
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await installSyntheticCamera(page);
  await page.goto(new URL('tracking.html',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/').href);await page.locator('#start-camera').click();
  await page.waitForFunction(()=>document.querySelector('#tracking-filter-diagnostics').textContent.includes('forceps: distance'),{},{timeout:30000});
- await page.locator('.tracking-advanced').evaluate(e=>e.open=true);
+ await page.locator('[data-calibration-tool=forceps]').click();
  // Default span is deliberately left unchanged: the synthetic marker is beyond it.
  const z=()=>page.locator('#tracking-filter-diagnostics').textContent().then(t=>Number(t.match(/forceps: distance [\d.]+ mm · virtual Z (-?[\d.]+)/)[1]));
- const locked=await z();await page.locator('#lock-depth').uncheck();await page.waitForTimeout(400);const unlocked=await z();assert(Math.abs(unlocked-locked)<.05,`unlocking must preserve current source depth: ${locked} → ${unlocked}`);
+ const locked=await z();await page.locator('[data-profile-check=depthLock]').uncheck();await page.waitForTimeout(400);const unlocked=await z();assert(Math.abs(unlocked-locked)<.05,`unlocking must preserve current source depth: ${locked} → ${unlocked}`);
  const samples=[];
  for(let i=0;i<12;i++){await page.evaluate(i=>window.__ballScene.scale=i%2?1.01:.99,i);await page.waitForTimeout(100);samples.push(await z());}
  assert(Math.max(...samples)-Math.min(...samples)<.12,'small apparent-size noise should not cause depth jumps: '+JSON.stringify(samples)+' · '+await page.locator('#tracking-filter-diagnostics').textContent());

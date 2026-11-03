@@ -11,7 +11,7 @@ export function mountWorkspaceLayout(app:HTMLElement){
  const viewport=workspace.querySelector<HTMLElement>('#viewport')!,cameraPanel=app.querySelector<HTMLElement>('#camera-tracking-panel')!;
  cameraPanel.removeAttribute('style');cameraPanel.className='workspace-camera-dock';
  const cameraHead=cameraPanel.firstElementChild as HTMLElement;cameraHead.removeAttribute('style');cameraHead.className='workspace-camera-heading';
- const end=cameraPanel.querySelector<HTMLButtonElement>('#camera-tracking-hide')!;end.textContent='Done setting up';
+ const end=cameraPanel.querySelector<HTMLButtonElement>('#camera-tracking-hide')!;end.textContent='Hide camera';cameraHead.querySelector('strong')!.textContent='Camera';
  const stop=document.createElement('button');stop.id='disable-camera-tracking';stop.type='button';stop.textContent='Disable tracking';cameraHead.append(stop);
  const trackingRoot=cameraPanel.querySelector<HTMLElement>('#tracking-app')!;trackingRoot.removeAttribute('style');
  const stage=document.createElement('div');stage.className='workspace-stage';
@@ -40,7 +40,7 @@ export function mountWorkspaceLayout(app:HTMLElement){
  app.querySelector('#close-calibration')!.addEventListener('click',()=>toggleCalibration(false));
  app.querySelector('#workspace-calibrate-toggle')!.addEventListener('click',()=>{const open=calibration.hidden;toggleCalibration(open);if(open)window.dispatchEvent(new Event('suturehero:open-camera-setup'));});
  toggleCalibration(true);
- end.addEventListener('click',()=>{document.body.classList.remove('camera-setup-active');toggleCalibration(false);});
- document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleCalibration(false);});
+ end.addEventListener('click',()=>{cameraPanel.hidden=true;cameraPanel.style.display='none';document.body.classList.remove('camera-setup-active');app.querySelector('#camera-tracking-toggle')!.setAttribute('aria-expanded','false');});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]'))toggleCalibration(false);});
  return {calibrationHost:calibration.querySelector<HTMLElement>('#instrument-calibration')!,openSetup:()=>document.body.classList.add('camera-setup-active')};
 }

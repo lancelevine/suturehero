@@ -11,7 +11,7 @@ try{
  await page.addInitScript(noFrames=>{window.__snapshotCounts={created:0,closed:0};if(noFrames){window.VideoFrame=undefined;return;}const Native=window.VideoFrame;if(Native)window.VideoFrame=new Proxy(Native,{construct(target,args){const frame=Reflect.construct(target,args),close=frame.close.bind(frame);window.__snapshotCounts.created++;frame.close=()=>{window.__snapshotCounts.closed++;close();};return frame;}});},!!process.env.SUTURE_NO_VIDEOFRAME);
  if(process.env.SUTURE_NO_FRAME_CALLBACK)await page.addInitScript(()=>{HTMLVideoElement.prototype.requestVideoFrameCallback=undefined;});
  await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/').href);await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();
- await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});await page.locator('button').filter({hasText:/^Performance$/}).click();
+ await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});await page.getByRole('button',{name:'Diagnostics',exact:true}).click();
  const report=async()=>{await page.locator('[data-perf-copy]').click();return JSON.parse(await page.locator('[data-perf-report]').inputValue());};
  const summaries=[];
  for(const predictive of process.env.SUTURE_NO_VIDEOFRAME?[true]:[false,true]){

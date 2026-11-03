@@ -2,6 +2,16 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Camera panels and full-scan optimization in 0.64
+
+Camera feeds, Tracking setup and Diagnostics now have separate panels. Hide/show
+preserves active camera streams. Instrument depth locks and jaw calibration stay
+in Calibrate; duplicate global depth-lock and exposure controls are removed.
+Full-frame scans use equivalent row-wise thresholding and reuse grayscale during
+recovery. Local 1080p fixture scans improved from about 62 to 55 ms; actual camera
+performance still needs measurement. Synthetic needle-driver depth movement was
+verified through calibration and the main scene.
+
 ## Frame-efficient flow and fallback diagnosis in 0.63
 
 The follow-up 1080p report measured 10.6 decode FPS versus 5.4 before optimization,
@@ -63,7 +73,7 @@ Collect another Performance report on the actual camera to compare with 0.61.
 
 ## Performance instrumentation in 0.61
 
-Use the **Performance** button above the camera preview. Run tracking for at
+Open **Diagnostics → Performance diagnostics**. Run tracking for at
 least ten seconds and choose **Copy performance report**; a selectable text
 report is also provided if clipboard access is unavailable. Reset measurements
 clears only timing data. Reports are generated locally and are not sent anywhere.
@@ -362,14 +372,17 @@ The current maneuver and actions stay immediately below it. Practice setup,
 stitch planning, session review and full instructions open only when needed.
 **Calibrate** opens per-instrument settings and camera setup. During setup, the
 real camera and virtual instruments remain on screen while settings scroll
-inside their panels. **Done setting up** returns to the larger suturing view
-with a small camera preview; **Camera** expands it again. Disabling
+inside their panels. **Hide camera** hides the feed without stopping tracking;
+**Camera** shows it again. Disabling
 tracking stops both cameras. The standalone Tracking Lab uses the same panels.
 
 Use **Choose camera** to select a device card instead of the long device
 select. The currently running device can show a preview; other cameras start
-when selected. Exposure, focus, stereo and decoder diagnostics remain under
-**Camera settings, diagnostics & stereo**.
+when selected. **Camera settings** contains focus, exposure and the second-camera
+device controls. **Tracking setup** opens marker geometry, tracking mode, working
+depth and stereo calibration. **Diagnostics** opens performance reports, decoder
+statistics, marker overlays and experimental tracking controls. Per-instrument
+depth locks and jaw setup live only in **Calibrate**.
 
 Forceps, needle driver and scissors have independent profiles: movement and
 rotation sensitivity, translation/rotation axis mapping and inversion,
@@ -587,6 +600,22 @@ npm run dev
 ```
 
 `npm run build` runs the strict TypeScript check and creates `dist/`. `npm test` runs the instrument behavior tests. No credentials or backend services are required.
+
+Full-frame decoder thresholding uses reusable buffers and row-wise sliding sums,
+with the pinned js-aruco2 integer rounding, border handling and threshold bias.
+Adaptive recovery reuses grayscale only while its exact source image remains in
+the detector; local crops invalidate that reuse. Resolution, dictionary,
+recognition passes and global recovery scheduling are unchanged.
+
+With Vite running, `ARUCO_LIBRARY_DIR=/path/to/js-aruco2-2.0.0/src node scripts/check-full-scan.mjs`
+compares threshold pixels with the unmodified pinned library, then benchmarks
+baseline and optimized 1080p full scans. Run this benchmark alone. Local fixture
+measurements were about 62 → 55 ms per scan; actual camera performance depends on
+image content and hardware. `node scripts/check-driver-depth.mjs` exercises a
+synthetic six-face needle-driver marker through unlocking, calibration and
+near/far movement of the main-scene instrument. Both checks support the browser
+and dev-server overrides described below; the depth check also accepts local
+pinned library copies through `ARUCO_LIBRARY_DIR`.
 
 ## Controls
 

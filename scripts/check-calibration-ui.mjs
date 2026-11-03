@@ -14,10 +14,10 @@ try{
  assert(await page.locator('#workspace-calibration-drawer').isVisible());await page.locator('#choose-primary-camera').waitFor();
  await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});
- await page.locator('.tracking-advanced').evaluate(e=>e.open=true);
+ await page.locator('#choose-secondary-camera').evaluate(e=>e.closest('details').open=true);
  await page.locator('#choose-secondary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic second camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#camera-video-2').srcObject?.active&&!document.querySelector('#camera-video-2').closest('.tracking-video').hidden,{},{timeout:30000});
- await page.locator('.tracking-advanced').evaluate(e=>e.open=false);
+ await page.locator('#choose-secondary-camera').evaluate(e=>e.closest('details').open=false);
  await page.evaluate(()=>window.__originalCameraVideo=document.querySelector('#camera-video'));
  const visible=async()=>{
   assert(await page.locator('#camera-video').isVisible());assert(await page.locator('#camera-video-2').isVisible());assert(await page.locator('#viewport').isVisible());
@@ -25,16 +25,14 @@ try{
   assert(await page.evaluate(()=>window.__originalCameraVideo===document.querySelector('#camera-video')&&document.querySelector('#camera-video').srcObject?.active));
  };
  for(const tool of ['forceps','needleDriver','scissors']){await page.locator(`[data-calibration-tool=${tool}]`).click();for(const pane of ['pose','jaws','axes']){await page.locator(`[data-calibration-pane=${pane}]`).click();await visible();}}
- await page.locator('.tracking-advanced').evaluate(e=>e.open=true);
- for(const checked of [false,true]){await page.locator('#lock-depth').setChecked(checked);for(const tool of ['forceps','needleDriver','scissors']){await page.locator(`[data-calibration-tool=${tool}]`).click();await page.locator('[data-calibration-pane=pose]').click();assert.equal(await page.locator('[data-profile-check=depthLock]').isChecked(),checked);}}
- await page.locator('.tracking-advanced').evaluate(e=>e.open=false);
+ for(const checked of [false,true])for(const tool of ['forceps','needleDriver','scissors']){await page.locator(`[data-calibration-tool=${tool}]`).click();await page.locator('[data-calibration-pane=pose]').click();await page.locator('[data-profile-check=depthLock]').setChecked(checked);assert.equal(await page.locator('[data-profile-check=depthLock]').isChecked(),checked);}
  await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-calibration-pane=pose]').click();
- await page.waitForFunction(()=>!document.querySelector('[data-neutral]').disabled,{},{timeout:15000});await page.locator('[data-neutral]').click();assert.match(await page.locator('[data-calibration-message]').innerText(),/Neutral pose set/);
+ try{await page.waitForFunction(()=>!document.querySelector('[data-neutral]').disabled,{},{timeout:15000});}catch(error){console.log(await page.locator('#marker-readout').textContent(),await page.locator('#camera-status').textContent(),await page.locator('#camera-status-2').textContent(),await page.locator('#diag-note').textContent());throw error;}await page.locator('[data-neutral]').click();assert.match(await page.locator('[data-calibration-message]').innerText(),/Neutral pose set/);
  await page.locator('[data-gain=movementGain]').fill('2');await page.locator('[data-gain=movementGain]').dispatchEvent('input');
  await page.locator('[data-calibration-tool=needleDriver]').click();assert.equal(await page.locator('[data-gain=movementGain]').inputValue(),'1');await page.locator('[data-mount=flip]').click();assert.equal(await page.locator('[data-mount=flip]').getAttribute('aria-pressed'),'true');
  await page.locator('[data-calibration-tool=forceps]').click();assert.equal(await page.locator('[data-gain=movementGain]').inputValue(),'2');await page.locator('[data-save]').click();assert.match(await page.locator('[data-calibration-message]').innerText(),/saved/);
- await page.locator('#camera-tracking-hide').click();await visible();assert(await page.locator('#workspace-calibration-drawer').isHidden());
- await page.locator('#workspace-calibrate-toggle').click();await visible();
+ await page.locator('#camera-tracking-hide').click();assert(await page.locator('#camera-tracking-panel').isHidden());
+ await page.getByRole('button',{name:'Camera',exact:true}).click();await visible();
  for(const width of [390,768,1440]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(150);await visible();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow at '+width);}
  for(const width of [390,768,1440]){
   await page.setViewportSize({width,height:1000});await page.locator('[data-show-guide]').click();

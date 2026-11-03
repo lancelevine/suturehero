@@ -18,9 +18,48 @@ type LegacyDetector={grey:GrayImage;thres:GrayImage;binary:number[];contours:Poi
  detect:(frame:ImageData)=>MarkerObservation[];candidates?:unknown[];polys?:unknown[]};
 type ArucoGlobal={DICTIONARIES:Record<string,{nBits:number;tau:number;codeList:number[]}>;Detector:new(options:{dictionaryName:string;maxHammingDistance:number})=>LegacyDetector};
 type CvGlobal={grayscale:(frame:ImageData,image:GrayImage)=>void;adaptiveThreshold:(gray:GrayImage,binary:GrayImage,radius:number,bias:number)=>void;findContours:(image:GrayImage,binary:number[])=>Point[][]};
+// Full-scan blur implementation (also compared with the pinned library by check-full-scan.mjs).
+/** Same two integer-normalized box passes as js-aruco2 2.0.0, with
+ * contiguous rows instead of a linked pixel stack and strided columns.
+ * Fuse the threshold comparison into the vertical pass; retain its exact
+ * integer rounding, replicated borders, radius and bias. */
+function createFastThreshold(mult:readonly number[],shift:readonly number[],fallback:(src:GrayImage,dst:GrayImage,radius:number,threshold:number)=>void){
+ let horizontal=new Uint16Array(0),sums=new Int32Array(0);
+ return (src:GrayImage,dst:GrayImage,radius:number,threshold:number)=>{
+  const {width:w,height:h}=src,n=w*h,m=mult[radius],s=shift[radius];
+  if(!Number.isInteger(radius)||radius<0||radius>=mult.length||w<=radius||h<=radius)return fallback(src,dst,radius,threshold);
+  if(horizontal.length!==n)horizontal=new Uint16Array(n);
+  if(sums.length!==w)sums=new Int32Array(w);
+  const input=src.data,output=dst.data;
+  for(let y=0;y<h;y++){
+   const row=y*w;let sum=(radius+1)*input[row];
+   for(let i=1;i<=radius;i++)sum+=input[row+i];
+   for(let x=0;x<w;x++){
+    horizontal[row+x]=(sum*m)>>>s;
+    sum+=input[row+Math.min(w-1,x+radius+1)]-input[row+Math.max(0,x-radius)];
+   }
+  }
+  for(let x=0;x<w;x++){
+   let sum=(radius+1)*horizontal[x];
+   for(let y=1;y<=radius;y++)sum+=horizontal[y*w+x];
+   sums[x]=sum;
+  }
+  for(let y=0;y<h;y++){
+   const row=y*w,leaving=Math.max(0,y-radius)*w,entering=Math.min(h-1,y+radius+1)*w;
+   for(let x=0;x<w;x++){
+    const blurred=(sums[x]*m)>>>s;
+    output[row+x]=input[row+x]-blurred<=-threshold?255:0;
+    sums[x]+=horizontal[entering+x]-horizontal[leaving+x];
+   }
+  }
+  dst.width=w;dst.height=h;
+ };
+}
+// End full-scan blur implementation.
 const workerScope=self as DedicatedWorkerGlobalScope & {AR?:ArucoGlobal;CV?:CvGlobal};
 const base='https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
 let detector:LegacyDetector|null=null;
+let grayscaleFrame:ImageData|null=null;
 let timings:Record<string,number>={};
 function timedMethod<T,K extends keyof T>(object:T,key:K,label:string){
  const original=object[key];if(typeof original!=='function')return;
@@ -43,6 +82,15 @@ async function initialize(){
  if(!workerScope.AR)throw Error('ArUco library did not initialize in worker');
  workerScope.AR.DICTIONARIES.SUTUREHERO_4X4_50={nBits:16,tau:2,codeList:MARKER_CODES};
  detector=new workerScope.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:2});
+ const cv=workerScope.CV as CvGlobal & {stackBoxBlurMult:number[];stackBoxBlurShift:number[]};
+ cv.adaptiveThreshold=createFastThreshold(cv.stackBoxBlurMult,cv.stackBoxBlurShift,cv.adaptiveThreshold.bind(cv));
+ const grayscale=cv.grayscale.bind(cv);
+ cv.grayscale=(frame,image)=>{
+  // Recovery thresholds often rescan the exact same immutable source image.
+  // A local crop replaces d.grey, so only the most recent source can be reused.
+  if(frame===grayscaleFrame&&image===detector!.grey)return;
+  grayscale(frame,image);grayscaleFrame=image===detector!.grey?frame:null;
+ };
  timedMethod(detector,'findCandidates','quadrilateral candidates');timedMethod(detector,'findMarkers','dictionary decoding');
  if(workerScope.CV){timedMethod(workerScope.CV,'grayscale','grayscale');timedMethod(workerScope.CV,'adaptiveThreshold','thresholding');timedMethod(workerScope.CV,'findContours','contour detection');}
 
@@ -201,6 +249,7 @@ function recoverNative(frame:ImageData,original:MarkerObservation[]){
 
 
 function detect(frame:ImageData){
+ grayscaleFrame=null;
  timings={};
  const start=performance.now();
  const now=performance.now();
