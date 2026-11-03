@@ -2,6 +2,30 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Performance instrumentation in 0.61
+
+Use the **Performance** button above the camera preview. Run tracking for at
+least ten seconds and choose **Copy performance report**; a selectable text
+report is also provided if clipboard access is unavailable. Reset measurements
+clears only timing data. Reports are generated locally and are not sent anywhere.
+
+The five-second rolling table reports camera presented FPS, decode and optical
+flow throughput, worker execution and round-trip/transfer delay, capture and
+readback time, pose estimation/filtering, jaw scans, overlay/status UI work,
+tracking and simulator loop rates, frame intervals, application-capture frame
+age, rendering CPU submission and long tasks. When camera 2 is active, it also
+reports capture skew and accepted-update skew. Counters expose duplicate captures/
+decodes, decoder busy checks, worker errors and stale decode results. Reports
+include build, resolutions, active settings and browser/core count, without
+camera IDs, images or color samples. Rendering timings do not measure GPU
+execution, and frame age excludes camera buffering before application capture.
+Stages can overlap and must not be summed as a serial frame budget.
+
+This release instruments the existing pipeline: recognition, scheduling, ROI
+behavior, smoothing and calibration are unchanged. Use the baseline to identify
+unnecessary work before implementing predictive detection with progressive
+fallback. No speed improvement is claimed until those measurements are reviewed.
+
 ## Rest stability and saved jaw tracking in 0.60
 
 The published pose now holds when a previously observed face's image corners

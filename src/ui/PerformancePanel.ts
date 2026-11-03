@@ -1,0 +1,27 @@
+import {trackingPerformance as perf} from '../diagnostics/TrackingPerformance';
+/** CPU/worker instrumentation UI; no new renderer, image capture or tracking work. */
+export function mountPerformancePanel(root:HTMLElement,context:()=>Record<string,unknown>){
+ const panel=document.createElement('details');panel.id='tracking-performance';panel.className='tracking-details';
+ panel.innerHTML='<summary>Performance diagnostics</summary><div class="tracking-details-body"><p>Run the camera for 10 seconds, then copy a report. Rates and timing averages cover the last 5 seconds; P95 shows slower frames.</p><p data-perf-summary role="status">Collecting measurements…</p><div style="overflow:auto;max-height:320px"><table class="calibration-axis-table"><thead><tr><th>Stage</th><th>/sec</th><th>Avg ms</th><th>P95 ms</th></tr></thead><tbody data-perf-rows></tbody></table></div><p data-perf-context></p><p data-perf-counters></p><p>Rendering measures CPU submission, not GPU execution. Frame age starts at application capture, excluding camera buffering. Worker stages overlap; timings must not be added together.</p><button type="button" data-perf-copy>Copy performance report</button> <button type="button" data-perf-reset>Reset measurements</button><p data-perf-copy-status role="status"></p><textarea data-perf-report readonly rows="8" style="width:100%" hidden aria-label="Performance report"></textarea></div>';
+ root.querySelector('.tracking-advanced-body')!.prepend(panel);
+ const button=document.createElement('button');button.type='button';button.textContent='Performance';button.addEventListener('click',()=>{const advanced=root.querySelector<HTMLDetailsElement>('.tracking-advanced')!;advanced.open=true;panel.open=true;render();panel.scrollIntoView({block:'nearest'});});root.querySelector('.tracking-camera-title')!.append(button);
+ const observer=typeof PerformanceObserver!=='undefined'&&PerformanceObserver.supportedEntryTypes?.includes('longtask')?new PerformanceObserver(list=>{for(const entry of list.getEntries())perf.sample('Main-thread long task',entry.duration);}):null;observer?.observe({entryTypes:['longtask']});
+ const report=()=>({version:1,collectedAt:new Date().toISOString(),context:context(),performance:perf.snapshot()});
+ function render(){if(!panel.open)return;const data=report(),rows=data.performance.rows;
+  const rate=(name:string)=>rows.find(r=>r.name===name)?.rate.toFixed(1)??'—';
+  panel.querySelector('[data-perf-summary]')!.textContent=`Camera 1 ${rate('Camera 1 presented frames')} FPS · decode ${rate('Camera 1 decode worker')}/s · flow ${rate('Camera 1 flow worker')}/s · tracking loop ${rate('Tracking loop')}/s`;
+  const body=panel.querySelector('[data-perf-rows]')!;body.replaceChildren(...rows.map(row=>{const tr=document.createElement('tr');for(const value of [row.name,row.rate.toFixed(1),row.meanMs.toFixed(1),row.p95Ms.toFixed(1)]){const td=document.createElement('td');td.textContent=value;tr.append(td);}return tr;}));
+  panel.querySelector('[data-perf-counters]')!.textContent='Counters since reset: '+(Object.entries(data.performance.counters).map(([name,n])=>`${name}: ${n}`).join(' · ')||'none');
+  const c=data.context as {camera1:{width:number;height:number};decode1:{width:number;height:number};flow1:{width:number;height:number};roiDecode:boolean};panel.querySelector('[data-perf-context]')!.textContent=`Camera 1: ${c.camera1.width}×${c.camera1.height}; decode ${c.decode1.width}×${c.decode1.height}; flow ${c.flow1.width}×${c.flow1.height}; ROI ${c.roiDecode?'on':'off'}. Full settings are included in the report.`;
+ }
+ panel.addEventListener('toggle',render);const timer=setInterval(render,1000);
+ panel.querySelector('[data-perf-reset]')!.addEventListener('click',()=>{perf.reset();render();});
+ panel.querySelector('[data-perf-copy]')!.addEventListener('click',async()=>{const text=JSON.stringify(report(),null,2),area=panel.querySelector<HTMLTextAreaElement>('[data-perf-report]')!;area.value=text;area.hidden=false;try{await navigator.clipboard.writeText(text);panel.querySelector('[data-perf-copy-status]')!.textContent='Report copied.';}catch{area.focus();area.select();panel.querySelector('[data-perf-copy-status]')!.textContent='Select and copy the report below.';}});
+ window.addEventListener('pagehide',()=>{clearInterval(timer);observer?.disconnect();},{once:true});
+}
+export function measureCameraFrames(video:HTMLVideoElement,name:string){
+ if(!video.requestVideoFrameCallback)return;
+ let stopped=false,lastFrames=0,id=0,lastSource:MediaProvider|null=null;
+ const frame:VideoFrameRequestCallback=(_now,metadata)=>{if(stopped)return;if(video.srcObject!==lastSource){lastSource=video.srcObject;lastFrames=0;}const count=lastFrames?Math.max(1,metadata.presentedFrames-lastFrames):1;lastFrames=metadata.presentedFrames;perf.tick(name+' presented frames',count);id=video.requestVideoFrameCallback(frame);};
+ id=video.requestVideoFrameCallback(frame);window.addEventListener('pagehide',()=>{stopped=true;video.cancelVideoFrameCallback(id);},{once:true});
+}

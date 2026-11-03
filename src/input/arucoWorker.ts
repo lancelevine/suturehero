@@ -21,6 +21,12 @@ type CvGlobal={grayscale:(frame:ImageData,image:GrayImage)=>void;adaptiveThresho
 const workerScope=self as DedicatedWorkerGlobalScope & {AR?:ArucoGlobal;CV?:CvGlobal};
 const base='https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
 let detector:LegacyDetector|null=null;
+let timings:Record<string,number>={};
+function timedMethod<T,K extends keyof T>(object:T,key:K,label:string){
+ const original=object[key];if(typeof original!=='function')return;
+ object[key]=function(this:unknown,...args:unknown[]){const start=performance.now();try{return (original as (...args:unknown[])=>unknown).apply(this,args);}finally{timings[label]=(timings[label]??0)+performance.now()-start;}} as unknown as T[K];
+}
+
 const canvas=new OffscreenCanvas(1,1),ctx=canvas.getContext('2d',{willReadFrequently:true})!;
 const source=new OffscreenCanvas(1,1),sourceContext=source.getContext('2d',{willReadFrequently:true})!;
 function candidatesOf(){return (Array.isArray(detector?.candidates)?detector.candidates:Array.isArray(detector?.polys)?detector.polys:[])??[];}
@@ -37,6 +43,9 @@ async function initialize(){
  if(!workerScope.AR)throw Error('ArUco library did not initialize in worker');
  workerScope.AR.DICTIONARIES.SUTUREHERO_4X4_50={nBits:16,tau:2,codeList:MARKER_CODES};
  detector=new workerScope.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:2});
+ timedMethod(detector,'findCandidates','quadrilateral candidates');timedMethod(detector,'findMarkers','dictionary decoding');
+ if(workerScope.CV){timedMethod(workerScope.CV,'grayscale','grayscale');timedMethod(workerScope.CV,'adaptiveThreshold','thresholding');timedMethod(workerScope.CV,'findContours','contour detection');}
+
 }
 
 
@@ -188,6 +197,7 @@ function recoverNative(frame:ImageData,original:MarkerObservation[]){
 
 
 function detect(frame:ImageData){
+ timings={};
  const start=performance.now();
  const now=performance.now();
  const recovering=consecutiveRoiMisses>0||[...recoveryMisses.values()].some(n=>n>0);
@@ -236,13 +246,13 @@ function detect(frame:ImageData){
  }
  const unique=new Map<number,MarkerObservation>();
  for(const marker of all)if(isSupportedMarkerId(marker.id)&&marker.corners.length===4&&!unique.has(marker.id))unique.set(marker.id,marker);
- const decoded=refineCorners(frame,[...unique.values()]);
+ const refinementStarted=performance.now();const decoded=refineCorners(frame,[...unique.values()]);timings['corner refinement']=performance.now()-refinementStarted;
  if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded){merged.set(m.id,m);hintSeenAt.set(m.id,performance.now());}roiHints=[...merged.values()];}
  // Expire stale search hints: a marker that has been absent should not
  // permanently trap the decoder in the wrong part of the image.
  if(!decoded.length&&performance.now()-lastSuccessfulDecodeAt>4000){roiHints=[];consecutiveRoiMisses=0;}
  const found=[...decoded];
- return {found,candidates,diagnostics:{candidateCount:candidates.length,rawMarkerCount:new Set(all.map(m=>m.id)).size,recognizedCount:found.length,rejectedCount:all.filter(m=>!isSupportedMarkerId(m.id)).length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':'No tracked marker'),pass,contrast}};
+ return {found,candidates,diagnostics:{timings,candidateCount:candidates.length,rawMarkerCount:new Set(all.map(m=>m.id)).size,recognizedCount:found.length,rejectedCount:all.filter(m=>!isSupportedMarkerId(m.id)).length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':'No tracked marker'),pass,contrast}};
 }
 self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[]}>)=>{
  try{

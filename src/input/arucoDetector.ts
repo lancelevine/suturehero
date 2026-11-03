@@ -24,7 +24,7 @@ export function loadArucoLibrary():Promise<void>{
  })().catch(error=>{loadPromise=undefined;throw error});
 }
 export interface ArucoDetector {detect(frame:ImageData):Promise<MarkerObservation[]>;dispose?():void}
-export interface DetectorDiagnostics {candidateCount:number|null;rawMarkerCount:number;recognizedCount:number;rejectedCount:number;durationMs:number;note:string;pass:string;contrast:string}
+export interface DetectorDiagnostics {timings?:Record<string,number>;candidateCount:number|null;rawMarkerCount:number;recognizedCount:number;rejectedCount:number;durationMs:number;note:string;pass:string;contrast:string}
 export class BrowserArucoDetector implements ArucoDetector {
  private detector:LegacyDetector|null=null;
  private reducedCanvas=document.createElement('canvas');

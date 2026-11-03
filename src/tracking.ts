@@ -1,3 +1,5 @@
+import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
+import {mountPerformancePanel,measureCameraFrames} from './ui/PerformancePanel';
 import {loadJawTracking,saveJawTracking,type SavedJawTracking} from './input/jawTrackingStorage';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
@@ -96,7 +98,9 @@ const scissorsReadout=document.querySelector<HTMLElement>('#scissors-readout')!;
 const faceOverlapReadout=document.querySelector<HTMLElement>('#face-overlap-readout')!;
 class WorkerDetector {
  private worker:Worker|null=null;
- private pending=new Map<number,{resolve:(markers:MarkerObservation[])=>void;reject:(error:Error)=>void}>();
+ private pending=new Map<number,{resolve:(markers:MarkerObservation[])=>void;reject:(error:Error)=>void;started:number}>();
+ constructor(private label:string){}
+ lastFrameSize={width:0,height:0};
  private sequence=0;
  candidateCorners:Array<Array<{x:number;y:number}>>=[];
  diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting',pass:'—',contrast:'—'};
@@ -113,7 +117,9 @@ class WorkerDetector {
     if(data.id===undefined)return;
     const pending=this.pending.get(data.id);if(!pending)return;
     this.pending.delete(data.id);
-    if(data.type==='error'){pending.reject(new Error(data.message));return;}
+    if(data.type==='error'){perf.count(this.label+' errors');pending.reject(new Error(data.message));return;}
+    const elapsed=performance.now()-pending.started,worker=data.diagnostics?.durationMs??0;perf.sample(this.label+' round trip',elapsed);perf.sample(this.label+' worker',worker);perf.sample(this.label+' transfer/callback',Math.max(0,elapsed-worker));
+    for(const [stage,ms] of Object.entries(data.diagnostics?.timings??{}))perf.sample(this.label+' '+stage,ms);
     this.candidateCorners=data.candidates??[];
     if(data.diagnostics)this.diagnostics=data.diagnostics;
     pending.resolve(data.found??[]);
@@ -126,13 +132,13 @@ class WorkerDetector {
  seed(markers:MarkerObservation[],frame?:ImageData){this.worker?.postMessage({type:'seed',markers,frame});}
  detect(frame:ImageData):Promise<MarkerObservation[]>{
   if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
-  const id=++this.sequence;
-  return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject});this.worker!.postMessage({type:'detect',id,frame},[frame.data.buffer]);});
+  const id=++this.sequence;this.lastFrameSize={width:frame.width,height:frame.height};
+  return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,frame},[frame.data.buffer]);});
  }
  dispose(){this.worker?.terminate();this.worker=null;for(const p of this.pending.values())p.reject(new Error('Worker stopped'));this.pending.clear();}
 }
-const detector=new WorkerDetector();
-const fastTracker=new WorkerDetector();
+const detector=new WorkerDetector('Camera 1 decode');
+const fastTracker=new WorkerDetector('Camera 1 flow');
 let fastProcessing=false,lastFastFrame=0,lastSlowFrame=0,latestFlowAt=0,latestDecodeAt=0;
 let lastAppliedFrameAt=0;
 let staleDecodeDrops=0;
@@ -184,8 +190,8 @@ const select2=document.querySelector<HTMLSelectElement>('#camera-select-2')!;
 const start2=document.querySelector<HTMLButtonElement>('#start-camera-2')!;
 const stop2=document.querySelector<HTMLButtonElement>('#stop-camera-2')!;
 const status2=document.querySelector<HTMLElement>('#camera-status-2')!;
-const detector2=new WorkerDetector();
-const fastTracker2=new WorkerDetector();
+const detector2=new WorkerDetector('Camera 2 decode');
+const fastTracker2=new WorkerDetector('Camera 2 flow');
 const stereoPanel=document.createElement('section');stereoPanel.className='tracking-panel';stereoPanel.style.cssText='padding:12px;margin:12px 0';
 stereoPanel.innerHTML='<div class="eyebrow">CALIBRATED STEREO · METRIC 3D</div><p class="tracking-message">Import a solved stereo calibration JSON. Replace it after moving either camera, changing focus/zoom, or changing resolution/aspect ratio. Raw checkerboard captures are not solved parameters.</p><div class="tracking-actions"><label>Import calibration <input id="stereo-import" type="file" accept=".json,application/json"></label><button id="stereo-remove" type="button">Remove calibration</button><label><input id="stereo-enable" type="checkbox"> Enable metric 3D</label></div><p class="tracking-message" id="stereo-geometry-status">No calibration loaded.</p><p class="tracking-message" id="stereo-3d-points">No triangulated markers.</p>';
 document.querySelector('#stereo-calibration-status')!.closest('section')!.after(stereoPanel);
@@ -448,7 +454,10 @@ async function detectSecondFrame(now:number){
  const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
  const doFast=!fastProcessing2&&now-lastFastFrame2>=33;
  const doSlow=!processing2&&now-lastSlowFrame2>=(recovering?65:110);
+ if(processing2)perf.count('Camera 2 decode busy checks');
  if(!doFast&&!doSlow)return;
+ perf.tick('Camera 2 capture attempts');if(video2.currentTime===lastCamera2CaptureTime)perf.count('Camera 2 duplicate captures');lastCamera2CaptureTime=video2.currentTime;
+ if(doSlow){if(video2.currentTime===lastCamera2DecodeTime)perf.count('Camera 2 duplicate decodes');lastCamera2DecodeTime=video2.currentTime;}
  const currentSession=session2;
  const nativeW=video2.videoWidth,nativeH=video2.videoHeight;
  const scale=Math.min(1,960/nativeW),w=Math.round(nativeW*scale),h=Math.round(nativeH*scale);
@@ -458,9 +467,10 @@ async function detectSecondFrame(now:number){
  if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
  if(doSlow){
   if(captureCanvas2.width!==nativeW||captureCanvas2.height!==nativeH){captureCanvas2.width=nativeW;captureCanvas2.height=nativeH;}
-  captureContext2.drawImage(video2,0,0,nativeW,nativeH);
+  perf.measure('Camera 2 native capture',()=>captureContext2.drawImage(video2,0,0,nativeW,nativeH));
  }
- context2.drawImage(doSlow?captureCanvas2:video2,0,0,w,h);
+ perf.measure('Camera 2 flow resize',()=>context2.drawImage(doSlow?captureCanvas2:video2,0,0,w,h));
+ const secondaryCaptureAt=performance.now();if(primaryCaptureAt)perf.sample('Camera capture skew',Math.abs(secondaryCaptureAt-primaryCaptureAt));
  const render=()=>{
   const fresh=liveSecondMarkers();
   overlayContext2.clearRect(0,0,w,h);
@@ -486,9 +496,9 @@ async function detectSecondFrame(now:number){
  };
  if(doFast){
   fastProcessing2=true;lastFastFrame2=now;
-  void fastTracker2.detect(context2.getImageData(0,0,w,h)).then(found=>{
+  void fastTracker2.detect(readFrame(context2,'Camera 2 flow readback',0,0,w,h)).then(found=>{
    if(currentSession!==session2)return;
-   const stamp=performance.now();flowFrames2++;
+   perf.sample('Camera 2 flow frame age',performance.now()-secondaryCaptureAt);const stamp=performance.now();flowFrames2++;
    if(found.length){
     for(const marker of found)confirmed2.set(marker.id,stamp);
     secondaryObservations=found;secondaryObservationsAt=stamp;latestFlowAt2=stamp;
@@ -503,16 +513,16 @@ async function detectSecondFrame(now:number){
  }
  if(doSlow){
   processing2=true;lastSlowFrame2=now;
-  const flowSeedFrame=context2.getImageData(0,0,w,h);
+  const flowSeedFrame=readFrame(context2,'Camera 2 flow readback',0,0,w,h);
   // Decode at native resolution, matching Camera 1. Optical flow stays at
   // the smaller preview resolution for speed.
   if(decodeCanvas2.width!==nativeW||decodeCanvas2.height!==nativeH){
    decodeCanvas2.width=nativeW;decodeCanvas2.height=nativeH;
   }
-  decodeContext2.drawImage(captureCanvas2,0,0,nativeW,nativeH);
-  void detector2.detect(decodeContext2.getImageData(0,0,nativeW,nativeH)).then(nativeFound=>{
+  perf.measure('Camera 2 decode copy',()=>decodeContext2.drawImage(captureCanvas2,0,0,nativeW,nativeH));
+  void detector2.detect(readFrame(decodeContext2,'Camera 2 decode readback',0,0,nativeW,nativeH)).then(nativeFound=>{
    if(currentSession!==session2)return;
-   decodedFrames2++;
+   perf.sample('Camera 2 decode frame age',performance.now()-secondaryCaptureAt);decodedFrames2++;
    const found=toFlow(nativeFound),stamp=performance.now();
    if(found.length){
     for(const marker of found)decoded2.set(marker.id,stamp);
@@ -840,8 +850,8 @@ function updateLiveTargets(){
    if(angle>1e-5)q.multiply(new THREE.Quaternion().setFromAxisAngle(step.normalize(),Math.min(angle,.45)));
    predicted={...state.pose,quaternion:q};
   }
-  const monoRigid=solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted,trackerType);
-  const stereoRigid=stereoPrismRotation(name,performance.now());
+  const monoRigid=perf.measure('Rigid pose solve',()=>solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted,trackerType));
+  const stereoRigid=perf.measure('Stereo pose/synchronization',()=>stereoPrismRotation(name,performance.now()));
   // Stereo pose has a distinct camera-calibrated frame. Preserve the mono
   // solver's orientation state separately so switching modes cannot cause
   // an arbitrary camera-frame jump.
@@ -1104,7 +1114,7 @@ ballEnabled.addEventListener('change',()=>{if(!ballEnabled.checked)for(const cal
 setInterval(updateJawCalibrationStatus,150);updateJawCalibrationStatus();
 function scanForcepsBalls(now:number){
  if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
- ballLastScan=now;
+ ballLastScan=now;const jawStarted=performance.now();
  const w=640,h=Math.max(1,Math.round(video.videoHeight/video.videoWidth*w));
  if(ballCanvas.height!==h)ballCanvas.height=h;
  ballContext.drawImage(video,0,0,w,h);
@@ -1225,6 +1235,7 @@ function scanForcepsBalls(now:number){
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(ends?.closed.toFixed(2)??'—')+' · open '+(ends?.open.toFixed(2)??'—')+
   ' · jaw '+(!ends?'not calibrated':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
+ perf.sample('Jaw color scan + calibration',performance.now()-jawStarted);
 
 }
 function drawBallOutlines(){
@@ -1264,6 +1275,7 @@ function drawCornerDebug(){
  cornerDebugStatus.textContent=recent+' decoded marker(s) · cyan is from an earlier captured frame; compare while held still';
 }
 function drawDetections(){
+ const overlayStarted=performance.now();
  const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
  for(const marker of observations){
@@ -1272,7 +1284,8 @@ function drawDetections(){
   const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(markerGroups()[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  drawBallOutlines();
  drawCornerDebug();
- updateLiveTargets();
+ perf.sample('Marker overlay drawing',performance.now()-overlayStarted);
+ perf.measure('Pose estimation + filtering',updateLiveTargets);const uiStarted=performance.now();
  markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
  if(!simulation.checked){
   const readout=(name:'needleDriver'|'forceps'|'scissors')=>{
@@ -1286,11 +1299,15 @@ function drawDetections(){
   filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':'tracking'}`:`${name}: waiting`;}).join(' | ');
   faceOverlapReadout.textContent=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id)).map(m=>m.id);const geometry=trackerGeometry(trackerType);return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${visible.length}/${geometry.faceCount} visible · ${THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0)}° side spacing`;}).join(' | ');
  }
+ perf.sample('Tracking status UI',performance.now()-uiStarted);
 }
 const roiDecodeToggle=document.querySelector<HTMLInputElement>('#roi-decode')!;
 let lastFullDecodeAt=0;
 const captureCanvas=document.createElement('canvas');
 const captureContext=captureCanvas.getContext('2d',{willReadFrequently:true})!;
+let lastCamera1CaptureTime=-1,lastCamera1DecodeTime=-1,lastCamera2CaptureTime=-1,lastCamera2DecodeTime=-1;
+let primaryCaptureAt=0;
+function readFrame(context:CanvasRenderingContext2D,name:string,x:number,y:number,w:number,h:number){return perf.measure(name,()=>context.getImageData(x,y,w,h));}
 const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
@@ -1301,7 +1318,10 @@ async function detectFrame(now:number){
  const recovering=idleNoMarkers||now-latestFlowAt>120;
  const decodeInterval=recovering?65:110;
  const doSlow=!processing&&now-lastSlowFrame>=decodeInterval;
+ if(processing)perf.count('Camera 1 decode busy checks');
  if(!doFast&&!doSlow)return;
+ perf.tick('Camera 1 capture attempts');if(video.currentTime===lastCamera1CaptureTime)perf.count('Camera 1 duplicate captures');lastCamera1CaptureTime=video.currentTime;
+ if(doSlow){if(video.currentTime===lastCamera1DecodeTime)perf.count('Camera 1 duplicate decodes');lastCamera1DecodeTime=video.currentTime;}
  const session=cameraSession;
  const scale=Math.min(1,960/video.videoWidth),w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
  const nativeW=video.videoWidth,nativeH=video.videoHeight;
@@ -1311,17 +1331,17 @@ async function detectFrame(now:number){
  if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
  if(doSlow){
   if(captureCanvas.width!==nativeW||captureCanvas.height!==nativeH){captureCanvas.width=nativeW;captureCanvas.height=nativeH;}
-  captureContext.drawImage(video,0,0,nativeW,nativeH);
+  perf.measure('Camera 1 native capture',()=>captureContext.drawImage(video,0,0,nativeW,nativeH));
  }
- frameContext.drawImage(doSlow?captureCanvas:video,0,0,w,h);
- const frameCapturedAt=performance.now();
+ perf.measure('Camera 1 flow resize',()=>frameContext.drawImage(doSlow?captureCanvas:video,0,0,w,h));
+ const frameCapturedAt=performance.now();primaryCaptureAt=frameCapturedAt;
  if(doFast){
   fastProcessing=true;lastFastFrame=now;
-  const frame=frameContext.getImageData(0,0,w,h);
+  const frame=readFrame(frameContext,'Camera 1 flow readback',0,0,w,h);
   const capturedAt=frameCapturedAt;
   void fastTracker.detect(frame).then(found=>{
    if(session!==cameraSession)return;
-   fastFrames++;
+   perf.sample('Camera 1 flow frame age',performance.now()-capturedAt);fastFrames++;
    const stamp=performance.now();
    if(capturedAt<lastAppliedFrameAt)return;
    lastAppliedFrameAt=capturedAt;
@@ -1353,7 +1373,7 @@ async function detectFrame(now:number){
  }
  if(doSlow){
   processing=true;lastSlowFrame=now;
-  const flowSeedFrame=frameContext.getImageData(0,0,w,h);
+  const flowSeedFrame=readFrame(frameContext,'Camera 1 flow readback',0,0,w,h);
   // Keep full native resolution for small printed markers. In experimental
   // mode, decode a padded ROI around flow-tracked marker corners, with a
   // periodic full-frame scan for new markers and recovery.
@@ -1375,8 +1395,8 @@ async function detectFrame(now:number){
   const cropped=regionW<nativeW||regionH<nativeH;
   if(!cropped)lastFullDecodeAt=now;
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
-  decodeContext.drawImage(captureCanvas,left,top,regionW,regionH,0,0,regionW,regionH);
-  const frame=decodeContext.getImageData(0,0,regionW,regionH);
+  perf.measure('Camera 1 decode crop',()=>decodeContext.drawImage(captureCanvas,left,top,regionW,regionH,0,0,regionW,regionH));
+  const frame=readFrame(decodeContext,'Camera 1 decode readback',0,0,regionW,regionH);
   const capturedAt=frameCapturedAt;
   if(thresholdToggle.checked)renderThreshold(frame);
   if(cropToggle.checked)renderCrop(frame);
@@ -1384,7 +1404,7 @@ async function detectFrame(now:number){
    const found=toFlow(nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))})));
    if(session!==cameraSession)return;
    if(cornerDebug.checked)for(const marker of found)rawDecodedCorners.set(marker.id,{marker,capturedAt,receivedAt:performance.now()});
-   slowFrames++;framesAnalyzed++;
+   perf.sample('Camera 1 decode frame age',performance.now()-capturedAt);slowFrames++;framesAnalyzed++;
    diag('frames').textContent=String(framesAnalyzed);
    diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);
    diag('outlines').textContent=String(detector.candidateCorners.length);
@@ -1432,7 +1452,7 @@ async function detectFrame(now:number){
      drawDetections();
     };
     if(stale){
-     staleDecodeDrops++;
+     staleDecodeDrops++;perf.count('Camera 1 stale decode results');
      if(missing.length&&recoveryFresh){
       for(const marker of missing)markerLastConfirmed.set(marker.id,decodeStamp);
       observations=[...active,...missing];
@@ -1464,7 +1484,7 @@ let last=performance.now();
 let lastPoseMessage=0;
 let lastEmbeddedFpsReport=0;
 let embeddedFrames=0;
-function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
+function animate(now:number){const loopStarted=performance.now();perf.tick('Tracking loop');perf.sample('Tracking frame interval',Math.max(0,now-last));if(stream&&lastAppliedFrameAt>0)perf.sample('Camera 1 applied image age',Math.max(0,performance.now()-lastAppliedFrameAt));if(stream2&&observationsAt&&secondaryObservationsAt)perf.sample('Camera accepted-update skew',Math.abs(observationsAt-secondaryObservationsAt));const dt=Math.min((now-last)/1000,.05);last=now;
  updateRotationStageReadout();
  if(!simulation.checked){
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
@@ -1549,7 +1569,7 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
   }
  }
  updateStereoViewIndicator(now);
- if(renderer){orbit?.update();renderer.render(scene,camera);}
+ if(renderer){orbit?.update();perf.measure('Tracking render submission',()=>renderer!.render(scene,camera));}
  else{
   embeddedFrames++;
   if(now-lastEmbeddedFpsReport>=1000){
@@ -1559,9 +1579,12 @@ function animate(now:number){const dt=Math.min((now-last)/1000,.05);last=now;
    embeddedFrames=0;lastEmbeddedFpsReport=now;
   }
  }
+ perf.sample('Tracking CPU frame',performance.now()-loopStarted);
  requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
 window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit?.dispose();renderer?.dispose();});
 
 mountTrackingLayout(root);
+measureCameraFrames(video,'Camera 1');measureCameraFrames(video2,'Camera 2');
+mountPerformancePanel(root,()=>({build:'0.61',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:110,recoveryIntervalMs:65,roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));

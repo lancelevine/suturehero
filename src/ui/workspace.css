@@ -48,3 +48,9 @@
 [data-guide-instruction]{min-height:5em}
 
 @media(max-width:760px){.calibration-live-preview>svg{height:100px}.calibration-live-preview{padding:7px}.calibration-preview-heading{font-size:10px}}
+
+/* Profiling controls stay in the existing camera diagnostics area. */
+.tracking-camera-title{flex-wrap:wrap;gap:4px}
+#tracking-performance .tracking-details-body{font-size:10px;line-height:1.5}
+#tracking-performance table{min-width:410px}
+#tracking-performance textarea{font-family:monospace;font-size:10px}
