@@ -2,6 +2,16 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Unlocked depth fallback in 0.68
+
+Unlocked depth now accepts the approximate marker-size distance when the planar
+3D fit is unreliable. Previously that distance was calculated but rejected by
+the depth filter, leaving Z frozen while X/Y continued to move. Existing jitter,
+spike and rate limits remain active. Depth diagnostics and performance reports
+identify the measurement source and validity. Run
+`SUTURE_SIZE_DEPTH=1 node scripts/check-driver-depth.mjs` to exercise the size
+fallback through calibration and main-scene movement.
+
 ## Stacked camera feeds in 0.67
 
 With two cameras active, Camera 1 appears above Camera 2. Both use the panel's
