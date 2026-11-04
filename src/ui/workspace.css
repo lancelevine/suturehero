@@ -72,3 +72,7 @@
 .tracking-panels .tracking-camera-settings .camera-settings-row{grid-template-columns:minmax(80px,1fr) minmax(0,1.8fr) minmax(35px,.6fr)}
 .tracking-panels .tracking-camera-settings .camera-settings-row input,.tracking-panels .tracking-camera-settings .camera-settings-row select{min-width:0;width:100%;box-sizing:border-box}
 @media(max-width:760px){.tracking-panels .tracking-camera-settings{max-height:24dvh}.tracking-panels .tracking-camera-settings .camera-settings-row{grid-template-columns:minmax(60px,1fr) minmax(0,1.4fr) 40px;gap:5px;font-size:10px}}
+
+/* Let the camera's real proportions determine height; controls scroll below it. */
+.tracking-panels .tracking-camera-feeds{flex:none;height:auto;min-height:0;grid-template-rows:auto;align-items:start}
+.tracking-panels .tracking-camera-feeds .tracking-video,.tracking-panels #primary-camera-preview{height:auto!important;min-height:0!important;aspect-ratio:var(--camera-aspect,16 / 9)!important}

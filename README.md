@@ -2,6 +2,13 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Native camera proportions in 0.66
+
+The feed uses its actual camera aspect ratio to determine preview height at the
+panel's full width. Controls scroll below it instead of squeezing the image into
+a short viewport. This removes layout-created bars without cropping the camera
+or its marker overlay, including for 4:3 and portrait streams.
+
 ## Camera sizing and hardware controls in 0.65
 
 The camera preview stays within its panel instead of expanding beyond the panel

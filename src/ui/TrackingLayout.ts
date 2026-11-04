@@ -14,6 +14,10 @@ export function mountTrackingLayout(root:HTMLElement){
  preview.dataset.cameraLabel='Camera 1';secondPreview.dataset.cameraLabel='Camera 2';feeds.append(preview,secondPreview);
  const updateFeeds=()=>{const active=!!secondVideo.srcObject;secondPreview.hidden=!active;feeds.classList.toggle('two-cameras',active);};
  secondVideo.addEventListener('loadedmetadata',updateFeeds);secondVideo.addEventListener('emptied',updateFeeds);secondVideo.addEventListener('playing',updateFeeds);updateFeeds();
+ for(const [video,frame] of [[preview.querySelector<HTMLVideoElement>('video')!,preview],[secondVideo,secondPreview]] as const){
+  const size=()=>frame.style.setProperty('--camera-aspect',video.videoWidth&&video.videoHeight?`${video.videoWidth} / ${video.videoHeight}`:'16 / 9');
+  video.addEventListener('loadedmetadata',size);video.addEventListener('resize',size);video.addEventListener('emptied',size);size();
+ }
  stage.append(head,feeds,cameraRow,status);
  const navigation=embedded?document.querySelector('.workspace-header-actions')!:root.querySelector('header')!;
  const panel=(id:string,title:string,description:string)=>{
