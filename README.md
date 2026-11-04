@@ -2,6 +2,12 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Stacked camera feeds in 0.67
+
+With two cameras active, Camera 1 appears above Camera 2. Both use the panel's
+full width and preserve their native proportions; scroll to reach the second
+feed and camera controls when needed.
+
 ## Native camera proportions in 0.66
 
 The feed uses its actual camera aspect ratio to determine preview height at the

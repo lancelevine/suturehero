@@ -26,6 +26,13 @@ try{
    assert(Math.abs(measured.width-measured.feedWidth)<1,'Camera must use the full available width');
    assert(Math.abs(measured.height-measured.width/measured.ratio)<1,'Native aspect ratio must determine height, leaving no layout bars: '+JSON.stringify(measured));
    assert(Math.abs(measured.overlayWidth-measured.width)<1&&Math.abs(measured.overlayHeight-measured.height)<1,'Overlay must share camera proportions');
+   assert(await page.evaluate(()=>{
+    const feeds=document.querySelector('.tracking-camera-feeds'),second=document.querySelector('#camera-video-2').closest('.tracking-video');
+    feeds.classList.add('two-cameras');second.hidden=false;
+    const a=document.querySelector('#primary-camera-preview').getBoundingClientRect(),b=second.getBoundingClientRect(),parent=feeds.getBoundingClientRect();
+    const stacked=b.top>=a.bottom&&Math.abs(a.width-parent.width)<1&&Math.abs(b.width-parent.width)<1;
+    second.hidden=true;feeds.classList.remove('two-cameras');return stacked;
+   }),'Two cameras must stack vertically at full width');
   }
   await page.locator('#stop-camera').click();await page.setViewportSize({width:1440,height:1000});
  }
