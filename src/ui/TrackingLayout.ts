@@ -39,7 +39,7 @@ export function mountTrackingLayout(root:HTMLElement){
  model.append(mode,root.querySelector('#tracking-mode-info')!);
  const depth=section(setup,'Working depth');depth.append(group('working-depth-mm','section'),group('depth-sensitivity','label'));
  const stereo=section(setup,'Stereo calibration');stereo.append(group('start-stereo-all','.tracking-actions'),group('capture-stereo-pair','section'),group('stereo-import','section'));
- const cameraSettings=section(stage,'Camera settings');cameraSettings.classList.add('tracking-camera-settings');
+ const cameraSettings=section(stage,'Camera controls · focus & exposure');cameraSettings.parentElement!.setAttribute('open','');cameraSettings.classList.add('tracking-camera-settings');
  cameraSettings.append(root.querySelector('#camera-settings-controls')!,group('camera-select-2','.tracking-actions'));
  const disable=document.querySelector('#disable-camera-tracking');if(embedded&&disable)cameraSettings.append(disable);
  const recognition=section(diagnostics,'Recognition & image diagnostics');recognition.parentElement!.setAttribute('open','');

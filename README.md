@@ -2,6 +2,15 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Camera sizing and hardware controls in 0.65
+
+The camera preview stays within its panel instead of expanding beyond the panel
+and clipping the image. Video and marker overlays keep the same dimensions;
+the full camera image retains its aspect ratio. Camera controls now open by
+default with focus mode/distance, exposure mode/time and gain when supported.
+Controls appear as soon as the stream starts, even if marker detection cannot
+initialize. Switching modes refreshes available hardware controls.
+
 ## Camera panels and full-scan optimization in 0.64
 
 Camera feeds, Tracking setup and Diagnostics now have separate panels. Hide/show
@@ -378,7 +387,7 @@ tracking stops both cameras. The standalone Tracking Lab uses the same panels.
 
 Use **Choose camera** to select a device card instead of the long device
 select. The currently running device can show a preview; other cameras start
-when selected. **Camera settings** contains focus, exposure and the second-camera
+when selected. **Camera controls · focus & exposure** contains focus, exposure and the second-camera
 device controls. **Tracking setup** opens marker geometry, tracking mode, working
 depth and stereo calibration. **Diagnostics** opens performance reports, decoder
 statistics, marker overlays and experimental tracking controls. Per-instrument
