@@ -76,3 +76,7 @@
 /* Let the camera's real proportions determine height; controls scroll below it. */
 .tracking-panels .tracking-camera-feeds{flex:none;height:auto;min-height:0;grid-template-rows:auto;align-items:start}
 .tracking-panels .tracking-camera-feeds .tracking-video,.tracking-panels #primary-camera-preview{height:auto!important;min-height:0!important;aspect-ratio:var(--camera-aspect,16 / 9)!important}
+
+/* At the top of the camera scroller, fit both complete images above controls. */
+.tracking-panels .tracking-camera-feeds.two-cameras{justify-items:center;gap:3px}
+.tracking-panels .tracking-camera-feeds.two-cameras .tracking-video,.tracking-panels .tracking-camera-feeds.two-cameras #primary-camera-preview{width:var(--dual-feed-width,100%);max-width:100%}

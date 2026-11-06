@@ -12,13 +12,23 @@ export function mountTrackingLayout(root:HTMLElement){
  const feeds=document.createElement('div');feeds.className='tracking-camera-feeds';
  const secondVideo=root.querySelector<HTMLVideoElement>('#camera-video-2')!,secondPreview=secondVideo.closest<HTMLElement>('.tracking-video')!;
  preview.dataset.cameraLabel='Camera 1';secondPreview.dataset.cameraLabel='Camera 2';feeds.append(preview,secondPreview);
- const updateFeeds=()=>{const active=!!secondVideo.srcObject;secondPreview.hidden=!active;feeds.classList.toggle('two-cameras',active);};
+ const fitFeeds=()=>{
+  if(secondPreview.hidden)return;
+  const first=preview.querySelector<HTMLVideoElement>('video')!;
+  const ratio=(v:HTMLVideoElement)=>v.videoWidth&&v.videoHeight?v.videoWidth/v.videoHeight:16/9;
+  const height=Math.max(0,stage.clientHeight-head.offsetHeight-3);
+  const width=Math.min(stage.clientWidth,height/(1/ratio(first)+1/ratio(secondVideo)));
+  feeds.style.setProperty('--dual-feed-width',`${width}px`);
+ };
+ const updateFeeds=()=>{const active=!!secondVideo.srcObject;secondPreview.hidden=!active;feeds.classList.toggle('two-cameras',active);fitFeeds();};
  secondVideo.addEventListener('loadedmetadata',updateFeeds);secondVideo.addEventListener('emptied',updateFeeds);secondVideo.addEventListener('playing',updateFeeds);updateFeeds();
  for(const [video,frame] of [[preview.querySelector<HTMLVideoElement>('video')!,preview],[secondVideo,secondPreview]] as const){
-  const size=()=>frame.style.setProperty('--camera-aspect',video.videoWidth&&video.videoHeight?`${video.videoWidth} / ${video.videoHeight}`:'16 / 9');
+  const size=()=>{frame.style.setProperty('--camera-aspect',video.videoWidth&&video.videoHeight?`${video.videoWidth} / ${video.videoHeight}`:'16 / 9');fitFeeds();};
   video.addEventListener('loadedmetadata',size);video.addEventListener('resize',size);video.addEventListener('emptied',size);size();
  }
  stage.append(head,feeds,cameraRow,status);
+ const feedResize=new ResizeObserver(fitFeeds);feedResize.observe(stage);feedResize.observe(head);
+ window.addEventListener('pagehide',()=>feedResize.disconnect(),{once:true});
  const navigation=embedded?document.querySelector('.workspace-header-actions')!:root.querySelector('header')!;
  const panel=(id:string,title:string,description:string)=>{
   const dialog=document.createElement('dialog');dialog.id=id;dialog.className='tracking-tools-panel';dialog.setAttribute('aria-labelledby',id+'-title');

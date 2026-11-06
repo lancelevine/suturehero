@@ -2,6 +2,12 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Both cameras visible in 0.69
+
+At the top of the camera panel, both stacked feeds fit completely within the
+available height. Their full images and native proportions are preserved;
+controls remain below the feeds. Resizing the window recalculates the fit.
+
 ## Unlocked depth fallback in 0.68
 
 Unlocked depth now accepts the approximate marker-size distance when the planar
