@@ -7,6 +7,7 @@ import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {mountPerformancePanel} from './ui/PerformancePanel';
 import {loadJawTracking,saveJawTracking,type SavedJawTracking} from './input/jawTrackingStorage';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
+import {MonocularDepthSource} from './input/MonocularDepthSource';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
 import {JawCalibration,type JawDistance,type JawEndpoint} from './input/JawCalibration';
 import {TrackedPoseFilter} from './input/TrackedPoseFilter';
@@ -222,7 +223,7 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();primarySearch.reset();secondarySearch.reset();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();monoDepthSources.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -645,6 +646,7 @@ const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
 }>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
+const monoDepthSources=new Map<InstrumentName,MonocularDepthSource>();
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
 stableDepth.addEventListener('change',()=>{monoDepthFilters.clear();depthStates.clear();});
 const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
@@ -795,7 +797,7 @@ function updateLiveTargets(){
   // A poor planar fit does not invalidate the recognized square's size.
   // Keep approximate depth usable; the temporal filter still rejects spikes.
   const depthInputValid=Number.isFinite(estimatedDistance)&&estimatedDistance>20;
-  const depthSource=poseDepthValid?'3D pose':'marker size';
+  let depthSource=poseDepthValid?'3D pose':'marker size';
   const rawDistance=stationary?(depthHistory.get(name)?.at(-1)??estimatedDistance):estimatedDistance;
   // Camera-relative X/Y continue to follow the green-square center.
   // Depth is corrected for face orientation when the fit supports it.
@@ -803,19 +805,25 @@ function updateLiveTargets(){
   if(depthHistoryStamps.get(name)!==now){samples.push(rawDistance);if(samples.length>5)samples.shift();depthHistory.set(name,samples);depthHistoryStamps.set(name,now);}
   const sorted=[...samples].sort((a,b)=>a-b);
   const measuredDistance=sorted[Math.floor(sorted.length/2)];
-  depthSamples.set(name,measuredDistance);
+  let depthDistance=measuredDistance;
+  if(trackingMode.value==='mono'){
+   let source=monoDepthSources.get(name);if(!source){source=new MonocularDepthSource();monoDepthSources.set(name,source);}
+   const stable=source.observe(poseDepthValid?bodyPose.translation.z:null,sizeDistance,pose.id,now,stationary);
+   depthDistance=stable.distance;depthSource=stable.source;
+  }
+  depthSamples.set(name,depthDistance);
   const near=depthNearMm??100;
   const range=depthFarMm!==null&&depthNearMm!==null?depthFarMm-depthNearMm:Math.max(50,Number(workingDepthInput.value)||400);
 
   const previousZ=depthStates.get(name);
   const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
   const baseline=name==='needleDriver'?-.65:name==='forceps'?.15:1.05;
-  const desiredZ=mapMonocularDepth(measuredDistance,near,range,Number(depthSensitivity.value));
+  const desiredZ=mapMonocularDepth(depthDistance,near,range,Number(depthSensitivity.value));
   let filter=monoDepthFilters.get(name);if(!filter){filter=new MonocularDepthFilter();monoDepthFilters.set(name,filter);}
   let z:number;
   if(trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth))z=filter.update(desiredZ,now,lockedDepth,baseline,depthInputValid);
   else {const delta=previousZ===undefined?0:desiredZ-previousZ;z=previousZ===undefined?desiredZ:previousZ+delta*(Math.abs(delta)>.12?.65:.25);}
-  depthStates.set(name,z);filterMeasurements.set(name,{rawZ:measuredDistance,filteredZ:z,angle:filterMeasurements.get(name)?.angle??0,locked:lockedDepth,source:depthSource,valid:depthInputValid});
+  depthStates.set(name,z);filterMeasurements.set(name,{rawZ:depthDistance,filteredZ:z,angle:filterMeasurements.get(name)?.angle??0,locked:lockedDepth,source:depthSource,valid:depthInputValid});
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
   const x=THREE.MathUtils.clamp(-((markerCenter.x-overlay.width/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*7,-2.6,2.6);
   const y=THREE.MathUtils.clamp(-((markerCenter.y-overlay.height/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*4+.55,.15,2.8);
@@ -1585,4 +1593,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.69',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.70',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));

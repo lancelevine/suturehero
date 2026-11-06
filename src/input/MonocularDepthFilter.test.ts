@@ -19,3 +19,12 @@ it('keeps instruments independent and holds low-confidence estimates',()=>{
  const a=new MonocularDepthFilter(),b=new MonocularDepthFilter();a.update(.1,0,false,0);b.update(.9,0,false,0);
  for(let i=1;i<10;i++)expect(a.update(2,i*70,false,0,false)).toBe(.1);expect(b.update(.9,700,false,0)).toBe(.9);
 });
+it('rejects moderate back-and-forth noise at rest without widening the depth deadband',()=>{
+ const f=new MonocularDepthFilter();f.update(0,0,false,0);
+ for(let i=1;i<=60;i++)expect(Math.abs(f.update(i%4<2?.12:-.12,i*70,false,0))).toBeLessThan(.025);
+});
+it('still follows gradual intentional depth motion',()=>{
+ const f=new MonocularDepthFilter();f.update(0,0,false,0);let depth=0;
+ for(let i=1;i<=40;i++)depth=f.update(i*.01,i*70,false,0);
+ expect(depth).toBeGreaterThan(.25);
+});

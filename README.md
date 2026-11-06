@@ -2,6 +2,16 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Resting unlocked depth in 0.70
+
+Single-camera depth preserves continuity when switching between planar-pose and
+marker-size estimates or visible marker faces. Switching back to the 3D source
+requires sustained good fits. Stationary image geometry holds the depth reference,
+while unlocked forward/back movement remains active. The depth filter also
+confirms moderate back-and-forth changes instead of passing them through as motion.
+X/Y tracking is unchanged. `SUTURE_DEPTH_NOISE=1 node scripts/check-driver-depth.mjs`
+checks resting stability under changing fit confidence, then deliberate movement.
+
 ## Both cameras visible in 0.69
 
 At the top of the camera panel, both stacked feeds fit completely within the

@@ -11,9 +11,14 @@ try{
  await installSyntheticCamera(page);
  await page.addInitScript(()=>localStorage.setItem('suturehero.trackerType','ring6'));
  await page.route('**/src/main.ts*',async r=>{const response=await r.fetch(),body=await response.text(),patched=body.replace(/const scissors = new Scissors\(\);/,'window.__depthTools = tools; const scissors = new Scissors();');assert.notEqual(patched,body);await r.fulfill({response,body:patched});});
- if(process.env.SUTURE_SIZE_DEPTH)await page.route('**/src/tracking.ts*',async r=>{
-  const response=await r.fetch(),body=await response.text(),patched=body.replace(/const poseDepthValid = [^\n]+;/,'const poseDepthValid = false;');
-  assert.notEqual(patched,body,'Test must force the marker-size depth fallback');await r.fulfill({response,body:patched});
+ if(process.env.SUTURE_SIZE_DEPTH||process.env.SUTURE_DEPTH_NOISE)await page.route('**/src/tracking.ts*',async r=>{
+  const response=await r.fetch(),body=await response.text();let patched;
+  if(process.env.SUTURE_DEPTH_NOISE){
+   patched=body.replace(/const poseDepthValid = ([^\n]+);/,'const poseDepthValid = ($1) && Math.floor(now / 160) % 2 === 0;')
+    .replace(/const bodyPose = [^\n]+;/,'$&\nbodyPose.translation.z *= 1.35;')
+    .replace(/const stationary = rest.observe[^\n]+;/,'const stationary = false;');
+  }else patched=body.replace(/const poseDepthValid = [^\n]+;/,'const poseDepthValid = false;');
+  assert.notEqual(patched,body,'Test must exercise unreliable depth fitting');await r.fulfill({response,body:patched});
  });
  await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  await page.locator('#start-camera').click();
@@ -28,6 +33,11 @@ try{
  await page.locator('[data-profile-check=depthLock]').uncheck();
  await page.waitForTimeout(800);const unlocked=await sample();
  assert.equal(unlocked.locked,false);assert(Math.abs(unlocked.scene[2]-locked.scene[2])<.08,'Unlock must preserve main-scene placement');
+ if(process.env.SUTURE_DEPTH_NOISE){
+  const values=[];for(let i=0;i<12;i++){await page.waitForTimeout(160);values.push((await sample()).position[2]);}
+  assert(Math.max(...values)-Math.min(...values)<.08,'Stationary depth must not sway as fit confidence changes: '+JSON.stringify(values));
+ }
+
  await page.evaluate(()=>window.__ballScene.scale=.72);
  await page.waitForFunction(start=>window.__depthTools[1].root.position.z>start+.2,unlocked.scene[2],{timeout:20000});
  const farther=await sample();assert(farther.position[2]>unlocked.position[2]+.2,'Calibration must follow depth');
