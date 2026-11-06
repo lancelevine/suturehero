@@ -2,6 +2,16 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Jaw detection continuity in 0.71
+
+Validated colored-ball pairs bridge detection gaps shorter than 250 ms while
+holding the last jaw opening. Held positions do not refresh detection timestamps
+or count as calibration samples; sustained loss still reports missing. Small
+color changes are tolerated only near an already tracked ball. New acquisition
+and pair geometry checks retain their existing thresholds.
+`SUTURE_JAW_FLICKER=1 node scripts/check-ball-pairs.mjs` checks lighting changes,
+brief hold, real loss, reacquisition and calibration through the camera pipeline.
+
 ## Resting unlocked depth in 0.70
 
 Single-camera depth preserves continuity when switching between planar-pose and

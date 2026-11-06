@@ -1157,12 +1157,14 @@ function scanForcepsBalls(now:number){
   // 640px width so a 7mm ball spans enough pixels for shape localization.
   const bw=maxX-minX+1,bh=maxY-minY+1;
   const mask=new Uint8Array(bw*bh);
+  const selectedSaturation=Math.max(...color)-Math.min(...color);
+  const continuationRadius=previous?Math.max(10,Math.sqrt(previous.count/Math.PI)*3):0;
   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
    const p=(y*w+x)*4,r=pixels[p],g=pixels[p+1],bl=pixels[p+2],sum=r+g+bl;
    const saturation=(Math.max(r,g,bl)-Math.min(r,g,bl))/Math.max(1,sum);
-   const selectedSaturation=Math.max(...color)-Math.min(...color);
    if(sum<Math.max(40,ballSampleBrightness[c]*.25)||saturation<Math.max(.03,selectedSaturation*.35))continue;
-   if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<.075)mask[(y-minY)*bw+x-minX]=1;
+   const tolerance=previous&&Math.hypot(x-center.x,y-center.y)<=continuationRadius ? .105 : .075;
+   if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<tolerance)mask[(y-minY)*bw+x-minX]=1;
   }
   const queue=new Int32Array(mask.length);
   for(let index=0;index<mask.length;index++){
@@ -1222,7 +1224,13 @@ function scanForcepsBalls(now:number){
     if(score>best){best=score;found={a:aa,b:bb};}
    }
   }
-  if(!found){ballCenters[a]=ballCenters[b]=null;ballPairValidAt[pair]=-Infinity;continue;}
+  if(!found){
+   // Bridge only a brief gap in an already validated pair. Do not refresh its
+   // timestamp: an occlusion must still expire, and held data is not a sample.
+   if(prior&&now-prior.seenAt<250){ballCenters[a]=prior.a;ballCenters[b]=prior.b;}
+   else {ballCenters[a]=ballCenters[b]=null;ballPairValidAt[pair]=-Infinity;}
+   continue;
+  }
   const previous=ballPairStates[pair],blend=previous&&now-previous.seenAt<350?.38:1;
   const smooth=(next:BallBlob,old:BallBlob|undefined):BallBlob=>old?{...next,x:old.x*(1-blend)+next.x*blend,y:old.y*(1-blend)+next.y*blend}:next;
   const acceptedA=smooth(found.a,previous?.a),acceptedB=smooth(found.b,previous?.b);
@@ -1235,7 +1243,9 @@ function scanForcepsBalls(now:number){
   const d=ballSeparation(pair),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1];
   if(d!==null&&a&&b){
    const scale=Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI);
-   cal.observe(d,scale,now,video.currentTime);const value=cal.update(d,scale);if(value===null)continue;
+   const fresh=ballPairValidAt[pair]===now;
+   if(fresh)cal.observe(d,scale,now,video.currentTime);
+   const value=fresh?cal.update(d,scale):cal.endpoints(scale)?cal.value:null;if(value===null)continue;
    const name=ballNames[pair];
    const opening=instrumentCalibration.opening(name,cal.value);
    if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(opening);
@@ -1249,7 +1259,7 @@ function scanForcepsBalls(now:number){
  const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1],ends=a&&b?cal.endpoints(Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI)):null;
  ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':!ballColors[pair*2+1]&&ballProvisional[pair*2]&&now-ballProvisional[pair*2]!.seenAt<220?'acquiring':'missing')+
   ' · B '+(ballCenters[pair*2+1]?'found':!ballColors[pair*2]&&ballProvisional[pair*2+1]&&now-ballProvisional[pair*2+1]!.seenAt<220?'acquiring':'missing')+
-  ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':d===null?'pair rejected or missing':'paired with instrument')+
+  ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':d===null?'pair rejected or missing':ballPairValidAt[pair]===now?'paired with instrument':'holding last jaw position · brief detection gap')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(ends?.closed.toFixed(2)??'—')+' · open '+(ends?.open.toFixed(2)??'—')+
   ' · jaw '+(!ends?'not calibrated':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
@@ -1593,4 +1603,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.70',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.71',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
