@@ -1,3 +1,4 @@
+import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
 import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
 import {frameClock,observeCameraFrames} from './input/CameraFrameClock';
@@ -7,7 +8,7 @@ import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {mountPerformancePanel} from './ui/PerformancePanel';
 import {loadJawTracking,saveJawTracking,type SavedJawTracking} from './input/jawTrackingStorage';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
-import {MonocularDepthSource} from './input/MonocularDepthSource';
+import {tiltCorrectedSize,SizeDepthCalibration,type SizeDepthAnchor} from './input/tiltSizeDepth';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
 import {JawCalibration,type JawDistance,type JawEndpoint} from './input/JawCalibration';
 import {TrackedPoseFilter} from './input/TrackedPoseFilter';
@@ -49,7 +50,7 @@ root.innerHTML=`<header><a class="brand" href="./"><img class="brand-logo" src="
 </section>
 <label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="roi-decode" type="checkbox" checked> Predictive region decode · full-frame fallback (uncheck for full-frame baseline)</label><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
 <p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
-<details class="tracking-details"><summary>Camera Focus &amp; Exposure</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Hold a tracked prism at the near boundary and click Set Near, then repeat at the far boundary.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
+<details class="tracking-details"><summary>Camera Focus &amp; Exposure</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Select the instrument in Calibrate, then hold a reasonably face-on marker steady to capture Near and Far.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
 <div><strong>Camera resolution</strong><span id="diag-resolution">Not started</span></div>
 <div><strong>Frames analyzed</strong><span id="diag-frames">0</span></div><div><strong>Detection FPS</strong><span id="diag-detection-fps">0</span></div>
 <div><strong>Candidate squares</strong><span id="diag-candidates">—</span></div><div><strong>Outlines drawn</strong><span id="diag-outlines">—</span></div>
@@ -223,7 +224,7 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();monoDepthSources.clear();primarySearch.reset();secondarySearch.reset();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -646,19 +647,23 @@ const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
 }>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
-const monoDepthSources=new Map<InstrumentName,MonocularDepthSource>();
+const sizeDepthCalibration=new SizeDepthCalibration();
+const sizeDepthFrames=new Map<InstrumentName,(SizeDepthAnchor&{at:number;distanceMm:number})[]>();
+const sizeDepthFaces=new Map<InstrumentName,number>();
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
 stableDepth.addEventListener('change',()=>{monoDepthFilters.clear();depthStates.clear();});
-const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v1';
+const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v2';
+const depthBinding=()=>`${stream?.getVideoTracks()[0]?.getSettings().deviceId??select.value}|${trackerType}|${video.videoWidth&&video.videoHeight?(video.videoWidth/video.videoHeight).toFixed(3):'off'}`;
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
 function saveDepthCalibration(){
- try{localStorage.setItem(DEPTH_STORAGE_KEY,JSON.stringify({near:depthNearMm,far:depthFarMm,range:Number(workingDepthInput.value)||400}));}catch{/* unavailable */}
+ try{localStorage.setItem(DEPTH_STORAGE_KEY,JSON.stringify({near:depthNearMm,far:depthFarMm,range:Number(workingDepthInput.value)||400,size:sizeDepthCalibration}));}catch{/* unavailable */}
 }
 function restoreDepthCalibration(){
  try{
   const raw=localStorage.getItem(DEPTH_STORAGE_KEY);if(!raw)return;
-  const value=JSON.parse(raw) as {near?:unknown;far?:unknown;range?:unknown};
+  const value=JSON.parse(raw) as {near?:unknown;far?:unknown;range?:unknown;size?:unknown};
   if(typeof value.range==='number'&&Number.isFinite(value.range)&&value.range>=50&&value.range<=1500)workingDepthInput.value=String(value.range);
+  if(!sizeDepthCalibration.restore(value.size))return;
   if(typeof value.near==='number'&&Number.isFinite(value.near)&&value.near>0)depthNearMm=value.near;
   if(typeof value.far==='number'&&Number.isFinite(value.far)&&depthNearMm!==null&&value.far>depthNearMm+20)depthFarMm=value.far;
  }catch{/* invalid saved calibration */}
@@ -670,12 +675,24 @@ const poseHistory=new Map<'needleDriver'|'forceps'|'scissors',THREE.Quaternion[]
 type RotationGeometryState={face:number;reference:{x:number;y:number}[];last:{x:number;y:number}[];moving:boolean;pending:number;still:number};
 const rotationGeometryStates=new Map<'needleDriver'|'forceps'|'scissors',RotationGeometryState>();
 const depthSamples=new Map<'needleDriver'|'forceps'|'scissors',number>();
-function depthRangeLabel(){const range=Math.max(50,Number(workingDepthInput.value)||400);depthRangeStatus.textContent=`Near: ${depthNearMm?.toFixed(0)??'unset'} mm · Far: ${depthFarMm?.toFixed(0)??'unset'} mm · working range: ${range} mm. ${depthNearMm===null?'Set Near first.':depthFarMm===null?'Set Far next.':'Calibrated.'}`;}
+function depthRangeLabel(){
+ const ready=sizeDepthCalibration.near?.binding===depthBinding();
+ depthRangeStatus.textContent=!sizeDepthCalibration.near?'Hold the selected instrument still at Near, then Far. A reasonably face-on marker is required.':!ready?'Start the same camera and tracker geometry, or capture Near/Far again.':!sizeDepthCalibration.far?'Near size captured. Move the same instrument farther away and capture Far.':'Near/Far tilt-corrected marker sizes calibrated. Edge-on markers hold the last depth.';
+}
 function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();depthHistory.clear();depthHistoryStamps.clear();}
-workingDepthInput.addEventListener('change',()=>{depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
-document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined){depthRangeStatus.textContent='No tracked prism visible. Start camera and show a marker.';return;}depthNearMm=z;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
-document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const z=depthSamples.get('needleDriver')??depthSamples.get('forceps')??depthSamples.get('scissors');if(z===undefined||depthNearMm===null){depthRangeStatus.textContent='Set Near first with a tracked marker visible.';return;}if(z<=depthNearMm+20){depthRangeStatus.textContent='Far must be at least 20 mm farther from camera than Near.';return;}depthFarMm=z;workingDepthInput.value=String(Math.round(z-depthNearMm));resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
-document.querySelector('#reset-depth-range')!.addEventListener('click',()=>{depthNearMm=null;depthFarMm=null;workingDepthInput.value='400';resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+function captureSizeDepth(){
+ const name=(document.querySelector<HTMLElement>('[data-calibration-tool][aria-pressed="true"]')?.dataset.calibrationTool??'needleDriver') as InstrumentName;
+ const frames=(sizeDepthFrames.get(name)??[]).filter(s=>performance.now()-s.at<500&&s.binding===depthBinding());
+ if(trackingMode.value!=='mono'||!filterMeasurements.get(name)?.valid||frames.length<4){depthRangeStatus.textContent=`Show a face-on ${name} marker in camera 1 and hold still before capturing.`;return null;}
+ const sorted=[...frames].sort((a,b)=>a.proxy-b.proxy),middle=sorted[Math.floor(sorted.length/2)];
+ if((sorted.at(-1)!.proxy-sorted[0].proxy)/middle.proxy>.12){depthRangeStatus.textContent='Hold the instrument steady at this distance, then retry.';return null;}
+ return middle;
+}
+workingDepthInput.addEventListener('change',()=>{sizeDepthCalibration.far=null;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const sample=captureSizeDepth();if(!sample)return;sizeDepthCalibration.setNear(sample);depthNearMm=sample.distanceMm;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const sample=captureSizeDepth();if(!sample)return;if(!sizeDepthCalibration.setFar(sample)){depthRangeStatus.textContent='Capture Near first, then move the same instrument clearly farther away using the same camera and tracker.';return;}depthFarMm=sample.distanceMm;workingDepthInput.value=String(Math.round(depthFarMm-depthNearMm!));resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+document.querySelector('#reset-depth-range')!.addEventListener('click',()=>{sizeDepthCalibration.near=sizeDepthCalibration.far=null;depthNearMm=depthFarMm=null;workingDepthInput.value='400';resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+trackerTypeSelect.addEventListener('change',depthRangeLabel);
 const rotationFilterStates=new Map<'needleDriver'|'forceps'|'scissors',{anchor:THREE.Quaternion;pending:number;moving:boolean}>();
 const filterMeasurements=new Map<'needleDriver'|'forceps'|'scissors',{rawZ:number;filteredZ:number;angle:number;locked:boolean;source:string;valid:boolean}>();
 const stationaryStates=new Map<InstrumentName,MarkerRestLatch>();
@@ -693,7 +710,7 @@ async function refreshCameras(){
 }
 async function stopCamera(){resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
- try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();renderCameraSettings();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
+ try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();renderCameraSettings();depthRangeLabel();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;throw e;}
 }
 start.addEventListener('click',()=>{void startPrimaryCamera();});
@@ -796,7 +813,7 @@ function updateLiveTargets(){
   const estimatedDistance=poseDepthValid?bodyPose.translation.z:sizeDistance;
   // A poor planar fit does not invalidate the recognized square's size.
   // Keep approximate depth usable; the temporal filter still rejects spikes.
-  const depthInputValid=Number.isFinite(estimatedDistance)&&estimatedDistance>20;
+  let depthInputValid=Number.isFinite(estimatedDistance)&&estimatedDistance>20;
   let depthSource=poseDepthValid?'3D pose':'marker size';
   const rawDistance=stationary?(depthHistory.get(name)?.at(-1)??estimatedDistance):estimatedDistance;
   // Camera-relative X/Y continue to follow the green-square center.
@@ -806,19 +823,39 @@ function updateLiveTargets(){
   const sorted=[...samples].sort((a,b)=>a-b);
   const measuredDistance=sorted[Math.floor(sorted.length/2)];
   let depthDistance=measuredDistance;
+  const binding=depthBinding();
   if(trackingMode.value==='mono'){
-   let source=monoDepthSources.get(name);if(!source){source=new MonocularDepthSource();monoDepthSources.set(name,source);}
-   const stable=source.observe(poseDepthValid?bodyPose.translation.z:null,sizeDistance,pose.id,now,stationary);
-   depthDistance=stable.distance;depthSource=stable.source;
+   const options=candidates.flatMap(c=>{
+    const measured=tiltCorrectedSize(c.marker,overlay.width,overlay.height,focalPx);if(!measured)return [];
+    const body=bodyPoseFromMarker(c.pose,ids.indexOf(c.pose.id),trackerType);
+    const offset=c.pose.position.z-body.translation.z;
+    const proxy=trackerGeometry(trackerType).markerSizeMm/measured.normalizedSide-offset/(focalPx/overlay.width);
+    return Number.isFinite(proxy)&&proxy>0?[{...measured,proxy,id:c.marker.id}]:[];
+   }).sort((a,b)=>b.cosine-a.cosine);
+   const best=options[0],old=options.find(c=>c.id===sizeDepthFaces.get(name));
+   const selected=old&&best&&old.cosine>=best.cosine-.12?old:best;
+   depthInputValid=!!selected;
+   if(selected){
+    sizeDepthFaces.set(name,selected.id);
+    const frames=sizeDepthFrames.get(name)??[];
+    const proxy=stationary&&frames.at(-1)?.binding===binding?frames.at(-1)!.proxy:selected.proxy;
+    if(frames.at(-1)?.at!==now){frames.push({proxy,normalizedSide:selected.normalizedSide,binding,instrument:name,at:now,distanceMm:proxy*focalPx/overlay.width});}
+    while(frames.length>8||frames.length&&now-frames[0].at>500)frames.shift();sizeDepthFrames.set(name,frames);
+    const median=[...frames].sort((a,b)=>a.proxy-b.proxy)[Math.floor(frames.length/2)];
+    depthDistance=median.distanceMm;
+    depthSource='tilt-corrected marker size';
+   }else{depthDistance=depthSamples.get(name)??measuredDistance;depthSource='depth held · marker too tilted or small';}
   }
   depthSamples.set(name,depthDistance);
-  const near=depthNearMm??100;
-  const range=depthFarMm!==null&&depthNearMm!==null?depthFarMm-depthNearMm:Math.max(50,Number(workingDepthInput.value)||400);
+  const matches=sizeDepthCalibration.near?.binding===binding;
+  const near=matches?(depthNearMm??100):100;
+  const range=matches&&depthFarMm!==null&&depthNearMm!==null?depthFarMm-depthNearMm:Math.max(50,Number(workingDepthInput.value)||400);
 
   const previousZ=depthStates.get(name);
   const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
   const baseline=name==='needleDriver'?-.65:name==='forceps'?.15:1.05;
-  const desiredZ=mapMonocularDepth(depthDistance,near,range,Number(depthSensitivity.value));
+  const fraction=sizeDepthCalibration.fraction(depthDistance/(focalPx/overlay.width),binding);
+  const desiredZ=fraction===null?mapMonocularDepth(depthDistance,near,range,Number(depthSensitivity.value)):(-2.3+fraction*4.6)*Number(depthSensitivity.value);
   let filter=monoDepthFilters.get(name);if(!filter){filter=new MonocularDepthFilter();monoDepthFilters.set(name,filter);}
   let z:number;
   if(trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth))z=filter.update(desiredZ,now,lockedDepth,baseline,depthInputValid);
@@ -1151,50 +1188,7 @@ function scanForcepsBalls(now:number){
   const source=previous??single?.ball??anchor;
   const center=from&&marker?predictBall(source,from,marker):source;
   const radius=previous?100:single?110:marker?125:105;
-  const minX=Math.max(0,Math.floor(center.x-radius)),maxX=Math.min(w-1,Math.ceil(center.x+radius));
-  const minY=Math.max(0,Math.floor(center.y-radius)),maxY=Math.min(h-1,Math.ceil(center.y+radius));
-  // Binary color mask and eight-connected components, evaluated at full
-  // 640px width so a 7mm ball spans enough pixels for shape localization.
-  const bw=maxX-minX+1,bh=maxY-minY+1;
-  const mask=new Uint8Array(bw*bh);
-  const selectedSaturation=Math.max(...color)-Math.min(...color);
-  const continuationRadius=previous?Math.max(10,Math.sqrt(previous.count/Math.PI)*3):0;
-  for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){
-   const p=(y*w+x)*4,r=pixels[p],g=pixels[p+1],bl=pixels[p+2],sum=r+g+bl;
-   const saturation=(Math.max(r,g,bl)-Math.min(r,g,bl))/Math.max(1,sum);
-   if(sum<Math.max(40,ballSampleBrightness[c]*.25)||saturation<Math.max(.03,selectedSaturation*.35))continue;
-   const tolerance=previous&&Math.hypot(x-center.x,y-center.y)<=continuationRadius ? .105 : .075;
-   if(Math.hypot(r/sum-color[0],g/sum-color[1],bl/sum-color[2])<tolerance)mask[(y-minY)*bw+x-minX]=1;
-  }
-  const queue=new Int32Array(mask.length);
-  for(let index=0;index<mask.length;index++){
-   if(mask[index]!==1)continue;
-   let head=0,tail=1;queue[0]=index;mask[index]=2;
-   let sx=0,sy=0,count=0,minCx=bw,maxCx=0,minCy=bh,maxCy=0;
-   while(head<tail){
-    const v=queue[head++],px=v%bw,py=Math.floor(v/bw);
-    sx+=px;sy+=py;count++;
-    minCx=Math.min(minCx,px);maxCx=Math.max(maxCx,px);
-    minCy=Math.min(minCy,py);maxCy=Math.max(maxCy,py);
-    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-     if(!dx&&!dy)continue;
-     const nx=px+dx,ny=py+dy;
-     if(nx<0||nx>=bw||ny<0||ny>=bh)continue;
-     const ni=ny*bw+nx;
-     if(mask[ni]===1){mask[ni]=2;queue[tail++]=ni;}
-    }
-   }
-   if(count<8||count>900)continue;
-   const cw=maxCx-minCx+1,ch=maxCy-minCy+1,aspect=Math.max(cw,ch)/Math.max(1,Math.min(cw,ch));
-   const fill=count/(cw*ch);
-   if(aspect>1.9||fill<.32)continue;
-   const x=minX+sx/count,y=minY+sy/count;
-   const distance=Math.hypot(x-center.x,y-center.y);
-   if(distance>radius)continue;
-   const score=Math.log1p(count)*3-distance*.16-Math.abs(1-aspect)*3;
-   candidates[c].push({x,y,count,score});
-  }
-  candidates[c].sort((a,b)=>b.score-a.score);candidates[c]=candidates[c].slice(0,8);
+  candidates[c]=findColorBalls(pixels,w,h,color,ballSampleBrightness[c],center,radius,previous?Math.max(10,Math.sqrt(previous.count/Math.PI)*3):0);
   const provisionalCandidate=candidates[c][0];
   if(provisionalCandidate)ballProvisional[c]={ball:provisionalCandidate,seenAt:now,marker};
  }
@@ -1211,6 +1205,25 @@ function scanForcepsBalls(now:number){
   const expectedB=prior&&now-prior.seenAt<1500?prior.b:ballProvisional[b]?.ball??ballAnchors[b];
   let found:{a:BallBlob;b:BallBlob}|null=null;
   if(marker&&reference)found=selectBallPair(candidates[a],candidates[b],marker,{...cal.limits,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]});
+  if(!found&&marker&&reference&&expectedA&&expectedB){
+   const predicted=(side:number)=>{
+    if(prior&&now-prior.seenAt<1500)return predictBall(side===0?prior.a:prior.b,prior.marker,marker);
+    const anchor=ballAnchors[a+side],from=ballAnchorMarkers[a+side];
+    return anchor&&from?predictBall(anchor,from,marker):side===0?expectedA:expectedB;
+   };
+   const predictedA=predicted(0),predictedB=predicted(1);
+   for(const side of [0,1]){
+    const knownIndex=a+side,missingIndex=a+1-side,known=candidates[knownIndex][0];
+    const color=ballColors[missingIndex];if(!known||!color)continue;
+    const expectedKnown=side===0?predictedA:predictedB,expectedMissing=side===0?predictedB:predictedA;
+    if(Math.hypot(known.x-expectedKnown.x,known.y-expectedKnown.y)>100)continue;
+    const center=partnerSearchCenter(known,expectedKnown,expectedMissing);
+    const radius=Math.min(64,Math.max(18,marker.side,Math.hypot(predictedA.x-predictedB.x,predictedA.y-predictedB.y)*.6));
+    const recovered=findColorBalls(pixels,w,h,color,ballSampleBrightness[missingIndex],center,radius,radius,.12);
+    for(const candidate of recovered)if(!candidates[missingIndex].some(c=>Math.hypot(c.x-candidate.x,c.y-candidate.y)<2))candidates[missingIndex].push(candidate);
+   }
+   found=selectBallPair(candidates[a],candidates[b],marker,{...cal.limits,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]});
+  }
   if(!found&&expectedA&&expectedB){
    let best=-Infinity;
    for(const aa of candidates[a])for(const bb of candidates[b]){
@@ -1603,4 +1616,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.71',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.72',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));

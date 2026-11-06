@@ -30,9 +30,10 @@ try{
  await page.waitForFunction(()=>Number(document.querySelector('#ball-readout').textContent.match(/normalized separation ([0-9.]+)/)?.[1])>2.5,{},{timeout:20000});
  await page.waitForTimeout(600);await page.locator('#ball-open').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near open recorded'));
  await page.waitForFunction(()=>window.__jawEvents.length>0,{},{timeout:10000});
- if(process.env.SUTURE_JAW_FLICKER){
+ if(process.env.SUTURE_JAW_FLICKER||process.env.SUTURE_JAW_PARTNER){
+  await page.evaluate(partner=>window.__partnerCheck=partner,!!process.env.SUTURE_JAW_PARTNER);
   for(let i=0;i<4;i++){
-   await page.evaluate(shift=>{window.__ballScene.colorA=shift?'rgb(225,75,70)':undefined;window.__ballScene.colorB=shift?'rgb(60,110,235)':undefined;},i%2===0);
+   await page.evaluate(shift=>{window.__ballScene.colorA=shift&&!window.__partnerCheck?'rgb(225,75,70)':undefined;window.__ballScene.colorB=shift?(window.__partnerCheck?'rgb(70,110,235)':'rgb(60,110,235)'):undefined;},i%2===0);
    await page.waitForTimeout(400);assert.match(await page.locator('#ball-readout').textContent(),/paired with instrument/,'Visible balls must keep pairing through small color shifts');
   }
   await page.evaluate(()=>window.__ballScene.hideA=true);

@@ -28,6 +28,17 @@ try{
   const preview=c.preview('needleDriver');
   return {diagnostics:document.querySelector('#tracking-filter-diagnostics').textContent,position:preview?.position.toArray(),movement:preview?.movement.toArray(),locked:preview?.depthLocked,scene:window.__depthTools[1].root.position.toArray()};
  });
+ if(process.env.SUTURE_SIZE_CALIBRATE){
+  await page.getByRole('button',{name:'Tracking setup',exact:true}).click();
+  await page.locator('#set-depth-near').evaluate(e=>e.closest('details').open=true);
+  await page.evaluate(()=>window.__ballScene.scale=1.15);await page.waitForTimeout(900);
+  await page.locator('#set-depth-near').click();assert.match(await page.locator('#depth-range-status').textContent(),/Near size captured/);
+  await page.evaluate(()=>window.__ballScene.scale=.72);await page.waitForTimeout(900);
+  await page.locator('#set-depth-far').click();assert.match(await page.locator('#depth-range-status').textContent(),/sizes calibrated/);
+  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('suturehero.depthCalibration.v2')));
+  assert(saved.size.near.normalizedSide>saved.size.far.normalizedSide);assert(saved.size.far.proxy>saved.size.near.proxy);
+  await page.keyboard.press('Escape');await page.evaluate(()=>window.__ballScene.scale=1);await page.waitForTimeout(900);
+ }
  const locked=await sample();if(process.env.SUTURE_SIZE_DEPTH)assert.match(locked.diagnostics,/depth from marker size/);
  // Exercise the instrument calibration control rather than the global lock.
  await page.locator('[data-profile-check=depthLock]').uncheck();

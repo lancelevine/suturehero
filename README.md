@@ -2,6 +2,27 @@
 
 A browser-based surgical sandbox built with TypeScript and Three.js, with guided suturing and free instrument tying. It is not a clinical training tool.
 
+## Tilt-corrected size depth and guided jaw recovery in 0.72
+
+Single-camera depth uses the square's principal image scale to compensate for
+moderate tilt, including an off-center viewing-ray correction. It prefers a more
+face-on visible marker; edge-on, distorted or tiny markers hold the last depth.
+Near/Far captures store inverse corrected size from several recent observations
+of the selected instrument. Saved references are bound to the camera, tracker
+geometry and image aspect ratio. **Re-capture Near and Far after this update**;
+the old distance-based calibration is not reused. This remains an approximate
+single-camera measurement, with lens distortion and very small markers limiting
+accuracy. Stereo tracking and X/Y estimation are unchanged.
+
+When a jaw pair cannot be matched, a visible colored ball and its marker-relative
+pair geometry now guide a smaller recovery search for the harder ball. Slightly
+more color tolerance applies only there; recovered candidates must still pass
+pair size, separation and instrument-association checks.
+
+`SUTURE_SIZE_CALIBRATE=1 node scripts/check-driver-depth.mjs` checks real Near/Far
+capture and depth movement. `SUTURE_JAW_PARTNER=1 node scripts/check-ball-pairs.mjs`
+checks recovery of a weak partner color, genuine loss and reacquisition.
+
 ## Jaw detection continuity in 0.71
 
 Validated colored-ball pairs bridge detection gaps shorter than 250 ms while
