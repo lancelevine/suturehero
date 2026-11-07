@@ -1064,7 +1064,9 @@ function recentBallMarker(pair:number,now:number,camera=0){
 }
 const ballInstrument=document.querySelector<HTMLSelectElement>('#ball-instrument')!;
 const ballNames=BALL_INSTRUMENTS;
-let needleBallMode='color';try{needleBallMode=localStorage.getItem('suturehero.needleJawPattern.v1')||'color';}catch{/* session default */}\nif(!['color','striped10','white10'].includes(needleBallMode))needleBallMode='color';\nlet stripedNeedle=needleBallMode!=='color';
+let needleBallMode='color';try{needleBallMode=localStorage.getItem('suturehero.needleJawPattern.v1')||'color';}catch{/* session default */}
+if(!['color','striped10','white10'].includes(needleBallMode))needleBallMode='color';
+let stripedNeedle=needleBallMode!=='color';
 const needlePair=ballNames.indexOf('needleDriver');
 const isStripedSlot=(i:number)=>stripedNeedle&&Math.floor(i/2)===needlePair;
 const stripedMotion=[new Map<number,BallMotionTracker>(),new Map<number,BallMotionTracker>()];
