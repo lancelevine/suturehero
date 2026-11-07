@@ -1,3 +1,4 @@
+import {RingPoseTracker} from './input/RingPoseTracker';
 import {StereoFrames} from './input/StereoFrames';
 import {StereoFallback,type MonoView} from './input/StereoFallback';
 import {JawViewFusion} from './input/JawViewFusion';
@@ -226,11 +227,11 @@ const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='r
 function updateTrackerDescription(){
  const geometry=trackerGeometry(trackerType),groups=markerGroups(),spacing=THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0);
  trackerTypeStatus.textContent=`${geometry.faceCount}-face ${trackerType==='prism'?'prism':'ring'} · ${spacing}° side spacing for all instruments · `+(['needleDriver','forceps','scissors'] as const).map(n=>`${n==='needleDriver'?'Needle driver':n==='forceps'?'Forceps':'Scissors'} IDs ${groups[n][0]}–${groups[n].at(-1)}`).join(' · ');
- document.querySelector('#tracker-geometry-description')!.textContent=`DICT_4X4_50 · ${geometry.markerSizeMm} mm marker squares. All instruments use the selected ${geometry.faceCount}-face geometry with ${spacing}° side spacing${trackerType==='ring8'?' plus two inclined end faces':''}. Face ID order and printed corner orientation must match the physical tracker. Camera depth and angles remain approximate until camera calibration.`;
+ document.querySelector('#tracker-geometry-description')!.textContent=`DICT_4X4_50 · ${geometry.markerSizeMm} mm marker squares. All instruments use the selected ${geometry.faceCount}-face geometry with ${spacing}° side spacing${trackerType==='ring8'?' plus two inclined end faces; briefly show each angled marker together with a side marker to align its single-camera rotation':''}. Face ID order and printed corner orientation must match the physical tracker. Camera depth and angles remain approximate until camera calibration.`;
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -250,6 +251,7 @@ const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quatern
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 
 type StereoRotation={quaternion:THREE.Quaternion;translation:THREE.Vector3;errorMm:number;faces:number;corners:number};
+const ringPoseTrackers=new Map<InstrumentName,RingPoseTracker>();
 const stereoFrames=new StereoFrames();
 const stereoFallbacks=new Map<InstrumentName,StereoFallback>();
 const stereoFallbackStatus=new Map<InstrumentName,string>();
@@ -910,7 +912,15 @@ function updateLiveTargets(){
   // -> scene Y, and camera depth -> scene Z. Do not swap horizontal and depth:
   // doing so makes a left/right physical movement appear forward/back.
   const position=new THREE.Vector3(x,y,z);
-  if(stationary&&previous&&now-previous.lastSeen<700){
+  if(stationary&&previous&&now-previous.lastSeen<700&&rigidBodyStates.has(name)){
+   // Holding still is exactly when overlap alignment should accumulate.
+   // The rest latch must not skip those calibration observations.
+   let alignedStatus='';
+   if(trackerType==='ring8'&&trackingMode.value==='mono'){
+    let tracker=ringPoseTrackers.get(name);if(!tracker){tracker=new RingPoseTracker();ringPoseTrackers.set(name,tracker);}
+    tracker.solve(liveMarkers().filter(m=>ids.includes(m.id)&&performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<350),ids[0],overlay.width,overlay.height,now,rigidBodyStates.get(name)?.pose);
+    alignedStatus=' · '+tracker.status;
+   }
    // Recognition and overlap indicators keep updating; an unchanged shared
    // face is evidence that a different face count is not physical movement.
    const state=rigidBodyStates.get(name);if(state){state.lastAt=now;state.angularVelocity.set(0,0,0);state.stallSince=null;}
@@ -919,7 +929,7 @@ function updateLiveTargets(){
    position.x=previous.position.x;position.y=previous.position.y;
    liveTargets.set(name,{...previous,position,lastSeen:now,id:chosen.pose.id,pose:chosen.pose});
    rotationStageStatus.set(name,'stationary image geometry · pose held');
-   document.querySelector('#rotation-solver-status')!.textContent=name+' · stationary image geometry · pose held';
+   document.querySelector('#rotation-solver-status')!.textContent=name+' · stationary image geometry · pose held'+alignedStatus;
    continue;
   }
 
@@ -931,7 +941,9 @@ function updateLiveTargets(){
    performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<(continuousFlowRotation?650:350));
   let state=rigidBodyStates.get(name);
   const faceTransitionEnabled=document.querySelector<HTMLInputElement>('#face-transition')!.checked&&trackingMode.value==='mono';
-  const currentFace=rotationMarkers.length?rotationMarkers.reduce((a,b)=>{
+  const sideRotationMarkers=rotationMarkers.filter(m=>m.id<ids[0]+6);
+  const selectedRotationMarkers=trackerType==='ring8'&&sideRotationMarkers.length?sideRotationMarkers:rotationMarkers;
+  const currentFace=selectedRotationMarkers.length?selectedRotationMarkers.reduce((a,b)=>{
    const area=(m:MarkerObservation)=>Math.abs(m.corners.reduce((sum,p,i)=>{const next=m.corners[(i+1)%4];return sum+p.x*next.y-next.x*p.y;},0));
    return area(a)>=area(b)?a:b;
   }).id:null;
@@ -947,7 +959,12 @@ function updateLiveTargets(){
    if(angle>1e-5)q.multiply(new THREE.Quaternion().setFromAxisAngle(step.normalize(),Math.min(angle,.45)));
    predicted={...state.pose,quaternion:q};
   }
-  const monoRigid=perf.measure('Rigid pose solve',()=>solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted,trackerType));
+  let ringTracker=ringPoseTrackers.get(name);
+  if(trackerType==='ring8'&&!ringTracker){ringTracker=new RingPoseTracker();ringPoseTrackers.set(name,ringTracker);}
+  const useAlignedRing=trackerType==='ring8'&&trackingMode.value==='mono';
+  const monoRigid=perf.measure('Rigid pose solve',()=>useAlignedRing
+   ?ringTracker!.solve(rotationMarkers,ids[0],overlay.width,overlay.height,now,state?.pose,predicted)
+   :solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted,trackerType));
   const stereoRigid=perf.measure('Stereo pose/synchronization',()=>stereoPrismRotation(name,performance.now()));
   // Stereo pose has a distinct camera-calibrated frame. Preserve the mono
   // solver's orientation state separately so switching modes cannot cause
@@ -965,7 +982,10 @@ function updateLiveTargets(){
   }
   if(rigid)rotationSources.set(name,rotationSource);
   if(rigid){rotationStageRaw.set(name,rigid.quaternion.clone());rotationStageStatus.set(name,'solver valid');}
-  else rotationStageStatus.set(name,'no raw pose');
+  else{
+   const message=useAlignedRing?ringTracker!.status:'no raw pose';rotationStageStatus.set(name,message);
+   if(useAlignedRing)document.querySelector('#rotation-solver-status')!.textContent=name+' · '+message;
+  }
   let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
   if(rigid){
    if(!state){
@@ -1022,7 +1042,7 @@ function updateLiveTargets(){
     const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||fastFaceTransition||flowIncrement||faceTransitionAccepted||reacquire);
     document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=
      name+' · '+rotationSource+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
-     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(faceTransitionAccepted?'face transition accepted':fastFaceTransition?'fast face accepted':flowIncrement?'flow accepted':reacquire?'reacquired':'accepted'):(changedFace?'face transition pending':'angular gate rejected'));
+     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(faceTransitionAccepted?'face transition accepted':fastFaceTransition?'fast face accepted':flowIncrement?'flow accepted':reacquire?'reacquired':'accepted'):(changedFace?'face transition pending':'angular gate rejected'))+(useAlignedRing?' · '+ringTracker!.status:'');
     rotationStageStatus.set(name,credible?'accepted':'rejected ('+rigid.faces+' faces, '+rigid.error.toFixed(1)+' error)');
     if(credible){
      if(transition&&currentFace!==null){transition.faceId=currentFace;transition.candidateId=null;transition.candidateCount=0;}
@@ -1734,4 +1754,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.78',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.79',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
