@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — continuing to split `src/tracking.ts` into modules. Please avoid editing `src/tracking.ts` until cleared.
+- **In progress:** Claude Code — continuing to split `src/tracking.ts` into modules (now the tracking → practice-scene messages, which also touches `src/main.ts`). Please avoid editing `src/tracking.ts` and `src/main.ts` until cleared.
 - **Needs Lance to test by hand:**
   - Solid white needle-driver ball mode (commit `7f44662`): not yet tried
     with a real camera.
