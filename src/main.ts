@@ -1,3 +1,4 @@
+import {mountTrackingStatusBadge} from './ui/TrackingStatusBadge';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {TrackedPositionBridge} from './input/TrackedPositionBridge';
 import {mountWorkspaceLayout} from './ui/WorkspaceLayout';
@@ -36,7 +37,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.76 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.77 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -180,6 +181,8 @@ try {
   let trackingModuleLoaded=false;
   const cameraStatus=document.querySelector<HTMLElement>('#camera-tracking-status')!;
   const cameraPerformance=document.querySelector<HTMLElement>('#camera-performance')!;
+  const trackingBadge=mountTrackingStatusBadge(document.querySelector<HTMLElement>('#viewport')!);
+  let lastTrackingStatusAt=performance.now();
   let trackingLoopFps=0,simulatorFrames=0,simulatorFps=0,lastSimulatorFps=performance.now();
   let cameraEnabled=false;
   const setCameraMode=async(enabled:boolean)=>{
@@ -195,7 +198,7 @@ try {
      await import('./stereoAutoCapture');
     }catch(error){cameraStatus.textContent='Tracking initialization failed';console.error(error);}
    }
-   if(!enabled){document.querySelector<HTMLButtonElement>('#stop-camera')?.click();document.querySelector<HTMLButtonElement>('#stop-camera-2')?.click();}
+   if(!enabled){trackingBadge.off();document.querySelector<HTMLButtonElement>('#stop-camera')?.click();document.querySelector<HTMLButtonElement>('#stop-camera-2')?.click();}
    cameraStatus.textContent=enabled?'Start a camera below':'Camera tracking off';
   };
   cameraToggle.addEventListener('click',()=>{if(cameraEnabled){const show=cameraPanel.hidden;cameraPanel.hidden=!show;cameraPanel.style.display=show?'flex':'none';cameraToggle.setAttribute('aria-expanded',String(show));if(show)workspaceLayout.openSetup();else document.body.classList.remove('camera-setup-active');}else void setCameraMode(true);});
@@ -205,6 +208,7 @@ try {
   instrumentCalibration.subscribe((name,reason)=>{if(reason==='reset'){cameraOrigins.delete(name);cameraPoses.delete(name);}if(reason==='neutral'){let bridge=cameraOrigins.get(name);if(!bridge){bridge=new TrackedPositionBridge();cameraOrigins.set(name,bridge);}bridge.alignOnNeutral();}});
   const onTrackingData=(data:any)=>{
    if(!cameraEnabled)return;
+   if(data?.type==='suturehero:tracking-status'){if(trackingBadge.update(data))lastTrackingStatusAt=performance.now();return;}
    if(data?.type==='suturehero:tracking-fps'&&typeof data.fps==='number'){
     trackingLoopFps=data.fps;return;
    }
@@ -219,6 +223,8 @@ try {
   };
   window.addEventListener('suturehero:tracking-pose',(event)=>onTrackingData((event as CustomEvent).detail));
   window.addEventListener('suturehero:tracking-fps',(event)=>onTrackingData((event as CustomEvent).detail));
+  window.addEventListener('suturehero:tracking-status',(event)=>onTrackingData((event as CustomEvent).detail));
+  window.setInterval(()=>{if(cameraEnabled&&performance.now()-lastTrackingStatusAt>2000)trackingBadge.waiting();},500);
   const jawTracking=new Map<CameraInstrument,{opening:number;seenAt:number}>();
   const onJawTracking=(data:any)=>{
    if(!cameraEnabled||data?.type!=='suturehero:jaw-opening'||!['forceps','needleDriver','scissors'].includes(data.instrument)||!Number.isFinite(data.opening))return;

@@ -320,6 +320,7 @@ function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
 const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
 const stereoViewDot=document.querySelector<HTMLElement>('#stereo-view-dot')!;
 const stereoViewLabel=document.querySelector<HTMLElement>('#stereo-view-label')!;
+let lastTrackingStatus='',lastTrackingStatusAt=0;
 function updateStereoViewIndicator(now:number){
  const configured=stereoActive();
  const fallback=[...stereoFallbackStatus].filter(([,source])=>source==='camera1'||source==='camera2');
@@ -330,6 +331,15 @@ function updateStereoViewIndicator(now:number){
  stereoViewLabel.textContent=mismatch?'Stereo triangulation: calibration mismatch · '+mismatch:
   configured&&fallback.length?'Stereo fallback: '+fallback.map(([name,source])=>name+' · '+(source==='camera1'?'Camera 1':'Camera 2')+' · approximate depth').join(', '):
   active?'Stereo triangulation: ACTIVE · '+fresh.join(', '):configured?'Stereo triangulation: waiting for valid markers':'Stereo triangulation: off';
+ const state=mismatch?'mismatch':configured?(fallback.length?'fallback':active?'active':'waiting'):stream&&!simulation.checked?'mono':'off';
+ const detail={type:'suturehero:tracking-status',state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
+ const key=JSON.stringify(detail);
+ if(embeddedTracking&&(key!==lastTrackingStatus||now-lastTrackingStatusAt>500)){
+  lastTrackingStatus=key;lastTrackingStatusAt=now;
+  if(root.dataset.embedded==='true')window.dispatchEvent(new CustomEvent('suturehero:tracking-status',{detail}));
+  else window.parent.postMessage(detail,location.origin);
+ }
+
 }
 
 stereoEnabled.addEventListener('change',resetTrackerPose);
@@ -1724,4 +1734,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.76',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.77',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));

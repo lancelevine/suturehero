@@ -987,3 +987,7 @@ After acquiring stereo, losing either camera's tracker view automatically contin
 ### Build 0.76 — pair stereo images by capture time
 
 Stereo now buffers camera observations using their source-image capture times. When cameras finish processing at different times, matching corners are interpolated to the same observed instant; the code does not extrapolate motion or interpolate missing marker IDs. Old decoder results cannot replace newer flow frames. This avoids treating worker callback times as synchronized image times, which can reject valid moving geometry. The fallback controller uses the same 180 ms freshness limit as the geometry path and advances fresh monocular lateral movement/rotation between stereo measurements instead of repeatedly publishing a frozen stereo position. Regression coverage includes continuous vertical motion with an extra 35 ms secondary processing delay, ordinary depth changes, and either-camera dropout/recovery.
+
+### Build 0.77 — stereo status on the practice screen
+
+A persistent badge on the simulation view shows **Stereo triangulation ACTIVE**, the active fallback camera, waiting for trackers, calibration mismatch, single-camera tracking, or camera tracking off. It remains visible when camera controls are hidden. The badge follows live tracking status rather than the metric-enable checkbox, and expires to an unavailable status if tracking heartbeats stop. Browser verification covers active stereo, fallback through each camera, and visibility with controls hidden.
