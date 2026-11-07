@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — extracting saved settings and stereo calibration storage from `src/tracking.ts`. Please avoid editing `src/tracking.ts` until cleared.
 - **Needs Lance to test by hand:**
   - Solid white needle-driver ball mode (commit `7f44662`): not yet tried
     with a real camera.
