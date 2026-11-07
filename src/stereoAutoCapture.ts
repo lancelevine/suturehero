@@ -82,7 +82,7 @@ async function tick(){
  if(configuration&&config()!==configuration){clearOverlays();quality.textContent='Camera order or resolution changed. Accepted pairs retain their original camera identities; clear before collecting a new set.';if(active)stop('Camera order or resolution changed. Clear captures before starting a new set.');return;}
  const token=epoch;processing=true;
  try{
-  quality.textContent=workerReady?'Checking both views…':'Loading checkerboard quality worker…';await initialize();if(token!==epoch)return;
+  if(!workerReady)quality.textContent='Loading checkerboard quality worker…';await initialize();if(token!==epoch)return;
   const sources=videos.map(v=>v.srcObject),clocks=videos.map(v=>frameClock(v));
   const frameDeltaMs=clocks.every(Boolean)?Math.abs(clocks[0]!.presentedAt-clocks[1]!.presentedAt):null;
   const attemptConfig=config(),at=performance.now(),images=[snapshot(0),snapshot(1)];
@@ -90,7 +90,7 @@ async function tick(){
   if(token!==epoch||config()!==attemptConfig||!ready()||sources.some((source,i)=>source!==videos[i].srcObject))return;
   const measurements=response.result as BoardMeasurement[];
   const descriptions=measurements.map(describeBoard),individualGood=descriptions.every(d=>!d.reasons.length);
-  if(individualGood&&lastGood&&at-lastGood.at<2000&&measurements.every((m,i)=>boardMotion(lastGood!.measurements[i],m)<Math.max(1.2,(descriptions[i].quality?.cellPx??8)*.06))){stableSince??=lastGood.at;}
+  if(individualGood&&lastGood&&at-lastGood.at<2000&&measurements.every((m,i)=>boardMotion(lastGood!.measurements[i],m)<Math.max(2.5,(descriptions[i].quality?.cellPx??8)*.08))){stableSince??=lastGood.at;}
   else stableSince=at;
   lastGood=individualGood?{measurements,at}:undefined;
   const decision=pairCaptureDecision(measurements[0],measurements[1],poses,individualGood?at-(stableSince??at):0,frameDeltaMs);
