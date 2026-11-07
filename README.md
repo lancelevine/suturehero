@@ -671,7 +671,7 @@ Build 0.26.1 also damps relative motion in the guided needle thread at each phys
 
 ## Development
 
-Use Node.js 22.12+ (validated with Node 24).
+Use Node.js 24 (`.nvmrc`). One physics regression test fails on Node 22 because of floating-point differences.
 
 ```sh
 npm ci
