@@ -15,11 +15,11 @@ try{
  const pick=async(side,x)=>{await page.locator(side?'#ball-pick-b':'#ball-pick-a').click();const overlay=page.locator('#camera-overlay');await overlay.scrollIntoViewIfNeeded();const box=await overlay.boundingBox();await page.mouse.click(box.x+x/960*box.width,box.y+340/540*box.height);};
  await page.evaluate(()=>window.__ballScene.striped=false);await pick(0,400);
  await page.waitForFunction(()=>{
-  const canvas=document.querySelector('#camera-overlay'),data=canvas.getContext('2d').getImageData(380,320,42,42).data;
-  let amber=0;for(let i=0;i<data.length;i+=4)if(data[i]>220&&data[i+1]>150&&data[i+1]<220&&data[i+2]<120&&data[i+3]>128)amber++;
-  return amber>10;
+  const canvas=document.querySelector('#jaw-overlay'),data=canvas.getContext('2d').getImageData(380,320,42,42).data;
+  let predicted=0;for(let i=0;i<data.length;i+=4)if(data[i]>140&&data[i]<210&&data[i+1]>140&&data[i+1]<210&&data[i+2]>140&&data[i+2]<220&&data[i+3]>128)predicted++;
+  return predicted>10;
  });
- console.log('Passed: an assigned but unrecognized ball has an amber camera indicator.');
+ console.log('Passed: an assigned but unrecognized ball has a gray predicted/searching camera indicator.');
  await page.evaluate(()=>window.__ballScene.striped=true);await pick(1,430);
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
  await page.locator('#ball-closed').click();await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near closed recorded'));
@@ -27,7 +27,7 @@ try{
  await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening>.8);
  await page.evaluate(()=>window.__ballScene.open=false);await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening<.1);
  await page.evaluate(()=>{window.__ballScene.bandAngle=.6;window.__ballScene.open=true;});await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening>.8);
- console.log(await page.evaluate(async()=>{const {trackingPerformance:p}=await import('/src/diagnostics/TrackingPerformance.ts');return p.snapshot().rows.find(r=>r.name==='Striped jaw pattern search');}));
+ console.log(await page.evaluate(async()=>{const {trackingPerformance:p}=await import('/src/diagnostics/TrackingPerformance.ts');return p.snapshot().rows.find(r=>r.name==='Striped jaw search');}));
  await page.evaluate(()=>window.__ballScene.hideA=true);await page.waitForTimeout(900);const count=await page.evaluate(()=>window.__jawEvents.length);await page.waitForTimeout(400);assert.equal(await page.evaluate(()=>window.__jawEvents.length),count,'One striped ball must never be paired with itself');
  await page.evaluate(()=>window.__ballScene.hideA=false);await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'));
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('suturehero.jaw-tracking.v1.striped10')));assert(saved.tools.needleDriver.calibration.near.closed&&saved.tools.needleDriver.calibration.near.open);

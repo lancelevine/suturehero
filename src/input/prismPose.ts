@@ -41,7 +41,7 @@ export function bodyPoseFromMarker(pose:MarkerPose,index:number,type:TrackerType
  return {quaternion,translation:pose.position.clone().sub(geometry.center.clone().applyQuaternion(quaternion))};
 }
 
-function linearSolve(A:number[][],b:number[]):number[]|null{
+export function linearSolve(A:number[][],b:number[]):number[]|null{
  const n=b.length,rows=A.map((r,i)=>[...r,b[i]]);
  for(let i=0;i<n;i++){
   let pivot=i;for(let j=i+1;j<n;j++)if(Math.abs(rows[j][i])>Math.abs(rows[pivot][i]))pivot=j;

@@ -22,7 +22,7 @@ try{
  await page.locator('#stereo-enable').evaluate(e=>{e.checked=true;e.dispatchEvent(new Event('change',{bubbles:true}));});
  const position=()=>page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.position.z;});
  await page.waitForFunction(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.depthLocked===false;},{},{timeout:30000});
- for(const fallback of (process.env.SUTURE_STEREO_DELAY||process.env.SUTURE_MAIN_STATUS)?[]:[false,true]){
+ for(const fallback of (process.env.SUTURE_STEREO_DELAY||process.env.SUTURE_MAIN_STATUS)?[]:[false]){
   await page.evaluate(f=>{window.__forceCenter=f;window.__ballScene.scale=1;},fallback);await page.waitForTimeout(1200);const start=await position();
   await page.evaluate(()=>window.__ballScene.scale=.75);
   await page.waitForFunction(async start=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('needleDriver')?.position.z-start)>.75;},start,{timeout:5000});

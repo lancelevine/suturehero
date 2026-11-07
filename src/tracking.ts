@@ -1,3 +1,6 @@
+import {BallMotionTracker,validJawBall} from './input/BallMotionTracker';
+import {findSphereSilhouette} from './input/sphereSilhouette';
+import {solveStereoRigPose,type StereoRigPose} from './input/stereoRigPose';
 import {jawCameraParticipates} from './input/jawCameraMode';
 import {findStripedBalls,type StripedBallDiagnostics} from './input/stripedBallSearch';
 import {RingPoseTracker} from './input/RingPoseTracker';
@@ -5,7 +8,7 @@ import {StereoFrames} from './input/StereoFrames';
 import {StereoFallback,type MonoView} from './input/StereoFallback';
 import {JawViewFusion} from './input/JawViewFusion';
 import {stereoBoard} from './input/stereoBoard';
-import {fitStereoMarkerPose,stereoPracticePosition,stereoBodyFromCenter} from './input/stereoTrackingPose';
+import {stereoPracticePosition} from './input/stereoTrackingPose';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
 import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
@@ -26,12 +29,12 @@ import './ui/workspace.css';
 import {trackedInstrumentRotation} from './input/trackingFrame';
 import {selectBallPair,ballPairReference,predictBall,sampledBallColor,normalizedBallSeparation,type BallBlob,type BallMarker,type BallPairReference} from './input/ballPairTracking';
 import * as THREE from 'three';
-import {parseCalibration,triangulate,calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
+import {parseCalibration,calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
-import {solvePrismPose,localCorners,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
+import {solvePrismPose,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import {BALL_INSTRUMENTS,ballTrackingSlot,type BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
@@ -45,7 +48,7 @@ root.innerHTML=`<header><a class="brand" href="./"><img class="brand-logo" src="
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental three-instrument ball jaw tracking</summary><p>Select an instrument and a color sampling view. With that camera running, assign balls A and B by clicking them in its image. Repeat color sampling for the other camera if used. At Near, capture closed and open while holding still; repeat at Far at the same typical angle. Each capture averages about one second of frames. Colored mode requires distinct colors. For the needle-driver trial, choose white balls with three black bands (10 mm), assign both centers, and keep the bands visible from the side.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><label>Ball assignment view <select id="ball-camera"><option value="0">Camera 1</option><option value="1">Camera 2</option></select></label><span class="tracking-message">1-camera mode uses Camera 1 only; 2-camera mode captures configured views together.</span><label>Needle driver balls <select id="needle-ball-pattern"><option value="color">Colored balls</option><option value="striped10">White + 3 black bands · 10 mm (trial)</option></select></label><label>Instrument <select id="ball-instrument"><option value="forceps">Forceps</option><option value="needleDriver">Needle driver</option><option value="scissors">Scissors</option></select></label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><label>Capture distance <select id="ball-calibration-distance"><option value="near">Near working distance</option><option value="far">Far working distance</option></select></label><button id="ball-closed">Capture closed · Near</button><button id="ball-open">Capture open · Near</button><button id="ball-calibration-reset" type="button">Reset jaw measurements</button></div><p id="ball-calibration-status" class="tracking-message" role="status"></p><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
+<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental three-instrument ball jaw tracking</summary><p>Select an instrument and a color sampling view. With that camera running, assign balls A and B by clicking them in its image. Repeat color sampling for the other camera if used. At Near, capture closed and open while holding still; repeat at Far at the same typical angle. Each capture averages about one second of frames. Colored mode requires distinct colors. For the needle-driver trial, choose white balls with three black bands (10 mm), assign both centers, and show the bands clearly for initial identification. Tracking then uses the circular silhouette.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><label>Ball assignment view <select id="ball-camera"><option value="0">Camera 1</option><option value="1">Camera 2</option></select></label><span class="tracking-message">1-camera mode uses Camera 1 only; 2-camera mode captures configured views together.</span><label>Needle driver balls <select id="needle-ball-pattern"><option value="color">Colored balls</option><option value="striped10">White + 3 black bands · 10 mm (trial)</option></select></label><label>Instrument <select id="ball-instrument"><option value="forceps">Forceps</option><option value="needleDriver">Needle driver</option><option value="scissors">Scissors</option></select></label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><label>Capture distance <select id="ball-calibration-distance"><option value="near">Near working distance</option><option value="far">Far working distance</option></select></label><button id="ball-closed">Capture closed · Near</button><button id="ball-open">Capture open · Near</button><button id="ball-calibration-reset" type="button">Reset jaw measurements</button></div><p id="ball-calibration-status" class="tracking-message" role="status"></p><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
@@ -250,49 +253,24 @@ trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value===
 updateTrackerDescription();
 
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
-const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
+const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;lastSample:number}>();
 
-type StereoRotation={quaternion:THREE.Quaternion;translation:THREE.Vector3;errorMm:number;faces:number;corners:number};
+type StereoRotation=StereoRigPose;
 const ringPoseTrackers=new Map<InstrumentName,RingPoseTracker>();
 const stereoFrames=new StereoFrames();
 const stereoFallbacks=new Map<InstrumentName,StereoFallback>();
 const stereoFallbackStatus=new Map<InstrumentName,string>();
 const stereoMonoCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;views:MonoView[]}>();
 const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;pose:StereoRotation|null}>();
-// Recover rigid-body orientation from corresponding 3D ArUco corners.
-// Camera 1 coordinates are the shared reference frame. The physical mount
-// uses localCorners from the selected tracker geometry, just like the mono solver.
+// Fit all known face corners jointly in the calibrated camera frames.
 function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null{
  if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
  const synchronized=stereoFrames.pair(now);if(!synchronized)return null;
  const key=`${synchronized.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
  if(cached?.key===key&&cached.calibration===stereoCalibration)return cached.pose;
- const save=(pose:StereoRotation|null)=>{stereoPoseCache.set(name,{key,calibration:stereoCalibration!,pose});return pose;};
- const ids:readonly number[]=markerGroups()[name];
- const {first,second}=synchronized;
- const candidates:StereoRotation[]=[];
- for(const id of ids){
-  const a=first.find(m=>m.id===id),b=second.find(m=>m.id===id);
-  if(!a||!b||a.corners.length!==4||b.corners.length!==4)continue;
-  const world:THREE.Vector3[]=[];
-  let valid=true;
-  for(let i=0;i<4;i++){
-   const point=triangulate(stereoCalibration,a.corners[i],b.corners[i],
-    {width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height});
-   if(!point||point.epipolarErrorPx>4||point.rayGapMm>12||point.depthMm<30||point.depthMm>3000){valid=false;break;}
-   world.push(new THREE.Vector3(...point.xyzMm));
-  }
-  if(!valid)continue;
-  const local=localCorners(id-ids[0],trackerType);
-  const fit=fitStereoMarkerPose(local,world);
-  if(fit)candidates.push({...fit,faces:1,corners:4});
- }
- if(!candidates.length)return save(null);
- candidates.sort((a,b)=>a.errorMm-b.errorMm);
- const best=candidates[0],agree=candidates.filter(c=>c.quaternion.angleTo(best.quaternion)<.35&&c.translation.distanceTo(best.translation)<12);
- const result=agree.reduce((q,c,i)=>i?q.slerp(c.quaternion,1/(i+1)):c.quaternion.clone(),new THREE.Quaternion());
- return save({quaternion:result,translation:agree.reduce((p,c)=>p.add(c.translation),new THREE.Vector3()).multiplyScalar(1/agree.length),errorMm:agree.reduce((v,c)=>v+c.errorMm,0)/agree.length,faces:agree.length,corners:agree.length*4});
+ const pose=solveStereoRigPose(stereoCalibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??undefined);
+ stereoPoseCache.set(name,{key,calibration:stereoCalibration,pose});return pose;
 }
 
 function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
@@ -451,7 +429,7 @@ async function refreshSecondCameraList(){
  devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
  select2.value=devices.some(d=>d.deviceId===current)?current:'';
 }
-async function stopSecondCamera(){if(jawCameraParticipates(trackingMode.value,1))cancelJointJaws('Capture cancelled: camera 2 stopped.');stereoPositions.clear();stereoFrames.clear();detector2.dispose();fastTracker2.dispose();
+async function stopSecondCamera(){stripedMotion[1].clear();if(jawCameraParticipates(trackingMode.value,1))cancelJointJaws('Capture cancelled: camera 2 stopped.');stereoPositions.clear();stereoFrames.clear();detector2.dispose();fastTracker2.dispose();
  fastProcessing2=false;processing2=false;lastFastFrame2=0;lastSlowFrame2=0;latestFlowAt2=0;confirmed2.clear();decoded2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
@@ -708,7 +686,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){cancelJointJaws('Capture cancelled: camera 1 stopped.');resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){stripedMotion[0].clear();cancelJointJaws('Capture cancelled: camera 1 stopped.');resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();renderCameraSettings();depthRangeLabel();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;throw e;}
@@ -928,7 +906,7 @@ function updateLiveTargets(){
   const stereoUsable=!!stereoRigid;
   const rigid=stereoUsable?{
    quaternion:stereoRigid.quaternion,translation:monoRigid?.translation??new THREE.Vector3(),
-   error:stereoRigid.errorMm,faces:Math.max(2,stereoRigid.faces)
+   error:stereoRigid.errorPx,faces:Math.max(2,stereoRigid.faces)
   } as PrismPose:monoRigid;
   const rotationSource=stereoUsable?'stereo':'mono';
   const lastSource=rotationSources.get(name);
@@ -1089,6 +1067,8 @@ const ballNames=BALL_INSTRUMENTS;
 let stripedNeedle=false;try{stripedNeedle=localStorage.getItem('suturehero.needleJawPattern.v1')==='striped10';}catch{/* session default */}
 const needlePair=ballNames.indexOf('needleDriver');
 const isStripedSlot=(i:number)=>stripedNeedle&&Math.floor(i/2)===needlePair;
+const stripedMotion=[new Map<number,BallMotionTracker>(),new Map<number,BallMotionTracker>()];
+const stripedSearchWorkers=new Map<HTMLVideoElement,{worker:Worker;busy:boolean;timeout?:number;sequence:number}>();
 const stripedJawDiagnostics=new Map<string,StripedBallDiagnostics>();
 const stripedCropCanvas=document.createElement('canvas'),stripedCropContext=stripedCropCanvas.getContext('2d',{willReadFrequently:true})!;
 const jawStorageKey=(camera:number)=>camera?'suturehero.jaw-tracking.camera2.v1':'suturehero.jaw-tracking.v1';
@@ -1098,7 +1078,7 @@ const stripedStorageKey=(camera:number)=>jawStorageKey(camera)+'.striped10';
 const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
 const ballIndex=()=>ballTrackingSlot(ballInstrument.value as BallInstrumentName,0);
 const ballCalibrations=ballNames.map(()=>new JawCalibration());
-const primaryJaws={video,overlay,overlayContext,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations,lastScan:0,lastVideoTime:-1};
+const primaryJaws={video,overlay,overlayContext,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations,lastScan:0,lastVideoTime:-1,lastJawFrame:-1};
 const secondBallCanvas=document.createElement('canvas');secondBallCanvas.width=640;secondBallCanvas.height=360;
 const secondaryJaws:typeof primaryJaws={...primaryJaws,video:video2,overlay:overlay2,overlayContext:overlayContext2,ballCanvas:secondBallCanvas,ballContext:secondBallCanvas.getContext('2d',{willReadFrequently:true})!,
  ballColors:ballColors.map(()=>null),
@@ -1116,6 +1096,7 @@ const secondaryJaws:typeof primaryJaws={...primaryJaws,video:video2,overlay:over
  ballCalibrations:ballCalibrations.map(()=>new JawCalibration()),
 };
 const jawCameras=[primaryJaws,secondaryJaws];
+const jawOverlays=jawCameras.map((state,i)=>{const canvas=document.createElement('canvas');canvas.id=i?'jaw-overlay-2':'jaw-overlay';canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:2';canvas.setAttribute('aria-hidden','true');state.video.parentElement!.append(canvas);return canvas;});
 const jawFusion=ballNames.map(()=>new JawViewFusion());
 const jawViewStatus=ballNames.map(()=>'');
 const selectedJawCamera=()=>jawCameras[Number(ballCamera.value)||0];
@@ -1182,6 +1163,7 @@ for(const [camera,state] of jawCameras.entries()){
  ballColors[ballPick]=isStripedSlot(ballPick)?[1/3,1/3,1/3]:[rgb[0]/total,rgb[1]/total,rgb[2]/total];
  ballDisplayColors[ballPick]=isStripedSlot(ballPick)?'rgb(245, 245, 245)':sampledBallColor(rgb);ballSampleBrightness[ballPick]=total;
  const pair=Math.floor(ballPick/2),marker=ballMarker(ballNames[pair],performance.now(),camera);
+ stripedMotion[camera].delete(ballPick);
  ballAnchorMarkers[ballPick]=marker;ballProvisional[ballPick]=null;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
  ballPairReferences[pair]=null;ballCalibrations[pair].reset();
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
@@ -1232,12 +1214,13 @@ const needlePattern=document.querySelector<HTMLSelectElement>('#needle-ball-patt
 needlePattern.addEventListener('change',()=>{
  cancelJointJaws('Capture cancelled when changing ball pattern.');persistJaws();stripedNeedle=needlePattern.value==='striped10';
  try{localStorage.setItem('suturehero.needleJawPattern.v1',needlePattern.value);}catch{/* session setting */}
+ for(const motion of stripedMotion)motion.clear();
  for(const state of jawCameras){
   for(const i of [needlePair*2,needlePair*2+1]){state.ballColors[i]=null;state.ballCenters[i]=null;state.ballAnchors[i]=null;state.ballSeenAt[i]=0;state.ballDisplayColors[i]=null;state.ballSampleBrightness[i]=0;state.ballAnchorMarkers[i]=null;state.ballProvisional[i]=null;}
   state.ballPairStates[needlePair]=null;state.ballPairReferences[needlePair]=null;state.ballPairValidAt[needlePair]=-Infinity;state.ballLastMarkers[needlePair]=null;state.ballCalibrations[needlePair].reset();
  }
  jawFusion[needlePair]=new JawViewFusion();restoreJaws();ballInstrument.value='needleDriver';ballInstrument.dispatchEvent(new Event('change'));
- ballReadout.textContent=stripedNeedle?'Trial: assign the centers of both identical 10 mm striped balls in each camera, then capture closed/open. Keep the three bands visible from the side.':'Colored-ball profile restored.';
+ ballReadout.textContent=stripedNeedle?'Trial: assign the centers of both identical 10 mm striped balls in each camera, then capture closed/open. Show the bands clearly for initial identification; silhouette tracking follows afterward.':'Colored-ball profile restored.';
  updateJawCalibrationStatus();
 });
 
@@ -1263,31 +1246,74 @@ document.querySelector('#ball-calibration-reset')!.addEventListener('click',()=>
 ballEnabled.addEventListener('change',()=>{if(!ballEnabled.checked)cancelJointJaws('Capture cancelled: ball tracking is off.');persistJaws();});
 trackingMode.addEventListener('change',()=>{
  cancelJointJaws('Capture cancelled when changing camera mode.');
+ for(const motion of stripedMotion)motion.clear();
  for(let pair=0;pair<jawFusion.length;pair++){jawFusion[pair]=new JawViewFusion();jawViewStatus[pair]='';}
  ballCamera.options[1].disabled=trackingMode.value!=='stereo';
  if(trackingMode.value!=='stereo'&&ballCamera.value==='1'){ballCamera.value='0';ballCamera.dispatchEvent(new Event('change'));}
  updateJawCalibrationStatus();
 });
 setInterval(updateJawCalibrationStatus,150);updateJawCalibrationStatus();
-function searchStripedJawBall(video:HTMLVideoElement,center:{x:number;y:number},searchRadius:number,radius:number,slot:number){
- const scale=video.videoWidth/640,nativeRadius=radius*scale;
- const extent=Math.max(nativeRadius*2,Math.min(searchRadius*scale,Math.max(32,nativeRadius*5)));
+function requestStripedReacquisition(video:HTMLVideoElement,slot:number,track:BallMotionTracker,plan:ReturnType<BallMotionTracker['plan']>,marker:BallMarker|null,at:number){
+ let search=stripedSearchWorkers.get(video);
+ if(!search){search={worker:new Worker(new URL('./input/stripedReacquireWorker.ts',import.meta.url),{type:'module'}),busy:false,sequence:0};stripedSearchWorkers.set(video,search);}
+ if(search.busy)return;search.busy=true;track.startGlobal(at);
+ const camera=video===video2?1:0,source=video.srcObject,scale=video.videoWidth/640,id=++search.sequence;
+ const finish=()=>{search!.busy=false;if(search!.timeout)clearTimeout(search!.timeout);};
+ search.worker.onmessage=({data})=>{
+  if(data.id!==id)return;perf.sample('Striped full-frame reacquisition',performance.now()-at);finish();
+  if(stripedMotion[camera].get(slot)!==track||video.srcObject!==source||!jawCameraParticipates(trackingMode.value,camera)||track.current(performance.now()))return;
+  const other=stripedMotion[camera].get(slot%2?slot-1:slot+1)?.detection;
+  const candidates=(data.found??[]).map((p:BallBlob)=>({...p,x:p.x/scale,y:p.y/scale,count:p.count/(scale*scale)})).filter((p:BallBlob)=>validJawBall(p,marker,trackerGeometry(trackerType).markerSizeMm,plan.ballRadius)&&(!other||Math.hypot(p.x-other.x,p.y-other.y)>plan.ballRadius));
+  candidates.sort((a:BallBlob,b:BallBlob)=>Math.hypot(a.x-plan.center.x,a.y-plan.center.y)-Math.hypot(b.x-plan.center.x,b.y-plan.center.y));
+  // A full-frame result is a hint. A new local camera frame must verify it
+  // before showing a current detection or publishing another jaw sample.
+  if(candidates[0])track.hint(candidates[0],marker,performance.now());
+ };
+ search.worker.onerror=finish;search.timeout=window.setTimeout(()=>{search!.worker.terminate();stripedSearchWorkers.delete(video);finish();},5000);
+ void createImageBitmap(video).then(bitmap=>{
+  if(video.srcObject!==source){bitmap.close();finish();return;}
+  search!.worker.postMessage({id,bitmap,radius:Math.max(plan.ballRadius,marker?marker.side*10/trackerGeometry(trackerType).markerSizeMm/2:0)*scale,center:{x:plan.center.x*scale,y:plan.center.y*scale},marker:marker?{x:marker.x*scale,y:marker.y*scale}:null,maxReach:marker?marker.side*(55/trackerGeometry(trackerType).markerSizeMm+4)*scale:Infinity},[bitmap]);
+ }).catch(finish);
+}
+window.addEventListener('pagehide',()=>{for(const s of stripedSearchWorkers.values()){s.worker.terminate();if(s.timeout)clearTimeout(s.timeout);}stripedSearchWorkers.clear();},{once:true});
+function searchStripedJawBall(video:HTMLVideoElement,center:{x:number;y:number},searchRadius:number,radius:number,slot:number,now:number,marker:BallMarker|null,guided=false){
+ const camera=video===video2?1:0,state=jawCameras[camera];
+ let track=stripedMotion[camera].get(slot);if(!track){track=new BallMotionTracker();stripedMotion[camera].set(slot,track);}
+ const plan=track.plan(now,state.ballAnchors[slot]??center,marker,state.ballAnchorMarkers[slot],marker?marker.side*10/trackerGeometry(trackerType).markerSizeMm/2:radius);
+ if(!guided){track.beginFrame(now);if(plan.fullFrame)requestStripedReacquisition(video,slot,track,plan,marker,now);if(!track.shouldSearch(now)){stripedJawDiagnostics.set(`${camera}:${slot}`,{reason:plan.lostMs>1200?'Searching full frame':'Predicted position · searching locally',diameterPx:plan.ballRadius*video.videoWidth/320,contrast:0});return [];}}
+ center=guided?center:plan.center;
+ const scale=video.videoWidth/640,nativeRadius=plan.ballRadius*scale;
+ const extent=Math.min((guided?searchRadius:plan.searchRadius)*scale,Math.max(60,nativeRadius*7))+nativeRadius*1.6;
  const left=Math.max(0,Math.floor(center.x*scale-extent)),top=Math.max(0,Math.floor(center.y*scale-extent));
  const width=Math.min(video.videoWidth-left,Math.ceil(extent*2)),height=Math.min(video.videoHeight-top,Math.ceil(extent*2));
  if(width<16||height<16)return [];
  stripedCropCanvas.width=width;stripedCropCanvas.height=height;
  stripedCropContext.drawImage(video,left,top,width,height,0,0,width,height);
- const diagnostic:StripedBallDiagnostics={reason:'Checking pattern',diameterPx:nativeRadius*2,contrast:0};
- const balls=perf.measure('Striped jaw pattern search',()=>findStripedBalls(stripedCropContext.getImageData(0,0,width,height).data,width,height,{x:center.x*scale-left,y:center.y*scale-top},nativeRadius,diagnostic));
- stripedJawDiagnostics.set(`${video===video2?1:0}:${slot}`,diagnostic);
- return balls.map(ball=>({...ball,x:(ball.x+left)/scale,y:(ball.y+top)/scale,count:ball.count/(scale*scale)}));
+ const diagnostic:StripedBallDiagnostics={reason:'Searching',diameterPx:nativeRadius*2,contrast:0};
+ const pixels=stripedCropContext.getImageData(0,0,width,height).data,local={x:center.x*scale-left,y:center.y*scale-top};
+ let balls:BallBlob[]=[];
+ perf.measure('Striped jaw search',()=>{
+  if(plan.silhouette)balls=findSphereSilhouette(pixels,width,height,local,nativeRadius);
+  if(balls.length){diagnostic.reason='Current silhouette detection';diagnostic.diameterPx=2*Math.sqrt(balls[0].count/Math.PI);diagnostic.contrast=NaN;}
+  else balls=findStripedBalls(pixels,width,height,local,nativeRadius,diagnostic).map(p=>({...p,identified:true}));
+ });
+ if(plan.lostMs>1200)diagnostic.reason='Searching full frame · '+diagnostic.reason;
+ stripedJawDiagnostics.set(`${camera}:${slot}`,diagnostic);
+ return balls.map(ball=>({...ball,x:(ball.x+left)/scale,y:(ball.y+top)/scale,count:ball.count/(scale*scale)})).filter(ball=>validJawBall(ball,marker,trackerGeometry(trackerType).markerSizeMm,plan.ballRadius));
 }
+
 function scanForcepsBalls(now:number,camera=0){
  if(!jawCameraParticipates(trackingMode.value,camera))return;
  const state=jawCameras[camera];
  const {video,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations}=state;
  if(!ballEnabled.checked||!video.videoWidth||!video.srcObject||now-state.lastScan<90)return;
- if(state.lastVideoTime===video.currentTime)return;state.lastVideoTime=video.currentTime;
+ const frame=frameClock(video),decoded=video.getVideoPlaybackQuality?.().totalVideoFrames??0;
+ const imageId=decoded>0?decoded:frame?.frameId;
+ if(typeof video.requestVideoFrameCallback==='function'||decoded>0){
+  if(video.paused||imageId===undefined){if(stripedNeedle){for(const i of [needlePair*2,needlePair*2+1])stripedMotion[camera].get(i)?.miss(now);ballCenters[needlePair*2]=ballCenters[needlePair*2+1]=null;ballPairValidAt[needlePair]=-Infinity;}return;}
+  if(state.lastJawFrame===imageId)return;state.lastJawFrame=imageId;
+ }else if(state.lastVideoTime===video.currentTime)return;
+ state.lastVideoTime=video.currentTime;
  state.lastScan=now;const jawStarted=performance.now();
  const w=640,h=Math.max(1,Math.round(video.videoHeight/video.videoWidth*w));
  if(ballCanvas.height!==h)ballCanvas.height=h;
@@ -1308,7 +1334,7 @@ function scanForcepsBalls(now:number,camera=0){
   const source=previous??single?.ball??anchor;
   const center=from&&marker?predictBall(source,from,marker):source;
   const radius=previous?100:single?110:marker?125:105;
-  candidates[c]=isStripedSlot(c)?searchStripedJawBall(video,center,radius,previous?Math.sqrt(previous.count/Math.PI):marker?marker.side*10/trackerGeometry(trackerType).markerSizeMm/2:8,c):findColorBalls(pixels,w,h,color,ballSampleBrightness[c],center,radius,previous?Math.max(10,Math.sqrt(previous.count/Math.PI)*3):0);
+  candidates[c]=isStripedSlot(c)?searchStripedJawBall(video,center,radius,previous?Math.sqrt(previous.count/Math.PI):marker?marker.side*10/trackerGeometry(trackerType).markerSizeMm/2:8,c,now,marker):findColorBalls(pixels,w,h,color,ballSampleBrightness[c],center,radius,previous?Math.max(10,Math.sqrt(previous.count/Math.PI)*3):0);
   const provisionalCandidate=candidates[c][0];
   if(provisionalCandidate)ballProvisional[c]={ball:provisionalCandidate,seenAt:now,marker};
  }
@@ -1339,7 +1365,7 @@ function scanForcepsBalls(now:number,camera=0){
     if(Math.hypot(known.x-expectedKnown.x,known.y-expectedKnown.y)>100)continue;
     const center=partnerSearchCenter(known,expectedKnown,expectedMissing);
     const radius=Math.min(64,Math.max(18,marker.side,Math.hypot(predictedA.x-predictedB.x,predictedA.y-predictedB.y)*.6));
-    const recovered=isStripedSlot(missingIndex)?searchStripedJawBall(video,center,radius,marker.side*10/trackerGeometry(trackerType).markerSizeMm/2,missingIndex):findColorBalls(pixels,w,h,color,ballSampleBrightness[missingIndex],center,radius,radius,.12);
+    const recovered=isStripedSlot(missingIndex)?searchStripedJawBall(video,center,radius,marker.side*10/trackerGeometry(trackerType).markerSizeMm/2,missingIndex,now,marker,true):findColorBalls(pixels,w,h,color,ballSampleBrightness[missingIndex],center,radius,radius,.12);
     for(const candidate of recovered)if(!candidates[missingIndex].some(c=>Math.hypot(c.x-candidate.x,c.y-candidate.y)<2))candidates[missingIndex].push(candidate);
    }
    found=selectBallPair(candidates[a],candidates[b],marker,{...cal.limits,reference,trackerToTipMm:trackerToTipMm[ballNames[pair]]});
@@ -1357,12 +1383,25 @@ function scanForcepsBalls(now:number,camera=0){
     if(score>best){best=score;found={a:aa,b:bb};}
    }
   }
+  if(!found&&stripedNeedle&&pair===needlePair){
+   let individual=[candidates[a][0],candidates[b][0]];
+   if(individual[0]&&individual[1]&&Math.hypot(individual[0].x-individual[1].x,individual[0].y-individual[1].y)<Math.sqrt(individual[0].count/Math.PI)){
+    const predicted=[a,b].map(slot=>stripedMotion[camera].get(slot)?.plan(now,ballAnchors[slot]!,marker,ballAnchorMarkers[slot],marker?marker.side*10/trackerGeometry(trackerType).markerSizeMm/2:6).center??ballAnchors[slot]!);
+    const da=Math.hypot(individual[0].x-predicted[0].x,individual[0].y-predicted[0].y),db=Math.hypot(individual[1].x-predicted[1].x,individual[1].y-predicted[1].y);
+    individual=da<=db?[individual[0],undefined!]:[undefined!,individual[1]];
+   }
+   for(const side of [0,1]){const track=stripedMotion[camera].get(a+side),ball=individual[side];if(ball)track?.observe(ball,marker,now,!!(ball as BallBlob&{identified?:boolean}).identified);else track?.miss(now);}
+   ballCenters[a]=ballCenters[b]=null;ballPairValidAt[pair]=-Infinity;continue;
+  }
   if(!found){
    // Bridge only a brief gap in an already validated pair. Do not refresh its
    // timestamp: an occlusion must still expire, and held data is not a sample.
    if(prior&&now-prior.seenAt<250){ballCenters[a]=prior.a;ballCenters[b]=prior.b;}
    else {ballCenters[a]=ballCenters[b]=null;ballPairValidAt[pair]=-Infinity;}
    continue;
+  }
+  if(stripedNeedle&&pair===needlePair){
+   for(const [slot,ball] of [[a,found.a],[b,found.b]] as const)stripedMotion[camera].get(slot)?.observe(ball,marker,now,!!(ball as BallBlob&{identified?:boolean}).identified);
   }
   const previous=ballPairStates[pair],blend=previous&&now-previous.seenAt<350?.38:1;
   const smooth=(next:BallBlob,old:BallBlob|undefined):BallBlob=>old?{...next,x:old.x*(1-blend)+next.x*blend,y:old.y*(1-blend)+next.y*blend}:next;
@@ -1377,7 +1416,7 @@ function scanForcepsBalls(now:number,camera=0){
   if(d!==null&&a&&b){
    const scale=Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI);
    const fresh=ballPairValidAt[pair]===now;
-   if(fresh)cal.observe(d,scale,now,video.currentTime);
+   if(fresh)cal.observe(d,scale,now,state.lastJawFrame>=0?state.lastJawFrame:video.currentTime);
    if(jointJawCapture?.pair===pair)continue;
    const value=fresh?cal.update(d,scale):cal.endpoints(scale)?cal.value:null;if(value===null)continue;
    const name=ballNames[pair];
@@ -1401,17 +1440,31 @@ function scanForcepsBalls(now:number,camera=0){
   ' · closed '+(ends?.closed.toFixed(2)??'—')+' · open '+(ends?.open.toFixed(2)??'—')+
   ' · '+jawViewStatus[pair]+' · jaw '+(!ends?'not calibrated':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
  if(stripedNeedle&&pair===needlePair){
-  const diagnostics=[0,1].map(side=>{const d=stripedJawDiagnostics.get(`${camera}:${pair*2+side}`);return d?`${side?'B':'A'}: ${d.reason} (${d.diameterPx.toFixed(0)} px across, contrast ${d.contrast.toFixed(0)})`:'';}).filter(Boolean);
-  ballReadout.textContent+=' · '+diagnostics.join(' · ')+' · View bands from the side; need ≥14 camera pixels across each ball';
+  const diagnostics=[0,1].map(side=>{const d=stripedJawDiagnostics.get(`${camera}:${pair*2+side}`);return d?`${side?'B':'A'}: ${d.reason} (${d.diameterPx.toFixed(0)} px across, ${Number.isFinite(d.contrast)?'contrast '+d.contrast.toFixed(0):'silhouette mode'})`:'';}).filter(Boolean);
+  ballReadout.textContent+=' · '+diagnostics.join(' · ')+' · Initial ID: show bands from the side; need ≥14 camera pixels across each ball';
  }
  perf.sample('Jaw color scan + calibration',performance.now()-jawStarted);
 
 }
 function drawBallOutlines(camera=0){
- const {overlay,overlayContext,ballCanvas,ballPairValidAt,ballProvisional,ballCenters,ballDisplayColors,ballAnchors,ballAnchorMarkers}=jawCameras[camera];
- if(!ballEnabled.checked||!jawCameraParticipates(trackingMode.value,camera))return;
+ const {overlay:source,ballCanvas,ballPairValidAt,ballProvisional,ballCenters,ballDisplayColors,ballAnchors,ballAnchorMarkers,video}=jawCameras[camera];
+ const overlay=jawOverlays[camera];if(overlay.width!==source.width||overlay.height!==source.height){overlay.width=source.width;overlay.height=source.height;}
+ const overlayContext=overlay.getContext('2d')!;overlayContext.clearRect(0,0,overlay.width,overlay.height);
+ if(!ballEnabled.checked||!video.srcObject||!jawCameraParticipates(trackingMode.value,camera))return;
  overlayContext.font='12px sans-serif';
  for(let i=0;i<6;i++){
+  if(isStripedSlot(i)){
+   const anchor=ballAnchors[i];if(!anchor)continue;
+   const now=performance.now(),pair=Math.floor(i/2),marker=recentBallMarker(pair,now,camera),track=stripedMotion[camera].get(i),detection=track?.current(now);
+   const plan=track?.plan(now,anchor,marker,ballAnchorMarkers[i],marker?marker.side*10/trackerGeometry(trackerType).markerSizeMm/2:6);
+   const point=detection??plan?.center??(marker&&ballAnchorMarkers[i]?predictBall(anchor,ballAnchorMarkers[i]!,marker):anchor);
+   const radius=detection?Math.sqrt(detection.count/Math.PI):plan?.ballRadius??6;
+   const sx=overlay.width/ballCanvas.width,sy=overlay.height/ballCanvas.height,x=point.x*sx,y=point.y*sy;
+   overlayContext.setLineDash(detection?[]:[4,5]);overlayContext.strokeStyle=detection?'#35dc87':'#a8adb5';overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.lineWidth=2;
+   overlayContext.beginPath();overlayContext.arc(x,y,Math.max(5,radius*sx),0,Math.PI*2);overlayContext.stroke();
+   if(!detection){overlayContext.beginPath();overlayContext.moveTo(x-4,y);overlayContext.lineTo(x+4,y);overlayContext.moveTo(x,y-4);overlayContext.lineTo(x,y+4);overlayContext.stroke();}
+   overlayContext.fillText('needleDriver '+(i%2?'B':'A')+' · '+(detection?'Detected':plan?.stage??'Searching'),x+12,y);overlayContext.setLineDash([]);continue;
+  }
   const pair=Math.floor(i/2),confirmed=performance.now()-ballPairValidAt[pair]<220;
   const provisional=ballProvisional[i];
   const detected=confirmed?ballCenters[i]:provisional&&performance.now()-provisional.seenAt<500?provisional.ball:null;
@@ -1645,7 +1698,7 @@ const rawRenderedPoses=new Map<InstrumentName,TrackedPoseFilter>();
 let last=performance.now();
 let lastPoseMessage=0;
 let lastEmbeddedFpsReport=0;
-let embeddedFrames=0;
+let embeddedFrames=0,lastJawOverlayAt=0;
 function animate(now:number){const loopStarted=performance.now();perf.tick('Tracking loop');perf.sample('Tracking frame interval',Math.max(0,now-last));if(stream&&lastAppliedFrameAt>0)perf.sample('Camera 1 applied image age',Math.max(0,performance.now()-lastAppliedFrameAt));if(stream2&&observationsAt&&secondaryObservationsAt)perf.sample('Camera accepted-update skew',Math.abs(observationsAt-secondaryObservationsAt));const dt=Math.min((now-last)/1000,.05);last=now;
  updateRotationStageReadout();
  if(!simulation.checked){
@@ -1655,8 +1708,8 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    let fallback:ReturnType<StereoFallback['update']>=null;
    if(metric){
     let controller=stereoFallbacks.get(name);if(!controller){controller=new StereoFallback();stereoFallbacks.set(name,controller);}
-    const views=stereoMonoViews(name,now),rigid=stereoPrismRotation(name,now);
-    const orientation=rigid?.quaternion??views[0]?.quaternion;
+    const views=stereoMonoViews(name,now);
+    const orientation=stereo?.quaternion;
     fallback=controller.update(stereo&&orientation?{position:stereo.position.clone().multiply(new THREE.Vector3(200,-200,-200)),quaternion:orientation,at:stereo.lastSeen}:undefined,views,now);
     stereoFallbackStatus.set(name,fallback?.source??'lost');
    }
@@ -1699,53 +1752,21 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    const mismatch=calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight);
    if(mismatch){stereo3dStatus.textContent='Stereo inactive: '+mismatch;}
    else{
-    const synchronized=stereoFrames.pair(now);
-    const first=synchronized?.first??[],second=synchronized?.second??[];
-    const age=Math.abs(observationsAt-secondaryObservationsAt);
-    const hits=[] as Array<{id:number;point:NonNullable<ReturnType<typeof triangulate>>}>;
-    let common=0,rejected=0;
-    if(synchronized){
-     for(const m of first){
-      const other=second.find(o=>o.id===m.id);
-      if(!other)continue;
-      common++;
-      const center=(corners:typeof m.corners)=>({x:corners.reduce((s,p)=>s+p.x,0)/4,y:corners.reduce((s,p)=>s+p.y,0)/4});
-      const point=triangulate(stereoCalibration,center(m.corners),center(other.corners),{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height});
-      if(point&&point.epipolarErrorPx<4&&point.rayGapMm<12&&point.depthMm>30&&point.depthMm<3000)hits.push({id:m.id,point});
-      else rejected++;
-     }
-    }
-    stereo3dStatus.textContent=hits.length?
-     hits.map(({id,point})=>'ID '+id+': '+point.xyzMm.map(v=>v.toFixed(1)).join(', ')+' mm (rectified Δy '+point.epipolarErrorPx.toFixed(2)+' px)').join(' | '):
-     'No valid 3D markers · camera 1: '+first.length+' IDs · camera 2: '+second.length+' IDs · common: '+common+' · rejected: '+rejected+' · frame age difference: '+Math.round(age)+' ms.';
+    const synchronized=stereoFrames.pair(now),notes:string[]=[];
     for(const name of ['needleDriver','forceps','scissors'] as const){
-     const previous=stereoPositions.get(name);
-     // Prefer the same marker face while it remains visible; switching between
-     // different face centers introduces a false translation of the rigid body.
-     const candidates=hits.filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id));
-     const hit=candidates.find(m=>m.id===previous?.markerId)??candidates[0];
-     if(!hit)continue;
-     const rigid=stereoPrismRotation(name,now);
-     const target=liveTargets.get(name);
-     const ids:readonly number[]=markerGroups()[name];
-     const body=target&&now-target.lastSeen<180?bodyPoseFromMarker(target.pose,ids.indexOf(target.pose.id),trackerType):null;
-     const translation=rigid?.translation??(body?stereoBodyFromCenter(new THREE.Vector3(...hit.point.xyzMm),localCorners(ids.indexOf(hit.id),trackerType),body.quaternion):null);
-     if(!translation)continue;
-     const measured=stereoPracticePosition(translation);
-     const sampleAt=synchronized!.at,seenAt=sampleAt;
+     const rigid=stereoPrismRotation(name,now);if(!rigid||!synchronized)continue;
+     notes.push(name+' · Camera 1 IDs '+rigid.firstIds.join(',')+' / Camera 2 IDs '+rigid.secondIds.join(',')+' · joint error '+rigid.errorPx.toFixed(2)+' px');
+     const previous=stereoPositions.get(name),sampleAt=synchronized.at;
      if(previous?.lastSample===sampleAt)continue;
-     // Geometry already rejects invalid triangulations. Do not compare a new
-     // measurement to a lagging low-pass position: real motion can otherwise
-     // lock itself out until the reacquisition timeout. TrackedPoseFilter above
-     // provides the single, motion-adaptive render filter.
-     if(previous){
-      previous.position.copy(measured);
-      previous.lastSeen=seenAt;previous.lastSample=sampleAt;previous.markerId=hit.id;
-     }else stereoPositions.set(name,{position:measured,lastSeen:seenAt,lastSample:sampleAt,markerId:hit.id});
+     const measured=stereoPracticePosition(rigid.translation);
+     if(previous){previous.position.copy(measured);previous.quaternion.copy(rigid.quaternion);previous.lastSeen=sampleAt;previous.lastSample=sampleAt;}
+     else stereoPositions.set(name,{position:measured,quaternion:rigid.quaternion.clone(),lastSeen:sampleAt,lastSample:sampleAt});
     }
+    stereo3dStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';
    }
   }
  }
+ if(now-lastJawOverlayAt>=70){drawBallOutlines(0);drawBallOutlines(1);lastJawOverlayAt=now;}
  updateStereoViewIndicator(now);
  if(renderer){orbit?.update();perf.measure('Tracking render submission',()=>renderer!.render(scene,camera));}
  else{
@@ -1766,4 +1787,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.81',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.82',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));

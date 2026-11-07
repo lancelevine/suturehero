@@ -10,3 +10,5 @@ it('uses the latest frame after a busy worker without queuing old frames, and ke
 it('lets callers fall back to timed capture when presentation callbacks are unavailable or stalled',()=>{
  const c=new CameraFrameClock();expect(c.recent(0)).toBe(false);c.presented(100);expect(c.recent(150)).toBe(true);expect(c.recent(350)).toBe(false);c.presented(400);expect(c.recent(401)).toBe(true);
 });
+
+it('exposes frame identities without consuming another tracking client’s frame',()=>{const c=new CameraFrameClock();c.presented(100);expect(c.frameId).toBe(1);expect(c.presentedAt).toBe(100);c.consume();expect(c.frameId).toBe(1);c.presented(140);expect(c.frameId).toBe(2);});
