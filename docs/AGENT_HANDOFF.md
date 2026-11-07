@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — rebuilding jaw tracking (white balls, marker-relative) as a new module alongside the old one. Please avoid editing `src/tracking.ts`, `src/ui/InstrumentCalibrationPanel.ts` and jaw-related files under `src/input/` until cleared.
 - **Needs Lance to test by hand:**
   - Solid white needle-driver ball mode (commit `7f44662`): not yet tried
     with a real camera.
