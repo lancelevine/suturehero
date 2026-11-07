@@ -11,7 +11,7 @@ function board(cx=.5,cy=.5,z=600,rx=0,ry=0):BoardMeasurement{
 const pose=(a:BoardMeasurement,b=a):CapturePose=>({first:describeBoard(a).quality!,second:describeBoard(b).quality!});
 it('accepts full sharp stable boards only when camera frame timing is usable',()=>{
  const b=board();expect(pairCaptureDecision(b,b,[],600,20).accepted).toBe(true);
- for(const skew of [null,-1,51,NaN])expect(pairCaptureDecision(b,b,[],600,skew).accepted).toBe(false);
+ for(const skew of [null,-1,51,NaN])expect(pairCaptureDecision(b,b,[],600,skew).accepted).toBe(false);\n expect(pairCaptureDecision(b,b,[],1100,90).accepted).toBe(true);\n expect(pairCaptureDecision(b,b,[],1100,null).accepted).toBe(true);\n expect(pairCaptureDecision(b,b,[],1100,300).accepted).toBe(false);
  expect(pairCaptureDecision(b,b,[],400,20).reasons).toContain('Hold board still briefly');
 });
 it('rejects blur, low contrast, undersized squares, missing corners, and cropped outer squares',()=>{
