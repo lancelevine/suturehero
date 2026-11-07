@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright-core';
-const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',args:['--no-sandbox']});
 try{
  const context=await browser.newContext(),page=await context.newPage();
  await context.route('**/mock-cv.js',r=>r.fulfill({contentType:'application/javascript',body:`

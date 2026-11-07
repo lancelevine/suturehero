@@ -34,6 +34,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
 import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
+import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from './input/trackingMessages';
 import {TRACKING_STORAGE_KEYS,readStored,readStoredJson,writeStored,removeStored,parseTrackerType,parseNeedleJawPattern,jawStorageKey,patternJawStorageKey,parseDepthCalibration,DEFAULT_WORKING_DEPTH_MM,type NeedleJawPattern,type SavedDepthCalibration} from './input/trackingStorage';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
@@ -317,12 +318,11 @@ function updateStereoViewIndicator(now:number){
   configured&&fallback.length?'Stereo fallback: '+fallback.map(([name,source])=>name+' · '+(source==='camera1'?'Camera 1':'Camera 2')+' · approximate depth').join(', '):
   active?'Stereo triangulation: ACTIVE · '+fresh.join(', '):configured?'Stereo triangulation: waiting for valid markers':'Stereo triangulation: off';
  const state=mismatch?'mismatch':configured?(fallback.length?'fallback':active?'active':'waiting'):stream&&!simulation.checked?'mono':'off';
- const detail={type:'suturehero:tracking-status',state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
+ const detail:TrackingStatusMessage={type:TRACKING_MESSAGE.status,state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
  const key=JSON.stringify(detail);
  if(embeddedTracking&&(key!==lastTrackingStatus||now-lastTrackingStatusAt>500)){
   lastTrackingStatus=key;lastTrackingStatusAt=now;
-  if(root.dataset.embedded==='true')window.dispatchEvent(new CustomEvent('suturehero:tracking-status',{detail}));
-  else window.parent.postMessage(detail,location.origin);
+  publishTrackingMessage(detail,root.dataset.embedded==='true');
  }
 
 }
@@ -1375,9 +1375,7 @@ function scanForcepsBalls(now:number,camera=0){
    if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(opening);
    if(name==='needleDriver')previewInstrumentModels.get('right')?.setTrackedOpening(opening);
    if(name==='scissors')previewScissorOpening(opening);
-   const detail={type:'suturehero:jaw-opening',instrument:name,opening,cameras:fused.cameras.map(c=>c+1),seenAt:Date.now()};
-   if(embeddedTracking)window.dispatchEvent(new CustomEvent('suturehero:jaw-opening',{detail}));
-   else window.parent.postMessage(detail,location.origin);
+   publishTrackingMessage({type:TRACKING_MESSAGE.jawOpening,instrument:name,opening,cameras:fused.cameras.map(c=>c+1),seenAt:Date.now()},embeddedTracking);
   }
  }
  if(camera!==(Number(ballCamera.value)||0)){perf.sample(`Camera ${camera+1} jaw color scan + calibration`,performance.now()-jawStarted);return;}
@@ -1670,10 +1668,8 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.
     if(embeddedTracking&&(root.dataset.embedded==='true'||now-lastPoseMessage>=32)){
-     const detail={type:'suturehero:tracking-pose',instrument:name,
-      position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),seenAt:Date.now()};
-     if(root.dataset.embedded==='true')window.dispatchEvent(new CustomEvent('suturehero:tracking-pose',{detail}));
-     else window.parent.postMessage(detail,location.origin);
+     publishTrackingMessage({type:TRACKING_MESSAGE.pose,instrument:name,
+      position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),seenAt:Date.now()},root.dataset.embedded==='true');
     }
    }
   }
@@ -1721,9 +1717,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  else{
   embeddedFrames++;
   if(now-lastEmbeddedFpsReport>=1000){
-   const detail={type:'suturehero:tracking-fps',fps:Math.round(embeddedFrames*1000/(now-lastEmbeddedFpsReport||1000))};
-   if(root.dataset.embedded==='true')window.dispatchEvent(new CustomEvent('suturehero:tracking-fps',{detail}));
-   else window.parent.postMessage(detail,location.origin);
+   publishTrackingMessage({type:TRACKING_MESSAGE.fps,fps:Math.round(embeddedFrames*1000/(now-lastEmbeddedFpsReport||1000))},root.dataset.embedded==='true');
    embeddedFrames=0;lastEmbeddedFpsReport=now;
   }
  }

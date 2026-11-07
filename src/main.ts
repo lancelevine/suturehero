@@ -1,6 +1,7 @@
 import {mountTrackingStatusBadge} from './ui/TrackingStatusBadge';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {TrackedPositionBridge} from './input/TrackedPositionBridge';
+import {TRACKING_MESSAGE,isTrackingStatus,parseJawOpening,parseTrackingFps,parseTrackingPose,type TrackedInstrument} from './input/trackingMessages';
 import {mountWorkspaceLayout} from './ui/WorkspaceLayout';
 import {mountCalibrationPanel} from './ui/InstrumentCalibrationPanel';
 import {instrumentCalibration} from './input/InstrumentCalibration';
@@ -172,7 +173,7 @@ try {
   });
   // Camera mode embeds the existing diagnostic lab; both pages share its
   // proven solver and camera controls rather than creating a second tracker.
-  type CameraInstrument='needleDriver'|'forceps'|'scissors';
+  type CameraInstrument=TrackedInstrument;
   type CameraPose={position:THREE.Vector3;quaternion:THREE.Quaternion;seenAt:number};
   const cameraPoses=new Map<CameraInstrument,CameraPose>();
   const cameraOrigins=new Map<CameraInstrument,TrackedPositionBridge>();
@@ -206,31 +207,28 @@ try {
   void setCameraMode(true); // Open setup without starting a camera stream.
   document.querySelector('#disable-camera-tracking')!.addEventListener('click',()=>{void setCameraMode(false);});
   instrumentCalibration.subscribe((name,reason)=>{if(reason==='reset'){cameraOrigins.delete(name);cameraPoses.delete(name);}if(reason==='neutral'){let bridge=cameraOrigins.get(name);if(!bridge){bridge=new TrackedPositionBridge();cameraOrigins.set(name,bridge);}bridge.alignOnNeutral();}});
-  const onTrackingData=(data:any)=>{
+  const onTrackingData=(data:unknown)=>{
    if(!cameraEnabled)return;
-   if(data?.type==='suturehero:tracking-status'){if(trackingBadge.update(data))lastTrackingStatusAt=performance.now();return;}
-   if(data?.type==='suturehero:tracking-fps'&&typeof data.fps==='number'){
-    trackingLoopFps=data.fps;return;
-   }
-   if(!data||data.type!=='suturehero:tracking-pose'||!['needleDriver','forceps','scissors'].includes(data.instrument))return;
-   if(!Array.isArray(data.position)||data.position.length!==3||!Array.isArray(data.quaternion)||data.quaternion.length!==4)return;
-   if(![...data.position,...data.quaternion].every((v:unknown)=>typeof v==='number'&&Number.isFinite(v)))return;
-   cameraStatus.textContent='Tracking '+data.instrument;
-   cameraPoses.set(data.instrument as CameraInstrument,{
-    position:new THREE.Vector3().fromArray(data.position),
-    quaternion:new THREE.Quaternion().fromArray(data.quaternion).normalize(),seenAt:performance.now()
+   if(isTrackingStatus(data)){if(trackingBadge.update(data))lastTrackingStatusAt=performance.now();return;}
+   const fps=parseTrackingFps(data);
+   if(fps!==null){trackingLoopFps=fps;return;}
+   const pose=parseTrackingPose(data);if(!pose)return;
+   cameraStatus.textContent='Tracking '+pose.instrument;
+   cameraPoses.set(pose.instrument,{
+    position:new THREE.Vector3().fromArray(pose.position),
+    quaternion:new THREE.Quaternion().fromArray(pose.quaternion).normalize(),seenAt:performance.now()
    });
   };
-  window.addEventListener('suturehero:tracking-pose',(event)=>onTrackingData((event as CustomEvent).detail));
-  window.addEventListener('suturehero:tracking-fps',(event)=>onTrackingData((event as CustomEvent).detail));
-  window.addEventListener('suturehero:tracking-status',(event)=>onTrackingData((event as CustomEvent).detail));
+  window.addEventListener(TRACKING_MESSAGE.pose,(event)=>onTrackingData((event as CustomEvent).detail));
+  window.addEventListener(TRACKING_MESSAGE.fps,(event)=>onTrackingData((event as CustomEvent).detail));
+  window.addEventListener(TRACKING_MESSAGE.status,(event)=>onTrackingData((event as CustomEvent).detail));
   window.setInterval(()=>{if(cameraEnabled&&performance.now()-lastTrackingStatusAt>2000)trackingBadge.waiting();},500);
   const jawTracking=new Map<CameraInstrument,{opening:number;seenAt:number}>();
-  const onJawTracking=(data:any)=>{
-   if(!cameraEnabled||data?.type!=='suturehero:jaw-opening'||!['forceps','needleDriver','scissors'].includes(data.instrument)||!Number.isFinite(data.opening))return;
-   jawTracking.set(data.instrument as CameraInstrument,{opening:THREE.MathUtils.clamp(data.opening,0,1),seenAt:performance.now()});
+  const onJawTracking=(data:unknown)=>{
+   const jaw=cameraEnabled?parseJawOpening(data):null;if(!jaw)return;
+   jawTracking.set(jaw.instrument,{opening:jaw.opening,seenAt:performance.now()});
   };
-  window.addEventListener('suturehero:jaw-opening',(event)=>onJawTracking((event as CustomEvent).detail));
+  window.addEventListener(TRACKING_MESSAGE.jawOpening,(event)=>onJawTracking((event as CustomEvent).detail));
   let frameDt=1/60;
   const applyCameraPose=(name:CameraInstrument,object:THREE.Object3D)=>{
    const pose=cameraPoses.get(name);

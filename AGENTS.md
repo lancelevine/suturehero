@@ -61,6 +61,18 @@ Browser checks in `scripts/check-*.mjs` need `npm run dev` running and use
 local Chromium (Playwright). Run them one at a time when a change touches the
 area they cover; they are not run by CI.
 
+- `CHROMIUM_PATH` sets the browser binary (default `/usr/bin/chromium`);
+  `SUTURE_TEST_URL` sets the dev server URL (default port 5173).
+- Marker checks load js-aruco2 from jsDelivr. In a sandbox without that CDN,
+  get the same version from the npm registry and point at it:
+  `npm pack js-aruco2@2.0.0 && tar xzf js-aruco2-2.0.0.tgz` (in a scratch
+  folder), then `ARUCO_LIBRARY_DIR=<that folder>/package/src`.
+- Useful set for tracking changes: `check-tracking-storage`,
+  `check-camera-controls`, `check-tracking-motion`, `check-driver-depth`,
+  `check-ring-handoffs`, `check-ball-pairs`, `check-striped-jaws`,
+  `check-striped-lifecycle`, `check-calibration-preview`.
+- Known failing before 2026-11-07: `check-dual-camera-fit` (see handoff log).
+
 Never weaken a test threshold just to make it pass. If a limit is genuinely
 wrong, say why in the commit message and the handoff entry.
 

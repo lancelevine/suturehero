@@ -1,7 +1,7 @@
 // Run against the Vite dev server: supplies repeatable poses through the real calibration module.
 import {chromium} from 'playwright-core';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
 try{
 const page=await browser.newPage({viewport:{width:1440,height:1000}});await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5175/').href);
 await page.locator('[data-guide-start]').waitFor({state:'attached'});

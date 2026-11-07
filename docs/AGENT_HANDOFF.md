@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — continuing to split `src/tracking.ts` into modules (now the tracking → practice-scene messages, which also touches `src/main.ts`). Please avoid editing `src/tracking.ts` and `src/main.ts` until cleared.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - Solid white needle-driver ball mode (commit `7f44662`): not yet tried
     with a real camera.
@@ -23,9 +23,10 @@ entry when finishing.
     are the most likely place for merge conflicts.
 - **Next up (proposed, not started):**
   1. Continue splitting `src/tracking.ts` into tested modules. Done:
-     camera devices/controls, saved settings. Candidates: stereo calibration
-     import/status, the jaw-ball detection loop, the pose output to the
-     practice scene.
+     camera devices/controls, saved settings, tracking → scene messages.
+     Next candidates: stereo calibration import/status panel; the jaw-ball
+     detection loop (largest and riskiest — do in small steps with the
+     ball/striped browser checks after each).
   2. Add a code formatter in one dedicated commit (agree with Lance first).
   3. Make the needle-driver solid-white path solid once Lance has tested it.
   4. When the OV9281 cameras arrive (monochrome, global shutter, 1280×800 @
@@ -46,6 +47,25 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-07 — Claude Code — Typed tracking → practice-scene messages
+- Changed: the four messages tracking sends (pose, jaw opening, status,
+  fps) are now defined in `src/input/trackingMessages.ts` with one
+  `publishTrackingMessage` helper and validators used by `src/main.ts`.
+  Same event names, same embedded/postMessage choice per message, same
+  validation as before. `scripts/check-*.mjs` that hardcoded
+  `/usr/bin/chromium` now honor `CHROMIUM_PATH` like the rest.
+- Files: `src/tracking.ts`, `src/main.ts`, `src/input/trackingMessages.ts`
+  (+ test), 8 `scripts/check-*.mjs`, `AGENTS.md` (how to run browser
+  checks without the CDN).
+- Checked: tsc, full `npm test`, build on Node 24. Browser checks pass:
+  tracking-motion, driver-depth (scene instrument moves), ball-pairs,
+  striped-jaws, striped-lifecycle, ring-handoffs, calibration-preview,
+  tracking-storage, camera-controls.
+- Lance to test: with the camera, confirm the needle driver still moves the
+  virtual instrument and jaw opening/closing still shows in the scene.
+- Notes for the other agent: add new tracking → scene data as a new
+  message type in `trackingMessages.ts` with a parser and test.
 
 ### 2026-11-07 — Claude Code — Saved tracking settings module; blocked-storage crash fix
 - Changed: moved all tracking-page storage keys and parsing into
