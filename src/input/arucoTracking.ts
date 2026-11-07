@@ -11,9 +11,3 @@ export function groupMarkers(markers: MarkerObservation[]): InstrumentObservatio
     return [{name, markers:visible, center:{x:pts.reduce((s,p)=>s+p.x,0)/pts.length,y:pts.reduce((s,p)=>s+p.y,0)/pts.length}}];
   });
 }
-export async function openCamera(deviceId?:string):Promise<MediaStream> {
-  return navigator.mediaDevices.getUserMedia({audio:false,video:{deviceId:deviceId?{exact:deviceId}:undefined,width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}}});
-}
-export async function availableCameras():Promise<MediaDeviceInfo[]> {
-  return (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
-}

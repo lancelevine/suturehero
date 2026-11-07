@@ -80,8 +80,8 @@ wrong, say why in the commit message and the handoff entry.
 - **Upcoming cameras:** two OV9281 USB 2.0 webcams — **monochrome**, global
   shutter, 1280×800 at up to 120 fps (MJPEG). Implications: colored-ball jaw
   tracking cannot work with them (use white or striped balls); the camera
-  request in `src/input/arucoTracking.ts` must ask for 1280×800 and a high
-  frame rate instead of 1080p/30 fps; markers cover fewer pixels than at
+  request (`CAMERA_REQUEST` in `src/input/cameraDevices.ts`) must ask for
+  1280×800 and a high frame rate instead of 1080p/30 fps; markers cover fewer pixels than at
   1080p; the two cameras are not hardware-synchronized. Keep current cameras
   working until Lance has switched.
 - **Tracker:** the **8-face ring** (`ring8`) is the one in use. The prism and
@@ -102,6 +102,8 @@ wrong, say why in the commit message and the handoff entry.
   the main page). Talks to `main.ts` through `suturehero:*` window events or
   `postMessage`.
 - `src/input/`: tracking, calibration, marker/ball detection, workers.
+  Camera device handling (requested resolution/frame rate, device lists,
+  remembered cameras) is in `src/input/cameraDevices.ts`.
 - `src/suture/`, `src/tissue/`, `src/gameplay/`: thread/knot physics, tissue,
   practice-session logic. These are well unit-tested; keep it that way.
 - `src/scene/`, `src/visuals/`, `src/ui/`: rendering and UI.

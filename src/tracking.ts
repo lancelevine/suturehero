@@ -31,7 +31,9 @@ import {selectBallPair,ballPairReference,predictBall,sampledBallColor,normalized
 import * as THREE from 'three';
 import {parseCalibration,calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
+import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
+import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
+import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
 import {solvePrismPose,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
@@ -368,66 +370,10 @@ function updateStereoMatches(){
 }
 
 
-const cameraSettings=document.querySelector<HTMLElement>('#camera-settings-controls')!;
-function renderCameraSettings(){
- cameraSettings.replaceChildren();
- for(const [label,active] of [['Camera 1',stream],['Camera 2',stream2]] as const){
-  const section=document.createElement('div');section.className='camera-settings-group';
-  const heading=document.createElement('strong');heading.textContent=label;section.append(heading);
-  const track=active?.getVideoTracks()[0];
-  if(!track){const note=document.createElement('p');note.textContent='Start camera to configure.';section.append(note);cameraSettings.append(section);continue;}
-  const capabilities=track.getCapabilities?.() as Record<string,unknown>|undefined;
-  const settings=track.getSettings() as Record<string,unknown>;
-  const modes=(key:string)=>Array.isArray(capabilities?.[key])?capabilities[key] as string[]:[];
-  const addMode=(key:string,title:string)=>{
-   const supported=modes(key);if(!supported.length)return;
-   const row=document.createElement('label');row.className='camera-settings-row';
-   const name=document.createElement('span');name.textContent=title;
-   const select=document.createElement('select');
-   for(const mode of supported){const option=document.createElement('option');option.value=mode;option.textContent=mode==='continuous'?'Auto':mode==='manual'?'Manual':mode;select.append(option);}
-   select.value=typeof settings[key]==='string'?settings[key] as string:supported[0];
-   select.addEventListener('change',async()=>{
-    try{await track.applyConstraints({advanced:[{[key]:select.value}] as MediaTrackConstraintSet[]});renderCameraSettings();}
-    catch{select.value=String(track.getSettings()[key as keyof MediaTrackSettings]??supported[0]);}
-   });
-   row.append(name,select);section.append(row);
-  };
-  addMode('exposureMode','Exposure mode');
-  addMode('focusMode','Focus mode');
-  for(const key of ['exposureTime','gain','focusDistance']){
-   const cap=capabilities?.[key] as {min:number;max:number;step?:number}|undefined;
-   if(!cap||!Number.isFinite(cap.min)||!Number.isFinite(cap.max)||cap.max<=cap.min)continue;
-   const row=document.createElement('label');row.className='camera-settings-row';
-   const title=document.createElement('span');title.textContent=key==='exposureTime'?'Exposure':key==='focusDistance'?'Focus distance':'Gain';
-   const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='1000';slider.step='1';
-   // Logarithmic exposure spreads the useful low end over the whole slider.
-   const logarithmic=key==='exposureTime'&&cap.min>0;
-   const toValue=(fraction:number)=>logarithmic?cap.min*Math.pow(cap.max/cap.min,fraction):cap.min+(cap.max-cap.min)*fraction;
-   const toFraction=(value:number)=>logarithmic?Math.log(Math.max(cap.min,value)/cap.min)/Math.log(cap.max/cap.min):(value-cap.min)/(cap.max-cap.min);
-   const quantize=(value:number)=>{const step=cap.step&&cap.step>0?cap.step:0;return Math.min(cap.max,Math.max(cap.min,step?cap.min+Math.round((value-cap.min)/step)*step:value));};
-   const current=typeof settings[key]==='number'?settings[key] as number:cap.min;
-   slider.value=String(Math.round(Math.max(0,Math.min(1,toFraction(current)))*1000));
-   const output=document.createElement('output');output.textContent=String(quantize(current));
-   const apply=async()=>{const value=quantize(toValue(Number(slider.value)/1000));output.textContent=String(Number(value.toPrecision(6)));try{await track.applyConstraints({advanced:[{[key]:value}] as MediaTrackConstraintSet[]});}catch{output.textContent='Unsupported';}};
-   slider.addEventListener('input',()=>{output.textContent=String(Number(quantize(toValue(Number(slider.value)/1000)).toPrecision(6)));});
-   slider.addEventListener('change',()=>{void apply();});
-   row.append(title,slider,output);section.append(row);
-  }
-  if(section.children.length===1){const note=document.createElement('p');note.textContent='Manual exposure, gain and focus controls are unavailable for this camera/browser.';section.append(note);}
-  cameraSettings.append(section);
- }
-}
-
-const CAMERA_STORAGE_PRIMARY='suturehero-camera-primary';
-const CAMERA_STORAGE_SECONDARY='suturehero-camera-secondary';
-function savedCamera(key:string){try{return localStorage.getItem(key)||'';}catch{return '';}}
-function rememberCamera(key:string,value:string){try{if(value)localStorage.setItem(key,value);else localStorage.removeItem(key);}catch{/* Storage may be disabled */}}
+const renderCameraSettings=createCameraSettingsPanel(document.querySelector<HTMLElement>('#camera-settings-controls')!,()=>[{label:'Camera 1',stream},{label:'Camera 2',stream:stream2}]);
 async function refreshSecondCameraList(){
  const current=select2.value||savedCamera(CAMERA_STORAGE_SECONDARY);
- const devices=await availableCameras();
- select2.innerHTML='<option value="">Choose second camera</option>';
- devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
- select2.value=devices.some(d=>d.deviceId===current)?current:'';
+ fillCameraSelect(select2,await availableCameras(),current,'Choose second camera');
 }
 async function stopSecondCamera(){stripedMotion[1].clear();if(jawCameraParticipates(trackingMode.value,1))cancelJointJaws('Capture cancelled: camera 2 stopped.');stereoPositions.clear();stereoFrames.clear();detector2.dispose();fastTracker2.dispose();
  fastProcessing2=false;processing2=false;lastFastFrame2=0;lastSlowFrame2=0;latestFlowAt2=0;confirmed2.clear();decoded2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
@@ -684,7 +630,7 @@ function changedFrame(source:HTMLVideoElement){motionCtx.drawImage(source,0,0,64
 
 let stream:MediaStream|null=null;
 async function refreshCameras(){
- try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
+ try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);fillCameraSelect(select,await availableCameras(),current,'Default camera');}catch{ /* permission or unsupported */ }
 }
 async function stopCamera(){stripedMotion[0].clear();cancelJointJaws('Capture cancelled: camera 1 stopped.');resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
