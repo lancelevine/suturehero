@@ -974,3 +974,7 @@ python scripts/validate_stereo_calibration.py captures.json --output calibration
 Import the resulting solved JSON into Tracking setup. The solver checks pose diversity, reprojection and epipolar errors, baseline, and corner ordering; it does not export a solution that fails validation. New physical camera captures are required to determine the actual calibration; synthetic tests do not calibrate your cameras.
 
 Jaw tracking now supports both cameras. Sample each ball's color separately in each camera using **Color sampling view**, then capture closed/open once at Near and once at Far: each capture records all running views configured for that instrument. Each view retains its own measurements and color profile. Matching estimates are combined, and a fresh remaining view can continue tracking when the other loses the balls.
+
+### Build 0.74 — responsive stereo movement
+
+Metric position no longer depends on a successful four-corner stereo orientation fit: a valid triangulated marker center can use the fresh primary-camera body orientation to remove the marker-face offset. Full stereo fits remain preferred. Position keeps the existing epipolar, ray-gap, depth, and freshness checks. The extra stereo low-pass and 130 mm distance veto have been removed; movement uses the existing adaptive rendered-pose filter. This prevents real motion from being rejected against an increasingly delayed reference. A two-camera browser regression checks sustained forward/backward depth changes, including when the full corner fit is unavailable.

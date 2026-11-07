@@ -18,3 +18,11 @@ export function fitStereoMarkerPose(local:Vector3[],world:Vector3[]){
 }
 /** Keep absolute depth unbounded; workspace limits apply after relative anchoring. */
 export const stereoPracticePosition=(mm:Vector3)=>new Vector3(mm.x/200,-mm.y/200,-mm.z/200);
+
+/** Center triangulation remains usable when one corner prevents a full stereo fit.
+ * Remove the face offset using the primary camera's body orientation. */
+export function stereoBodyFromCenter(center:Vector3,local:Vector3[],quaternion:Quaternion){
+ if(local.length!==4||!center.toArray().every(Number.isFinite))return null;
+ const offset=local.reduce((v,p)=>v.add(p),new Vector3()).multiplyScalar(.25).applyQuaternion(quaternion);
+ return center.clone().sub(offset);
+}

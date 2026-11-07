@@ -1,6 +1,6 @@
 import {JawViewFusion} from './input/JawViewFusion';
 import {stereoBoard} from './input/stereoBoard';
-import {fitStereoMarkerPose,stereoPracticePosition} from './input/stereoTrackingPose';
+import {fitStereoMarkerPose,stereoPracticePosition,stereoBodyFromCenter} from './input/stereoTrackingPose';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
 import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
@@ -1640,16 +1640,21 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      const candidates=hits.filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id));
      const hit=candidates.find(m=>m.id===previous?.markerId)??candidates[0];
      if(!hit)continue;
-     const rigid=stereoPrismRotation(name,now);if(!rigid)continue;
-     const measured=stereoPracticePosition(rigid.translation);
+     const rigid=stereoPrismRotation(name,now);
+     const target=liveTargets.get(name);
+     const ids:readonly number[]=markerGroups()[name];
+     const body=target&&now-target.lastSeen<180?bodyPoseFromMarker(target.pose,ids.indexOf(target.pose.id),trackerType):null;
+     const translation=rigid?.translation??(body?stereoBodyFromCenter(new THREE.Vector3(...hit.point.xyzMm),localCorners(ids.indexOf(hit.id),trackerType),body.quaternion):null);
+     if(!translation)continue;
+     const measured=stereoPracticePosition(translation);
      const sampleAt=Math.max(observationsAt,secondaryObservationsAt),seenAt=Math.min(observationsAt,secondaryObservationsAt);
      if(previous?.lastSample===sampleAt)continue;
-     // A sudden jump may be a mismatched face or stereo outlier. Require
-     // reacquisition rather than instantly teleporting the instrument.
-     if(previous&&now-previous.lastSeen<400&&measured.distanceTo(previous.position)>.65)continue;
+     // Geometry already rejects invalid triangulations. Do not compare a new
+     // measurement to a lagging low-pass position: real motion can otherwise
+     // lock itself out until the reacquisition timeout. TrackedPoseFilter above
+     // provides the single, motion-adaptive render filter.
      if(previous){
-      const elapsed=Math.max(0,Math.min(.1,(sampleAt-previous.lastSample)/1000));
-      previous.position.lerp(measured,1-Math.exp(-elapsed*11));
+      previous.position.copy(measured);
       previous.lastSeen=seenAt;previous.lastSample=sampleAt;previous.markerId=hit.id;
      }else stereoPositions.set(name,{position:measured,lastSeen:seenAt,lastSample:sampleAt,markerId:hit.id});
     }
@@ -1676,4 +1681,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.73',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.74',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));

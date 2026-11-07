@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import {Quaternion,Vector3} from 'three';
-import {fitStereoMarkerPose,stereoPracticePosition} from './stereoTrackingPose';
+import {fitStereoMarkerPose,stereoPracticePosition,stereoBodyFromCenter} from './stereoTrackingPose';
 import {localCorners} from './prismPose';
 import {stereoBoard} from './stereoBoard';
 it('uses the reprinted 16 mm board with 48 inner corners',()=>{
@@ -20,4 +20,15 @@ it('preserves real depth motion beyond 400 mm instead of clipping both poses to 
 it('rejects degenerate or badly reconstructed marker corners',()=>{
  const local=localCorners(0,'ring6');expect(fitStereoMarkerPose(local,local.map(()=>new Vector3()))).toBeNull();
  expect(fitStereoMarkerPose(local,local.map(p=>p.clone().multiplyScalar(5)))).toBeNull();
+});
+
+it('preserves center depth and large motion when a corner fit is unavailable',()=>{
+ const q=new Quaternion().setFromAxisAngle(new Vector3(0,1,0),.6);
+ for(let face=0;face<6;face++){
+  const local=localCorners(face,'ring6'),offset=local.reduce((v,p)=>v.add(p),new Vector3()).multiplyScalar(.25).applyQuaternion(q);
+  for(const depth of [800,1000,600]){
+   const body=new Vector3(100,20,depth),center=body.clone().add(offset);
+   expect(stereoBodyFromCenter(center,local,q)!.distanceTo(body)).toBeLessThan(1e-8);
+  }
+ }
 });
