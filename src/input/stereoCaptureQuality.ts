@@ -55,7 +55,12 @@ export function captureCoverage(poses:readonly CapturePose[]){
 export function pairCaptureDecision(first:BoardMeasurement,second:BoardMeasurement,previous:readonly CapturePose[],stableMs:number,frameSkewMs:number|null){
  const a=describeBoard(first),b=describeBoard(second);
  const reasons=[...a.reasons.map(r=>'Camera 1: '+r),...b.reasons.map(r=>'Camera 2: '+r)];
- // Browser presentation timestamps are not hardware synchronization. When the board\n // has remained stationary, modest skew (or unavailable callbacks) is safe enough\n // for a calibration pair; don't block capture indefinitely on webcam scheduling.\n const skewUsable=frameSkewMs!==null&&Number.isFinite(frameSkewMs)&&frameSkewMs>=0&&frameSkewMs<=50;\n const stationaryFallback=stableMs>=1000&&(frameSkewMs===null||(Number.isFinite(frameSkewMs)&&frameSkewMs>=0&&frameSkewMs<=250));\n if(!skewUsable&&!stationaryFallback)reasons.push('Hold board still for camera timing');
+ // Browser presentation timestamps are not hardware synchronization. When the board
+ // has remained stationary, modest skew (or unavailable callbacks) is safe enough
+ // for a calibration pair; don't block capture indefinitely on webcam scheduling.
+ const skewUsable=frameSkewMs!==null&&Number.isFinite(frameSkewMs)&&frameSkewMs>=0&&frameSkewMs<=50;
+ const stationaryFallback=stableMs>=1000&&(frameSkewMs===null||(Number.isFinite(frameSkewMs)&&frameSkewMs>=0&&frameSkewMs<=250));
+ if(!skewUsable&&!stationaryFallback)reasons.push('Hold board still for camera timing');
  if(!Number.isFinite(stableMs)||stableMs<550)reasons.push('Hold board still briefly');
  const pose=a.quality&&b.quality?{first:a.quality,second:b.quality}:null;
  if(pose&&duplicatePose(pose,previous))reasons.push('Pose already captured; change position, distance, or tilt');
