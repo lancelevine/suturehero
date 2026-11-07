@@ -978,3 +978,8 @@ Jaw tracking now supports both cameras. Sample each ball's color separately in e
 ### Build 0.74 — responsive stereo movement
 
 Metric position no longer depends on a successful four-corner stereo orientation fit: a valid triangulated marker center can use the fresh primary-camera body orientation to remove the marker-face offset. Full stereo fits remain preferred. Position keeps the existing epipolar, ray-gap, depth, and freshness checks. The extra stereo low-pass and 130 mm distance veto have been removed; movement uses the existing adaptive rendered-pose filter. This prevents real motion from being rejected against an increasingly delayed reference. A two-camera browser regression checks sustained forward/backward depth changes, including when the full corner fit is unavailable.
+
+
+### Build 0.75 — automatic stereo camera fallback
+
+After acquiring stereo, losing either camera's tracker view automatically continues position and rotation from the remaining camera. Each camera uses its solved intrinsics, distortion, and extrinsics; Camera 2 is transformed into Camera 1's coordinate frame. Each source is anchored to the previous pose, preserving position and orientation during handoffs. Depth holds briefly, then eases into approximate marker-size depth after 350 ms. Stereo corrections blend back over roughly 180 ms when triangulation returns. Both views lost means holding the last pose without publishing fresh tracking. The status indicator and exported `stereoSources` diagnostics identify the active source per instrument. No mode switch or recalibration is required.

@@ -30,5 +30,22 @@ try{
   await page.waitForFunction(async far=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('needleDriver').position.z-far)>1;},far,{timeout:5000});
   await page.waitForTimeout(1000);const near=await position();assert(near>far+1,JSON.stringify({far,near}));console.log({fallback,start,far,near});
  }
+ // Exercise each physical camera dropout, not just a rejected corner fit.
+ await page.evaluate(()=>{window.__forceCenter=false;window.__ballScene.scale=1;window.__ballScene.camera2={shift:-135,marker:true};});
+ await page.waitForTimeout(1300);
+ await page.evaluate(()=>window.__ballScene.marker=false);
+ await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('Camera 2'),{},{timeout:5000});
+ const xy=()=>page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.position.toArray();});
+ const secondStart=await xy();await page.evaluate(()=>window.__ballScene.camera2.shift=-35);await page.waitForTimeout(800);const secondMove=await xy();
+ assert(secondMove[0]>secondStart[0]+.12,JSON.stringify({secondStart,secondMove}));
+ await page.evaluate(()=>{window.__ballScene.marker=true;window.__ballScene.camera2={shift:-135,marker:true};});
+ await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('ACTIVE'),{},{timeout:5000});await page.waitForTimeout(1000);
+ await page.evaluate(()=>window.__ballScene.camera2.marker=false);
+ await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('Camera 1'),{},{timeout:5000});
+ const firstStart=await xy();await page.evaluate(()=>window.__ballScene.shift=100);await page.waitForTimeout(800);const firstMove=await xy();
+ assert(firstMove[0]>firstStart[0]+.12,JSON.stringify({firstStart,firstMove}));
+ await page.evaluate(()=>{window.__ballScene.shift=0;window.__ballScene.camera2.marker=true;});
+ await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('ACTIVE'),{},{timeout:5000});
+ console.log('Passed: movement with either camera missing and automatic stereo recovery.');
  assert.deepEqual(errors,[]);
 }finally{await browser.close();}

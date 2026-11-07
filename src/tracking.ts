@@ -1,3 +1,4 @@
+import {StereoFallback,type MonoView} from './input/StereoFallback';
 import {JawViewFusion} from './input/JawViewFusion';
 import {stereoBoard} from './input/stereoBoard';
 import {fitStereoMarkerPose,stereoPracticePosition,stereoBodyFromCenter} from './input/stereoTrackingPose';
@@ -21,7 +22,7 @@ import './ui/workspace.css';
 import {trackedInstrumentRotation} from './input/trackingFrame';
 import {selectBallPair,ballPairReference,predictBall,sampledBallColor,normalizedBallSeparation,type BallBlob,type BallMarker,type BallPairReference} from './input/ballPairTracking';
 import * as THREE from 'three';
-import {parseCalibration,triangulate,calibrationMatches,type StereoCalibration} from './input/stereoGeometry';
+import {parseCalibration,triangulate,calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {availableCameras,MARKER_GROUPS,openCamera,type MarkerObservation} from './input/arucoTracking';
 import type {DetectorDiagnostics} from './input/arucoDetector';
@@ -228,7 +229,7 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -248,6 +249,9 @@ const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quatern
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 
 type StereoRotation={quaternion:THREE.Quaternion;translation:THREE.Vector3;errorMm:number;faces:number;corners:number};
+const stereoFallbacks=new Map<InstrumentName,StereoFallback>();
+const stereoFallbackStatus=new Map<InstrumentName,string>();
+const stereoMonoCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;views:MonoView[]}>();
 const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;pose:StereoRotation|null}>();
 // Recover rigid-body orientation from corresponding 3D ArUco corners.
 // Camera 1 coordinates are the shared reference frame. The physical mount
@@ -285,17 +289,45 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
  return save({quaternion:result,translation:agree.reduce((p,c)=>p.add(c.translation),new THREE.Vector3()).multiplyScalar(1/agree.length),errorMm:agree.reduce((v,c)=>v+c.errorMm,0)/agree.length,faces:agree.length,corners:agree.length*4});
 }
 
+function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
+ if(!stereoCalibration)return [];
+ const ids:readonly number[]=markerGroups()[name],cal=stereoCalibration;
+ const key=`${observationsAt}:${secondaryObservationsAt}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`;
+ const cached=stereoMonoCache.get(name);if(cached?.key===key&&cached.calibration===cal)return cached.views.filter(v=>now-v.at<180);
+ const R=cal.stereo.rotation;
+ const matrix=new THREE.Matrix4().set(R[0][0],R[0][1],R[0][2],0,R[1][0],R[1][1],R[1][2],0,R[2][0],R[2][1],R[2][2],0,0,0,0,1);
+ const inverse=new THREE.Quaternion().setFromRotationMatrix(matrix).invert(),translation=new THREE.Vector3(...cal.stereo.translationMm as [number,number,number]);
+ const views=([0,1] as const).flatMap(camera=>{
+  const at=camera?secondaryObservationsAt:observationsAt;if(now-at>180)return [];
+  const size=camera?{width:overlay2.width,height:overlay2.height}:{width:overlay.width,height:overlay.height},intrinsics=camera?cal.camera2:cal.camera1;
+  const candidates=(camera?liveSecondMarkers():liveMarkers()).filter(m=>ids.includes(m.id)).map(marker=>{
+   const normalized={id:marker.id,corners:marker.corners.map(p=>{const [x,y]=undistort(p,intrinsics.cameraMatrix,intrinsics.distortionCoefficients,intrinsics.imageSize??cal.imageSize,size);return {x:1000+x*1000,y:1000+y*1000};})};
+   const pose=estimateMarkerPose(normalized,2000,2000,trackerGeometry(trackerType).markerSizeMm,1000);
+   if(!pose||pose.reprojectionError>4)return null;
+   const body=bodyPoseFromMarker(pose,ids.indexOf(marker.id),trackerType);
+   if(body.translation.z<30||body.translation.z>3000)return null;
+   const axis=new THREE.Vector3(0,0,1);
+   if(camera){body.translation.sub(translation).applyQuaternion(inverse);body.quaternion.premultiply(inverse);axis.applyQuaternion(inverse);}
+   return {position:body.translation,quaternion:body.quaternion,axis,at,camera,error:pose.reprojectionError};
+  }).filter((p):p is NonNullable<typeof p>=>p!==null).sort((a,b)=>a.error-b.error);
+  return candidates.length?[candidates[0]]:[];
+ });
+ stereoMonoCache.set(name,{key,calibration:cal,views});return views;
+}
+
 const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
 const stereoViewDot=document.querySelector<HTMLElement>('#stereo-view-dot')!;
 const stereoViewLabel=document.querySelector<HTMLElement>('#stereo-view-label')!;
 function updateStereoViewIndicator(now:number){
- const fresh=[...stereoPositions.entries()].filter(([,p])=>now-p.lastSeen<350).map(([name])=>name);
- const active=stereoActive()&&fresh.length>0;
  const configured=stereoActive();
+ const fallback=[...stereoFallbackStatus].filter(([,source])=>source==='camera1'||source==='camera2');
+ const fresh=[...stereoFallbackStatus].filter(([,source])=>source==='stereo').map(([name])=>name);
+ const active=configured&&fresh.length>0;
  const mismatch=configured?calibrationMatches(stereoCalibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight):null;
- stereoViewDot.style.background=active&&!mismatch?'#16a34a':configured?'#d69e28':'#89939e';
- stereoViewLabel.textContent=mismatch?'Stereo triangulation: calibration mismatch · '+mismatch:active?'Stereo triangulation: ACTIVE · '+fresh.map(name=>name==='needleDriver'?'needle driver':name).join(', '):
-  configured?'Stereo triangulation: waiting for valid 3D markers':'Stereo triangulation: off';
+ stereoViewDot.style.background=active&&!mismatch&&!fallback.length?'#16a34a':configured?'#d69e28':'#89939e';
+ stereoViewLabel.textContent=mismatch?'Stereo triangulation: calibration mismatch · '+mismatch:
+  configured&&fallback.length?'Stereo fallback: '+fallback.map(([name,source])=>name+' · '+(source==='camera1'?'Camera 1':'Camera 2')+' · approximate depth').join(', '):
+  active?'Stereo triangulation: ACTIVE · '+fresh.join(', '):configured?'Stereo triangulation: waiting for valid markers':'Stereo triangulation: off';
 }
 
 stereoEnabled.addEventListener('change',resetTrackerPose);
@@ -1573,13 +1605,19 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  if(!simulation.checked){
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
    const target=liveTargets.get(name);
-   if(target&&now-target.lastSeen<trackingHoldMs){
-    // Stabilize only the published instrument pose, keeping fast marker detection intact.
+   const metric=stereoActive(),stereo=metric?stereoPositions.get(name):undefined;
+   let fallback:ReturnType<StereoFallback['update']>=null;
+   if(metric){
+    let controller=stereoFallbacks.get(name);if(!controller){controller=new StereoFallback();stereoFallbacks.set(name,controller);}
+    const views=stereoMonoViews(name,now),rigid=stereoPrismRotation(name,now);
+    const orientation=rigid?.quaternion??views[0]?.quaternion;
+    fallback=controller.update(stereo&&orientation?{position:stereo.position.clone().multiply(new THREE.Vector3(200,-200,-200)),quaternion:orientation,at:stereo.lastSeen}:undefined,views,now);
+    stereoFallbackStatus.set(name,fallback?.source??'lost');
+   }
+   if(metric?!!fallback:target&&now-target.lastSeen<trackingHoldMs){
     let raw=rawRenderedPoses.get(name);if(!raw){raw=new TrackedPoseFilter();rawRenderedPoses.set(name,raw);}
-    const metric=stereoActive(),stereo=metric?stereoPositions.get(name):undefined;
-    if(metric&&(!stereo||now-stereo.lastSeen>350))continue;
-    raw.update(stereo?.position??target.position,target.quaternion,now);
-    const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,stereo?.lastSeen??target.lastSeen,metric);
+    raw.update(fallback?stereoPracticePosition(fallback.position):target!.position,fallback?.quaternion??target!.quaternion,now);
+    const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,fallback?.at??target!.lastSeen,metric);
     mesh.position.copy(calibrated.position);mesh.quaternion.copy(calibrated.quaternion);
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.
@@ -1681,4 +1719,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.74',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.75',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));

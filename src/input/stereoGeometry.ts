@@ -29,7 +29,7 @@ export function parseCalibration(raw:unknown):StereoCalibration{
  for(const camera of [c.camera1,c.camera2])if(camera.imageSize&&(!Number.isInteger(camera.imageSize.width)||!Number.isInteger(camera.imageSize.height)||camera.imageSize.width<=0||camera.imageSize.height<=0))throw Error('Invalid calibrated camera image dimensions');
  return c;
 }
-function undistort(p:Point,k:Matrix,d:number[],size:{width:number;height:number},source:{width:number;height:number}){
+export function undistort(p:Point,k:Matrix,d:number[],size:{width:number;height:number},source:{width:number;height:number}){
  const sx=source.width/size.width,sy=source.height/size.height;
  const xd=(p.x-k[0][2]*sx)/(k[0][0]*sx),yd=(p.y-k[1][2]*sy)/(k[1][1]*sy);
  let x=xd,y=yd;
