@@ -9,7 +9,7 @@ try{
  await context.route('https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/*',async r=>r.fulfill({contentType:'application/javascript',body:await readFile(join(process.env.ARUCO_LIBRARY_DIR??'/tmp/suturehero-aruco',new URL(r.request().url()).pathname.split('/').at(-1)))}));
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await installSyntheticCamera(page);await page.addInitScript(()=>localStorage.setItem('suturehero.trackerType','ring6'));
- await page.route('**/src/tracking.ts*',async r=>{const response=await r.fetch(),body=await response.text();const patched=body.replace(/function stereoPrismRotation\(name, now\) \{/, '$&\nif(window.__forceCenter)return null;');assert.notEqual(patched,body);await r.fulfill({response,body:patched});});
+ await page.route('**/src/tracking.ts*',async r=>{const response=await r.fetch(),body=await response.text();let patched=body.replace(/function stereoPrismRotation\(name, now\) \{/, '$&\nif(window.__forceCenter)return null;');assert.notEqual(patched,body);if(process.env.SUTURE_STEREO_DELAY)patched=patched.replace('pending.resolve(data.found ?? []);',"setTimeout(()=>pending.resolve(data.found ?? []),this.label==='Camera 2 flow'?35:0);");await r.fulfill({response,body:patched});});
  await page.goto('http://127.0.0.1:5173/tracking.html');
  await page.evaluate(()=>window.__ballScene.camera2={shift:-135});
  await page.locator('#camera-select').selectOption('synthetic',{force:true});await page.locator('#start-camera').click();
@@ -22,7 +22,7 @@ try{
  await page.locator('#stereo-enable').evaluate(e=>{e.checked=true;e.dispatchEvent(new Event('change',{bubbles:true}));});
  const position=()=>page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.position.z;});
  await page.waitForFunction(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.depthLocked===false;},{},{timeout:30000});
- for(const fallback of [false,true]){
+ for(const fallback of process.env.SUTURE_STEREO_DELAY?[]:[false,true]){
   await page.evaluate(f=>{window.__forceCenter=f;window.__ballScene.scale=1;},fallback);await page.waitForTimeout(1200);const start=await position();
   await page.evaluate(()=>window.__ballScene.scale=.75);
   await page.waitForFunction(async start=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('needleDriver').position.z-start)>.75;},start,{timeout:5000});
@@ -47,5 +47,21 @@ try{
  await page.evaluate(()=>{window.__ballScene.shift=0;window.__ballScene.camera2.marker=true;});
  await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('ACTIVE'),{},{timeout:5000});
  console.log('Passed: movement with either camera missing and automatic stereo recovery.');
+ if(process.env.SUTURE_STEREO_DELAY){
+  await page.evaluate(()=>{
+   const start=performance.now();window.__movingStereo=true;
+   const move=()=>{if(!window.__movingStereo)return;window.__ballScene.yShift=45*Math.sin((performance.now()-start)/600);requestAnimationFrame(move);};move();
+  });
+  const samples=[];
+  for(let i=0;i<35;i++){
+   await page.waitForTimeout(100);
+   samples.push(await page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return {y:c.preview('needleDriver')?.position.y,status:document.querySelector('#stereo-view-label').textContent};}));
+  }
+  await page.evaluate(()=>window.__movingStereo=false);
+  const active=samples.filter(s=>s.status.includes('ACTIVE')).length;
+  const changes=samples.slice(1).filter((s,i)=>Math.abs(s.y-samples[i].y)>.003).length;
+  assert(active>8,JSON.stringify({active,samples}));assert(changes>20,JSON.stringify({changes,samples}));
+  console.log('Passed: continuous vertical motion with 35 ms extra secondary worker delay.',{active,changes});
+ }
  assert.deepEqual(errors,[]);
 }finally{await browser.close();}

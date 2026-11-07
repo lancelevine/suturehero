@@ -7,16 +7,28 @@ export class StereoFallback {
  private anchors=new Map<number,{view:MonoView;pose:FallbackPose}>();
  private source:number|'stereo'='stereo';
  private switchedAt=0;private lastAt=0;private lastStereo=-Infinity;
+ private lastStereoSample=-Infinity;
  private depth=0;private recovery:Vector3|undefined;private recoveryRotation:Quaternion|undefined;
  update(stereo:FallbackPose|undefined,views:MonoView[],now:number){
   const fresh=views.filter(v=>now-v.at<180);
   const dt=Math.max(0,Math.min(.1,(now-this.lastAt)/1000));this.lastAt=now;
-  if(stereo&&now-stereo.at<100){
+  if(stereo&&now-stereo.at<180){
+   if(this.output&&stereo.at===this.lastStereoSample){
+    const view=fresh.find(v=>this.anchors.has(v.camera));
+    if(view){
+     const anchor=this.anchors.get(view.camera)!;
+     const delta=view.position.clone().sub(anchor.view.position);
+     delta.addScaledVector(view.axis,-delta.dot(view.axis));
+     this.output={position:anchor.pose.position.clone().add(delta),quaternion:view.quaternion.clone().multiply(anchor.view.quaternion.clone().invert()).multiply(anchor.pose.quaternion).normalize(),at:view.at};
+    }
+    return {...this.clone(this.output),source:'stereo' as const};
+   }
+   this.lastStereoSample=stereo.at;
    if(this.output&&this.source!=='stereo'){
     this.recovery=this.output.position.clone().sub(stereo.position);
     this.recoveryRotation=this.output.quaternion.clone().multiply(stereo.quaternion.clone().invert());
    }
-   this.source='stereo';this.lastStereo=now;
+   this.source='stereo';this.lastStereo=stereo.at;
    this.recovery?.multiplyScalar(Math.exp(-dt/.18));
    this.recoveryRotation?.slerp(new Quaternion(),1-Math.exp(-dt/.18));
    this.output={position:stereo.position.clone().add(this.recovery??new Vector3()),quaternion:(this.recoveryRotation?.clone()??new Quaternion()).multiply(stereo.quaternion),at:stereo.at};

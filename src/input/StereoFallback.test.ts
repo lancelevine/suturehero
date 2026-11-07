@@ -33,3 +33,12 @@ it('holds depth along the remaining camera axis and maintains rotation continuit
  const changed={...v,position:new Vector3(30,20,1000),at:120,quaternion:v.quaternion.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),.2))};
  const a=f.update(undefined,[changed],120)!;expect(a.position.toArray()).toEqual([0,20,800]);expect(a.quaternion.angleTo(new Quaternion())).toBeCloseTo(.2);
 });
+
+it('does not replay an old stereo position over newer monocular movement',()=>{
+ const f=new StereoFallback(),stereo=pose(800,0);
+ f.update(stereo,[view(0,700,0)],0);
+ expect(f.update(stereo,[view(0,700,60,30)],60)!.position.x).toBe(30);
+ const delayed=f.update(pose(820,80,40),[view(0,720,200,40)],200)!;
+ expect(delayed.source).toBe('stereo');expect(delayed.position.x).toBe(40);
+ expect(f.update(pose(820,80,40),[view(0,720,220,60)],220)!.position.x).toBe(60);
+});

@@ -1,3 +1,4 @@
+import {StereoFrames} from './input/StereoFrames';
 import {StereoFallback,type MonoView} from './input/StereoFallback';
 import {JawViewFusion} from './input/JawViewFusion';
 import {stereoBoard} from './input/stereoBoard';
@@ -229,7 +230,7 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -249,6 +250,7 @@ const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quatern
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 
 type StereoRotation={quaternion:THREE.Quaternion;translation:THREE.Vector3;errorMm:number;faces:number;corners:number};
+const stereoFrames=new StereoFrames();
 const stereoFallbacks=new Map<InstrumentName,StereoFallback>();
 const stereoFallbackStatus=new Map<InstrumentName,string>();
 const stereoMonoCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;views:MonoView[]}>();
@@ -259,12 +261,12 @@ const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalib
 function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null{
  if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
- if(Math.abs(observationsAt-secondaryObservationsAt)>120||now-observationsAt>180||now-secondaryObservationsAt>180)return null;
- const key=`${observationsAt}:${secondaryObservationsAt}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
+ const synchronized=stereoFrames.pair(now);if(!synchronized)return null;
+ const key=`${synchronized.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
  if(cached?.key===key&&cached.calibration===stereoCalibration)return cached.pose;
  const save=(pose:StereoRotation|null)=>{stereoPoseCache.set(name,{key,calibration:stereoCalibration!,pose});return pose;};
  const ids:readonly number[]=markerGroups()[name];
- const first=liveMarkers(),second=liveSecondMarkers();
+ const {first,second}=synchronized;
  const candidates:StereoRotation[]=[];
  for(const id of ids){
   const a=first.find(m=>m.id===id),b=second.find(m=>m.id===id);
@@ -435,7 +437,7 @@ async function refreshSecondCameraList(){
  devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
  select2.value=devices.some(d=>d.deviceId===current)?current:'';
 }
-async function stopSecondCamera(){cancelJointJaws('Capture cancelled: camera 2 stopped.');stereoPositions.clear();detector2.dispose();fastTracker2.dispose();
+async function stopSecondCamera(){cancelJointJaws('Capture cancelled: camera 2 stopped.');stereoPositions.clear();stereoFrames.clear();detector2.dispose();fastTracker2.dispose();
  fastProcessing2=false;processing2=false;lastFastFrame2=0;lastSlowFrame2=0;latestFlowAt2=0;confirmed2.clear();decoded2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
@@ -539,10 +541,10 @@ async function detectSecondFrame(now:number){
    perf.sample('Camera 2 flow frame age',performance.now()-secondaryCaptureAt);const stamp=performance.now();flowFrames2++;
    if(found.length){
     for(const marker of found)confirmed2.set(marker.id,stamp);
-    secondaryObservations=found;secondaryObservationsAt=stamp;latestFlowAt2=stamp;
+    secondaryObservations=found;secondaryObservationsAt=stamp;latestFlowAt2=stamp;stereoFrames.push(1,secondaryCaptureAt,found);
     detector2.seed(toNative(found));
    }else{
-    secondaryObservations=[];confirmed2.clear();secondaryObservationsAt=stamp;
+    secondaryObservations=[];confirmed2.clear();secondaryObservationsAt=stamp;stereoFrames.push(1,secondaryCaptureAt,[]);
     lastSlowFrame2=Math.min(lastSlowFrame2,stamp-65);
    }
    render();
@@ -561,6 +563,7 @@ async function detectSecondFrame(now:number){
    perf.sample('Camera 2 decode frame age',performance.now()-secondaryCaptureAt);decodedFrames2++;
    const nativeMarkers=nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))}));secondarySearch.result(nativeMarkers);perf.sample('Camera 2 '+region.kind+' decode worker',detector2.diagnostics.durationMs);
    const found=toFlow(nativeMarkers),stamp=performance.now();
+   if(found.length&&stamp-secondaryCaptureAt<180)stereoFrames.push(1,secondaryCaptureAt,found);
    if(found.length){
     for(const marker of found)decoded2.set(marker.id,stamp);
     fastTracker2.seed(found,flowSeedFrame);
@@ -1486,11 +1489,11 @@ async function detectFrame(now:number){
      flowMotion.set(m.id,{corners:m.corners.map(p=>({...p})),at:stamp,speed});
      markerLastConfirmed.set(m.id,stamp);
     }
-    observations=found;observationsAt=stamp;latestFlowAt=stamp;idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
+    observations=found;observationsAt=stamp;latestFlowAt=stamp;stereoFrames.push(0,capturedAt,found);idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
    else {
      // A missing optical-flow frame must not erase a freshly decoded stationary marker.
      const decodedHold=observations.filter(m=>stamp-(markerLastDecoded.get(m.id)??-Infinity)<300);
-     observations=decodedHold;
+     observations=decodedHold;stereoFrames.push(0,capturedAt,[]);
      for(const id of [...markerLastConfirmed.keys()])if(!decodedHold.some(m=>m.id===id))markerLastConfirmed.delete(id);
      for(const marker of decodedHold)markerLastConfirmed.set(marker.id,stamp);
      observationsAt=stamp;idleNoMarkers=decodedHold.length===0;
@@ -1530,6 +1533,7 @@ async function detectFrame(now:number){
    diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
    if(found.length){
     const decodeStamp=performance.now();
+    if(decodeStamp-capturedAt<180)stereoFrames.push(0,capturedAt,found);
     // Decoding runs asynchronously: never inject old image coordinates into
     // a pose already advanced by optical flow. Stale results may confirm IDs
     // but must not move either translation or rotation backward in time.
@@ -1653,11 +1657,12 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    const mismatch=calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight);
    if(mismatch){stereo3dStatus.textContent='Stereo inactive: '+mismatch;}
    else{
-    const first=liveMarkers(),second=liveSecondMarkers();
+    const synchronized=stereoFrames.pair(now);
+    const first=synchronized?.first??[],second=synchronized?.second??[];
     const age=Math.abs(observationsAt-secondaryObservationsAt);
     const hits=[] as Array<{id:number;point:NonNullable<ReturnType<typeof triangulate>>}>;
     let common=0,rejected=0;
-    if(age<120&&now-observationsAt<180&&now-secondaryObservationsAt<180){
+    if(synchronized){
      for(const m of first){
       const other=second.find(o=>o.id===m.id);
       if(!other)continue;
@@ -1685,7 +1690,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      const translation=rigid?.translation??(body?stereoBodyFromCenter(new THREE.Vector3(...hit.point.xyzMm),localCorners(ids.indexOf(hit.id),trackerType),body.quaternion):null);
      if(!translation)continue;
      const measured=stereoPracticePosition(translation);
-     const sampleAt=Math.max(observationsAt,secondaryObservationsAt),seenAt=Math.min(observationsAt,secondaryObservationsAt);
+     const sampleAt=synchronized!.at,seenAt=sampleAt;
      if(previous?.lastSample===sampleAt)continue;
      // Geometry already rejects invalid triangulations. Do not compare a new
      // measurement to a lagging low-pass position: real motion can otherwise
@@ -1719,4 +1724,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.75',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.76',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
