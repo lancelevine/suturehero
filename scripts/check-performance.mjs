@@ -14,7 +14,7 @@ try{
  await page.locator('[data-perf-copy]').click();let report=JSON.parse(await page.locator('[data-perf-report]').inputValue());
  const required=['Camera 1 presented frames','Camera 1 decode worker','Camera 1 decode round trip','Camera 1 decode dictionary decoding','Camera 1 decode contour detection','Camera 1 decode frame age','Camera 1 flow worker','Pose estimation + filtering','Simulator render submission','Simulator CPU frame','Tracking CPU frame','Camera 1 flow readback','Tracking status UI'];
  for(const name of required){const row=report.performance.rows.find(r=>r.name===name);assert(row,'report missing '+name);assert(row.count>0&&Number.isFinite(row.meanMs)&&row.meanMs>=0&&row.p95Ms>=0);}
- assert.equal(report.context.build,'0.77');
+ assert.equal(report.context.build,'0.78');
  const count=name=>report.performance.rows.find(r=>r.name===name)?.count??0;assert(Math.abs(count('Camera 1 flow readback')-count('Camera 1 capture attempts'))<=2,'each captured image should need only one flow readback');assert(Object.keys(report.performance.counters).some(k=>k.startsWith('Camera 1 full reason:')));assert(report.performance.rows.some(r=>/Camera 1 (full|predicted) decode worker/.test(r.name)));
 assert(report.context.decode1.width<=960&&report.context.decode1.height<=540);assert.equal(report.context.roiDecode,true,'predictive decode should be enabled');
  assert(!JSON.stringify(report).includes('synthetic-secondary'),'report must not include device IDs');

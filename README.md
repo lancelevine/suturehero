@@ -991,3 +991,10 @@ Stereo now buffers camera observations using their source-image capture times. W
 ### Build 0.77 — stereo status on the practice screen
 
 A persistent badge on the simulation view shows **Stereo triangulation ACTIVE**, the active fallback camera, waiting for trackers, calibration mismatch, single-camera tracking, or camera tracking off. It remains visible when camera controls are hidden. The badge follows live tracking status rather than the metric-enable checkbox, and expires to an unavailable status if tracking heartbeats stop. Browser verification covers active stereo, fallback through each camera, and visibility with controls hidden.
+
+
+### Build 0.78 — match eight-face geometry to the printed STL
+
+The angled pads were measured from `suturehero_needledriver_angled_faces_rotated_60.stl`. Each is a 19 × 19 mm square with its center 17.82725 mm along the shaft and 12.3937061 mm radially from the shaft axis. Their normals retain the existing 30° tilt toward the axial end. The old 19 mm axial / 16.454 mm radial center assumptions were incorrect and caused angled-face observations to conflict with side faces. The eight-face ring now uses these measured centers. Its six side faces retain exactly the six-face model's geometry.
+
+The layout assumes marker 06 is on the inclined pad at the same circumferential station as 00, and 07 beside 03, with consistent axial printed orientation; forceps and scissors use the corresponding 16/17 and 26/27 IDs. The selected eight-face model is shared across instruments, so their trackers must share this pad geometry. Markers are modeled as centered 16 mm squares on each pad. Independent test fixtures use the STL's outer-pad vertices to check mono and stereo tracker centers, overlapping side/angled fits, handoffs, and rotation directions for every instrument ID range.

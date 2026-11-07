@@ -11,6 +11,10 @@ const RING_MARKER_MM=16;
 export type TrackerType='prism'|'ring6'|'ring8';
 export const trackerGeometry=(type:TrackerType)=>({faceCount:type==='ring8'?8:type==='ring6'?6:3,sideStepRadians:type==='prism'?2*Math.PI/3:Math.PI/3,markerSizeMm:type==='prism'?PRISM_SIDE_MM:RING_MARKER_MM});
 const ringRadius=RING_SIDE_MM/(2*Math.tan(Math.PI/6));
+// Measured from suturehero_needledriver_angled_faces_rotated_60.stl.
+// Center of each 19 mm square pad, with a centered 16 mm marker.
+const ANGLED_AXIAL_MM=17.82725;
+const ANGLED_RADIAL_MM=12.3937061;
 const prismRadius=PRISM_SIDE_MM/(2*Math.tan(Math.PI/3));
 export function faceGeometry(index:number,type:TrackerType='prism'){
  const ring=type==='ring8'||type==='ring6';
@@ -22,7 +26,8 @@ export function faceGeometry(index:number,type:TrackerType='prism'){
  const q=yaw.clone();
  // Both inclined faces lean toward the tip (+Y in the mount frame).
  if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/6));
- const center=new THREE.Vector3(0,ring&&index>=6?RING_SIDE_MM:0,radius).applyQuaternion(yaw);
+ const angled=type==='ring8'&&index>=6;
+ const center=new THREE.Vector3(0,angled?ANGLED_AXIAL_MM:0,angled?ANGLED_RADIAL_MM:radius).applyQuaternion(yaw);
  return {rotation:q,center};
 }
 export const localCorners=(index:number,type:TrackerType='prism')=>{
