@@ -34,3 +34,11 @@ it('keeps both identical candidates when a jaw moves across a shared search crop
  const balls=findStripedBalls(data,w,h,{x:110,y:70},22.5);
  expect(balls.some(p=>Math.hypot(p.x-80,p.y-70)<2)).toBe(true);expect(balls.some(p=>Math.hypot(p.x-140,p.y-70)<2)).toBe(true);
 });
+it('recognizes mounted balls with a dark stem crossing the outer background or one band endpoint',()=>{
+ for(const direction of ['right','down']){
+  const {data,w,h}=image();
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(direction==='right'?x>=63&&Math.abs(y-45)<=1:y>=58&&Math.abs(x-50)<=1){const i=(y*w+x)*4;data[i]=data[i+1]=data[i+2]=25;}
+  const diagnostics={reason:'',diameterPx:0,contrast:0};
+  const balls=findStripedBalls(data,w,h,{x:50,y:45},13,diagnostics);expect(balls.length,direction).toBeGreaterThan(0);expect(diagnostics.reason).toContain('recognized');
+ }
+});

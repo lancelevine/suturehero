@@ -22,7 +22,7 @@ export async function installSyntheticCamera(page,options={}){
     c.fillStyle=s.colorB??(s.muted?'rgb(90,100,130)':'rgb(30,100,235)');c.beginPath();c.arc((s.open?460:430)+(s.separationBias??0)+s.shift,340,10,0,2*Math.PI);c.fill();
     }
     c.restore();requestAnimationFrame(draw);
-   };draw();return canvas.captureStream(30);
+   };draw();const stream=canvas.captureStream(30);const track=stream.getVideoTracks()[0],settings=track.getSettings.bind(track);track.getSettings=()=>({...settings(),deviceId:secondary?'synthetic-secondary':'synthetic'});return stream;
   };
  },{muted:!!options.muted,resolutionScale:options.resolutionScale??1});
 }

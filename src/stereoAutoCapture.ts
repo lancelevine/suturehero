@@ -1,173 +1,136 @@
 import {stereoBoard} from './input/stereoBoard';
-// Fail-closed stereo capture: accept a pair only when both frames contain
-// all 48 corners of the 9 x 7-square checkerboard.
-const capture = document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!;
-const exportButton = document.querySelector<HTMLButtonElement>('#export-stereo-pairs')!;
-const clearButton = document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!;
-const statusElement = document.querySelector<HTMLElement>('#stereo-calibration-status')!;
-const video1 = document.querySelector<HTMLVideoElement>('#camera-video')!;
-const video2 = document.querySelector<HTMLVideoElement>('#camera-video-2')!;
-const camera1 = document.querySelector<HTMLSelectElement>('#camera-select')!;
-const camera2 = document.querySelector<HTMLSelectElement>('#camera-select-2')!;
-type ImageCapture = {width:number;height:number;image:string};
-type Pair = {time:string;first:ImageCapture;second:ImageCapture;frameDeltaMs:null};
-type CV = {
- Mat:new()=>any; Size:new(w:number,h:number)=>any;
- imread:(canvas:HTMLCanvasElement)=>any;
- cvtColor:(src:any,dst:any,code:number)=>void;
- findChessboardCorners:(gray:any,size:any,corners:any,flags:number)=>boolean;
- COLOR_RGBA2GRAY:number;CALIB_CB_ADAPTIVE_THRESH:number;CALIB_CB_NORMALIZE_IMAGE:number;
-};
-const pairs:Pair[]=[];
-type BoardQuality={cx:number;cy:number;span:number;angle:number};
-const qualities:BoardQuality[]=[];
-const qualityMessage=document.createElement('p');qualityMessage.className='tracking-message';statusElement.after(qualityMessage);
-let active=false;
-let timer:number|undefined;
-let processing=false;
-let detector:CV|undefined;
-let detectorError='';
-const target=20;
-const intervalMs=3000;
-const board={...stereoBoard,squareSizeMm:Number(document.querySelector<HTMLInputElement>('#stereo-square-size-mm')!.value)};
+import {frameClock} from './input/CameraFrameClock';
+import {boardMotion,captureCoverage,describeBoard,pairCaptureDecision,type BoardMeasurement,type CapturePose} from './input/stereoCaptureQuality';
+const capture=document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!;
+const exportButton=document.querySelector<HTMLButtonElement>('#export-stereo-pairs')!;
+const clearButton=document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!;
 const squareSize=document.querySelector<HTMLInputElement>('#stereo-square-size-mm')!;
-function ready():boolean {
- return video1.readyState>=2&&video2.readyState>=2&&video1.videoWidth>0&&video2.videoWidth>0
-  &&!!video1.srcObject&&!!video2.srcObject;
+const status=document.querySelector<HTMLElement>('#stereo-calibration-status')!;
+const videos=[document.querySelector<HTMLVideoElement>('#camera-video')!,document.querySelector<HTMLVideoElement>('#camera-video-2')!] as const;
+const cameras=[document.querySelector<HTMLSelectElement>('#camera-select')!,document.querySelector<HTMLSelectElement>('#camera-select-2')!] as const;
+const quality=document.querySelector<HTMLElement>('#checkerboard-quality')!;quality.setAttribute('role','status');quality.setAttribute('aria-live','polite');
+const coverage=document.createElement('p');coverage.className='tracking-message';quality.after(coverage);
+const previewButton=document.createElement('button');previewButton.type='button';previewButton.textContent='Preview capture quality';capture.before(previewButton);
+const board={...stereoBoard,squareSizeMm:Number(squareSize.value)};
+type ImageCapture={width:number;height:number;image:string};
+type Pair={time:string;first:ImageCapture;second:ImageCapture;frameDeltaMs:number;quality:CapturePose};
+const pairs:Pair[]=[],poses:CapturePose[]=[];
+const snapshots=videos.map(()=>document.createElement('canvas'));
+const checks=videos.map(()=>document.createElement('canvas'));
+const overlays=videos.map(video=>{const canvas=document.createElement('canvas');canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:3';canvas.setAttribute('aria-hidden','true');video.parentElement!.append(canvas);return canvas;});
+let active=false,completed=false,processing=false,preview=false,epoch=0,lastAccepted=-Infinity;
+let lastGood:{measurements:BoardMeasurement[];at:number}|undefined,stableSince:number|undefined;
+let configuration:string|undefined;
+let worker:Worker|undefined,workerReady:Promise<void>|undefined,workerError='';
+let sequence=0;
+const pending=new Map<number,{resolve:(value:any)=>void;reject:(reason:Error)=>void;timeout:number}>();
+const config=()=>JSON.stringify(cameras.map((c,i)=>({id:c.value,width:videos[i].videoWidth,height:videos[i].videoHeight})));
+const ready=()=>cameras.every(c=>!!c.value)&&cameras[0].value!==cameras[1].value&&videos.every((v,i)=>{
+ if(!v.srcObject||v.readyState<2||!v.videoWidth)return false;
+ const device=(v.srcObject as MediaStream).getVideoTracks?.()[0]?.getSettings?.().deviceId;
+ return !device||device===cameras[i].value;
+});
+const visible=()=>capture.getClientRects().length>0;
+function update(message?:string){
+ status.dataset.accepted=String(pairs.length);status.dataset.complete=String(completed);
+ if(message)status.textContent=message;
+ const progress=captureCoverage(poses);
+ coverage.textContent=progress.complete?'Coverage complete: enough accepted pairs to export for solving.':poses.length+' accepted · Still needed: '+progress.missing.join(' · ');
+ exportButton.disabled=pairs.length===0;clearButton.disabled=active;squareSize.disabled=active||pairs.length>0;
+ capture.disabled=completed||pairs.length>=40;
+ capture.textContent=completed?'Capture complete':active?'Pause capture':pairs.length?'Resume good-pair capture':'Start quality-guided capture';
+ previewButton.disabled=active||completed;previewButton.textContent=preview?'Stop quality preview':workerError?'Retry quality preview':'Preview capture quality';
 }
-function update(message:string):void {
- statusElement.textContent=message;
- exportButton.disabled=pairs.length===0;
- clearButton.disabled=active;
- squareSize.disabled=active||pairs.length>0;
- capture.textContent=active?'Stop validated capture':'Capture 20 validated pairs';
-}
-function frame(video:HTMLVideoElement):{canvas:HTMLCanvasElement;image:ImageCapture}{
- const canvas=document.createElement('canvas');
- canvas.width=video.videoWidth;canvas.height=video.videoHeight;
- canvas.getContext('2d')!.drawImage(video,0,0);
- return {canvas,image:{width:canvas.width,height:canvas.height,image:canvas.toDataURL('image/jpeg',.82)}};
-}
-function checkerboardVisible(cv:CV,canvas:HTMLCanvasElement):BoardQuality|null {
- // Detect on a downsampled image to keep the UI responsive.
- const small=document.createElement('canvas');
- const scale=Math.min(1,960/canvas.width);
- small.width=Math.round(canvas.width*scale);
- small.height=Math.round(canvas.height*scale);
- small.getContext('2d')!.drawImage(canvas,0,0,small.width,small.height);
- let src:any,gray:any,corners:any;
- try {
-  src=cv.imread(small);gray=new cv.Mat();corners=new cv.Mat();
-  cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
-  const found=cv.findChessboardCorners(gray,new cv.Size(8,6),corners,
-   cv.CALIB_CB_ADAPTIVE_THRESH|cv.CALIB_CB_NORMALIZE_IMAGE);
-  if(!found||corners.rows*corners.cols!==48)return null;
-  const data=corners.data32F as Float32Array;
-  if(!data||data.length<96)return null;
-  const x0=data[0],y0=data[1],x7=data[14],y7=data[15],x47=data[94],y47=data[95];
-  return {cx:(x0+x7+x47)/3/small.width,cy:(y0+y7+y47)/3/small.height,
-   span:Math.hypot(x7-x0,y7-y0)/small.width,angle:Math.atan2(y7-y0,x7-x0)};
- } finally {
-  corners?.delete();gray?.delete();src?.delete();
- }
-}
-async function loadDetector():Promise<CV>{
- if(detector)return detector;
- if(detectorError)throw Error(detectorError);
- // The standard OpenCV.js build may omit calib3d. Detect this explicitly.
- const globalCV=window as unknown as {cv?:any};
- if(!globalCV.cv){
-  await new Promise<void>((resolve,reject)=>{
-   const script=document.createElement('script');
-   script.src=new URL('./vendor/opencv.js',document.baseURI).href;
-   script.async=true;
-   script.onload=()=>resolve();
-   script.onerror=()=>reject(Error('Unable to load OpenCV.js. Check network access.'));
-   document.head.appendChild(script);
-  });
- }
- let cv=globalCV.cv;
- if(cv instanceof Promise)cv=await cv;
- if(cv?.ready instanceof Promise)await cv.ready;
- // The custom build exposes its API after WebAssembly initialization.
- if(typeof cv?.findChessboardCorners!=='function' && cv?.onRuntimeInitialized!==undefined){
-  await new Promise<void>((resolve,reject)=>{
-   const timeout=window.setTimeout(()=>reject(Error('OpenCV.js initialization timed out')),30000);
-   cv.onRuntimeInitialized=()=>{window.clearTimeout(timeout);resolve();};
-  });
- }
- if(typeof cv?.findChessboardCorners!=='function'){
-  detectorError='The bundled calibration OpenCV.js build did not expose checkerboard detection. Validated capture is unavailable; no unverified images will be saved.';
-  throw Error(detectorError);
- }
- detector=cv as CV;
- return detector;
-}
-function stop(message?:string):void{
- active=false;
- if(timer!==undefined)window.clearInterval(timer);
- timer=undefined;
- update(message??(pairs.length+' validated pairs saved. Export when ready.'));
-}
-async function tick():Promise<void>{
- if(!active||processing)return;
- if(!ready()){stop('Camera stopped. '+pairs.length+' validated pairs retained.');return;}
- processing=true;
- try {
-  const cv=await loadDetector();
-  if(!active)return;
-  const first=frame(video1),second=frame(video2);
-  const valid1=checkerboardVisible(cv,first.canvas);
-  const valid2=checkerboardVisible(cv,second.canvas);
-  let warning='';
-  if(valid1&&valid2){
-   const previous=qualities.some(q=>Math.hypot(q.cx-valid1.cx,q.cy-valid1.cy)<.035&&
-    Math.abs(q.span-valid1.span)<.025&&Math.abs(Math.atan2(Math.sin(q.angle-valid1.angle),Math.cos(q.angle-valid1.angle)))<.12);
-   if(previous)warning='This board pose resembles an earlier capture. Change position, tilt, or distance.';
-   pairs.push({time:new Date().toISOString(),first:first.image,second:second.image,frameDeltaMs:null});
-   qualities.push(valid1);
-   const spans=qualities.map(q=>q.span),angles=qualities.map(q=>q.angle);
-   qualityMessage.textContent='Capture diversity (not a solved calibration): '+pairs.length+' pairs · board-size range '+
-    ((Math.max(...spans)-Math.min(...spans))*100).toFixed(1)+'% of frame · orientation range '+
-    ((Math.max(...angles)-Math.min(...angles))*180/Math.PI).toFixed(0)+'°. '+warning;
-  }
-  if(pairs.length>=target){stop('20 / 20 validated pairs captured. Ready to export.');return;}
-  update(pairs.length+' / '+target+' accepted · Camera 1: '+(valid1?'48 corners ✓':'board not found')+
-   ' · Camera 2: '+(valid2?'48 corners ✓':'board not found')+
-   '. '+(valid1&&valid2?'Move or tilt board for next pair.':'Keep all squares visible in both cameras.'));
- }catch(error){
-  stop('Validated capture stopped: '+String(error));
- }finally{processing=false;}
-}
-capture.addEventListener('click',event=>{
- event.stopImmediatePropagation();
- if(active){stop();return;}
- if(!ready()){update('Start both cameras before capture.');return;}
- pairs.length=0;qualities.length=0;qualityMessage.textContent='';
- active=true;
- update('Loading checkerboard detector…');
- void tick().then(()=>{
-  if(active)timer=window.setInterval(()=>{void tick();},intervalMs);
+function stop(message:string){active=false;epoch++;update(message);}
+function request(message:Record<string,unknown>,transfer:Transferable[]=[]):Promise<any>{
+ const id=++sequence;
+ return new Promise((resolve,reject)=>{
+  const timeout=window.setTimeout(()=>{pending.delete(id);reject(Error('Checkerboard worker timed out'));},35000);
+  pending.set(id,{resolve,reject,timeout});worker!.postMessage({...message,id,url:new URL('./vendor/opencv.js',document.baseURI).href},transfer);
  });
-},true);
-exportButton.addEventListener('click',event=>{
- event.stopImmediatePropagation();
+}
+function disposeWorker(){worker?.terminate();worker=undefined;workerReady=undefined;for(const p of pending.values()){clearTimeout(p.timeout);p.reject(Error('Checkerboard worker stopped'));}pending.clear();}
+async function initialize(){
+ if(workerError)throw Error(workerError);
+ if(!workerReady){
+  worker=new Worker(new URL('./input/checkerboardWorker.ts',import.meta.url));
+  worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;clearTimeout(p.timeout);pending.delete(data.id);if(data.error)p.reject(Error(data.error));else p.resolve(data);};
+  worker.onerror=()=>{for(const p of pending.values()){clearTimeout(p.timeout);p.reject(Error('Checkerboard worker failed to load'));}pending.clear();};
+  workerReady=request({type:'init'}).then(()=>{});
+ }
+ return workerReady;
+}
+function draw(index:number,m:BoardMeasurement,good:boolean){
+ const canvas=overlays[index];canvas.width=m.width;canvas.height=m.height;
+ const context=canvas.getContext('2d')!;context.strokeStyle=context.fillStyle=good?'#35dc87':'#ffc35a';context.lineWidth=2;
+ for(const p of m.corners){context.beginPath();context.arc(p.x,p.y,2.5,0,Math.PI*2);context.fill();}
+ if(m.corners.length===48){context.beginPath();for(const [i,j] of [0,7,47,40].entries()){const p=m.corners[j];if(i)context.lineTo(p.x,p.y);else context.moveTo(p.x,p.y);}context.closePath();context.stroke();}
+}
+function clearOverlays(){for(const canvas of overlays)canvas.getContext('2d')!.clearRect(0,0,canvas.width,canvas.height);}
+function snapshot(index:number){
+ const video=videos[index],canvas=snapshots[index],small=checks[index];
+ if(canvas.width!==video.videoWidth||canvas.height!==video.videoHeight){canvas.width=video.videoWidth;canvas.height=video.videoHeight;}
+ canvas.getContext('2d')!.drawImage(video,0,0);
+ const scale=Math.min(1,640/canvas.width);small.width=Math.round(canvas.width*scale);small.height=Math.round(canvas.height*scale);
+ const context=small.getContext('2d',{willReadFrequently:true})!;context.drawImage(canvas,0,0,small.width,small.height);
+ return context.getImageData(0,0,small.width,small.height);
+}
+const encode=(i:number):ImageCapture=>({width:snapshots[i].width,height:snapshots[i].height,image:snapshots[i].toDataURL('image/jpeg',.92)});
+async function tick(){
+ if(processing||completed||workerError||!(active||preview&&visible()))return;
+ if(!ready()){clearOverlays();lastGood=undefined;stableSince=undefined;quality.textContent='Start both cameras and select two distinct devices to check board quality.';if(active)stop('Camera views unavailable or device selection changed; accepted pairs retained.');return;}
+ if(configuration&&config()!==configuration){clearOverlays();quality.textContent='Camera order or resolution changed. Accepted pairs retain their original camera identities; clear before collecting a new set.';if(active)stop('Camera order or resolution changed. Clear captures before starting a new set.');return;}
+ const token=epoch;processing=true;
+ try{
+  quality.textContent=workerReady?'Checking both views…':'Loading checkerboard quality worker…';await initialize();if(token!==epoch)return;
+  const sources=videos.map(v=>v.srcObject),clocks=videos.map(v=>frameClock(v));
+  const frameDeltaMs=clocks.every(Boolean)?Math.abs(clocks[0]!.presentedAt-clocks[1]!.presentedAt):null;
+  const attemptConfig=config(),at=performance.now(),images=[snapshot(0),snapshot(1)];
+  const response=await request({type:'check',images},images.map(image=>image.data.buffer));
+  if(token!==epoch||config()!==attemptConfig||!ready()||sources.some((source,i)=>source!==videos[i].srcObject))return;
+  const measurements=response.result as BoardMeasurement[];
+  const descriptions=measurements.map(describeBoard),individualGood=descriptions.every(d=>!d.reasons.length);
+  if(individualGood&&lastGood&&at-lastGood.at<2000&&measurements.every((m,i)=>boardMotion(lastGood!.measurements[i],m)<Math.max(1.2,(descriptions[i].quality?.cellPx??8)*.06))){stableSince??=lastGood.at;}
+  else stableSince=at;
+  lastGood=individualGood?{measurements,at}:undefined;
+  const decision=pairCaptureDecision(measurements[0],measurements[1],poses,individualGood?at-(stableSince??at):0,frameDeltaMs);
+  measurements.forEach((m,i)=>draw(i,m,descriptions[i].reasons.length===0));
+  quality.textContent=descriptions.map((d,i)=>'Camera '+(i+1)+': '+(d.quality?'48 corners · square '+d.quality.cellPx.toFixed(0)+' px · contrast '+d.quality.contrast.toFixed(0)+' · sharpness '+d.quality.focus.toFixed(2):'board not found')).join(' | ')+
+   ' · '+(decision.accepted?'Ready — good new pair':decision.reasons.join(' · '));
+  if(active&&decision.accepted&&at-lastAccepted>=1500){
+   configuration??=attemptConfig;
+   const pose=decision.pose!;pairs.push({time:new Date().toISOString(),first:encode(0),second:encode(1),frameDeltaMs:frameDeltaMs!,quality:pose});poses.push(pose);lastAccepted=at;
+   if(captureCoverage(poses).complete){completed=true;preview=false;stop('Capture complete: '+pairs.length+' good, distinct pairs with position, distance and tilt coverage. Export to solve and validate calibration.');return;}
+   if(pairs.length>=40){preview=false;stop('Capture paused at 40 accepted pairs, but coverage is incomplete. Export this partial set or clear it and follow the coverage guidance.');return;}
+   update('Accepted pair '+pairs.length+'. Move the board, then hold still for the next pair.');
+  }else if(active)update('Not saved: '+(decision.reasons.join(' · ')||'Waiting between accepted captures'));
+  else update();
+ }catch(error){workerError=String(error);preview=false;stop('Quality checking unavailable: '+workerError+'. No unverified pairs were saved.');}
+ finally{processing=false;}
+}
+previewButton.addEventListener('click',()=>{if(workerError){workerError='';disposeWorker();}preview=!preview;epoch++;lastGood=undefined;stableSince=undefined;if(!preview)clearOverlays();update();void tick();});
+capture.addEventListener('click',()=>{
+ if(active){stop('Capture paused. '+pairs.length+' accepted pairs retained.');return;}
+ if(!ready()){update('Start both cameras with two distinct selected devices before capture.');return;}
+ if(configuration&&config()!==configuration){update('Clear captures before changing camera order or resolution.');return;}
+ if(workerError){workerError='';disposeWorker();}
+ active=true;preview=true;epoch++;lastGood=undefined;stableSince=undefined;update('Checking image quality and waiting for a steady board…');void tick();
+});
+exportButton.addEventListener('click',()=>{
  if(!pairs.length)return;
- const payload={format:'suturehero-stereo-captures-v1',board,camera1:camera1.value,camera2:camera2.value,pairs,diagnostics:{captureQualities:qualities,notice:'Capture diversity only; stereo reprojection error and camera extrinsics not solved.'}};
- const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
- const link=document.createElement('a');link.href=url;
- link.download='suturehero-stereo-calibration-'+new Date().toISOString().slice(0,10)+'.json';
- link.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
- update('Exported '+pairs.length+' validated stereo pairs.');
-},true);
-clearButton.addEventListener('click',event=>{
- event.stopImmediatePropagation();
- if(active)return;
- if(pairs.length&&!window.confirm('Discard all validated calibration captures?'))return;
- pairs.length=0;qualities.length=0;qualityMessage.textContent='';update('0 validated pairs captured.');
-},true);
-squareSize.addEventListener('change',()=>{const mm=Number(squareSize.value);if(!Number.isFinite(mm)||mm<1||mm>100){squareSize.value=String(board.squareSizeMm);return;}board.squareSizeMm=mm;updateBoardIntro();update(`Checkerboard square size: ${mm} mm. Start a fresh capture set.`);});
-const intro=capture.closest('section')?.querySelector<HTMLElement>('p.tracking-message');
-function updateBoardIntro(){if(intro)intro.innerHTML=`Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · ${board.squareSizeMm} mm squares</strong>. Both cameras must detect all 48 inner corners. Tilt and reposition the board between captures; keep the cameras fixed.`;}
-updateBoardIntro();
-update('0 validated pairs captured. Start both cameras, then capture. Checks every 3 seconds.');
+ const progress=captureCoverage(poses);
+ const identities=configuration?JSON.parse(configuration) as Array<{id:string}>:[];
+ const payload={format:'suturehero-stereo-captures-v1',board,camera1:identities[0]?.id??cameras[0].value,camera2:identities[1]?.id??cameras[1].value,pairs,diagnostics:{captureQualities:poses,qualityGateVersion:1,qualityCheckMaxWidth:640,coverage:progress,notice:'Capture-quality and pose-coverage checks only. Camera intrinsics, extrinsics and reprojection accuracy must still be solved and validated. Frame delta uses presentation callbacks, not hardware synchronization.'}};
+ const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='suturehero-stereo-calibration-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ update('Exported '+pairs.length+' accepted pairs'+(progress.complete?' — ready to solve.':' — partial coverage.'));
+});
+clearButton.addEventListener('click',()=>{
+ if(active)return;if(pairs.length&&!confirm('Discard accepted calibration captures?'))return;
+ epoch++;pairs.length=poses.length=0;configuration=undefined;completed=false;lastAccepted=-Infinity;lastGood=undefined;stableSince=undefined;clearOverlays();update('Captures cleared.');
+});
+squareSize.addEventListener('change',()=>{const mm=Number(squareSize.value);if(!Number.isFinite(mm)||mm<1||mm>100){squareSize.value=String(board.squareSizeMm);return;}board.squareSizeMm=mm;updateIntro();});
+function updateIntro(){const intro=capture.closest('section')?.querySelector<HTMLElement>('p.tracking-message');if(intro)intro.innerHTML=`Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · ${board.squareSizeMm} mm squares</strong>. Keep the full board sharp and still in both views. Capture stops after at least 20 good, distinct pairs with position, distance and tilt coverage. Keep the cameras fixed. Export captures to solve the calibration.`;}
+const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)&&!completed){preview=true;update();void tick();}else if(!active)clearOverlays();});observer.observe(capture);
+const timer=window.setInterval(()=>{void tick();},650);
+window.addEventListener('pagehide',()=>{clearInterval(timer);observer.disconnect();disposeWorker();},{once:true});
+updateIntro();update('Start both cameras, then preview quality or start guided capture. Only accepted pairs will be saved.');

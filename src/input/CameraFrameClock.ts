@@ -4,6 +4,7 @@ export class CameraFrameClock {
  private sequence=0;private consumed=0;private lastPresented=-Infinity;
  presented(at=performance.now()){this.sequence++;this.lastPresented=at;}
  recent(at:number){return at-this.lastPresented<200;}
+ get presentedAt(){return this.lastPresented;}
  get fresh(){return this.sequence!==this.consumed;}
  consume(){this.consumed=this.sequence;}
 }

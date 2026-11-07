@@ -13,7 +13,14 @@ try{
  await page.locator('#start-camera').click();await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});
  await page.locator('[data-calibration-tool=needleDriver]').click();await page.locator('[data-calibration-pane=jaws]').click();await page.locator('#needle-ball-pattern').selectOption('striped10');
  const pick=async(side,x)=>{await page.locator(side?'#ball-pick-b':'#ball-pick-a').click();const overlay=page.locator('#camera-overlay');await overlay.scrollIntoViewIfNeeded();const box=await overlay.boundingBox();await page.mouse.click(box.x+x/960*box.width,box.y+340/540*box.height);};
- await pick(0,400);await pick(1,430);
+ await page.evaluate(()=>window.__ballScene.striped=false);await pick(0,400);
+ await page.waitForFunction(()=>{
+  const canvas=document.querySelector('#camera-overlay'),data=canvas.getContext('2d').getImageData(380,320,42,42).data;
+  let amber=0;for(let i=0;i<data.length;i+=4)if(data[i]>220&&data[i+1]>150&&data[i+1]<220&&data[i+2]<120&&data[i+3]>128)amber++;
+  return amber>10;
+ });
+ console.log('Passed: an assigned but unrecognized ball has an amber camera indicator.');
+ await page.evaluate(()=>window.__ballScene.striped=true);await pick(1,430);
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
  await page.locator('#ball-closed').click();await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near closed recorded'));
  await page.evaluate(()=>window.__ballScene.open=true);await page.waitForTimeout(1000);await page.locator('#ball-open').click();await page.waitForFunction(()=>!document.querySelector('#ball-open').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near open recorded')).catch(async error=>{console.log(await page.evaluate(()=>({status:document.querySelector('#ball-calibration-status').textContent,readout:document.querySelector('#ball-readout').textContent})));throw error;});

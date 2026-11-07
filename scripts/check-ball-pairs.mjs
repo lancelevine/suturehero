@@ -25,6 +25,7 @@ try{
  await pick(1,450,340);
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
  if(process.env.SUTURE_DUAL_JAWS){
+  await page.locator('#tracking-mode').selectOption('stereo',{force:true});
   await page.evaluate(()=>window.__ballScene.camera2={colorA:'rgb(195,70,60)',colorB:'rgb(40,120,220)',hideA:false});
   await page.locator('#choose-secondary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic second camera'}).click();
   await page.waitForFunction(()=>document.querySelector('#camera-video-2').videoWidth>0);
@@ -76,6 +77,16 @@ try{
   const count=await page.evaluate(()=>window.__jawEvents.length);await page.evaluate(()=>window.__ballScene.hideA=true);
   await page.waitForFunction(count=>window.__jawEvents.length>count+3&&JSON.stringify(window.__jawEvents.at(-1).cameras)==='[2]',count,{timeout:10000});
   await page.evaluate(()=>window.__ballScene.hideA=false);await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'));
+ }
+ if(process.env.SUTURE_DUAL_JAWS){
+  await page.locator('#tracking-mode').selectOption('mono',{force:true});
+  await page.evaluate(()=>{window.__ballScene.open=false;window.__ballScene.camera2.hideA=true;});
+  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'));
+  await page.waitForTimeout(700);await page.locator('#ball-closed').click();
+  await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near closed recorded'));
+  await page.waitForFunction(()=>JSON.stringify(window.__jawEvents.at(-1)?.cameras)==='[1]');
+  assert(await page.locator('#ball-camera option[value="1"]').evaluate(e=>e.disabled),JSON.stringify(await page.evaluate(()=>({mode:document.querySelector('#tracking-mode').value,disabled:document.querySelector('#ball-camera').options[1].disabled,labels:[...document.querySelector('#ball-camera').options].map(o=>o.outerHTML)})))+' errors: '+JSON.stringify(errors));
+  console.log('Passed: mono jaw capture ignores a configured but missing secondary-camera ball pair.');
  }
  await page.evaluate(()=>window.__ballScene.distractor=true);
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('pair rejected or missing'),{},{timeout:15000});
