@@ -77,6 +77,13 @@ wrong, say why in the commit message and the handoff entry.
 - **Camera:** one camera day to day. Stereo (two cameras) is the goal but does
   not yet track well. Do not break the single-camera path while working on
   stereo.
+- **Upcoming cameras:** two OV9281 USB 2.0 webcams — **monochrome**, global
+  shutter, 1280×800 at up to 120 fps (MJPEG). Implications: colored-ball jaw
+  tracking cannot work with them (use white or striped balls); the camera
+  request in `src/input/arucoTracking.ts` must ask for 1280×800 and a high
+  frame rate instead of 1080p/30 fps; markers cover fewer pixels than at
+  1080p; the two cameras are not hardware-synchronized. Keep current cameras
+  working until Lance has switched.
 - **Tracker:** the **8-face ring** (`ring8`) is the one in use. The prism and
   6-face paths still exist; don't remove them without asking.
 - **Jaw markers:** needle driver uses **solid white** balls (new, untested on

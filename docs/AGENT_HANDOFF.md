@@ -25,6 +25,10 @@ entry when finishing.
   2. Add a code formatter in one dedicated commit (agree with Lance first).
   3. Gradually split `src/tracking.ts` into tested modules.
   4. Make the needle-driver solid-white path solid once Lance has tested it.
+  5. Prepare for the OV9281 cameras (monochrome, global shutter, 1280×800 @
+     up to 120 fps): request their native mode and frame rate in
+     `openCamera`, use white/striped jaw balls for the forceps, then
+     recalibrate and retest stereo. Needs real-camera testing by Lance.
 
 ## Log
 
@@ -38,6 +42,15 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-07 — Claude Code — Record upcoming OV9281 cameras
+- Changed: documented the planned OV9281 stereo cameras and their impact
+  (no color, 120 fps request needed, 800p) in `AGENTS.md`; added *Next up* 5.
+- Files: `AGENTS.md`, `docs/AGENT_HANDOFF.md`.
+- Checked: docs only.
+- Lance to test: nothing yet.
+- Notes for the other agent: don't extend colored-ball features; prefer
+  white/striped markers.
 
 ### 2026-11-07 — Claude Code — Shared agent instructions and handoff log
 - Changed: added `AGENTS.md` (shared rules for Codex and Claude),
