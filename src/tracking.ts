@@ -34,6 +34,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
 import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
+import {TRACKING_STORAGE_KEYS,readStored,readStoredJson,writeStored,removeStored,parseTrackerType,parseNeedleJawPattern,jawStorageKey,patternJawStorageKey,parseDepthCalibration,DEFAULT_WORKING_DEPTH_MM,type NeedleJawPattern,type SavedDepthCalibration} from './input/trackingStorage';
 import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
 import {solvePrismPose,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
@@ -245,13 +246,13 @@ function resetTrackerPose(){
  poseHistory.clear();depthHistory.clear();depthHistoryStamps.clear();
 }
 trackerTypeSelect.addEventListener('change',()=>{
- trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value==='ring6'?'ring6':'prism';
+ trackerType=parseTrackerType(trackerTypeSelect.value);
  resetTrackerPose();
  updateTrackerDescription();
- try{localStorage.setItem('suturehero.trackerType',trackerType);}catch{/* unavailable */}
+ writeStored(TRACKING_STORAGE_KEYS.trackerType,trackerType);
 });
-try{trackerTypeSelect.value=(['ring8','ring6'].includes(localStorage.getItem('suturehero.trackerType')??'')?localStorage.getItem('suturehero.trackerType'):'prism')!;}catch{/* unavailable */}
-trackerType=trackerTypeSelect.value==='ring8'?'ring8':trackerTypeSelect.value==='ring6'?'ring6':'prism';
+trackerTypeSelect.value=parseTrackerType(readStored(TRACKING_STORAGE_KEYS.trackerType));
+trackerType=parseTrackerType(trackerTypeSelect.value);
 updateTrackerDescription();
 
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
@@ -327,7 +328,7 @@ function updateStereoViewIndicator(now:number){
 }
 
 stereoEnabled.addEventListener('change',resetTrackerPose);
-const stereoStorage='suturehero.stereoCalibration.v1';
+const stereoStorage=TRACKING_STORAGE_KEYS.stereoCalibration;
 function loadStereoCalibration(raw:unknown,restore=false){
  const parsed=parseCalibration(raw);
  if(!restore){
@@ -336,17 +337,19 @@ function loadStereoCalibration(raw:unknown,restore=false){
   parsed.cameraIds={first:select.value,second:select2.value};
  }
  stereoCalibration=parsed;stereoEnabled.checked=false;if(!restore)resetTrackerPose();else stereoPositions.clear();
- try{localStorage.setItem(stereoStorage,JSON.stringify(parsed));}catch{/* storage unavailable */}
+ writeStored(stereoStorage,JSON.stringify(parsed));
  stereoGeometryStatus.textContent='Calibration loaded · '+Math.hypot(...parsed.stereo.translationMm).toFixed(1)+' mm baseline · stereo RMS '+(parsed.stereo.rmsPx?.toFixed(2)??'unknown')+' px. Enable metric 3D after checking camera setup.';
 }
-try{const raw=localStorage.getItem(stereoStorage);if(raw)loadStereoCalibration(JSON.parse(raw),true);}catch{localStorage.removeItem(stereoStorage);}
+// A saved calibration that no longer parses is discarded. Storage access is
+// guarded: a browser that blocks storage must not stop the page loading.
+{const saved=readStoredJson(stereoStorage);if(saved!==undefined){try{loadStereoCalibration(saved,true);}catch{removeStored(stereoStorage);}}else if(readStored(stereoStorage))removeStored(stereoStorage);}
 stereoPanel.querySelector<HTMLInputElement>('#stereo-import')!.addEventListener('change',async event=>{
  const input=event.currentTarget as HTMLInputElement,file=input.files?.[0];if(!file)return;
  try{loadStereoCalibration(JSON.parse(await file.text()));}catch(e){stereoGeometryStatus.textContent='Import rejected: '+String(e);}
  input.value='';
 });
 stereoPanel.querySelector<HTMLButtonElement>('#stereo-remove')!.addEventListener('click',()=>{
- stereoCalibration=null;stereoEnabled.checked=false;stereoPositions.clear();try{localStorage.removeItem(stereoStorage);}catch{/* ignore */}
+ stereoCalibration=null;stereoEnabled.checked=false;stereoPositions.clear();removeStored(stereoStorage);
  stereoGeometryStatus.textContent='Calibration removed.';stereo3dStatus.textContent='No triangulated markers.';
 });
 const frame2=document.createElement('canvas');
@@ -576,21 +579,21 @@ const sizeDepthFrames=new Map<InstrumentName,(SizeDepthAnchor&{at:number;distanc
 const sizeDepthFaces=new Map<InstrumentName,number>();
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
 stableDepth.addEventListener('change',()=>{monoDepthFilters.clear();depthStates.clear();});
-const DEPTH_STORAGE_KEY='suturehero.depthCalibration.v2';
+const DEPTH_STORAGE_KEY=TRACKING_STORAGE_KEYS.depthCalibration;
 const depthBinding=()=>`${stream?.getVideoTracks()[0]?.getSettings().deviceId??select.value}|${trackerType}|${video.videoWidth&&video.videoHeight?(video.videoWidth/video.videoHeight).toFixed(3):'off'}`;
 let depthNearMm:number|null=null,depthFarMm:number|null=null;
 function saveDepthCalibration(){
- try{localStorage.setItem(DEPTH_STORAGE_KEY,JSON.stringify({near:depthNearMm,far:depthFarMm,range:Number(workingDepthInput.value)||400,size:sizeDepthCalibration}));}catch{/* unavailable */}
+ const saved:SavedDepthCalibration={near:depthNearMm,far:depthFarMm,range:Number(workingDepthInput.value)||DEFAULT_WORKING_DEPTH_MM,size:sizeDepthCalibration};
+ writeStored(DEPTH_STORAGE_KEY,JSON.stringify(saved));
 }
 function restoreDepthCalibration(){
- try{
-  const raw=localStorage.getItem(DEPTH_STORAGE_KEY);if(!raw)return;
-  const value=JSON.parse(raw) as {near?:unknown;far?:unknown;range?:unknown;size?:unknown};
-  if(typeof value.range==='number'&&Number.isFinite(value.range)&&value.range>=50&&value.range<=1500)workingDepthInput.value=String(value.range);
-  if(!sizeDepthCalibration.restore(value.size))return;
-  if(typeof value.near==='number'&&Number.isFinite(value.near)&&value.near>0)depthNearMm=value.near;
-  if(typeof value.far==='number'&&Number.isFinite(value.far)&&depthNearMm!==null&&value.far>depthNearMm+20)depthFarMm=value.far;
- }catch{/* invalid saved calibration */}
+ const saved=readStoredJson(DEPTH_STORAGE_KEY);if(saved===undefined)return;
+ const value=parseDepthCalibration(saved);
+ if(value.range!==undefined)workingDepthInput.value=String(value.range);
+ // Near/Far are only meaningful with the size calibration they were captured with.
+ if(!sizeDepthCalibration.restore(value.size))return;
+ if(value.near!==undefined)depthNearMm=value.near;
+ if(value.far!==undefined)depthFarMm=value.far;
 }
 restoreDepthCalibration();
 const depthHistory=new Map<'needleDriver'|'forceps'|'scissors',number[]>();
@@ -1010,8 +1013,7 @@ function recentBallMarker(pair:number,now:number,camera=0){
 }
 const ballInstrument=document.querySelector<HTMLSelectElement>('#ball-instrument')!;
 const ballNames=BALL_INSTRUMENTS;
-let needleBallMode='color';try{needleBallMode=localStorage.getItem('suturehero.needleJawPattern.v1')||'color';}catch{/* session default */}
-if(!['color','striped10','white10'].includes(needleBallMode))needleBallMode='color';
+let needleBallMode:NeedleJawPattern=parseNeedleJawPattern(readStored(TRACKING_STORAGE_KEYS.needleJawPattern));
 let stripedNeedle=needleBallMode!=='color';
 const needlePair=ballNames.indexOf('needleDriver');
 const isStripedSlot=(i:number)=>stripedNeedle&&Math.floor(i/2)===needlePair;
@@ -1019,8 +1021,7 @@ const stripedMotion=[new Map<number,BallMotionTracker>(),new Map<number,BallMoti
 const stripedSearchWorkers=new Map<HTMLVideoElement,{worker:Worker;busy:boolean;timeout?:number;sequence:number}>();
 const stripedJawDiagnostics=new Map<string,StripedBallDiagnostics>();
 const stripedCropCanvas=document.createElement('canvas'),stripedCropContext=stripedCropCanvas.getContext('2d',{willReadFrequently:true})!;
-const jawStorageKey=(camera:number)=>camera?'suturehero.jaw-tracking.camera2.v1':'suturehero.jaw-tracking.v1';
-const stripedStorageKey=(camera:number)=>jawStorageKey(camera)+(needleBallMode==='white10'?'.white10':'.striped10');
+const stripedStorageKey=(camera:number)=>patternJawStorageKey(camera,needleBallMode);
 // Physical measurements from the center of each hexagonal marker tracker to the tip.
 // Used only as a loose image-space association bound, not metric pose-to-tip calibration.
 const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
@@ -1160,8 +1161,8 @@ function restoreJaws(){
 restoreJaws();
 const needlePattern=document.querySelector<HTMLSelectElement>('#needle-ball-pattern')!;needlePattern.value=needleBallMode;
 needlePattern.addEventListener('change',()=>{
- cancelJointJaws('Capture cancelled when changing ball pattern.');persistJaws();needleBallMode=needlePattern.value;stripedNeedle=needleBallMode!=='color';
- try{localStorage.setItem('suturehero.needleJawPattern.v1',needlePattern.value);}catch{/* session setting */}
+ cancelJointJaws('Capture cancelled when changing ball pattern.');persistJaws();needleBallMode=parseNeedleJawPattern(needlePattern.value);stripedNeedle=needleBallMode!=='color';
+ writeStored(TRACKING_STORAGE_KEYS.needleJawPattern,needlePattern.value);
  for(const motion of stripedMotion)motion.clear();
  for(const state of jawCameras){
   for(const i of [needlePair*2,needlePair*2+1]){state.ballColors[i]=null;state.ballCenters[i]=null;state.ballAnchors[i]=null;state.ballSeenAt[i]=0;state.ballDisplayColors[i]=null;state.ballSampleBrightness[i]=0;state.ballAnchorMarkers[i]=null;state.ballProvisional[i]=null;}

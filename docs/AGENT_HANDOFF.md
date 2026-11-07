@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — extracting saved settings and stereo calibration storage from `src/tracking.ts`. Please avoid editing `src/tracking.ts` until cleared.
+- **In progress:** Claude Code — continuing to split `src/tracking.ts` into modules. Please avoid editing `src/tracking.ts` until cleared.
 - **Needs Lance to test by hand:**
   - Solid white needle-driver ball mode (commit `7f44662`): not yet tried
     with a real camera.
@@ -22,10 +22,10 @@ entry when finishing.
   - `src/tracking.ts` (~156 KB) and `src/main.ts` (~57 KB) are monolithic and
     are the most likely place for merge conflicts.
 - **Next up (proposed, not started):**
-  1. Continue splitting `src/tracking.ts` into tested modules. Camera
-     devices/controls are done; good next candidates are saved settings
-     (localStorage), the stereo calibration import/export, and the jaw-ball
-     detection loop.
+  1. Continue splitting `src/tracking.ts` into tested modules. Done:
+     camera devices/controls, saved settings. Candidates: stereo calibration
+     import/status, the jaw-ball detection loop, the pose output to the
+     practice scene.
   2. Add a code formatter in one dedicated commit (agree with Lance first).
   3. Make the needle-driver solid-white path solid once Lance has tested it.
   4. When the OV9281 cameras arrive (monochrome, global shutter, 1280×800 @
@@ -46,6 +46,24 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-07 — Claude Code — Saved tracking settings module; blocked-storage crash fix
+- Changed: moved all tracking-page storage keys and parsing into
+  `src/input/trackingStorage.ts` (tracker type, needle-driver ball pattern,
+  depth calibration, stereo calibration, jaw keys), with safe read/write
+  helpers. **Bug fix:** if the browser blocked site storage, restoring the
+  stereo calibration threw inside its own error handler and the tracking
+  page stopped loading partway (camera panel never rendered). It now loads
+  normally with defaults. Storage key names are unchanged.
+- Files: `src/tracking.ts`, `src/input/trackingStorage.ts` (+ test),
+  `scripts/check-tracking-storage.mjs` (new browser check).
+- Checked: tsc, full `npm test`, build on Node 24;
+  `check-tracking-storage.mjs` and `check-camera-controls.mjs` pass. The
+  blocked-storage failure was reproduced on the old code first.
+- Lance to test: reload the tracking page and confirm tracker type (8-face
+  ring), needle-driver ball pattern and working depth are remembered.
+- Notes for the other agent: use `readStored`/`writeStored` from
+  `trackingStorage.ts` for new settings instead of raw `localStorage`.
 
 ### 2026-11-07 — Claude Code — README rewrite; camera setup out of tracking.ts
 - Changed: README is now a current guide; the 80 per-build notes moved
