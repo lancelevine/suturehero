@@ -14,8 +14,13 @@ export async function installSyntheticCamera(page,options={}){
     c.save();c.translate(480,270);c.scale(s.scale??1,s.scale??1);c.translate(-480,-270);
     if(s.marker){c.save();c.translate(398+s.shift,218+(s.yShift??0));c.rotate(s.angle??0);c.drawImage(image,320,20,60,60,-18,-18,36,36);c.restore();}
     if(s.extraMarker)c.drawImage(image,420,20,60,60,(s.extraMarkerX??424)+s.shift,200,36,36);
+    if(s.striped){
+     const ball=(x,y)=>{c.save();c.translate(x,y);c.rotate(s.bandAngle??0);c.beginPath();c.arc(0,0,10,0,2*Math.PI);c.clip();c.fillStyle='#f0f0f0';c.fillRect(-10,-10,20,20);c.fillStyle='#191919';for(let band=-1;band<=1;band++)c.fillRect(band*4-.9,-10,1.8,20);c.restore();};
+     if(!s.hideA)ball((s.distractor?310:400)+s.shift,340);ball((s.open?460:430)+(s.separationBias??0)+s.shift,340);
+    }else{
     c.fillStyle=s.colorA??(s.muted?'rgb(120,95,90)':'rgb(225,50,60)');c.beginPath();c.arc((s.distractor?310:400)+s.shift,340,10,0,2*Math.PI);if(!s.hideA)c.fill();
     c.fillStyle=s.colorB??(s.muted?'rgb(90,100,130)':'rgb(30,100,235)');c.beginPath();c.arc((s.open?460:430)+(s.separationBias??0)+s.shift,340,10,0,2*Math.PI);c.fill();
+    }
     c.restore();requestAnimationFrame(draw);
    };draw();return canvas.captureStream(30);
   };

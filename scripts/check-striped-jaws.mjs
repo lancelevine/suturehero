@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {join} from 'node:path';
+import {chromium} from 'playwright-core';
+import {installSyntheticCamera} from './synthetic-camera.mjs';
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
+try{
+ const context=await browser.newContext({viewport:{width:1440,height:1100}});
+ await context.route('https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/*',async r=>r.fulfill({contentType:'application/javascript',body:await readFile(join(process.env.ARUCO_LIBRARY_DIR??'/tmp/suturehero-aruco',new URL(r.request().url()).pathname.split('/').at(-1)))}));
+ const page=await context.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));
+ await installSyntheticCamera(page,{resolutionScale:2});await page.addInitScript(()=>localStorage.setItem('suturehero.trackerType','ring6'));
+ await page.goto('http://127.0.0.1:5173/tracking.html');await page.evaluate(()=>window.__ballScene.striped=true);
+ await page.locator('#start-camera').click();await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});
+ await page.locator('[data-calibration-tool=needleDriver]').click();await page.locator('[data-calibration-pane=jaws]').click();await page.locator('#needle-ball-pattern').selectOption('striped10');
+ const pick=async(side,x)=>{await page.locator(side?'#ball-pick-b':'#ball-pick-a').click();const overlay=page.locator('#camera-overlay');await overlay.scrollIntoViewIfNeeded();const box=await overlay.boundingBox();await page.mouse.click(box.x+x/960*box.width,box.y+340/540*box.height);};
+ await pick(0,400);await pick(1,430);
+ await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
+ await page.locator('#ball-closed').click();await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near closed recorded'));
+ await page.evaluate(()=>window.__ballScene.open=true);await page.waitForTimeout(1000);await page.locator('#ball-open').click();await page.waitForFunction(()=>!document.querySelector('#ball-open').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near open recorded')).catch(async error=>{console.log(await page.evaluate(()=>({status:document.querySelector('#ball-calibration-status').textContent,readout:document.querySelector('#ball-readout').textContent})));throw error;});
+ await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening>.8);
+ await page.evaluate(()=>window.__ballScene.open=false);await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening<.1);
+ await page.evaluate(()=>{window.__ballScene.bandAngle=.6;window.__ballScene.open=true;});await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening>.8);
+ console.log(await page.evaluate(async()=>{const {trackingPerformance:p}=await import('/src/diagnostics/TrackingPerformance.ts');return p.snapshot().rows.find(r=>r.name==='Striped jaw pattern search');}));
+ await page.evaluate(()=>window.__ballScene.hideA=true);await page.waitForTimeout(900);const count=await page.evaluate(()=>window.__jawEvents.length);await page.waitForTimeout(400);assert.equal(await page.evaluate(()=>window.__jawEvents.length),count,'One striped ball must never be paired with itself');
+ await page.evaluate(()=>window.__ballScene.hideA=false);await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'));
+ const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('suturehero.jaw-tracking.v1.striped10')));assert(saved.tools.needleDriver.calibration.near.closed&&saved.tools.needleDriver.calibration.near.open);
+ await page.locator('#needle-ball-pattern').selectOption('color');assert.match(await page.locator('#ball-calibration-status').textContent(),/Near: closed —/);
+ await page.locator('#needle-ball-pattern').selectOption('striped10');assert.match(await page.locator('#ball-calibration-status').textContent(),/Near: closed ✓ \/ open ✓/);
+ await page.reload();await page.locator('#needle-ball-pattern').waitFor({state:'attached'});assert.equal(await page.locator('#needle-ball-pattern').inputValue(),'striped10');
+ assert.deepEqual(errors,[]);console.log('Passed: identical striped-ball acquisition, closed/open calibration, rotation, one-ball loss rejection, separate color/striped profiles, and reload restoration.');
+}finally{await browser.close();}
