@@ -1,3 +1,6 @@
+import {JawViewFusion} from './input/JawViewFusion';
+import {stereoBoard} from './input/stereoBoard';
+import {fitStereoMarkerPose,stereoPracticePosition} from './input/stereoTrackingPose';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
 import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
@@ -37,13 +40,14 @@ root.innerHTML=`<header><a class="brand" href="./"><img class="brand-logo" src="
 <div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
 <div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
 <div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental three-instrument color-ball jaw tracking</summary><p>Select an instrument, then with camera 1 running click Assign ball A, then click its ball in the camera image. Repeat for ball B. At Near, capture closed and open while holding still; repeat at Far at the same typical angle. Each capture averages about one second of frames. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><label>Instrument <select id="ball-instrument"><option value="forceps">Forceps</option><option value="needleDriver">Needle driver</option><option value="scissors">Scissors</option></select></label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><label>Capture distance <select id="ball-calibration-distance"><option value="near">Near working distance</option><option value="far">Far working distance</option></select></label><button id="ball-closed">Capture closed · Near</button><button id="ball-open">Capture open · Near</button><button id="ball-calibration-reset" type="button">Reset jaw measurements</button></div><p id="ball-calibration-status" class="tracking-message" role="status"></p><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
+<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><details class="tracking-tuning"><summary>Experimental three-instrument color-ball jaw tracking</summary><p>Select an instrument and a color sampling view. With that camera running, assign balls A and B by clicking them in its image. Repeat color sampling for the other camera if used. At Near, capture closed and open while holding still; repeat at Far at the same typical angle. Each capture averages about one second of frames. Distinct colors and both balls visible are required.</p><div class="tracking-actions"><label><input type="checkbox" id="ball-enable"> Enable ball tracking</label><label>Color sampling view <select id="ball-camera"><option value="0">Camera 1</option><option value="1">Camera 2</option></select></label><span class="tracking-message">Capture closed/open once for all configured camera views.</span><label>Instrument <select id="ball-instrument"><option value="forceps">Forceps</option><option value="needleDriver">Needle driver</option><option value="scissors">Scissors</option></select></label><button id="ball-pick-a">Assign ball A</button><button id="ball-pick-b">Assign ball B</button><label>Capture distance <select id="ball-calibration-distance"><option value="near">Near working distance</option><option value="far">Far working distance</option></select></label><button id="ball-closed">Capture closed · Near</button><button id="ball-open">Capture open · Near</button><button id="ball-calibration-reset" type="button">Reset jaw measurements</button></div><p id="ball-calibration-status" class="tracking-message" role="status"></p><div id="ball-readout" class="tracking-message">Not calibrated</div></details>
 <div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
 <div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
 <details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
 <section class="tracking-panel" style="margin-top:12px;padding:14px">
  <div class="eyebrow">STEREO CALIBRATION · CAPTURE</div>
- <p class="tracking-message">Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · 24 mm squares</strong>. Hold the entire board in view of both cameras, with the same checkerboard corner visible in both. Capture 20–30 varied poses, including corners of the workspace and tilted angles. Keep both cameras fixed.</p>
+ <p class="tracking-message">Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · 16 mm squares</strong>. Hold the entire board in view of both cameras, with the same checkerboard corner visible in both. Capture 20–30 varied poses, including corners of the workspace and tilted angles. Keep both cameras fixed.</p>
+ <label>Checkerboard square size (mm) <input id="stereo-square-size-mm" type="number" min="1" max="100" step="0.1" value="${stereoBoard.squareSizeMm}"></label>
  <p class="tracking-message" id="checkerboard-quality">Capture guidance: keep the checkerboard sharp, flat, and fully visible in both cameras. Rotate and tilt it between captures.</p>
  <div class="tracking-actions"><button id="capture-stereo-pair">Capture checkerboard pair</button><button id="export-stereo-pairs" disabled>Export captures</button><button id="clear-stereo-pairs">Clear captures</button></div>
  <p class="tracking-message" id="stereo-calibration-status">0 pairs captured. This stage records paired images; calibration solving and triangulation are not enabled yet.</p>
@@ -91,7 +95,7 @@ depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent
 const syncDepthLock=()=>{const locks=(['forceps','needleDriver','scissors'] as const).map(name=>instrumentCalibration.profile(name).depthLock);lockDepth.checked=locks.every(Boolean);lockDepth.indeterminate=locks.some(Boolean)&&!locks.every(Boolean);};
 instrumentCalibration.subscribe(syncDepthLock);syncDepthLock();
 lockDepth.addEventListener('change',()=>{const checked=lockDepth.checked;for(const name of ['forceps','needleDriver','scissors'] as const)instrumentCalibration.update(name,{depthLock:checked});liveTargets.clear();stationaryStates.clear();depthStates.clear();});
-trackingMode.addEventListener('change',()=>{
+trackingMode.addEventListener('change',()=>{resetTrackerPose();
  liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationGeometryStates.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
   ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
@@ -243,7 +247,8 @@ updateTrackerDescription();
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;lastSeen:number;markerId:number;lastSample:number}>();
 
-type StereoRotation={quaternion:THREE.Quaternion;errorMm:number;faces:number;corners:number};
+type StereoRotation={quaternion:THREE.Quaternion;translation:THREE.Vector3;errorMm:number;faces:number;corners:number};
+const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;pose:StereoRotation|null}>();
 // Recover rigid-body orientation from corresponding 3D ArUco corners.
 // Camera 1 coordinates are the shared reference frame. The physical mount
 // uses localCorners from the selected tracker geometry, just like the mono solver.
@@ -251,6 +256,9 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
  if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
  if(Math.abs(observationsAt-secondaryObservationsAt)>120||now-observationsAt>180||now-secondaryObservationsAt>180)return null;
+ const key=`${observationsAt}:${secondaryObservationsAt}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
+ if(cached?.key===key&&cached.calibration===stereoCalibration)return cached.pose;
+ const save=(pose:StereoRotation|null)=>{stereoPoseCache.set(name,{key,calibration:stereoCalibration!,pose});return pose;};
  const ids:readonly number[]=markerGroups()[name];
  const first=liveMarkers(),second=liveSecondMarkers();
  const candidates:StereoRotation[]=[];
@@ -267,28 +275,14 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
   }
   if(!valid)continue;
   const local=localCorners(id-ids[0],trackerType);
-  const basis=(pts:THREE.Vector3[])=>{
-   const x=pts[1].clone().sub(pts[0]).add(pts[2].clone().sub(pts[3])).normalize();
-   const y0=pts[3].clone().sub(pts[0]).add(pts[2].clone().sub(pts[1])).normalize();
-   const z=new THREE.Vector3().crossVectors(x,y0).normalize();
-   const y=new THREE.Vector3().crossVectors(z,x).normalize();
-   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
-  };
-  const q=basis(world).multiply(basis(local).invert()).normalize();
-  // Validate all four points after aligning the centroids.
-  const lc=new THREE.Vector3(),wc=new THREE.Vector3();
-  for(let i=0;i<4;i++){lc.add(local[i]);wc.add(world[i]);}
-  lc.multiplyScalar(.25);wc.multiplyScalar(.25);
-  let sum=0;
-  for(let i=0;i<4;i++)sum+=world[i].distanceTo(local[i].clone().sub(lc).applyQuaternion(q).add(wc))**2;
-  const errorMm=Math.sqrt(sum/4);
-  if(errorMm<5)candidates.push({quaternion:q,errorMm,faces:1,corners:4});
+  const fit=fitStereoMarkerPose(local,world);
+  if(fit)candidates.push({...fit,faces:1,corners:4});
  }
- if(!candidates.length)return null;
+ if(!candidates.length)return save(null);
  candidates.sort((a,b)=>a.errorMm-b.errorMm);
- const best=candidates[0],agree=candidates.filter(c=>c.quaternion.angleTo(best.quaternion)<.35);
+ const best=candidates[0],agree=candidates.filter(c=>c.quaternion.angleTo(best.quaternion)<.35&&c.translation.distanceTo(best.translation)<12);
  const result=agree.reduce((q,c,i)=>i?q.slerp(c.quaternion,1/(i+1)):c.quaternion.clone(),new THREE.Quaternion());
- return {quaternion:result,errorMm:agree.reduce((v,c)=>v+c.errorMm,0)/agree.length,faces:agree.length,corners:agree.length*4};
+ return save({quaternion:result,translation:agree.reduce((p,c)=>p.add(c.translation),new THREE.Vector3()).multiplyScalar(1/agree.length),errorMm:agree.reduce((v,c)=>v+c.errorMm,0)/agree.length,faces:agree.length,corners:agree.length*4});
 }
 
 const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
@@ -304,15 +298,16 @@ function updateStereoViewIndicator(now:number){
   configured?'Stereo triangulation: waiting for valid 3D markers':'Stereo triangulation: off';
 }
 
-stereoEnabled.addEventListener('change',()=>stereoPositions.clear());
+stereoEnabled.addEventListener('change',resetTrackerPose);
 const stereoStorage='suturehero.stereoCalibration.v1';
 function loadStereoCalibration(raw:unknown,restore=false){
  const parsed=parseCalibration(raw);
  if(!restore){
   if(!select.value||!select2.value||select.value===select2.value)throw Error('Select two distinct, explicitly identified cameras before importing.');
+  if(parsed.cameraIds&&((parsed.cameraIds.first&&parsed.cameraIds.first!==select.value)||(parsed.cameraIds.second&&parsed.cameraIds.second!==select2.value)))throw Error('Select the same camera order used for the calibration captures.');
   parsed.cameraIds={first:select.value,second:select2.value};
  }
- stereoCalibration=parsed;stereoEnabled.checked=false;stereoPositions.clear();
+ stereoCalibration=parsed;stereoEnabled.checked=false;if(!restore)resetTrackerPose();else stereoPositions.clear();
  try{localStorage.setItem(stereoStorage,JSON.stringify(parsed));}catch{/* storage unavailable */}
  stereoGeometryStatus.textContent='Calibration loaded · '+Math.hypot(...parsed.stereo.translationMm).toFixed(1)+' mm baseline · stereo RMS '+(parsed.stereo.rmsPx?.toFixed(2)??'unknown')+' px. Enable metric 3D after checking camera setup.';
 }
@@ -408,7 +403,7 @@ async function refreshSecondCameraList(){
  devices.forEach((device,i)=>{const option=document.createElement('option');option.value=device.deviceId;option.textContent=device.label||'Camera '+(i+1);select2.append(option);});
  select2.value=devices.some(d=>d.deviceId===current)?current:'';
 }
-async function stopSecondCamera(){stereoPositions.clear();detector2.dispose();fastTracker2.dispose();
+async function stopSecondCamera(){cancelJointJaws('Capture cancelled: camera 2 stopped.');stereoPositions.clear();detector2.dispose();fastTracker2.dispose();
  fastProcessing2=false;processing2=false;lastFastFrame2=0;lastSlowFrame2=0;latestFlowAt2=0;confirmed2.clear();decoded2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
  video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
@@ -458,6 +453,7 @@ const captureCanvas2=document.createElement('canvas');
 const captureContext2=captureCanvas2.getContext('2d',{willReadFrequently:true})!;
 async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
+ scanForcepsBalls(now,1);
  const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
  const clock=frameClock(video2),fastDue=!fastProcessing2&&now-lastFastFrame2>=(clock?20:33);
  const doFast=fastDue&&(!clock||clock.fresh);if(fastDue&&!doFast)perf.count('Camera 2 duplicate flow requests skipped');
@@ -492,6 +488,7 @@ async function detectSecondFrame(now:number){
    overlayContext2.font='bold 20px sans-serif';overlayContext2.fillStyle='#18e89d';
    overlayContext2.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));
   }
+  drawBallOutlines(1);
   const stamp=performance.now();
   if(stamp-statsAt2>=1000){
    const seconds=(stamp-statsAt2)/1000;
@@ -592,7 +589,7 @@ document.querySelector<HTMLButtonElement>('#clear-stereo-pairs')!.addEventListen
 });
 exportCalibration.addEventListener('click',()=>{
  if(!calibrationPairs.length)return;
- const payload={format:'suturehero-stereo-captures-v1',board:{squaresX:9,squaresY:7,innerCornersX:8,innerCornersY:6,squareSizeMm:24},camera1:select.value,camera2:select2.value,pairs:calibrationPairs};
+ const payload={format:'suturehero-stereo-captures-v1',board:{squaresX:9,squaresY:7,innerCornersX:8,innerCornersY:6,squareSizeMm:Number(document.querySelector<HTMLInputElement>('#stereo-square-size-mm')!.value)},camera1:select.value,camera2:select2.value,pairs:calibrationPairs};
  const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;link.download='suturehero-stereo-calibration-'+new Date().toISOString().slice(0,10)+'.json';link.click();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -708,7 +705,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);const devices=await availableCameras();select.innerHTML='<option value="">Default camera</option>';devices.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||`Camera ${i+1}`;select.append(o)});select.value=devices.some(d=>d.deviceId===current)?current:'';}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){cancelJointJaws('Capture cancelled: camera 1 stopped.');resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();fastProcessing=false;lastFastFrame=0;lastSlowFrame=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();rotationStates.clear();rotationFilterStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();renderCameraSettings();depthRangeLabel();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;throw e;}
@@ -1059,8 +1056,9 @@ const ballPairReferences:Array<BallPairReference|null>=Array(3).fill(null);
 const ballPairValidAt=Array(3).fill(-Infinity);
 const ballProvisional:Array<{ball:BallBlob;seenAt:number;marker:BallMarker|null}|null>=Array(6).fill(null);
 const ballLastMarkers:Array<{marker:BallMarker;seenAt:number}|null>=Array(3).fill(null);
-function recentBallMarker(pair:number,now:number){
- const marker=ballMarker(ballNames[pair],now);
+function recentBallMarker(pair:number,now:number,camera=0){
+ const {ballLastMarkers,ballPairStates}=jawCameras[camera];
+ const marker=ballMarker(ballNames[pair],now,camera);
  if(marker){ballLastMarkers[pair]={marker,seenAt:now};return marker;}
  const previous=ballLastMarkers[pair];
  return previous&&ballPairStates[pair]&&now-previous.seenAt<1000?previous.marker:null;
@@ -1072,37 +1070,71 @@ const ballNames=BALL_INSTRUMENTS;
 const trackerToTipMm={forceps:110,needleDriver:55,scissors:null} as const;
 const ballIndex=()=>ballTrackingSlot(ballInstrument.value as BallInstrumentName,0);
 const ballCalibrations=ballNames.map(()=>new JawCalibration());
-function ballMarker(name:BallInstrumentName,now:number):BallMarker|null{
+const primaryJaws={video,overlay,overlayContext,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations,lastScan:0,lastVideoTime:-1};
+const secondBallCanvas=document.createElement('canvas');secondBallCanvas.width=640;secondBallCanvas.height=360;
+const secondaryJaws:typeof primaryJaws={...primaryJaws,video:video2,overlay:overlay2,overlayContext:overlayContext2,ballCanvas:secondBallCanvas,ballContext:secondBallCanvas.getContext('2d',{willReadFrequently:true})!,
+ ballColors:ballColors.map(()=>null),
+ ballCenters:ballCenters.map(()=>null),
+ ballAnchors:ballAnchors.map(()=>null),
+ ballSeenAt:ballSeenAt.map(()=>0),
+ ballDisplayColors:ballDisplayColors.map(()=>null),
+ ballSampleBrightness:ballSampleBrightness.map(()=>0),
+ ballAnchorMarkers:ballAnchorMarkers.map(()=>null),
+ ballPairStates:ballPairStates.map(()=>null),
+ ballPairReferences:ballPairReferences.map(()=>null),
+ ballPairValidAt:ballPairValidAt.map(()=>-Infinity),
+ ballProvisional:ballProvisional.map(()=>null),
+ ballLastMarkers:ballLastMarkers.map(()=>null),
+ ballCalibrations:ballCalibrations.map(()=>new JawCalibration()),
+};
+const jawCameras=[primaryJaws,secondaryJaws];
+const jawFusion=ballNames.map(()=>new JawViewFusion());
+const jawViewStatus=ballNames.map(()=>'');
+const selectedJawCamera=()=>jawCameras[Number(ballCamera.value)||0];
+let jointJawCapture:{pair:number;targets:number[];snapshots:unknown[];revisions:number[]}|null=null;
+function cancelJointJaws(message:string){
+ if(!jointJawCapture)return;const group=jointJawCapture;jointJawCapture=null;
+ group.targets.forEach((c,i)=>{const cal=jawCameras[c].ballCalibrations[group.pair];cal.restore(group.snapshots[i]);cal.cancel(message);});persistJaws();
+}
+
+function ballMarker(name:BallInstrumentName,now:number,camera=0):BallMarker|null{
  const ids:readonly number[]=markerGroups()[name];
- const markers=observations.filter(m=>ids.includes(m.id)&&now-(markerLastConfirmed.get(m.id)??-Infinity)<250&&now-(markerLastDecoded.get(m.id)??-Infinity)<650);
- if(!markers.length||!overlay.width)return null;
+ const view=camera===0?overlay:overlay2;
+ const markers=(camera===0?observations:secondaryObservations).filter(m=>ids.includes(m.id)&&now-((camera===0?markerLastConfirmed:confirmed2).get(m.id)??-Infinity)<250&&now-((camera===0?markerLastDecoded:decoded2).get(m.id)??-Infinity)<650);
+ if(!markers.length||!view.width)return null;
  const ranked=markers.map(m=>{const side=m.corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-m.corners[(i+1)%4].x,p.y-m.corners[(i+1)%4].y),0)/4;return {m,side};}).sort((a,b)=>b.side-a.side);
- const {m,side}=ranked[0],scale=ballCanvas.width/overlay.width;
+ const {m,side}=ranked[0],scale=640/view.width;
  if(!Number.isFinite(side)||side*scale<2)return null;
  return {x:m.corners.reduce((sum,p)=>sum+p.x,0)/4*scale,y:m.corners.reduce((sum,p)=>sum+p.y,0)/4*scale,side:side*scale};
 }
 function renderBallSwatches(){
+ const {ballDisplayColors}=selectedJawCamera();
  for(let side=0;side<2;side++){
   const color=ballDisplayColors[ballTrackingSlot(ballInstrument.value as BallInstrumentName,side as 0|1)];
   const button=document.querySelector<HTMLButtonElement>(side===0?'#ball-pick-a':'#ball-pick-b')!;
   button.style.borderColor=color??'';button.style.boxShadow=color?`inset 0 -4px ${color}`:'';
  }
 }
-let ballPick=-1,ballLastScan=0;
+let ballPick=-1,ballPickCamera=0;
+const ballCamera=document.querySelector<HTMLSelectElement>('#ball-camera')!;
 const ballEnabled=document.querySelector<HTMLInputElement>('#ball-enable')!;
 const ballReadout=document.querySelector<HTMLElement>('#ball-readout')!;
 for(let i=0;i<2;i++)document.querySelector<HTMLButtonElement>(i===0?'#ball-pick-a':'#ball-pick-b')!.addEventListener('click',()=>{
- ballEnabled.checked=true;
+ ballPickCamera=Number(ballCamera.value)||0;if(!jawCameras[ballPickCamera].video.srcObject){ballReadout.textContent=`Start Camera ${ballPickCamera+1} before sampling colors.`;return;}ballEnabled.checked=true;
  ballPick=ballTrackingSlot(ballInstrument.value as BallInstrumentName,i as 0|1);
  ballReadout.textContent='Click the center of '+ballInstrument.selectedOptions[0].textContent+' ball '+(i===0?'A':'B')+' in the camera image';
- overlay.style.pointerEvents='auto';
+ jawCameras.forEach((s,c)=>s.overlay.style.pointerEvents=c===ballPickCamera?'auto':'none');
 });
+ballCamera.addEventListener('change',()=>{ballPick=-1;jawCameras.forEach(s=>s.overlay.style.pointerEvents='none');renderBallSwatches();updateJawCalibrationStatus();});
 ballInstrument.addEventListener('change',()=>{
  // Do not accidentally assign a pending click to an instrument selected earlier.
- ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();for(const cal of ballCalibrations)if(cal.capturing)cal.cancel('Capture cancelled when changing instrument. Measurements kept.');
+ ballPick=-1;jawCameras.forEach(s=>s.overlay.style.pointerEvents='none');renderBallSwatches();cancelJointJaws('Capture cancelled when changing instrument.');for(const cal of jawCameras.flatMap(s=>s.ballCalibrations))if(cal.capturing)cal.cancel('Capture cancelled when changing instrument. Measurements kept.');
 });
-overlay.addEventListener('click',event=>{
- if(ballPick<0||!video.videoWidth)return;
+for(const [camera,state] of jawCameras.entries()){
+ const {video,overlay,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations}=state;
+ overlay.addEventListener('click',event=>{
+ if(ballPick<0||camera!==ballPickCamera||!video.videoWidth)return;
+ cancelJointJaws('Capture cancelled when reassigning ball colors.');
  ballCanvas.height=Math.max(1,Math.round(video.videoHeight/video.videoWidth*ballCanvas.width));
  const rect=overlay.getBoundingClientRect();
  const fit=Math.min(rect.width/ballCanvas.width,rect.height/ballCanvas.height);
@@ -1120,62 +1152,81 @@ overlay.addEventListener('click',event=>{
  if(total<70){ballReadout.textContent='Too dark; click the brightly colored center';return;}
  ballColors[ballPick]=[rgb[0]/total,rgb[1]/total,rgb[2]/total];
  ballDisplayColors[ballPick]=sampledBallColor(rgb);ballSampleBrightness[ballPick]=total;
- const pair=Math.floor(ballPick/2),marker=ballMarker(ballNames[pair],performance.now());
+ const pair=Math.floor(ballPick/2),marker=ballMarker(ballNames[pair],performance.now(),camera);
  ballAnchorMarkers[ballPick]=marker;ballProvisional[ballPick]=null;ballPairValidAt[pair]=-Infinity;ballPairStates[pair]=null;
  ballPairReferences[pair]=null;ballCalibrations[pair].reset();
  ballAnchors[ballPick]={x,y};ballCenters[ballPick]={x,y,count:1};ballSeenAt[ballPick]=performance.now();
  ballPick=-1;overlay.style.pointerEvents='none';renderBallSwatches();ballReadout.textContent='Color assigned; keep both colored balls visible, then calibrate closed and open';persistJaws();
 });
-const ballSeparation=(pair:number)=>{
+}
+
+const ballSeparation=(pair:number,camera=0)=>{
+ const {ballCenters,ballPairValidAt}=jawCameras[camera];
  const a=ballCenters[pair*2],b=ballCenters[pair*2+1];
  return performance.now()-ballPairValidAt[pair]<350&&a&&b?normalizedBallSeparation({...a,score:0},{...b,score:0}):null;
 };
 const jawDistance=document.querySelector<HTMLSelectElement>('#ball-calibration-distance')!;
 const jawStatus=document.querySelector<HTMLElement>('#ball-calibration-status')!;
 let savedJawRevision='',jawStorageFailed=false;
+function jawRevision(){return jawCameras.flatMap(s=>s.ballCalibrations.map(c=>c.revision)).join(',');}
 function persistJaws(){
- const tools:SavedJawTracking['tools']={};
- for(let pair=0;pair<ballNames.length;pair++){
-  const a=pair*2,b=a+1;
-  tools[ballNames[pair]]={colors:[ballColors[a],ballColors[b]],displayColors:[ballDisplayColors[a],ballDisplayColors[b]],brightness:[ballSampleBrightness[a],ballSampleBrightness[b]],anchors:[ballAnchors[a],ballAnchors[b]],anchorMarkers:[ballAnchorMarkers[a],ballAnchorMarkers[b]],reference:ballPairReferences[pair],calibration:ballCalibrations[pair].snapshot()};
- }
- try{jawStorageFailed=!saveJawTracking(localStorage,{version:1,enabled:ballEnabled.checked,tools});}catch{jawStorageFailed=true;}
- savedJawRevision=ballCalibrations.map(c=>c.revision).join(',');
+ jawStorageFailed=false;
+ jawCameras.forEach((state,camera)=>{
+  const {ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations}=state,tools:SavedJawTracking['tools']={};
+  for(let pair=0;pair<ballNames.length;pair++){
+   const a=pair*2,b=a+1;
+   tools[ballNames[pair]]={colors:[ballColors[a],ballColors[b]],displayColors:[ballDisplayColors[a],ballDisplayColors[b]],brightness:[ballSampleBrightness[a],ballSampleBrightness[b]],anchors:[ballAnchors[a],ballAnchors[b]],anchorMarkers:[ballAnchorMarkers[a],ballAnchorMarkers[b]],reference:ballPairReferences[pair],calibration:ballCalibrations[pair].snapshot()};
+  }
+  try{if(!saveJawTracking(localStorage,{version:1,enabled:ballEnabled.checked,tools},camera?'suturehero.jaw-tracking.camera2.v1':'suturehero.jaw-tracking.v1'))jawStorageFailed=true;}catch{jawStorageFailed=true;}
+ });savedJawRevision=jawRevision();
 }
 function restoreJaws(){
- let saved:SavedJawTracking|null=null;try{saved=loadJawTracking(localStorage);}catch{/* blocked storage keeps session defaults */}
- if(!saved)return;ballEnabled.checked=saved.enabled;
- for(let pair=0;pair<ballNames.length;pair++){
-  const tool=saved.tools[ballNames[pair]];if(!tool)continue;
-  for(const side of [0,1] as const){const i=pair*2+side;ballColors[i]=tool.colors[side];ballDisplayColors[i]=tool.displayColors[side];ballSampleBrightness[i]=tool.brightness[side];ballAnchors[i]=tool.anchors[side];ballAnchorMarkers[i]=tool.anchorMarkers[side];}
-  ballPairReferences[pair]=tool.reference;ballCalibrations[pair].restore(tool.calibration);
- }
- savedJawRevision=ballCalibrations.map(c=>c.revision).join(',');renderBallSwatches();
+ jawCameras.forEach((state,camera)=>{
+  let saved:SavedJawTracking|null=null;try{saved=loadJawTracking(localStorage,camera?'suturehero.jaw-tracking.camera2.v1':'suturehero.jaw-tracking.v1');}catch{}
+  if(!saved)return;if(saved.enabled)ballEnabled.checked=true;
+  const {ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations}=state;
+  for(let pair=0;pair<ballNames.length;pair++){
+   const tool=saved.tools[ballNames[pair]];if(!tool)continue;
+   for(const side of [0,1] as const){const i=pair*2+side;ballColors[i]=tool.colors[side];ballDisplayColors[i]=tool.displayColors[side];ballSampleBrightness[i]=tool.brightness[side];ballAnchors[i]=tool.anchors[side];ballAnchorMarkers[i]=tool.anchorMarkers[side];}
+   ballPairReferences[pair]=tool.reference;ballCalibrations[pair].restore(tool.calibration);
+  }
+ });savedJawRevision=jawRevision();renderBallSwatches();
 }
 restoreJaws();
 
 function updateJawCalibrationStatus(){
- const cal=ballCalibrations[ballIndex()/2];cal.poll(performance.now());if(savedJawRevision!==ballCalibrations.map(c=>c.revision).join(','))persistJaws();
- jawStatus.textContent=`Near: closed ${cal.has('near','closed')?'✓':'—'} / open ${cal.has('near','open')?'✓':'—'} · Far: closed ${cal.has('far','closed')?'✓':'—'} / open ${cal.has('far','open')?'✓':'—'}. ${cal.message}${jawStorageFailed?' Browser storage unavailable; current session still works.':' Colors and measurements save automatically in this browser.'}`;
- for(const endpoint of ['closed','open'] as const){const button=document.querySelector<HTMLButtonElement>('#ball-'+endpoint)!;button.disabled=cal.capturing;button.textContent=`Capture ${endpoint} · ${jawDistance.value==='near'?'Near':'Far'}`;}
+ for(const state of jawCameras)for(const cal of state.ballCalibrations)cal.poll(performance.now());
+ if(jointJawCapture){
+  const group=jointJawCapture,cals=group.targets.map(c=>jawCameras[c].ballCalibrations[group.pair]);
+  if(cals.some((c,i)=>!c.capturing&&c.revision===group.revisions[i]))cancelJointJaws('Capture could not complete in all configured camera views. Previous measurements kept.');
+  else if(cals.every(c=>!c.capturing)){jointJawCapture=null;persistJaws();}
+ }
+ const cal=selectedJawCamera().ballCalibrations[ballIndex()/2];if(!jointJawCapture&&savedJawRevision!==jawRevision())persistJaws();
+ jawStatus.textContent=`Camera ${Number(ballCamera.value)+1} · Near: closed ${cal.has('near','closed')?'✓':'—'} / open ${cal.has('near','open')?'✓':'—'} · Far: closed ${cal.has('far','closed')?'✓':'—'} / open ${cal.has('far','open')?'✓':'—'}. ${cal.message}${jointJawCapture?' Capturing configured camera views together.':''}${jawStorageFailed?' Browser storage unavailable; current session still works.':' Colors and measurements save automatically in this browser.'}`;
+ for(const endpoint of ['closed','open'] as const){const button=document.querySelector<HTMLButtonElement>('#ball-'+endpoint)!;button.disabled=!!jointJawCapture;button.textContent=`Capture ${endpoint} · ${jawDistance.value==='near'?'Near':'Far'} · configured views`;}
 }
 for(const endpoint of ['closed','open'] as JawEndpoint[])document.querySelector('#ball-'+endpoint)!.addEventListener('click',()=>{
- const pair=ballIndex()/2,cal=ballCalibrations[pair];if(ballSeparation(pair)===null){cal.cancel('Both colored balls must be paired to capture.');updateJawCalibrationStatus();return;}
- cal.start(jawDistance.value as JawDistance,endpoint,performance.now());updateJawCalibrationStatus();
+ const pair=ballIndex()/2,targets=jawCameras.flatMap((s,c)=>s.video.srcObject&&s.ballColors[pair*2]&&s.ballColors[pair*2+1]?[c]:[]);
+ if(!targets.length||targets.some(c=>ballSeparation(pair,c)===null)){selectedJawCamera().ballCalibrations[pair].cancel('Both colored balls must be paired in each configured camera view to capture.');updateJawCalibrationStatus();return;}
+ jointJawCapture={pair,targets,snapshots:targets.map(c=>jawCameras[c].ballCalibrations[pair].snapshot()),revisions:targets.map(c=>jawCameras[c].ballCalibrations[pair].revision)};
+ for(const c of targets)jawCameras[c].ballCalibrations[pair].start(jawDistance.value as JawDistance,endpoint,performance.now());updateJawCalibrationStatus();
 });
-jawDistance.addEventListener('change',()=>{const cal=ballCalibrations[ballIndex()/2];if(cal.capturing)cal.cancel('Capture cancelled when changing distance. Measurements kept.');updateJawCalibrationStatus();});
-document.querySelector('#ball-calibration-reset')!.addEventListener('click',()=>{ballCalibrations[ballIndex()/2].reset();updateJawCalibrationStatus();});
-ballEnabled.addEventListener('change',()=>{if(!ballEnabled.checked)for(const cal of ballCalibrations)if(cal.capturing)cal.cancel('Capture cancelled: ball tracking is off.');persistJaws();});
+jawDistance.addEventListener('change',()=>{cancelJointJaws('Capture cancelled when changing distance. Measurements kept.');updateJawCalibrationStatus();});
+document.querySelector('#ball-calibration-reset')!.addEventListener('click',()=>{cancelJointJaws('Capture cancelled.');for(const s of jawCameras)s.ballCalibrations[ballIndex()/2].reset();updateJawCalibrationStatus();});
+ballEnabled.addEventListener('change',()=>{if(!ballEnabled.checked)cancelJointJaws('Capture cancelled: ball tracking is off.');persistJaws();});
 setInterval(updateJawCalibrationStatus,150);updateJawCalibrationStatus();
-function scanForcepsBalls(now:number){
- if(!ballEnabled.checked||!video.videoWidth||now-ballLastScan<90)return;
- ballLastScan=now;const jawStarted=performance.now();
+function scanForcepsBalls(now:number,camera=0){
+ const state=jawCameras[camera];
+ const {video,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations}=state;
+ if(!ballEnabled.checked||!video.videoWidth||!video.srcObject||now-state.lastScan<90)return;
+ if(state.lastVideoTime===video.currentTime)return;state.lastVideoTime=video.currentTime;
+ state.lastScan=now;const jawStarted=performance.now();
  const w=640,h=Math.max(1,Math.round(video.videoHeight/video.videoWidth*w));
  if(ballCanvas.height!==h)ballCanvas.height=h;
  ballContext.drawImage(video,0,0,w,h);
  const pixels=ballContext.getImageData(0,0,w,h).data;
  const candidates:BallBlob[][]=Array.from({length:6},()=>[]);
- const markers=ballNames.map((_,pair)=>recentBallMarker(pair,now));
+ const markers=ballNames.map((_,pair)=>recentBallMarker(pair,now,camera));
  for(let c=0;c<6;c++){
   const color=ballColors[c],anchor=ballAnchors[c];
   const pair=Math.floor(c/2),marker=markers[pair];
@@ -1253,33 +1304,38 @@ function scanForcepsBalls(now:number){
  }
 
  for(let pair=0;pair<3;pair++){
-  const d=ballSeparation(pair),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1];
+  const d=ballSeparation(pair,camera),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1];
   if(d!==null&&a&&b){
    const scale=Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI);
    const fresh=ballPairValidAt[pair]===now;
    if(fresh)cal.observe(d,scale,now,video.currentTime);
+   if(jointJawCapture?.pair===pair)continue;
    const value=fresh?cal.update(d,scale):cal.endpoints(scale)?cal.value:null;if(value===null)continue;
    const name=ballNames[pair];
-   const opening=instrumentCalibration.opening(name,cal.value);
+   const fused=jawFusion[pair].update(camera,cal.value,ballPairValidAt[pair],Math.min(a.count,b.count),now);if(!fused)continue;
+   jawViewStatus[pair]='Jaw view: '+fused.cameras.map(c=>'Camera '+(c+1)).join(' + ');
+   const opening=instrumentCalibration.opening(name,fused.opening);
    if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(opening);
    if(name==='needleDriver')previewInstrumentModels.get('right')?.setTrackedOpening(opening);
    if(name==='scissors')previewScissorOpening(opening);
-   const detail={type:'suturehero:jaw-opening',instrument:name,opening,seenAt:Date.now()};
+   const detail={type:'suturehero:jaw-opening',instrument:name,opening,cameras:fused.cameras.map(c=>c+1),seenAt:Date.now()};
    if(embeddedTracking)window.dispatchEvent(new CustomEvent('suturehero:jaw-opening',{detail}));
    else window.parent.postMessage(detail,location.origin);
   }
  }
- const pair=ballIndex()/2,d=ballSeparation(pair),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1],ends=a&&b?cal.endpoints(Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI)):null;
+ if(camera!==(Number(ballCamera.value)||0)){perf.sample(`Camera ${camera+1} jaw color scan + calibration`,performance.now()-jawStarted);return;}
+ const pair=ballIndex()/2,d=ballSeparation(pair,camera),cal=ballCalibrations[pair],a=ballCenters[pair*2],b=ballCenters[pair*2+1],ends=a&&b?cal.endpoints(Math.sqrt(a.count/Math.PI)+Math.sqrt(b.count/Math.PI)):null;
  ballReadout.textContent=ballNames[pair]+' · tracker-to-tip '+(trackerToTipMm[ballNames[pair]]??'not measured')+' mm · A '+(ballCenters[pair*2]?'found':!ballColors[pair*2+1]&&ballProvisional[pair*2]&&now-ballProvisional[pair*2]!.seenAt<220?'acquiring':'missing')+
   ' · B '+(ballCenters[pair*2+1]?'found':!ballColors[pair*2]&&ballProvisional[pair*2+1]&&now-ballProvisional[pair*2+1]!.seenAt<220?'acquiring':'missing')+
   ' · '+(!ballColors[pair*2]||!ballColors[pair*2+1]?'select both colors; dashed circles are individual tracking':d===null?'pair rejected or missing':ballPairValidAt[pair]===now?'paired with instrument':'holding last jaw position · brief detection gap')+
   ' · normalized separation '+(d===null?'—':d.toFixed(2))+
   ' · closed '+(ends?.closed.toFixed(2)??'—')+' · open '+(ends?.open.toFixed(2)??'—')+
-  ' · jaw '+(!ends?'not calibrated':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
+  ' · '+jawViewStatus[pair]+' · jaw '+(!ends?'not calibrated':Math.round(instrumentCalibration.opening(ballNames[pair],cal.value)*100)+'%');
  perf.sample('Jaw color scan + calibration',performance.now()-jawStarted);
 
 }
-function drawBallOutlines(){
+function drawBallOutlines(camera=0){
+ const {overlay,overlayContext,ballCanvas,ballPairValidAt,ballProvisional,ballCenters,ballDisplayColors}=jawCameras[camera];
  if(!ballEnabled.checked)return;
  for(let i=0;i<6;i++){
   const pair=Math.floor(i/2),confirmed=performance.now()-ballPairValidAt[pair]<220;
@@ -1520,8 +1576,10 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    if(target&&now-target.lastSeen<trackingHoldMs){
     // Stabilize only the published instrument pose, keeping fast marker detection intact.
     let raw=rawRenderedPoses.get(name);if(!raw){raw=new TrackedPoseFilter();rawRenderedPoses.set(name,raw);}
-    raw.update(target.position,target.quaternion,now);
-    const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,target.lastSeen,stereoActive());
+    const metric=stereoActive(),stereo=metric?stereoPositions.get(name):undefined;
+    if(metric&&(!stereo||now-stereo.lastSeen>350))continue;
+    raw.update(stereo?.position??target.position,target.quaternion,now);
+    const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,stereo?.lastSeen??target.lastSeen,metric);
     mesh.position.copy(calibrated.position);mesh.quaternion.copy(calibrated.quaternion);
     // The standalone lab remains the camera/diagnostic owner. When embedded,
     // publish the exact rendered pose to the simulator on the same origin.
@@ -1540,9 +1598,9 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
   scissors.position.x+=(Number(keys.has('l'))-Number(keys.has('j')))*speed;scissors.position.z+=(Number(keys.has('k'))-Number(keys.has('i')))*speed;
   forceps.position.x+=(Number(keys.has('d'))-Number(keys.has('a')))*speed;forceps.position.z+=(Number(keys.has('s'))-Number(keys.has('w')))*speed;
  }
- driver.position.x=THREE.MathUtils.clamp(driver.position.x,-2,2);driver.position.z=THREE.MathUtils.clamp(driver.position.z,-2,2);
+ if(simulation.checked){driver.position.x=THREE.MathUtils.clamp(driver.position.x,-2,2);driver.position.z=THREE.MathUtils.clamp(driver.position.z,-2,2);
  forceps.position.x=THREE.MathUtils.clamp(forceps.position.x,-2,2);forceps.position.z=THREE.MathUtils.clamp(forceps.position.z,-2,2);
- scissors.position.x=THREE.MathUtils.clamp(scissors.position.x,-2,2);scissors.position.z=THREE.MathUtils.clamp(scissors.position.z,-2,2);
+ scissors.position.x=THREE.MathUtils.clamp(scissors.position.x,-2,2);scissors.position.z=THREE.MathUtils.clamp(scissors.position.z,-2,2);}
  if(simulation.checked)driverReadout.textContent=`Simulated · (${driver.position.x.toFixed(2)}, ${driver.position.z.toFixed(2)})`;
  if(simulation.checked)scissorsReadout.textContent=`Simulated · (${scissors.position.x.toFixed(2)}, ${scissors.position.z.toFixed(2)})`;
  if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
@@ -1561,7 +1619,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     const age=Math.abs(observationsAt-secondaryObservationsAt);
     const hits=[] as Array<{id:number;point:NonNullable<ReturnType<typeof triangulate>>}>;
     let common=0,rejected=0;
-    if(age<300&&performance.now()-secondaryObservationsAt<300){
+    if(age<120&&now-observationsAt<180&&now-secondaryObservationsAt<180){
      for(const m of first){
       const other=second.find(o=>o.id===m.id);
       if(!other)continue;
@@ -1582,16 +1640,18 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      const candidates=hits.filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id));
      const hit=candidates.find(m=>m.id===previous?.markerId)??candidates[0];
      if(!hit)continue;
-     const [x,y,z]=hit.point.xyzMm;
-     const measured=new THREE.Vector3(THREE.MathUtils.clamp(x/200,-2,2),THREE.MathUtils.clamp(-y/200,-2,2),THREE.MathUtils.clamp(-z/200,-2,2));
+     const rigid=stereoPrismRotation(name,now);if(!rigid)continue;
+     const measured=stereoPracticePosition(rigid.translation);
+     const sampleAt=Math.max(observationsAt,secondaryObservationsAt),seenAt=Math.min(observationsAt,secondaryObservationsAt);
+     if(previous?.lastSample===sampleAt)continue;
      // A sudden jump may be a mismatched face or stereo outlier. Require
      // reacquisition rather than instantly teleporting the instrument.
      if(previous&&now-previous.lastSeen<400&&measured.distanceTo(previous.position)>.65)continue;
      if(previous){
-      const elapsed=Math.max(0,Math.min(.1,(now-previous.lastSample)/1000));
+      const elapsed=Math.max(0,Math.min(.1,(sampleAt-previous.lastSample)/1000));
       previous.position.lerp(measured,1-Math.exp(-elapsed*11));
-      previous.lastSeen=now;previous.lastSample=now;previous.markerId=hit.id;
-     }else stereoPositions.set(name,{position:measured,lastSeen:now,lastSample:now,markerId:hit.id});
+      previous.lastSeen=seenAt;previous.lastSample=sampleAt;previous.markerId=hit.id;
+     }else stereoPositions.set(name,{position:measured,lastSeen:seenAt,lastSample:sampleAt,markerId:hit.id});
     }
    }
   }
@@ -1616,4 +1676,4 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.72',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.73',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,stereoActive:stereoActive(),staleDecodeDrops}));

@@ -3,8 +3,8 @@ export type Point={x:number;y:number};
 type Matrix=number[][];
 export type StereoCalibration={
  format:string;imageSize:{width:number;height:number};
- camera1:{cameraMatrix:Matrix;distortionCoefficients:number[]};
- camera2:{cameraMatrix:Matrix;distortionCoefficients:number[]};
+ camera1:{cameraMatrix:Matrix;distortionCoefficients:number[];imageSize?:{width:number;height:number}};
+ camera2:{cameraMatrix:Matrix;distortionCoefficients:number[];imageSize?:{width:number;height:number}};
  stereo:{rotation:Matrix;translationMm:number[];baselineMm?:number;rmsPx?:number};
  cameraIds?:{first:string;second:string};
 };
@@ -26,6 +26,7 @@ export function parseCalibration(raw:unknown):StereoCalibration{
  !Array.isArray(c.camera1.distortionCoefficients)||!Array.isArray(c.camera2.distortionCoefficients)||
  ![...c.camera1.distortionCoefficients,...c.camera2.distortionCoefficients].every(Number.isFinite)||
  norm(c.stereo.translationMm)<10)throw Error('Invalid stereo calibration. Import a solved calibration JSON, not raw capture images.');
+ for(const camera of [c.camera1,c.camera2])if(camera.imageSize&&(!Number.isInteger(camera.imageSize.width)||!Number.isInteger(camera.imageSize.height)||camera.imageSize.width<=0||camera.imageSize.height<=0))throw Error('Invalid calibrated camera image dimensions');
  return c;
 }
 function undistort(p:Point,k:Matrix,d:number[],size:{width:number;height:number},source:{width:number;height:number}){
@@ -43,8 +44,8 @@ function undistort(p:Point,k:Matrix,d:number[],size:{width:number;height:number}
 }
 export type StereoPoint={xyzMm:[number,number,number];rectified:[Point,Point];epipolarErrorPx:number;rayGapMm:number;depthMm:number};
 export function triangulate(c:StereoCalibration,p1:Point,p2:Point,size1:{width:number;height:number},size2:{width:number;height:number}):StereoPoint|null{
- const a=undistort(p1,c.camera1.cameraMatrix,c.camera1.distortionCoefficients,c.imageSize,size1);
- const b=undistort(p2,c.camera2.cameraMatrix,c.camera2.distortionCoefficients,c.imageSize,size2);
+ const a=undistort(p1,c.camera1.cameraMatrix,c.camera1.distortionCoefficients,c.camera1.imageSize??c.imageSize,size1);
+ const b=undistort(p2,c.camera2.cameraMatrix,c.camera2.distortionCoefficients,c.camera2.imageSize??c.imageSize,size2);
  const R=c.stereo.rotation,T=c.stereo.translationMm,rt=transpose(R);
  // X2 = R*X1 + T; camera 2 center expressed in camera 1 frame.
  const C=mul(mv(rt,T),-1),u=unit(a),v=unit(mv(rt,b));
@@ -68,6 +69,7 @@ export function triangulate(c:StereoCalibration,p1:Point,p2:Point,size1:{width:n
 export function calibrationMatches(c:StereoCalibration,first:string,second:string,w1:number,h1:number,w2:number,h2:number):string|null{
  if(c.cameraIds&&((c.cameraIds.first&&c.cameraIds.first!==first)||(c.cameraIds.second&&c.cameraIds.second!==second)))return 'Camera IDs differ from saved calibration';
  if(!w1||!h1||!w2||!h2)return 'Start both cameras';
- if(Math.abs(w1/h1-c.imageSize.width/c.imageSize.height)>.015||Math.abs(w2/h2-c.imageSize.width/c.imageSize.height)>.015)return 'Camera aspect ratio differs from calibration';
+ const a=c.camera1.imageSize??c.imageSize,b=c.camera2.imageSize??c.imageSize;
+ if(Math.abs(w1/h1-a.width/a.height)>.015||Math.abs(w2/h2-b.width/b.height)>.015)return 'Camera aspect ratio differs from calibration';
  return null;
 }

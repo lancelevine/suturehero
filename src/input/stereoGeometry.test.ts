@@ -22,4 +22,9 @@ describe('stereo metric triangulation',()=>{
   expect(calibrationMatches(cal,'a','c',1000,800,1000,800)).toMatch(/Camera IDs/);
   expect(calibrationMatches(cal,'a','b',1000,800,1000,500)).toMatch(/aspect ratio/);
  });
+ it('uses each camera own calibrated image dimensions',()=>{
+  const cal=parseCalibration({...c,camera2:{...c.camera2,imageSize:{width:500,height:400},cameraMatrix:[[500,0,250],[0,500,200],[0,0,1]]}});
+  const point=triangulate(cal,{x:550,y:420},{x:145,y:210},{width:1000,height:800},{width:500,height:400});
+  expect(point!.depthMm).toBeCloseTo(1000,3);expect(calibrationMatches(cal,'a','b',1000,800,500,400)).toBeNull();
+ });
 });

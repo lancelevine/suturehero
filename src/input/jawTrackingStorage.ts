@@ -9,9 +9,9 @@ const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&
 const number=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v);
 const point=(v:unknown)=>object(v)&&number(v.x)&&number(v.y)&&Math.abs(v.x)<10000&&Math.abs(v.y)<10000;
 const pair=(v:unknown,valid:(x:unknown)=>boolean)=>Array.isArray(v)&&v.length===2&&v.every(valid);
-export function loadJawTracking(storage:Pick<Storage,'getItem'>):SavedJawTracking|null{
+export function loadJawTracking(storage:Pick<Storage,'getItem'>,key=KEY):SavedJawTracking|null{
  try{
-  const raw:unknown=JSON.parse(storage.getItem(KEY)??'null');if(!object(raw)||raw.version!==1||!object(raw.tools))return null;
+  const raw:unknown=JSON.parse(storage.getItem(key)??'null');if(!object(raw)||raw.version!==1||!object(raw.tools))return null;
   const tools:SavedJawTracking['tools']={};
   for(const name of BALL_INSTRUMENTS){
    const v=raw.tools[name];if(!object(v))continue;
@@ -25,4 +25,4 @@ export function loadJawTracking(storage:Pick<Storage,'getItem'>):SavedJawTrackin
   return {version:1,enabled:raw.enabled===true,tools};
  }catch{return null;}
 }
-export function saveJawTracking(storage:Pick<Storage,'setItem'>,state:SavedJawTracking){try{storage.setItem(KEY,JSON.stringify(state));return true;}catch{return false;}}
+export function saveJawTracking(storage:Pick<Storage,'setItem'>,state:SavedJawTracking,key=KEY){try{storage.setItem(key,JSON.stringify(state));return true;}catch{return false;}}

@@ -15,7 +15,7 @@ try{
  await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});
  await page.locator('[data-calibration-tool=forceps]').click();await page.locator('[data-calibration-pane=jaws]').click();
  const pick=async(side,x,y)=>{
-  await page.locator(side===0?'#ball-pick-a':'#ball-pick-b').click();await page.locator('#camera-overlay').scrollIntoViewIfNeeded();const box=await page.locator('#camera-overlay').boundingBox();
+  await page.locator(side===0?'#ball-pick-a':'#ball-pick-b').click();await page.locator(Number(await page.locator('#ball-camera').inputValue())===1?'#camera-overlay-2':'#camera-overlay').scrollIntoViewIfNeeded();const box=await page.locator(Number(await page.locator('#ball-camera').inputValue())===1?'#camera-overlay-2':'#camera-overlay').boundingBox();
   await page.mouse.click(box.x+x/960*box.width,box.y+y/540*box.height);
  };
  await pick(0,400,340);
@@ -24,11 +24,20 @@ try{
  assert.match(await page.locator('#ball-readout').innerText(),/A acquiring/);
  await pick(1,450,340);
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'),{},{timeout:20000});
+ if(process.env.SUTURE_DUAL_JAWS){
+  await page.evaluate(()=>window.__ballScene.camera2={colorA:'rgb(195,70,60)',colorB:'rgb(40,120,220)',hideA:false});
+  await page.locator('#choose-secondary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic second camera'}).click();
+  await page.waitForFunction(()=>document.querySelector('#camera-video-2').videoWidth>0);
+  await page.locator('#ball-camera').selectOption('1');await pick(0,420,340);await pick(1,450,340);
+  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'));
+  assert.match(await page.locator('#ball-pick-a').evaluate(e=>e.style.borderColor),/rgb\(195, 70, 60\)/);
+  await page.locator('#ball-camera').selectOption('0');
+ }
  assert.match(await page.locator('#ball-pick-a').evaluate(e=>e.style.borderColor),process.env.SUTURE_BALL_MUTED?/rgb\(120, 95, 90\)/:/rgb\(225, 50, 60\)/);
  assert.match(await page.locator('#ball-pick-b').evaluate(e=>e.style.borderColor),process.env.SUTURE_BALL_MUTED?/rgb\(90, 100, 130\)/:/rgb\(30, 100, 235\)/);
- await page.locator('#ball-closed').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near closed recorded'));await page.evaluate(()=>window.__ballScene.open=true);
+ await page.locator('#ball-closed').click();await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near closed recorded'));await page.evaluate(()=>window.__ballScene.open=true);
  await page.waitForFunction(()=>Number(document.querySelector('#ball-readout').textContent.match(/normalized separation ([0-9.]+)/)?.[1])>2.5,{},{timeout:20000});
- await page.waitForTimeout(600);await page.locator('#ball-open').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near open recorded'));
+ await page.waitForTimeout(600);await page.locator('#ball-open').click();await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near open recorded'));
  await page.waitForFunction(()=>window.__jawEvents.length>0,{},{timeout:10000});
  if(process.env.SUTURE_JAW_FLICKER||process.env.SUTURE_JAW_PARTNER){
   await page.evaluate(partner=>window.__partnerCheck=partner,!!process.env.SUTURE_JAW_PARTNER);
@@ -48,17 +57,25 @@ try{
  if(process.env.SUTURE_JAW_DEPTH){
   await page.locator('#ball-calibration-distance').selectOption('far');
   await page.evaluate(()=>{window.__ballScene.scale=.7;window.__ballScene.separationBias=4;window.__ballScene.open=false;});await page.waitForTimeout(1200);
-  await page.locator('#ball-closed').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Far closed recorded'));
+  await page.locator('#ball-closed').click();await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Far closed recorded'));
   await page.evaluate(()=>window.__ballScene.open=true);await page.waitForTimeout(900);await page.locator('#ball-open').click();
-  await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near/Far compensation ready'));
+  await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near/Far compensation ready'));
   for(const [scale,bias] of [[1,0],[.85,2],[.7,4]]){
    await page.evaluate(({scale,bias})=>{window.__ballScene.scale=scale;window.__ballScene.separationBias=bias;window.__ballScene.open=false;},{scale,bias});
    await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('jaw 0%'),{},{timeout:10000});
    await page.evaluate(()=>window.__ballScene.open=true);await page.waitForFunction(()=>window.__jawEvents.at(-1)?.opening>.85,{},{timeout:10000});
   }
   await page.locator('[data-calibration-tool=needleDriver]').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near: closed — / open —'));
-  await page.locator('[data-calibration-tool=forceps]').click();await page.waitForFunction(()=>document.querySelector('#ball-calibration-status').textContent.includes('Near/Far compensation ready'));
+  await page.locator('[data-calibration-tool=forceps]').click();await page.waitForFunction(()=>!document.querySelector('#ball-closed').disabled&&document.querySelector('#ball-calibration-status').textContent.includes('Near/Far compensation ready'));
   await page.evaluate(()=>{window.__ballScene.scale=1;window.__ballScene.separationBias=0;});await page.waitForTimeout(800);
+ }
+ if(process.env.SUTURE_DUAL_JAWS){
+  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('suturehero.jaw-tracking.camera2.v1')));
+  assert(saved.tools.forceps.calibration.near.closed&&saved.tools.forceps.calibration.near.open,'One capture sequence must calibrate both cameras');
+  if(process.env.SUTURE_JAW_DEPTH)assert(saved.tools.forceps.calibration.far.closed&&saved.tools.forceps.calibration.far.open);
+  const count=await page.evaluate(()=>window.__jawEvents.length);await page.evaluate(()=>window.__ballScene.hideA=true);
+  await page.waitForFunction(count=>window.__jawEvents.length>count+3&&JSON.stringify(window.__jawEvents.at(-1).cameras)==='[2]',count,{timeout:10000});
+  await page.evaluate(()=>window.__ballScene.hideA=false);await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('paired with instrument'));
  }
  await page.evaluate(()=>window.__ballScene.distractor=true);
  await page.waitForFunction(()=>document.querySelector('#ball-readout').textContent.includes('pair rejected or missing'),{},{timeout:15000});

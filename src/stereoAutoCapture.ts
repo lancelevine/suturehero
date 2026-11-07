@@ -1,4 +1,4 @@
-export {};
+import {stereoBoard} from './input/stereoBoard';
 // Fail-closed stereo capture: accept a pair only when both frames contain
 // all 48 corners of the 9 x 7-square checkerboard.
 const capture = document.querySelector<HTMLButtonElement>('#capture-stereo-pair')!;
@@ -29,7 +29,8 @@ let detector:CV|undefined;
 let detectorError='';
 const target=20;
 const intervalMs=3000;
-const board={squaresX:9,squaresY:7,innerCornersX:8,innerCornersY:6,squareSizeMm:24};
+const board={...stereoBoard,squareSizeMm:Number(document.querySelector<HTMLInputElement>('#stereo-square-size-mm')!.value)};
+const squareSize=document.querySelector<HTMLInputElement>('#stereo-square-size-mm')!;
 function ready():boolean {
  return video1.readyState>=2&&video2.readyState>=2&&video1.videoWidth>0&&video2.videoWidth>0
   &&!!video1.srcObject&&!!video2.srcObject;
@@ -38,6 +39,7 @@ function update(message:string):void {
  statusElement.textContent=message;
  exportButton.disabled=pairs.length===0;
  clearButton.disabled=active;
+ squareSize.disabled=active||pairs.length>0;
  capture.textContent=active?'Stop validated capture':'Capture 20 validated pairs';
 }
 function frame(video:HTMLVideoElement):{canvas:HTMLCanvasElement;image:ImageCapture}{
@@ -151,7 +153,7 @@ capture.addEventListener('click',event=>{
 exportButton.addEventListener('click',event=>{
  event.stopImmediatePropagation();
  if(!pairs.length)return;
- const payload={format:'suturehero-stereo-captures-v1',board,camera1:camera1.value,camera2:camera2.value,pairs,diagnostics:{captureQualities:qualities,measuredBaselineMm:290,notice:'Capture diversity only; stereo reprojection error and camera extrinsics not solved.'}};
+ const payload={format:'suturehero-stereo-captures-v1',board,camera1:camera1.value,camera2:camera2.value,pairs,diagnostics:{captureQualities:qualities,notice:'Capture diversity only; stereo reprojection error and camera extrinsics not solved.'}};
  const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;
  link.download='suturehero-stereo-calibration-'+new Date().toISOString().slice(0,10)+'.json';
@@ -164,6 +166,8 @@ clearButton.addEventListener('click',event=>{
  if(pairs.length&&!window.confirm('Discard all validated calibration captures?'))return;
  pairs.length=0;qualities.length=0;qualityMessage.textContent='';update('0 validated pairs captured.');
 },true);
+squareSize.addEventListener('change',()=>{const mm=Number(squareSize.value);if(!Number.isFinite(mm)||mm<1||mm>100){squareSize.value=String(board.squareSizeMm);return;}board.squareSizeMm=mm;updateBoardIntro();update(`Checkerboard square size: ${mm} mm. Start a fresh capture set.`);});
 const intro=capture.closest('section')?.querySelector<HTMLElement>('p.tracking-message');
-if(intro)intro.innerHTML='Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · 24 mm squares</strong>. The app accepts a pair only when both cameras detect all 42 inner corners. Tilt and reposition the board between captures; do not move the cameras.';
+function updateBoardIntro(){if(intro)intro.innerHTML=`Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · ${board.squareSizeMm} mm squares</strong>. Both cameras must detect all 48 inner corners. Tilt and reposition the board between captures; keep the cameras fixed.`;}
+updateBoardIntro();
 update('0 validated pairs captured. Start both cameras, then capture. Checks every 3 seconds.');

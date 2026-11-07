@@ -958,3 +958,19 @@ node scripts/check-knot.mjs
 ```
 
 These use local Chromium (override `CHROMIUM_PATH` as needed). Run the browser checks sequentially; software WebGL rendering is CPU intensive. `npm run test:layout` also checks repeated viewport resizing.
+
+
+### Build 0.73 — stereo depth and shared jaw calibration
+
+Stereo movement now uses triangulated tracker positions, preserving depth beyond 400 mm and maintaining a consistent tracker center when marker faces change. Camera order and image dimensions are checked against the solved calibration.
+
+The checkerboard defaults to 9 × 7 squares (48 inner corners), with **16 mm** squares. Confirm the printed layout and measured square size before capturing. Keep both cameras fixed and capture about 20 varied board poses visible in both views. Export the paired captures, then solve them offline:
+
+```sh
+python -m pip install -r scripts/requirements-stereo.txt
+python scripts/validate_stereo_calibration.py captures.json --output calibration.json
+```
+
+Import the resulting solved JSON into Tracking setup. The solver checks pose diversity, reprojection and epipolar errors, baseline, and corner ordering; it does not export a solution that fails validation. New physical camera captures are required to determine the actual calibration; synthetic tests do not calibrate your cameras.
+
+Jaw tracking now supports both cameras. Sample each ball's color separately in each camera using **Color sampling view**, then capture closed/open once at Near and once at Far: each capture records all running views configured for that instrument. Each view retains its own measurements and color profile. Matching estimates are combined, and a fresh remaining view can continue tracking when the other loses the balls.
