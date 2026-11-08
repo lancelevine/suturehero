@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — phantom ID 3 fix, OV9281 stereo rehearsal, CHANGELOG move, scheduling tests, legacy ball cleanup
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,31 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-08 — Claude — 0.125 stereo prism axis fix; OV9281 two-camera rehearsal
+
+- **Bug fixed (0.125):** `prismAxisPoint` (`src/jaw/stereoHandle.ts`) moved
+  each face centre outward, so each prism face gave a different axis point
+  and the stereo opening jumped when the visible face changed. The unit test
+  built mirrored faces; it now also checks the real `localCorners('prism')`
+  layout. `check-handle-jaws-stereo` now asserts pose −15,300,0 (reads 0.44,
+  was 0.89). The "phantom ID 3" lead from the previous entry was wrong: face
+  3 is really visible there.
+- `check-handle-jaws` (single camera) is flaky, not regressed: the same code
+  passes or fails −15,60,0 / −15,300,0 between runs (single-face mirror
+  flips). Listed as flaky in AGENTS.md.
+- Two-camera checks accept `SUTURE_CAMERA_PRESET=ov9281` (`presetCalibration`
+  in `scripts/synthetic-camera.mjs`). check-stereo-motion passes;
+  check-stereo-rig-faces fails its 3 px fit limit (3.9 px, from upscaling the
+  2D scene); check-handle-jaws-stereo reads 0.61–0.74 at −15,205,0 (0.48 at
+  960×540), possibly load from 120 fps synthetic cameras in software
+  rendering. Not investigated further.
+- New unit tests: 1280×800 tile coverage, frame-driven setting storage.
+- Not done: removing the legacy ball code in `tracking.ts` would drop the
+  coloured/striped (classic) jaw modes AGENTS.md says stay supported. Waiting
+  for Lance's decision.
+- **Lance to test:** stereo handle-prism jaws while rolling the instrument
+  (needs a stereo recalibration of the prism's closed/open after 0.125).
 
 ### 2026-11-08 — Claude — Handle-prism pose (−15, 300, 0): narrowed, not fixed
 
