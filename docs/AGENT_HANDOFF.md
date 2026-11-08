@@ -69,6 +69,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Handle-prism jaw tracking: core module (not wired in)
+
+- Lance chose a triangular marker prism on the one moving handle (option A).
+- New `src/jaw/handleHinge.ts` (+ tests): IDs 30–32 needle driver, 33–35
+  forceps, 36–38 scissors; prism body from any face; hinge axis learned from
+  closed/open captures; opening = twist about that axis (off-axis noise ignored).
+- Next: detect IDs 30–38 in the decoders, wire into the Jaws tab with
+  closed/open capture, synthetic 3D browser check, then Lance builds the prism.
+
 ### 2026-11-08 — Claude — Build 0.107: Jaw tracking switch in Jaws tab
 
 - `src/ui/InstrumentCalibrationPanel.ts`: `data-jaw-enable` checkbox in the
