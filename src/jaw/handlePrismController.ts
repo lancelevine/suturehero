@@ -5,6 +5,7 @@ import type { TrackedInstrument } from '../input/trackingMessages';
 import { readStoredJson, writeStored } from '../input/trackingStorage';
 import {
   averageRotation,
+  CAPTURE_INLIER_RADIANS,
   handleRelativeToRing,
   hingeOpening,
   HANDLE_PRISM_IDS,
@@ -17,7 +18,7 @@ import {
 /** Saved hinge models per instrument (src/jaw/handleHinge.ts). */
 export const HANDLE_HINGE_STORAGE_KEY = 'suturehero.handleHinge.v1';
 /** Relative rotations averaged per closed/open capture. */
-const CAPTURE_SAMPLES = 15;
+const CAPTURE_SAMPLES = 20;
 /** Ring and single-marker fits worse than this are not used (px). */
 const MAX_RING_ERROR_PX = 4;
 const MAX_HANDLE_ERROR_PX = 3;
@@ -42,6 +43,8 @@ export interface HandlePrismHost {
   handleMarkers(instrument: TrackedInstrument, now: number): MarkerObservation[];
   firstMarkerId(instrument: TrackedInstrument): number;
   publish(instrument: TrackedInstrument, opening: number): void;
+  /** False while the Jaws tab's "Jaw tracking" switch is off (no updates run). */
+  running?(): boolean;
 }
 
 const TEMPLATE = `
@@ -158,6 +161,10 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     button.addEventListener('click', () => {
       const jaw = button.dataset.handleCapture as 'closed' | 'open';
       const name = selected();
+      if (host.running && !host.running()) {
+        status.textContent = 'Turn on “Jaw tracking” at the top of the Jaws tab first.';
+        return;
+      }
       if (jaw === 'open' && !closedCaptures.has(name)) {
         status.textContent = 'Calibrate closed first.';
         return;
@@ -179,10 +186,11 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   });
 
   function finishCapture(c: NonNullable<typeof capture>) {
-    const mean = averageRotation(c.samples);
+    const average = averageRotation(c.samples);
+    const mean = average.mean;
     capture = null;
     if (!mean) {
-      status.textContent = 'The instrument moved during the capture. Hold still and try again.';
+      status.textContent = `The readings spread ${((average.spread * 180) / Math.PI).toFixed(1)}° (only ${average.inliers} of ${c.samples.length} within ${((CAPTURE_INLIER_RADIANS * 180) / Math.PI).toFixed(0)}°). Hold still, keep one prism face and a flat ring face toward Camera 1, and try again.`;
       return;
     }
     if (c.jaw === 'closed') {

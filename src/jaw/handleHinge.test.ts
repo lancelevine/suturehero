@@ -45,10 +45,21 @@ describe('handle hinge jaw opening', () => {
 });
 
 describe('capture averaging', () => {
-  it('averages a held-still capture and rejects a moving one', () => {
+  it('averages a held-still capture despite noise and an occasional flip', () => {
     const base = turn(new Vector3(0, 1, 0), 40);
-    const still = [-1, 0, 1].map((d) => base.clone().multiply(turn(new Vector3(1, 0, 0), d)));
-    expect(averageRotation(still)!.angleTo(base)).toBeLessThan(1e-6);
-    expect(averageRotation([base, base.clone().multiply(turn(new Vector3(1, 0, 0), 12))])).toBeNull();
+    const noisy = Array.from({ length: 20 }, (_, i) => base.clone().multiply(turn(new Vector3(1, 0.3, 0), ((i % 5) - 2) * 1.2)));
+    noisy[3] = base.clone().multiply(turn(new Vector3(0, 0, 1), 25)); // a flipped single-marker pose
+    const result = averageRotation(noisy);
+    expect(result.mean).not.toBeNull();
+    expect(result.mean!.angleTo(base)).toBeLessThan(deg(0.5));
+    expect(result.inliers).toBe(19);
+  });
+
+  it('rejects a capture where the instrument really moved', () => {
+    const base = turn(new Vector3(0, 1, 0), 40);
+    const moving = Array.from({ length: 20 }, (_, i) => base.clone().multiply(turn(new Vector3(1, 0, 0), i * 1.5)));
+    const result = averageRotation(moving);
+    expect(result.mean).toBeNull();
+    expect(result.spread).toBeGreaterThan(deg(5));
   });
 });

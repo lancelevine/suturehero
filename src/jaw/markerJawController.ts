@@ -57,6 +57,8 @@ export interface MarkerJawHost {
   stereoCalibration?(): StereoCalibration | null;
   /** Fresh camera-1 handle prism markers (src/jaw/handleHinge.ts IDs), overlay pixels. */
   handleMarkers?(instrument: TrackedInstrument, now: number): MarkerObservation[];
+  /** False while the "Jaw tracking" switch is off (update() is not called). */
+  running?(): boolean;
 }
 
 export interface MarkerJawSnapshot {current:boolean;width:number;height:number;readings:Array<{instrument:TrackedInstrument;reading:JawReading}>;}
@@ -203,7 +205,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   }
 
   const handle = host.handleMarkers
-    ? mountHandlePrismJaws(section, { overlay: host.overlay, trackerType: host.trackerType, markers: host.markers, handleMarkers: host.handleMarkers, firstMarkerId: host.firstMarkerId, publish: host.publish })
+    ? mountHandlePrismJaws(section, { overlay: host.overlay, trackerType: host.trackerType, markers: host.markers, handleMarkers: host.handleMarkers, firstMarkerId: host.firstMarkerId, publish: host.publish, running: host.running })
     : null;
 
   function applyEngine() {

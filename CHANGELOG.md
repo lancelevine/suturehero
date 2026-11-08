@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.112 — handle-prism calibration tolerates real pose noise
+
+With the instrument held still, Lance's closed capture failed with "The
+instrument moved during the capture": every sample had to be within 3° of
+the mean, but the ring and prism poses (one camera, 12 mm markers) each
+wobble 1–3° per frame with occasional flips. Captures now take 20 samples,
+drop outliers beyond 5° of a robust mean, and need at least 60% inliers;
+real movement is still rejected. A failed capture reports the spread, and
+Calibrate warns when "Jaw tracking" is off instead of waiting silently.
+
 ## Build 0.111 — optical-flow frames go to the worker as bitmaps (stage 1)
 
 Each camera's optical-flow frame is now a scaled ImageBitmap transferred to

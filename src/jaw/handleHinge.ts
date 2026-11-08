@@ -95,18 +95,54 @@ export function parseHinge(value: unknown): HingeModel | null {
   return { closed: new Quaternion(...(saved.closed as [number, number, number, number])).normalize(), axis, openAngle: saved.openAngle };
 }
 
-/** Most rotations a capture may differ from its mean and still count as "held still" (radians). */
-export const MAX_CAPTURE_SPREAD_RADIANS = (3 * Math.PI) / 180;
+/**
+ * Capture samples further than this from the robust mean are outliers (radians).
+ * Real single-camera ring and prism poses on 12 mm markers each wobble 1–3° per
+ * frame with occasional flips, so the 3° "all samples" rule of build 0.109
+ * failed with the instrument held still (Lance, 2026-11-08).
+ */
+export const CAPTURE_INLIER_RADIANS = (5 * Math.PI) / 180;
+/** At least this share of a capture's samples must be inliers. */
+export const MIN_CAPTURE_INLIER_FRACTION = 0.6;
 
-/** Mean of nearby rotations (sign-aligned, normalized sum), or null if they spread too far. */
-export function averageRotation(samples: readonly Quaternion[]): Quaternion | null {
-  if (!samples.length) return null;
-  const reference = samples[0];
+function signAlignedMean(samples: readonly Quaternion[], reference: Quaternion): Quaternion {
   const sum = new Quaternion(0, 0, 0, 0);
   for (const q of samples) {
     const sign = q.dot(reference) < 0 ? -1 : 1;
     sum.set(sum.x + sign * q.x, sum.y + sign * q.y, sum.z + sign * q.z, sum.w + sign * q.w);
   }
-  const mean = sum.normalize();
-  return samples.every((q) => q.angleTo(mean) <= MAX_CAPTURE_SPREAD_RADIANS) ? mean : null;
+  return sum.normalize();
+}
+
+export interface CaptureAverage {
+  /** Mean of the inliers, or null if too few samples agree. */
+  mean: Quaternion | null;
+  inliers: number;
+  /** Largest inlier distance from the mean, radians (or of all samples if rejected). */
+  spread: number;
+}
+
+/**
+ * Robust mean of a held-still capture: start from the sample with the most
+ * neighbours, drop samples beyond CAPTURE_INLIER_RADIANS, average the rest.
+ * Real movement during the capture leaves too few inliers and is rejected.
+ */
+export function averageRotation(samples: readonly Quaternion[]): CaptureAverage {
+  if (!samples.length) return { mean: null, inliers: 0, spread: 0 };
+  // Seed: the sample that most others lie near (ignores a flipped first sample).
+  let seed = samples[0];
+  let bestNeighbours = -1;
+  for (const candidate of samples) {
+    const neighbours = samples.filter((q) => q.angleTo(candidate) <= CAPTURE_INLIER_RADIANS).length;
+    if (neighbours > bestNeighbours) {
+      bestNeighbours = neighbours;
+      seed = candidate;
+    }
+  }
+  let mean = signAlignedMean(samples.filter((q) => q.angleTo(seed) <= CAPTURE_INLIER_RADIANS), seed);
+  const inliers = samples.filter((q) => q.angleTo(mean) <= CAPTURE_INLIER_RADIANS);
+  mean = signAlignedMean(inliers, mean);
+  const enough = inliers.length >= Math.ceil(samples.length * MIN_CAPTURE_INLIER_FRACTION);
+  const spread = Math.max(0, ...(enough ? inliers : samples).map((q) => q.angleTo(mean)));
+  return { mean: enough ? mean : null, inliers: inliers.length, spread };
 }

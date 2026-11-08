@@ -69,6 +69,20 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.112: robust handle-prism captures
+
+- First real-hardware try (Lance): closed capture always failed the 3°
+  all-samples rule with the instrument still. `averageRotation`
+  (`src/jaw/handleHinge.ts`) is now robust: seed = sample with most
+  neighbours, inliers within 5°, ≥ 60% required; returns spread/inliers.
+  Limit loosened deliberately: real mono pose noise, not a test target.
+- `handlePrismController.ts`: 20 samples; failure message shows the spread;
+  warns when Jaw tracking is off (`running` host callback from tracking.ts).
+- Checked: handleHinge tests (new noise/flip and moving cases), tsc,
+  check-handle-jaws (unchanged: known pose only).
+- Expect a noisy live reading for the same reason; next step if so is
+  steadying the opening (or using Camera 2).
+
 ### 2026-11-08 — Claude — Build 0.111: flow frames as transferred bitmaps (stage 1)
 
 - Plan agreed with Lance: stage 1 frames to workers / shared buffers;
