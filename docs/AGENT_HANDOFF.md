@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — jaw tracking performance (brightBalls.ts, JawTracker.ts, markerJawController.ts).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -72,6 +72,18 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Jaw performance; workspace capture waits for the move (build 0.96)
+- Changed: `findBrightBalls` takes a precomputed `mask` and `sizeFactors`
+  (one pass), no per-pixel allocation; `maskFromQuads` rasterizes marker
+  outlines per region; `JawFrame.ignoreQuads`; controller caches one gray
+  frame per camera per frame and throttles stereo ball search (66 ms).
+  `StereoWorkspacePanel`: steps wait for ≥ 50 mm from neutral, then 15
+  samples within 3 mm.
+- Checked: jaw tests (30); benchmark masked 3-size search 20 → 1.7 ms;
+  marker-jaws (setting 7 mm) and Lab jaw checks pass; panel exercised in
+  the browser with simulated positions (1 cm move not accepted).
+- Lance to test: page responsiveness with jaw tracking on; workspace steps.
+
 ### 2026-11-08 — Claude Code — Stereo workspace calibration (build 0.95)
 - Changed: new `src/input/stereoWorkspace.ts` (axes from guided captures,
   up = right × forward checked against the up move, sweep scale = 4 units /

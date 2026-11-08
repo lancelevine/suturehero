@@ -1,8 +1,12 @@
 import { Vector3 } from 'three';
 import { solveWorkspaceAxes, sweepScale, DEFAULT_UNITS_PER_MM, type GuideCaptures, type StereoWorkspace } from '../input/stereoWorkspace';
 
-/** Stereo positions averaged per guided capture. */
+/** Stereo positions averaged per guided capture, once the instrument is still. */
 const CAPTURE_SAMPLES = 15;
+/** "Still" means the last CAPTURE_SAMPLES positions stay within this distance of their mean, mm. */
+const STILL_MM = 3;
+/** Right/forward/up captures wait until the instrument is at least this far from neutral, mm. */
+const MIN_MOVE_MM = 50;
 /** A stereo position older than this is not used for capturing, ms. */
 const MAX_SAMPLE_AGE_MS = 200;
 
@@ -51,8 +55,12 @@ export function mountStereoWorkspacePanel(
 
   for (const { step, prompt } of STEPS) {
     section.querySelector<HTMLButtonElement>(`[data-workspace-step="${step}"]`)!.addEventListener('click', () => {
+      if (step !== 'neutral' && !captures.neutral) {
+        status.textContent = 'Capture 1. Neutral first.';
+        return;
+      }
       collecting = { step, samples: [] };
-      status.textContent = `${prompt} Capturing…`;
+      status.textContent = step === 'neutral' ? `${prompt} Waiting until it is still…` : `${prompt} Waiting for the move…`;
     });
   }
 
@@ -113,9 +121,24 @@ export function mountStereoWorkspacePanel(
       latest = { mm: mm.clone(), at: now };
       if (sweep) sweep.push(mm.clone());
       if (!collecting) return;
+      // Guided moves: wait until far enough from neutral (the user may still be starting the move).
+      if (collecting.step !== 'neutral') {
+        const moved = mm.distanceTo(captures.neutral!);
+        if (moved < MIN_MOVE_MM) {
+          collecting.samples = [];
+          status.textContent = `Move about 10 cm (now ${(moved / 10).toFixed(1)} cm from neutral)…`;
+          return;
+        }
+      }
+      // Then wait until it is held still, and average.
       collecting.samples.push(mm.clone());
+      if (collecting.samples.length > CAPTURE_SAMPLES) collecting.samples.shift();
       if (collecting.samples.length < CAPTURE_SAMPLES) return;
-      const mean = collecting.samples.reduce((sum, p) => sum.add(p), new Vector3()).multiplyScalar(1 / collecting.samples.length);
+      const mean = collecting.samples.reduce((sum, p) => sum.clone().add(p), new Vector3()).multiplyScalar(1 / collecting.samples.length);
+      if (collecting.samples.some((p) => p.distanceTo(mean) > STILL_MM)) {
+        status.textContent = 'Hold still…';
+        return;
+      }
       captures[collecting.step] = mean;
       status.textContent = `${STEPS.find((s) => s.step === collecting!.step)!.label} captured.`;
       collecting = null;

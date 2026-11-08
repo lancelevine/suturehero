@@ -1,6 +1,6 @@
 import {RING_LAYOUT_REVISION,trackerGeometry} from '../input/prismPose';
 import * as THREE from 'three';
-import { brightSpotCentroid, findBrightBalls, type GrayImage } from './brightBalls';
+import { brightSpotCentroid, findBrightBalls, maskFromQuads, type GrayImage } from './brightBalls';
 import {
   bodyRay,
   nearestPointToRays,
@@ -77,6 +77,8 @@ export interface JawFrame {
   sample(region: Region): SampledRegion | null;
   /** Frame pixels to ignore, e.g. inside visible markers. */
   ignore?: (x: number, y: number) => boolean;
+  /** Areas to ignore as convex quads in frame pixels (much faster than `ignore`). */
+  ignoreQuads?: ReadonlyArray<ReadonlyArray<Pixel>>;
 }
 
 /** Expected on-screen ball radius at a given depth. */
@@ -85,7 +87,21 @@ export function ballRadiusPx(diameterMm: number, depthMm: number, k: Intrinsics)
 }
 
 /** Bright balls in a frame region, in frame pixel coordinates. */
-function ballsInRegion(frame: JawFrame, center: Pixel, halfSize: number, radiusPx: number) {
+/** Ignore mask for a sampled region: from quads when available, else the per-pixel function. */
+function regionMask(frame: JawFrame, sampled: SampledRegion): Uint8Array | undefined {
+  const { scale, region } = sampled;
+  if (frame.ignoreQuads) {
+    return maskFromQuads(sampled.image.width, sampled.image.height,
+      frame.ignoreQuads.map((quad) => quad.map((p) => ({ x: (p.x - region.x) * scale, y: (p.y - region.y) * scale }))));
+  }
+  const ignore = frame.ignore;
+  if (!ignore) return undefined;
+  const mask = new Uint8Array(sampled.image.width * sampled.image.height);
+  for (let y = 0; y < sampled.image.height; y++) for (let x = 0; x < sampled.image.width; x++) if (ignore(region.x + x / scale, region.y + y / scale)) mask[y * sampled.image.width + x] = 1;
+  return mask;
+}
+
+function ballsInRegion(frame: JawFrame, center: Pixel, halfSize: number, radiusPx: number, sizeFactors: readonly number[] = [1]) {
   const region = {
     x: Math.floor(center.x - halfSize),
     y: Math.floor(center.y - halfSize),
@@ -96,10 +112,7 @@ function ballsInRegion(frame: JawFrame, center: Pixel, halfSize: number, radiusP
   if (!sampled) return [];
   const { scale } = sampled;
   const origin = sampled.region;
-  const ignore = frame.ignore;
-  return findBrightBalls(sampled.image, radiusPx * scale, {
-    ignore: ignore ? (x, y) => ignore(origin.x + x / scale, origin.y + y / scale) : undefined,
-  }).map((ball) => ({ x: origin.x + ball.x / scale, y: origin.y + ball.y / scale, radius: ball.radius / scale }));
+  return findBrightBalls(sampled.image, radiusPx * scale, { mask: regionMask(frame, sampled), sizeFactors }).map((ball) => ({ x: origin.x + ball.x / scale, y: origin.y + ball.y / scale, radius: ball.radius / scale }));
 }
 
 // --- Calibration capture ----------------------------------------------------
@@ -334,15 +347,14 @@ export class JawTracker {
       const center = { x: (closed.x + open.x) / 2, y: (closed.y + open.y) / 2 };
       const halfSize = travel / 2 + radius * 4 + 6;
       let best: { point: Pixel; fraction: number; cost: number } | null = null;
-      for (const factor of DETECT_SIZE_FACTORS) {
-        for (const candidate of ballsInRegion(frame, center, halfSize, radius * factor)) {
+      {
+        for (const candidate of ballsInRegion(frame, center, halfSize, radius, DETECT_SIZE_FACTORS)) {
           const path = pathPosition(candidate, closed, open);
           if (path.offsetPx > pathTolerance || path.fraction < -0.35 || path.fraction > 1.35) continue;
           if (predicted !== null && Math.hypot(candidate.x - at(predicted).x, candidate.y - at(predicted).y) > lockReach + travel * 0.25) continue;
           const cost = path.offsetPx + (predicted === null ? 0 : Math.abs(path.fraction - predicted) * travel);
           if (!best || cost < best.cost) best = { point: { x: candidate.x, y: candidate.y }, fraction: path.fraction, cost };
         }
-        if (best) break;
       }
 
       // 2. Locked but no round blob: follow the bright spot at the prediction.
@@ -353,9 +365,7 @@ export class JawTracker {
         const sampled = frame.sample({ x: Math.floor(p.x - half), y: Math.floor(p.y - half), width: size, height: size });
         if (sampled) {
           const { scale, region } = sampled;
-          const ignore = frame.ignore;
-          const spot = brightSpotCentroid(sampled.image, Math.PI * (radius * scale) ** 2 * 0.15,
-            ignore ? (x, y) => ignore(region.x + x / scale, region.y + y / scale) : undefined);
+          const spot = brightSpotCentroid(sampled.image, Math.PI * (radius * scale) ** 2 * 0.15, regionMask(frame, sampled));
           if (spot) {
             const point = { x: region.x + spot.x / scale, y: region.y + spot.y / scale };
             const path = pathPosition(point, closed, open);

@@ -30,8 +30,12 @@ export interface BallCandidate {
 }
 
 export interface BallSearchOptions {
-  /** Pixels to ignore, e.g. inside visible ArUco markers (white borders). */
+  /** Pixels to ignore, e.g. inside visible ArUco markers (white borders). Prefer `mask`: a function is called once per pixel. */
   ignore?: (x: number, y: number) => boolean;
+  /** Per-pixel ignore mask (1 = ignore), same size as the image. */
+  mask?: Uint8Array;
+  /** Accept balls of these sizes relative to `expectedRadius`, in one pass (default [1]). */
+  sizeFactors?: readonly number[];
   /** Minimum inside-minus-surround brightness difference. */
   minContrast?: number;
 }
@@ -45,12 +49,12 @@ export const MAX_ASPECT = 1.8;
 export const DEFAULT_MIN_CONTRAST = 25;
 
 /** Otsu's threshold over the non-ignored pixels. */
-function otsuThreshold(image: GrayImage, ignore?: (x: number, y: number) => boolean): number {
+function otsuThreshold(image: GrayImage, mask?: Uint8Array): number {
   const histogram = new Array<number>(256).fill(0);
   let total = 0;
   for (let y = 0; y < image.height; y++) {
     for (let x = 0; x < image.width; x++) {
-      if (ignore?.(x, y)) continue;
+      if (mask?.[y * image.width + x]) continue;
       histogram[image.data[y * image.width + x]]++;
       total++;
     }
@@ -108,9 +112,10 @@ export function findBrightBalls(
 ): BallCandidate[] {
   const { width, height, data } = image;
   if (!width || !height || expectedRadius <= 0) return [];
-  const ignore = options.ignore;
+  const mask = options.mask ?? (options.ignore ? maskFromFunction(width, height, options.ignore) : undefined);
+  const factors = options.sizeFactors?.length ? options.sizeFactors : [1];
   const minContrast = options.minContrast ?? DEFAULT_MIN_CONTRAST;
-  const threshold = Math.max(otsuThreshold(image, ignore), 40);
+  const threshold = Math.max(otsuThreshold(image, mask), 40);
   const expectedArea = Math.PI * expectedRadius * expectedRadius;
   const label = new Int32Array(width * height);
   const stack: number[] = [];
@@ -121,7 +126,7 @@ export function findBrightBalls(
     if (label[start] || data[start] <= threshold) continue;
     const sx = start % width;
     const sy = (start - sx) / width;
-    if (ignore?.(sx, sy)) continue;
+    if (mask?.[start]) continue;
     next++;
     label[start] = next;
     stack.push(start);
@@ -147,19 +152,24 @@ export function findBrightBalls(
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
       if (x === 0 || y === 0 || x === width - 1 || y === height - 1) touchesEdge = true;
-      const neighbors = [x > 0 ? index - 1 : -1, x < width - 1 ? index + 1 : -1, y > 0 ? index - width : -1, y < height - 1 ? index + width : -1];
-      for (const n of neighbors) {
+      // 4-neighbours, without allocating per pixel.
+      for (let k = 0; k < 4; k++) {
+        const n = k === 0 ? (x > 0 ? index - 1 : -1) : k === 1 ? (x < width - 1 ? index + 1 : -1) : k === 2 ? (y > 0 ? index - width : -1) : y < height - 1 ? index + width : -1;
         if (n < 0 || label[n] || data[n] <= threshold) continue;
-        const nx = n % width;
-        if (ignore?.(nx, (n - nx) / width)) continue;
+        if (mask?.[n]) continue;
         label[n] = next;
         stack.push(n);
       }
     }
     // A blob cut off by the search window cannot be measured reliably.
     if (touchesEdge) continue;
-    const areaRatio = area / expectedArea;
-    if (areaRatio < AREA_RATIO_MIN || areaRatio > AREA_RATIO_MAX) continue;
+    // Closest accepted size, in log-area terms.
+    let areaRatio = Infinity;
+    for (const f of factors) {
+      const ratio = area / (expectedArea * f * f);
+      if (ratio >= AREA_RATIO_MIN && ratio <= AREA_RATIO_MAX && Math.abs(Math.log(ratio)) < Math.abs(Math.log(areaRatio))) areaRatio = ratio;
+    }
+    if (!Number.isFinite(areaRatio)) continue;
     const boxWidth = maxX - minX + 1;
     const boxHeight = maxY - minY + 1;
     if (area / (boxWidth * boxHeight) < MIN_FILL) continue;
@@ -199,12 +209,13 @@ export const SPOT_MIN_CONTRAST = 45;
  * blur, partial blocking or odd lighting. The caller supplies a small window
  * around the predicted position.
  */
-export function brightSpotCentroid(image: GrayImage, minPixels: number, ignore?: (x: number, y: number) => boolean): BrightSpot | null {
+export function brightSpotCentroid(image: GrayImage, minPixels: number, ignore?: ((x: number, y: number) => boolean) | Uint8Array): BrightSpot | null {
+  const mask = ignore instanceof Uint8Array ? ignore : typeof ignore === 'function' ? maskFromFunction(image.width, image.height, ignore as (x: number, y: number) => boolean) : undefined;
   const values: number[] = [];
   let max = 0;
   for (let y = 0; y < image.height; y++) {
     for (let x = 0; x < image.width; x++) {
-      if (ignore?.(x, y)) continue;
+      if (mask?.[y * image.width + x]) continue;
       const v = image.data[y * image.width + x];
       values.push(v);
       if (v > max) max = v;
@@ -223,7 +234,7 @@ export function brightSpotCentroid(image: GrayImage, minPixels: number, ignore?:
   let pixels = 0;
   for (let y = 0; y < image.height; y++) {
     for (let x = 0; x < image.width; x++) {
-      if (ignore?.(x, y)) continue;
+      if (mask?.[y * image.width + x]) continue;
       const v = image.data[y * image.width + x];
       if (v < threshold) continue;
       const w = v - threshold + 1;
@@ -235,4 +246,41 @@ export function brightSpotCentroid(image: GrayImage, minPixels: number, ignore?:
   }
   if (pixels < minPixels) return null;
   return { x: sx / sw, y: sy / sw, pixels, contrast };
+}
+
+function maskFromFunction(width: number, height: number, ignore: (x: number, y: number) => boolean): Uint8Array {
+  const mask = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (ignore(x, y)) mask[y * width + x] = 1;
+  return mask;
+}
+
+/**
+ * Ignore mask for convex quads (e.g. grown marker outlines), given in image
+ * pixels. Only pixels inside each quad's bounding box are tested, so this is
+ * far cheaper than testing every pixel against every quad.
+ */
+export function maskFromQuads(width: number, height: number, quads: ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>): Uint8Array {
+  const mask = new Uint8Array(width * height);
+  for (const quad of quads) {
+    const x0 = Math.max(0, Math.floor(Math.min(...quad.map((p) => p.x))));
+    const x1 = Math.min(width - 1, Math.ceil(Math.max(...quad.map((p) => p.x))));
+    const y0 = Math.max(0, Math.floor(Math.min(...quad.map((p) => p.y))));
+    const y1 = Math.min(height - 1, Math.ceil(Math.max(...quad.map((p) => p.y))));
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        let sign = 0;
+        let inside = true;
+        for (let i = 0; i < quad.length && inside; i++) {
+          const a = quad[i];
+          const b = quad[(i + 1) % quad.length];
+          const cross = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+          if (cross === 0) continue;
+          if (!sign) sign = Math.sign(cross);
+          else if (Math.sign(cross) !== sign) inside = false;
+        }
+        if (inside) mask[y * width + x] = 1;
+      }
+    }
+  }
+  return mask;
 }

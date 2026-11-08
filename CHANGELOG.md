@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.96 — jaw tracking no longer slows the page; workspace steps wait for the move
+
+Jaw ball searches were slowed ~8× by testing every pixel against every
+marker outline (to ignore the markers' white borders), several times per
+search and in both cameras in stereo, making the whole page lag. Marker
+outlines are now drawn into a mask once, all ball sizes are searched in one
+pass (20 ms → 1.7 ms per search), each camera frame is read back once per
+frame, and the stereo ball search runs at most ~15 times a second.
+
+Workspace (stereo) steps 2–4 now wait until the instrument is at least 5 cm
+from neutral and then held still before capturing (they previously
+captured immediately), and Neutral waits for stillness.
+
 ## Build 0.95 — stereo workspace calibration
 
 Tracking setup → stereo now has **Workspace (stereo)**: capture 1. Neutral,

@@ -5,7 +5,7 @@ import { readStored, readStoredJson, TRACKING_STORAGE_KEYS, writeStored } from '
 import type { TrackedInstrument } from '../input/trackingMessages';
 import type { StereoCalibration } from '../input/stereoGeometry';
 import { expectedSpacing, median, openingFromDistance, stereoBallPair } from './stereoBallDistance';
-import { findBrightBalls, grayFromRGBA } from './brightBalls';
+import { findBrightBalls, grayFromRGBA, maskFromQuads, type GrayImage } from './brightBalls';
 import { defaultIntrinsics, projectBodyPoint, type Pixel } from './jawGeometry';
 import {
   ballRadiusPx,
@@ -65,14 +65,14 @@ const LABELS: Record<TrackedInstrument, string> = { needleDriver: 'Needle driver
 const RING_SIDE_FACES = 6;
 /** Skip frames whose tracker pose fits the markers worse than this, px. */
 const MAX_POSE_ERROR_PX = 4;
-/** Largest crop read from the camera, px per side (keeps per-frame cost small). */
-const MAX_CROP_PX = 256;
 /** Markers' white borders look like bright blobs; ignore a margin around them. */
 const MARKER_MASK_GROWTH = 1.25;
 const BALLS_PER_INSTRUMENT = 2;
 /** Search this many marker sides around the ring for jaw balls in stereo. */
 const STEREO_SEARCH_MARKER_SIDES = 6;
 const MAX_STEREO_CANDIDATES = 6;
+/** Minimum time between stereo ball searches, ms. */
+const STEREO_INTERVAL_MS = 66;
 /** The closed/open 3D ball distances must differ by at least this much. */
 const MIN_STEREO_SPAN_MM = 2;
 /** Ball sizes tried when snapping a click, relative to the diameter setting (each try accepts ~0.55–1.5×). */
@@ -240,23 +240,42 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     return pose;
   }
 
-  function sample(region: Region, camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement } = host): SampledRegion | null {
+  /**
+   * One grayscale copy of each camera's current frame, at overlay resolution.
+   * Reading pixels back from a video is the expensive part of jaw tracking,
+   * so it happens once per camera per frame; every search region is then cut
+   * from this copy in JavaScript.
+   */
+  const frameCache = new Map<HTMLVideoElement, { id: number; image: GrayImage }>();
+  function cameraGray(camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement }): GrayImage | null {
     const { video, overlay } = camera;
     if (!video.videoWidth || !overlay.width) return null;
+    const id = cameraImageId(video);
+    const cached = frameCache.get(video);
+    if (cached && cached.id === id && cached.image.width === overlay.width && cached.image.height === overlay.height) return cached.image;
+    const { width, height } = overlay;
+    if (crop.width !== width || crop.height !== height) {
+      crop.width = width;
+      crop.height = height;
+    }
+    cropContext.drawImage(cameraImage(video), 0, 0, width, height);
+    const image = grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
+    frameCache.set(video, { id, image });
+    return image;
+  }
+
+  function sample(region: Region, camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement } = host): SampledRegion | null {
+    const frame = cameraGray(camera);
+    if (!frame) return null;
     const x0 = Math.max(0, Math.floor(region.x));
     const y0 = Math.max(0, Math.floor(region.y));
-    const x1 = Math.min(overlay.width, Math.ceil(region.x + region.width));
-    const y1 = Math.min(overlay.height, Math.ceil(region.y + region.height));
+    const x1 = Math.min(frame.width, Math.ceil(region.x + region.width));
+    const y1 = Math.min(frame.height, Math.ceil(region.y + region.height));
     if (x1 - x0 < 4 || y1 - y0 < 4) return null;
-    const toVideo = video.videoWidth / overlay.width;
-    const scale = Math.min(toVideo, MAX_CROP_PX / Math.max(x1 - x0, y1 - y0));
-    const width = Math.max(1, Math.round((x1 - x0) * scale));
-    const height = Math.max(1, Math.round((y1 - y0) * scale));
-    if (crop.width < width) crop.width = width;
-    if (crop.height < height) crop.height = height;
-    cropContext.drawImage(cameraImage(video), x0 * toVideo, y0 * toVideo, (x1 - x0) * toVideo, (y1 - y0) * toVideo, 0, 0, width, height);
-    const image = grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
-    return { image, region: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, scale: width / (x1 - x0) };
+    const width = x1 - x0;
+    const data = new Uint8Array(width * (y1 - y0));
+    for (let y = y0; y < y1; y++) data.set(frame.data.subarray(y * frame.width + x0, y * frame.width + x1), (y - y0) * width);
+    return { image: { width, height: y1 - y0, data }, region: { x: x0, y: y0, width, height: y1 - y0 }, scale: 1 };
   }
 
   /** White-ball candidates near one camera's view of an instrument's ring, in that camera's overlay pixels. */
@@ -270,18 +289,13 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     const region = sample({ x: cx - half, y: cy - half, width: half * 2, height: half * 2 }, camera);
     if (!region) return [];
     const { scale } = region;
-    const masks = markers.map((m) => grownQuad(m.corners));
-    const ignore = (x: number, y: number) => masks.some((quad) => insideConvex({ x: region.region.x + x / scale, y: region.region.y + y / scale }, quad));
+    const mask = maskFromQuads(region.image.width, region.image.height,
+      markers.map((m) => grownQuad(m.corners).map((p) => ({ x: (p.x - region.region.x) * scale, y: (p.y - region.region.y) * scale }))));
     // Ball radius from the marker's apparent size (12 mm square) and the ball diameter.
     const radius = (side * diameterMm) / 2 / trackerGeometryMarkerMm();
-    const found: Pixel[] = [];
-    for (const factor of [1, 0.6, 1.6]) {
-      for (const ball of findBrightBalls(region.image, radius * factor * scale, { ignore })) {
-        const point = { x: region.region.x + ball.x / scale, y: region.region.y + ball.y / scale };
-        if (!found.some((p) => Math.hypot(p.x - point.x, p.y - point.y) < radius)) found.push(point);
-      }
-    }
-    return found.slice(0, MAX_STEREO_CANDIDATES);
+    return findBrightBalls(region.image, radius * scale, { mask, sizeFactors: [1, 0.6, 1.6] })
+      .slice(0, MAX_STEREO_CANDIDATES)
+      .map((ball) => ({ x: region.region.x + ball.x / scale, y: region.region.y + ball.y / scale }));
   }
 
   /**
@@ -290,7 +304,16 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
    * calibration), and `range` the plausible spacing (during tracking), so
    * steel highlights or other bright spots cannot pair up by mistake.
    */
+  const lastStereo = new Map<TrackedInstrument, { at: number; distance: number | null }>();
   function stereoDistance(name: TrackedInstrument, now: number, diameterMm: number, known?: readonly Pixel[], range?: { minMm: number; maxMm: number }): number | null {
+    // At most ~15 times a second: it searches both cameras.
+    const previous = lastStereo.get(name);
+    if (previous && now - previous.at < STEREO_INTERVAL_MS) return previous.distance;
+    const distance = measureStereoDistance(name, now, diameterMm, known, range);
+    lastStereo.set(name, { at: now, distance });
+    return distance;
+  }
+  function measureStereoDistance(name: TrackedInstrument, now: number, diameterMm: number, known?: readonly Pixel[], range?: { minMm: number; maxMm: number }): number | null {
     const calibration = host.stereoCalibration?.();
     const second = host.second;
     if (!calibration || !second || !second.video.videoWidth || !second.overlay.width) return null;
@@ -311,6 +334,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       intrinsics: defaultIntrinsics(host.overlay.width, host.overlay.height),
       sample,
       ignore: masks.length ? (x, y) => masks.some((quad) => insideConvex({ x, y }, quad)) : undefined,
+      ignoreQuads: masks,
     };
   }
 
