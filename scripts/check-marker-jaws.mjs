@@ -135,6 +135,8 @@ try {
   await installRingCamera(page);
   await page.goto(new URL('tracking.html', base).href);
   assert.equal(await page.locator('#tracker-type').inputValue(), 'ring8');
+  // Jaw tracking is off by default (0.104: the checkbox also gates the marker engine).
+  await page.locator('#ball-enable').evaluate((e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
   await page.locator('#start-camera').click();
   await page.waitForFunction(() => /needleDriver: distance/.test(document.querySelector('#tracking-filter-diagnostics')?.textContent ?? ''), {}, {timeout: 30000});
 

@@ -69,6 +69,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.104: jaw tracking can be turned off
+
+- `src/tracking.ts`: `markerJaws.update` runs only when `#ball-enable` is
+  ticked; label now "Enable jaw tracking". `scripts/check-marker-jaws.mjs`
+  ticks it.
+- Checked: tsc, check-marker-jaws.
+
 ### 2026-11-08 — Claude — Build 0.103: GPU canvas for jaw region reads
 
 - `src/jaw/markerJawController.ts`: crop canvas no longer uses

@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.104 — "Enable jaw tracking" switches jaw tracking off completely
+
+The existing "Enable ball tracking" checkbox (renamed "Enable jaw
+tracking") now also stops the white-ball jaw tracker, which used to run
+regardless. Unticked, no jaw work is done, leaving the time for instrument
+tracking.
+
 ## Build 0.103 — fix the jaw-tracking slowdown from 0.99
 
 0.99 made jaw tracking read small regions, but through a CPU canvas, so
