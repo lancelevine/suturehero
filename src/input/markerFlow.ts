@@ -5,7 +5,22 @@ type Point={x:number;y:number};
 export const framePyramid=(frame:FramePixels)=>pyramid(grayFrame(frame));
 function grayFrame(frame:FramePixels):GrayFrame{
  const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
- for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+ // Interior 2×2 blocks never need edge clamping: same arithmetic, same order, no Math.min (bit-identical).
+ const fullWidth=Math.floor(frame.width/2),fullHeight=Math.floor(frame.height/2),data=frame.data,stride=frame.width*4;
+ for(let y=0;y<fullHeight;y++){
+  const row=y*2*stride;
+  for(let x=0;x<fullWidth;x++){
+   const k00=row+x*8,k10=k00+4,k01=k00+stride,k11=k01+4;
+   let value=0;
+   value+=.299*data[k00]+.587*data[k00+1]+.114*data[k00+2];
+   value+=.299*data[k10]+.587*data[k10+1]+.114*data[k10+2];
+   value+=.299*data[k01]+.587*data[k01+1]+.114*data[k01+2];
+   value+=.299*data[k11]+.587*data[k11+1]+.114*data[k11+2];
+   pixels[y*width+x]=Math.round(value/4);
+  }
+ }
+ // Odd last column/row (if any): the original clamped loop.
+ for(let y=0;y<height;y++)for(let x=y<fullHeight?fullWidth:0;x<width;x++){
   let value=0;
   for(let j=0;j<2;j++)for(let i=0;i<2;i++){
    const k=(Math.min(frame.height-1,y*2+j)*frame.width+Math.min(frame.width-1,x*2+i))*4;
@@ -105,6 +120,33 @@ function recoverPatch(a:GrayFrame[],b:GrayFrame[],center:Point,motion:Point):Poi
  return displacement;
 }
 
+/**
+ * Variance of differences between template samples and frame `f` shifted by
+ * an integer offset (ox, oy) — the same value as sampling every point with
+ * sample() at (x+ox, y+oy), returning Infinity if any point leaves valid(f, ·, ·, 0).
+ */
+export function integerOffsetScorer(f:GrayFrame,samples:ReadonlyArray<{x:number;y:number;value:number}>){
+ const n=samples.length,index=new Int32Array(n),w00=new Float64Array(n),w10=new Float64Array(n),w01=new Float64Array(n),w11=new Float64Array(n),value=new Float64Array(n);
+ let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+ for(let k=0;k<n;k++){
+  const p=samples[k],ix=Math.floor(p.x),iy=Math.floor(p.y),dx=p.x-ix,dy=p.y-iy;
+  index[k]=iy*f.width+ix;w00[k]=(1-dx)*(1-dy);w10[k]=dx*(1-dy);w01[k]=(1-dx)*dy;w11[k]=dx*dy;value[k]=p.value;
+  if(p.x<minX)minX=p.x;if(p.x>maxX)maxX=p.x;if(p.y<minY)minY=p.y;if(p.y>maxY)maxY=p.y;
+ }
+ const px=f.pixels,width=f.width;
+ return (ox:number,oy:number)=>{
+  // valid(f,x,y,0): 2 ≤ x < width−2 and 2 ≤ y < height−2, for every sample.
+  if(minX+ox<2||minY+oy<2||maxX+ox>=f.width-2||maxY+oy>=f.height-2)return Infinity;
+  const shift=oy*width+ox;let sum=0,squared=0;
+  for(let k=0;k<n;k++){
+   const i=index[k]+shift;
+   const d=px[i]*w00[k]+px[i+1]*w10[k]+px[i+width]*w01[k]+px[i+width+1]*w11[k]-value[k];
+   sum+=d;squared+=d*d;
+  }
+  return (squared-sum*sum/n)/n;
+ };
+}
+
 export function trackMarker(a:GrayFrame[],b:GrayFrame[],marker:MarkerObservation,motion:Point={x:0,y:0}):MarkerObservation|null {
  // Keep at least 16 marker pixels at the coarsest level. Otherwise a small
  // marker disappears into the background before LK ever reaches fine detail.
@@ -136,9 +178,14 @@ export function trackMarker(a:GrayFrame[],b:GrayFrame[],marker:MarkerObservation
    return (squared-sum*sum/samples.length)/samples.length;
   };
   let best={x:0,y:0},bestError=Infinity;
+  // Coarse search over integer offsets: each sample's bilinear weights and
+  // pixel index are the same for every integer offset, so compute them once
+  // (this search was ~73% of flow-worker time). Same offsets, formula and
+  // validity rule as score(); only the repeated work is removed.
+  const integerScore=integerOffsetScorer(B,samples);
   for(const origin of [predicted,{x:0,y:0}]){
    const cx=Math.round(origin.x/2),cy=Math.round(origin.y/2);
-   for(let y=cy-24;y<=cy+24;y+=2)for(let x=cx-24;x<=cx+24;x+=2){const error=score(x,y);if(error<bestError){bestError=error;best={x:x*2,y:y*2};}}
+   for(let y=cy-24;y<=cy+24;y+=2)for(let x=cx-24;x<=cx+24;x+=2){const error=integerScore(x,y);if(error<bestError){bestError=error;best={x:x*2,y:y*2};}}
   }
   const bx=best.x/2,by=best.y/2;
   for(let y=by-2;y<=by+2;y+=.5)for(let x=bx-2;x<=bx+2;x+=.5){const error=score(x,y);if(error<bestError){bestError=error;best={x:x*2,y:y*2};}}

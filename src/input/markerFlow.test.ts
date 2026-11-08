@@ -35,3 +35,28 @@ it('rejects a blank image and recovers from the last successful reference after 
  const next=scene(182,146),result=trackMarker(source.frame,next.frame,source.marker);
  expect(result).not.toBeNull();expect(result!.corners[0].x).toBeCloseTo(next.marker.corners[0].x,0);
 });
+
+it('integer-offset scorer matches per-sample bilinear scoring exactly enough to pick the same offset',async()=>{
+ const {integerOffsetScorer}=await import('./markerFlow');
+ const w=64,h=48,pixels=new Uint8Array(w*h).map((_,i)=>(i*37+(i>>6)*11)%251);
+ const f={width:w,height:h,pixels};
+ const sample=(x:number,y:number)=>{const ix=Math.floor(x),iy=Math.floor(y),dx=x-ix,dy=y-iy,i=iy*w+ix;return pixels[i]*(1-dx)*(1-dy)+pixels[i+1]*dx*(1-dy)+pixels[i+w]*(1-dx)*dy+pixels[i+w+1]*dx*dy;};
+ const samples=Array.from({length:30},(_,k)=>({x:20+(k%6)*1.37,y:15+Math.floor(k/6)*1.61,value:(k*29)%200}));
+ const reference=(ox:number,oy:number)=>{let sum=0,sq=0;for(const p of samples){const x=p.x+ox,y=p.y+oy;if(!(x>=2&&y>=2&&x<w-2&&y<h-2))return Infinity;const d=sample(x,y)-p.value;sum+=d;sq+=d*d;}return (sq-sum*sum/samples.length)/samples.length;};
+ const fast=integerOffsetScorer(f,samples);
+ for(const [ox,oy] of [[0,0],[3,-2],[-6,5],[20,0],[-19,-14],[40,40]]){const a=reference(ox,oy),b=fast(ox,oy);if(a===Infinity)expect(b).toBe(Infinity);else expect(b).toBeCloseTo(a,9);}
+});
+
+it('fast grayscale pyramid is bit-identical to the clamped reference, including odd sizes',async()=>{
+ const {framePyramid}=await import('./markerFlow');
+ for(const [w,h] of [[64,48],[65,49],[960,540]]){
+  const data=new Uint8ClampedArray(w*h*4).map((_,i)=>(i*31+(i>>7)*17)%256);
+  const gray=framePyramid({width:w,height:h,data})[0];
+  const W=Math.ceil(w/2),H=Math.ceil(h/2);
+  for(let y=0;y<H;y+=Math.max(1,H>>4))for(let x=0;x<W;x+=1){
+   let value=0;for(let j=0;j<2;j++)for(let i=0;i<2;i++){const k=(Math.min(h-1,y*2+j)*w+Math.min(w-1,x*2+i))*4;value+=.299*data[k]+.587*data[k+1]+.114*data[k+2];}
+   expect(gray.pixels[y*W+x]).toBe(Math.round(value/4));
+  }
+  const lastRow=H-1;for(let x=0;x<W;x++){let value=0;for(let j=0;j<2;j++)for(let i=0;i<2;i++){const k=(Math.min(h-1,lastRow*2+j)*w+Math.min(w-1,x*2+i))*4;value+=.299*data[k]+.587*data[k+1]+.114*data[k+2];}expect(gray.pixels[lastRow*W+x]).toBe(Math.round(value/4));}
+ }
+});

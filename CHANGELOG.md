@@ -5,6 +5,17 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.116 — optical flow about 2–3× cheaper, same results
+
+Profiling the flow worker showed 73% of its time in one loop: the coarse
+block search that finds each marker in the next frame, which recomputed the
+same bilinear weights for each of 1,250 offsets. They are now computed once
+per sample (identical results). The frame-to-grayscale step also skips edge
+clamping for interior pixels (bit-identical). Per marker: 1.65 → ~0.7 ms;
+grayscale + pyramid: ~2.4 → ~1.6 ms (Node). Synthetic browser test: flow
+worker 22.6 → 8.0 ms per update, flow now runs on every delivered frame,
+flow frame age 46 → 25 ms. No tracking behaviour changed.
+
 ## Build 0.115 — flow worker no longer processes frames it may never use
 
 Lance's 0.112 profile: the main thread got lighter (tracking frame 13.2 →

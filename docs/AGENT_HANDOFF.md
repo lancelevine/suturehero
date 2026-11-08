@@ -69,6 +69,25 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.116: faster optical flow, identical output
+
+- Measured first (Node CPU profile of trackMarker/framePyramid): `score`
+  (coarse block search, 2 × 625 offsets × 81 bilinear samples) = 73%,
+  grayFrame 9%. A narrow-window-first search was tried and reverted: it
+  barely helped and changed results (a markerFlow test failed).
+- `src/input/markerFlow.ts`: `integerOffsetScorer` precomputes per-sample
+  bilinear weights/index for integer offsets (same values; test compares
+  with the reference); `grayFrame` interior fast path (bit-identical test,
+  odd sizes included).
+- Per marker 1.65 → ~0.7 ms; framePyramid ~2.4 → ~1.6 ms (Node). Synthetic
+  check-profiler: flow worker 22.6 → 8.0 ms, Camera 1 flow 17.5/s →
+  21.8/s (= arrival 21.7), flow frame age 45.6 → 25.1 ms.
+- Checked: markerFlow tests, tsc; check-tracking-motion, ring-handoffs,
+  stereo-rig-faces, stereo-motion, tracking-lab, driver-depth, marker-jaws,
+  profiler pass; handle-jaws known pose only.
+- Not done: 640×360 flow (kept 960×540 for corner precision), worker
+  allocation reuse. Lance: new profile (stereo, bitmaps on/off).
+
 ### 2026-11-08 — Claude — Build 0.115: lazy kept frames in the flow worker
 
 - Lance's 0.112 profile vs 0.110: main-thread tracking frame 13.2 → 6.4 ms;
