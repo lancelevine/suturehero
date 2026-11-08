@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — stereo diagnostics: report why stereo is rejected (pairing or fit). Touches `src/tracking.ts`, `src/input/StereoFrames.ts`, `src/input/stereoRigPose.ts`. Please avoid those until cleared.
 - **Needs Lance to test by hand:**
   - **Tracking Lab (build 0.83):** record a real single/stereo-camera failure,
     stop, replay, and export it. Confirm practical recording FPS and image
