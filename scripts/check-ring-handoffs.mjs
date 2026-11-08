@@ -12,7 +12,8 @@ try{
  // Inject decoded quadrilaterals to test pose application and the stationary
  // latch independently of optical recognition (covered by decoder regressions).
  await page.route('**/src/tracking.ts*',async r=>{
-  const response=await r.fetch(),body=await response.text();let patched=body.replace('const id = ++this.sequence;',"if(window.__ringFixture)return Promise.resolve(window.__ringFixture.map(m=>({...m,corners:m.corners.map(p=>({x:p.x-origin.x,y:p.y-origin.y}))})));\nconst id = ++this.sequence;");
+  const response=await r.fetch(),body=await response.text();// Both detect() and the flow-bitmap detectBitmap() (0.111) return the fixture; flow frames have no crop origin.
+  let patched=body.replaceAll('const id = ++this.sequence;',"if(window.__ringFixture){const o=typeof origin==='object'&&origin?origin:{x:0,y:0};if(typeof bitmap!=='undefined')bitmap.close();return Promise.resolve(window.__ringFixture.map(m=>({...m,corners:m.corners.map(p=>({x:p.x-o.x,y:p.y-o.y}))})));}\nconst id = ++this.sequence;");
   assert.notEqual(patched,body);await r.fulfill({response,body:patched});
  });
  await page.goto('http://127.0.0.1:5173/tracking.html');

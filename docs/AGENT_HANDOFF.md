@@ -69,6 +69,33 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.111: flow frames as transferred bitmaps (stage 1)
+
+- Plan agreed with Lance: stage 1 frames to workers / shared buffers;
+  stage 2 predicted-region optical flow; stage 3 stereo pairing by
+  captureTime. Keep the 65 ms ArUco interval for now. Milestone: flow on
+  every delivered frame with ~15 Hz ArUco correction.
+- New `src/input/flowFrames.ts` (+ test): `requestFlowBitmap` (VideoFrame
+  cloned so the snapshot can close), `KeptFrames`, `FlowSeedRef`, live
+  switch `flowFrameSettings` / `suturehero.flowBitmaps.v1`.
+- `src/input/arucoFlowWorker.ts`: reads transferred bitmaps
+  (`worker readback` timing), `keep` on detect, `store`, seed by `key`.
+- `src/tracking.ts`: `postFlowBitmap`; both cameras skip the flow canvas
+  draw/readback/seed copy on the bitmap path; `WorkerDetector.seed` accepts
+  a `FlowSeedRef`. Previous path kept for Lab replay/unsupported/errors.
+- Profiler: new rows `flow bitmap request` (main), `flow bitmap wait`
+  (latency), `flow worker readback` (worker); A/B switch in the panel.
+- Tests adapted (fixture patching only): `check-ring-handoffs`,
+  `check-stereo-rig-faces` now patch both detect paths (`replaceAll`).
+- Checked: unit tests, tsc, build; check-profiler, check-tracking-motion,
+  check-tracking-lab (replay), check-ring-handoffs, check-stereo-rig-faces,
+  check-marker-jaws, check-driver-depth pass; check-stereo-motion passed
+  2 of 3 runs (same borderline depth step as before); check-handle-jaws
+  known pose only. Synthetic A/B (software GL): main-thread tracking frame
+  11.2 → 6.6 ms; createImageBitmap 3.3 ms sync here (GPU-emulated).
+- Lance: Performance panel, profile with the switch on and off (single and
+  stereo); compare Tracking CPU frame, flow bitmap request, flow/s.
+
 ### 2026-11-08 — Claude — Build 0.110: live performance profiler
 
 - Measurement only; no thresholds, algorithms, smoothing, calibration,

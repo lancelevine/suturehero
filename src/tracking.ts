@@ -20,6 +20,7 @@ import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
 import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
+import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames} from './input/CameraFrameClock';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
@@ -170,7 +171,19 @@ class WorkerDetector {
   });
  }
  confirm(markers:MarkerObservation[]){this.worker?.postMessage({type:'confirm',at:recordedInput()?performance.now():undefined,ids:markers.map(m=>m.id)});}
- seed(markers:MarkerObservation[],frame?:ImageData){this.worker?.postMessage({type:'seed',at:recordedInput()?performance.now():undefined,markers,frame});}
+ seed(markers:MarkerObservation[],frame?:ImageData|FlowSeedRef){
+  // A kept frame (src/input/flowFrames.ts) is referenced by key once the message that stores it has been posted.
+  if(isFlowSeedRef(frame)){void frame.ready.then(()=>this.worker?.postMessage({type:'seed',at:recordedInput()?performance.now():undefined,markers,key:frame.key}));return;}
+  this.worker?.postMessage({type:'seed',at:recordedInput()?performance.now():undefined,markers,frame});
+ }
+ /** Flow from a transferred bitmap; `keep` asks the worker to keep this frame for a later seed. */
+ detectBitmap(bitmap:ImageBitmap,keep?:number):Promise<MarkerObservation[]>{
+  if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
+  const id=++this.sequence;this.lastFrameSize={width:bitmap.width,height:bitmap.height};
+  return new Promise<MarkerObservation[]>((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,bitmap,keep},[bitmap]);});
+ }
+ /** Keep a frame in the flow worker for a later seed, without running flow on it. */
+ store(bitmap:ImageBitmap,keep:number){if(this.worker)this.worker.postMessage({type:'store',bitmap,keep},[bitmap]);else bitmap.close();}
  detect(frame:ImageData,origin={x:0,y:0}):Promise<MarkerObservation[]>{
   if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
   const id=++this.sequence;this.lastFrameSize={width:frame.width,height:frame.height};
@@ -493,8 +506,11 @@ async function detectSecondFrame(now:number){
  const snapshot=doSlow?perf.measure('Camera 2 video snapshot',()=>videoSnapshot(video2,captureCanvas2,captureContext2)):null;
  if(snapshot){snapshotBackend2=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 2 snapshot fallback');}
  try{
- perf.measure('Camera 2 flow resize',()=>context2.drawImage(snapshot?.source??cameraImage(video2),0,0,w,h));
- let preparedSeed:ImageData|undefined;const secondaryCaptureAt=performance.now();if(primaryCaptureAt)perf.sample('Camera capture skew',Math.abs(secondaryCaptureAt-primaryCaptureAt));
+ const bitmapFlow=useBitmapFlow();
+ if(!bitmapFlow)perf.measure('Camera 2 flow resize',()=>context2.drawImage(snapshot?.source??cameraImage(video2),0,0,w,h));
+ let preparedSeed:ImageData|FlowSeedRef|undefined;const secondaryCaptureAt=performance.now();if(primaryCaptureAt)perf.sample('Camera capture skew',Math.abs(secondaryCaptureAt-primaryCaptureAt));
+ const flowPost=bitmapFlow?postFlowBitmap(fastTracker2,'Camera 2',snapshot?.source??cameraImage(video2),w,h,doFast,doSlow):null;
+ if(flowPost?.seed)preparedSeed=flowPost.seed;
  const render=()=>{
   const fresh=liveSecondMarkers();
   overlayContext2.clearRect(0,0,w,h);
@@ -521,9 +537,12 @@ async function detectSecondFrame(now:number){
  };
  if(doFast){
   fastProcessing2=true;lastFastFrame2=now;clock?.consume();
-  const frame=readFrame(context2,'Camera 2 flow readback',0,0,w,h);
-  if(doSlow)preparedSeed=perf.measure('Camera 2 flow seed copy',()=>copyFlowSeed(frame));
-  void fastTracker2.detect(frame).then(found=>{
+  const flowResult=flowPost?.result??(()=>{
+   const frame=readFrame(context2,'Camera 2 flow readback',0,0,w,h);
+   if(doSlow)preparedSeed=perf.measure('Camera 2 flow seed copy',()=>copyFlowSeed(frame));
+   return fastTracker2.detect(frame);
+  })();
+  void flowResult.then(found=>{
    if(currentSession!==session2)return;
    perf.sample('Camera 2 flow frame age',performance.now()-secondaryCaptureAt);const stamp=performance.now();flowFrames2++;
    if(found.length){
@@ -1563,6 +1582,27 @@ let primaryCaptureAt=0;
 function readFrame(context:CanvasRenderingContext2D,name:string,x:number,y:number,w:number,h:number){return perf.measure(name,()=>context.getImageData(x,y,w,h));}
 const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
+// Optical-flow frames as transferred bitmaps (src/input/flowFrames.ts): the flow worker reads the
+// pixels, so the main thread skips its canvas draw and getImageData. Off during Lab replay and after
+// any bitmap error, when the previous ImageData path is used.
+let bitmapFlowAvailable=flowBitmapsSupported();
+const useBitmapFlow=()=>bitmapFlowAvailable&&flowFrameSettings.useBitmaps&&!recordedInput();
+function postFlowBitmap(tracker:WorkerDetector,label:string,source:CanvasImageSource|VideoFrame,w:number,h:number,detect:boolean,keepForSeed:boolean){
+ const key=keepForSeed?nextFlowFrameKey():undefined;
+ const requested=performance.now();
+ const bitmap=perf.measure(label+' flow bitmap request',()=>requestFlowBitmap(source,w,h));
+ const posted=bitmap.then(image=>{
+  perf.sample(label+' flow bitmap wait',performance.now()-requested);
+  if(detect)return {result:tracker.detectBitmap(image,key)};
+  tracker.store(image,key!);
+  return {result:null};
+ });
+ posted.catch(error=>{bitmapFlowAvailable=false;perf.count(label+' flow bitmap errors');console.warn('Flow bitmaps unavailable; using canvas readback.',error);});
+ return {
+  result:detect?posted.then(p=>p.result!):undefined,
+  seed:key!==undefined?{key,ready:posted.catch(()=>null)} as FlowSeedRef:undefined,
+ };
+}
 async function detectFrame(now:number){
  if(!stream||!detectorReady||!video.videoWidth)return;
  scanForcepsBalls(now);
@@ -1588,14 +1628,20 @@ async function detectFrame(now:number){
  const snapshot=doSlow?perf.measure('Camera 1 video snapshot',()=>videoSnapshot(video,captureCanvas,captureContext)):null;
  if(snapshot){snapshotBackend1=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 1 snapshot fallback');}
  try{
- perf.measure('Camera 1 flow resize',()=>frameContext.drawImage(snapshot?.source??cameraImage(video),0,0,w,h));
- const frameCapturedAt=performance.now();primaryCaptureAt=frameCapturedAt;let preparedSeed:ImageData|undefined;
+ const bitmapFlow=useBitmapFlow();
+ if(!bitmapFlow)perf.measure('Camera 1 flow resize',()=>frameContext.drawImage(snapshot?.source??cameraImage(video),0,0,w,h));
+ const frameCapturedAt=performance.now();primaryCaptureAt=frameCapturedAt;let preparedSeed:ImageData|FlowSeedRef|undefined;
+ const flowPost=bitmapFlow?postFlowBitmap(fastTracker,'Camera 1',snapshot?.source??cameraImage(video),w,h,doFast,doSlow):null;
+ if(flowPost?.seed)preparedSeed=flowPost.seed;
  if(doFast){
   fastProcessing=true;lastFastFrame=now;clock?.consume();
-  const frame=readFrame(frameContext,'Camera 1 flow readback',0,0,w,h);
-  if(doSlow)preparedSeed=perf.measure('Camera 1 flow seed copy',()=>copyFlowSeed(frame));
   const capturedAt=frameCapturedAt;
-  void fastTracker.detect(frame).then(found=>{
+  const flowResult=flowPost?.result??(()=>{
+   const frame=readFrame(frameContext,'Camera 1 flow readback',0,0,w,h);
+   if(doSlow)preparedSeed=perf.measure('Camera 1 flow seed copy',()=>copyFlowSeed(frame));
+   return fastTracker.detect(frame);
+  })();
+  void flowResult.then(found=>{
    if(session!==cameraSession)return;
    perf.sample('Camera 1 flow frame age',performance.now()-capturedAt);fastFrames++;
    const stamp=performance.now();
@@ -1828,7 +1874,7 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-const performanceContext=()=>({build:'0.110',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.111',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);

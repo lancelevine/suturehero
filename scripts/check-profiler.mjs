@@ -7,7 +7,7 @@
 // With `npm run dev` running:  node scripts/check-profiler.mjs
 // (ARUCO_LIBRARY_DIR as for the other marker checks when the CDN is blocked)
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readFile, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium} from 'playwright-core';
 import {installSyntheticCamera} from './synthetic-camera.mjs';
@@ -86,6 +86,7 @@ try {
   if (process.env.SUTURE_PROFILER_SCREENSHOT) await page.screenshot({path: process.env.SUTURE_PROFILER_SCREENSHOT});
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('[data-profiler-download]').click()]);
   const report = JSON.parse(await readFile(await download.path(), 'utf8'));
+  if (process.env.SUTURE_PROFILER_REPORT) await writeFile(process.env.SUTURE_PROFILER_REPORT, JSON.stringify(report, null, 2));
   assert.equal(report.type, 'suturehero-live-profile');
   assert.deepEqual(report.cameras.map((c) => c.index), [1, 2]);
   assert(report.stages.length > 5 && report.breakdown && report.browser.userAgent);

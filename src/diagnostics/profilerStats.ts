@@ -143,6 +143,9 @@ export function classifyStage(name: string): StageInfo {
     if (rest === 'video snapshot') return { camera, category: 'acquisition', thread: 'main', label: 'Video frame snapshot (VideoFrame or canvas)' };
     if (rest === 'flow resize' || rest === 'decode crop') return { camera, category: 'acquisition', thread: 'main', label: rest === 'flow resize' ? 'Canvas draw: downscale for optical flow' : 'Canvas draw: crop for marker decode' };
     if (rest === 'flow readback' || rest === 'decode readback') return { camera, category: 'readback', thread: 'main', label: `Pixel readback (getImageData) for ${rest.startsWith('flow') ? 'optical flow' : 'marker decode'}` };
+    if (rest === 'flow bitmap request') return { camera, category: 'acquisition', thread: 'main', label: 'Scaled bitmap request for optical flow (main thread)' };
+    if (rest === 'flow bitmap wait') return { camera, category: 'latency', thread: 'latency', label: 'Wait for the scaled flow bitmap (browser, off the main thread)' };
+    if (rest === 'flow worker readback') return { camera, category: 'readback', thread: 'worker', nestedIn: parent('flow worker'), label: 'Pixel readback for optical flow, in the flow worker' };
     if (rest === 'flow seed copy') return { camera, category: 'readback', thread: 'main', label: 'Pixel copy: optical-flow seed frame' };
     if (rest === 'jaw frame copy') return { camera, category: 'readback', thread: 'main', nestedIn: 'Jaw tracking', label: 'Pixel readback for jaw ball search' };
     if (rest === 'decode worker') return { camera, category: 'aruco', thread: 'worker', label: 'ArUco marker detection (worker, total)' };

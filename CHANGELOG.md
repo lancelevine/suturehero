@@ -5,6 +5,18 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.111 — optical-flow frames go to the worker as bitmaps (stage 1)
+
+Each camera's optical-flow frame is now a scaled ImageBitmap transferred to
+the flow worker, which reads the pixels itself. The main thread no longer
+draws the frame into a canvas or calls getImageData for flow (~4 ms per
+frame per camera in Lance's 0.110 profile), and a marker decode re-anchors
+optical flow from the frame the worker already holds instead of a second
+copy. Lab replay, browsers without createImageBitmap/OffscreenCanvas, and
+any bitmap error use the previous path. Diagnostics → Performance has a
+switch to compare both paths live. Synthetic headless test: tracking-loop
+main-thread time 11.2 → 6.6 ms per frame; real-camera effect to be measured.
+
 ## Build 0.110 — live performance profiler (measurement only)
 
 Diagnostics → Performance: tick "Enable live profiler" (off by default).

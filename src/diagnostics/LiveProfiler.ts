@@ -1,4 +1,5 @@
 import { CAMERA_REQUEST } from '../input/cameraDevices';
+import { flowFrameSettings } from '../input/flowFrames';
 import { FrameCadence, type CadenceReport, type FrameMetadata } from './frameCadence';
 import { breakdown, classifyStage, RollingSamples, type Breakdown, type StageInfo, type StageStats } from './profilerStats';
 import type { TrackingPerformance } from './TrackingPerformance';
@@ -188,6 +189,7 @@ export class LiveProfiler {
       version: 1,
       collectedAt: new Date().toISOString(),
       browser: { userAgent: navigator.userAgent, logicalCores: navigator.hardwareConcurrency },
+      options: { flowBitmaps: flowFrameSettings.useBitmaps },
       trackingContext: context,
       ...this.snapshot(),
     };
