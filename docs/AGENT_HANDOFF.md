@@ -69,6 +69,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.107: Jaw tracking switch in Jaws tab
+
+- `src/ui/InstrumentCalibrationPanel.ts`: `data-jaw-enable` checkbox in the
+  Jaws pane mirrors/drives the hidden `#ball-enable` in `src/tracking.ts`
+  (label now `hidden`; tracking logic unchanged).
+- Checked: tsc, check-marker-jaws, check-calibration-preview, and a
+  one-off headless click test (switch toggles `#ball-enable`; old label hidden).
+
 ### 2026-11-08 — Claude — Build 0.106: revert jaw region reads to 0.98 cache
 
 - `src/jaw/markerJawController.ts`: `cameraGray` frame cache restored

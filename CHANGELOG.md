@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.107 — Jaw tracking switch in the calibration Jaws tab
+
+Instrument calibration → Jaws now starts with a "Jaw tracking" checkbox.
+The old "Enable jaw tracking" checkbox in the experimental jaw section is
+removed from view (it remains as hidden internal state, so saved settings
+carry over).
+
 ## Build 0.106 — jaw tracking back to one frame copy per camera
 
 Reading each small jaw search area separately turned out slower on Lance's
