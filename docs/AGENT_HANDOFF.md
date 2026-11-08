@@ -69,6 +69,17 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.98: discovery scans every 1 s while tracking
+
+- `src/input/PredictiveDecodeSearch.ts`: `DISCOVERY_INTERVAL_MS=1000` (was
+  350) when hints exist; test updated. `src/tracking.ts`: report shows the
+  real jaw pattern and the new interval.
+- Checked: PredictiveDecodeSearch test, tsc, check-tracking-motion,
+  check-stereo-motion.
+- Lance: new performance report; "Stereo pose/synchronization" rate should
+  rise well above ~2/s. Follow-up not done: ease toward late stereo poses
+  instead of snapping.
+
 ### 2026-11-08 — Claude — Build 0.97: keep stereo while tracking, throttle jaw
 
 - `src/input/stereoRigPose.ts`: with a previous pose, accept a joint fit up

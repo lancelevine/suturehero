@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.98 — fewer full-frame marker scans while tracking
+
+While an instrument is tracked, each camera now scans the whole frame for
+new instruments once a second instead of every 350 ms. Those 1080p scans
+took ~100 ms and delayed the tracked instrument's own marker reads, so only
+~2 stereo poses per second got through (0.96 report). A newly shown
+instrument may take up to a second to be found. The performance report now
+shows the real needle-driver jaw pattern (it said "striped10" for white).
+
 ## Build 0.97 — stereo holds on while tracking; lighter jaw tracking
 
 Once stereo has a pose, a joint fit with up to 5 px error (10 px worst

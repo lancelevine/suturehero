@@ -5,7 +5,8 @@ const groups=[[0,1,2,3,4,5],[10,11,12,13,14,15]];
 it('preserves native pixels, predicts motion and performs periodic full scans',()=>{
  const s=new PredictiveDecodeSearch();expect(s.plan([marker()],0,1920,1080,true,groups).kind).toBe('full');s.result([marker()]);
  const a=s.plan([marker(0,920)],70,1920,1080,true,groups);expect(a.kind).toBe('predicted');expect(a.width*a.height).toBeLessThan(1920*1080*.2);expect(a.left+a.width).toBeGreaterThan(1040);
- expect(s.plan([marker()],360,1920,1080,true,groups).kind).toBe('full');
+ expect(s.plan([marker()],360,1920,1080,true,groups).kind).toBe('predicted');s.result([marker()]);
+ expect(s.plan([marker()],1010,1920,1080,true,groups).kind).toBe('full');
 });
 it('expands after a miss, then falls back to full scans until recovery',()=>{
  const s=new PredictiveDecodeSearch();s.plan([marker()],0,1920,1080,true,groups);s.result([marker()]);const a=s.plan([marker()],65,1920,1080,true,groups);s.result([]);const b=s.plan([],130,1920,1080,true,groups);expect(b.kind).toBe('expanded');expect(b.width).toBeGreaterThan(a.width);s.result([]);expect(s.plan([],195,1920,1080,true,groups).kind).toBe('full');s.result([]);expect(s.plan([],260,1920,1080,true,groups).kind).toBe('full');

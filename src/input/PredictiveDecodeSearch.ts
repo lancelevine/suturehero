@@ -2,6 +2,9 @@ import type {MarkerObservation} from './arucoTracking';
 export interface DecodeRegion {left:number;top:number;width:number;height:number;kind:'predicted'|'expanded'|'full';reason:string}
 /** Native-pixel searches: flow-guided prediction -> expanded search -> full frame.
  * Periodic global scans discover instruments outside the current search region. */
+/** While instruments are tracked, scan the whole frame for new ones this often, ms.
+ * Full 1080p scans take ~100 ms and delay the tracked instrument's own decodes. */
+export const DISCOVERY_INTERVAL_MS=1000;
 export class PredictiveDecodeSearch {
  private hints=new Map<number,{marker:MarkerObservation;at:number;vx:number;vy:number}>();
  private lastFull=-Infinity;private misses=0;private expected=new Set<number>();
@@ -19,7 +22,7 @@ export class PredictiveDecodeSearch {
   if(!enabled)return full('baseline selected');
   if(!this.hints.size)return full('no recent hints');
   if(this.misses>=2)return full('repeated region misses');
-  if(now-this.lastFull>=350)return full('periodic discovery');
+  if(now-this.lastFull>=DISCOVERY_INTERVAL_MS)return full('periodic discovery');
   let minX=width,minY=height,maxX=0,maxY=0;
   for(const hint of this.hints.values()){
    const corners=hint.marker.corners,side=corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-corners[(i+1)%4].x,p.y-corners[(i+1)%4].y),0)/4;
