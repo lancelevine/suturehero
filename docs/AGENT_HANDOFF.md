@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — stereo uses a mirror-corrected ring model (stereoRigPose.ts).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -72,6 +72,32 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Stereo ring chirality correction (build 0.89)
+- Finding: the ring model (`prismPose.ts` faceGeometry/localCorners) is the
+  x-mirror of the physical ring. Triangulated in marker 3's frame, marker 2
+  measured (−13.8, 0.2, **+7.9**) mm vs model (−14.2, 0, **−8.2**); marker 7
+  likewise (+4.6 vs −4.1). Single planar markers fit either way (mono OK),
+  but multi-marker stereo never fit and single-marker fits disagreed by
+  60°/120° → jumping at rest.
+- Changed: new `src/input/ringChirality.ts` (mirror-corrected ring faces,
+  body pose from a marker, conversion to/from the existing output
+  convention = 180° about the shaft). `solveStereoRigPose` uses it
+  internally; callers and mono are unchanged. Updated the synthetic views in
+  `stereoRigPose.test.ts` and `check-stereo-rig-faces.mjs` to the physical
+  layout (expected results unchanged).
+- Checked: tsc; `src/input`, `src/jaw`, `src/trackingLab` unit tests;
+  `check-stereo-rig-faces` passes (twice). Real recordings through the real
+  code: at-rest clip 24/24 multi-marker fits, median 0.88 px, frame-to-frame
+  turn median 0.5° / max 1.4°.
+- Follow-ups: mono still uses the mirrored model (its face-handoff and
+  angled-marker alignment workarounds likely compensate for this);
+  switching mono to the physical layout would remove those but changes
+  orientation conventions and needs recalibration — decide with Lance.
+  Stereo-fallback mono views (`stereoMonoViews` in tracking.ts) also still
+  use the mirrored model. Prism layout unchanged (no data).
+  `check-stereo-motion` still failing from before (see 0.88 entry).
+- Lance to test: stereo at rest and moving.
+
 ### 2026-11-08 — Claude Code — Continuous stereo single-marker fallback (build 0.88)
 - Changed: `solveStereoRigPose`'s 0.85 fallback now picks the single-marker
   fit nearest the previous pose (`chooseFallbackPose`, max 25° turn) instead

@@ -1,6 +1,7 @@
 import {Matrix4,Quaternion,Vector3} from 'three';
 import {undistort,type StereoCalibration} from './stereoGeometry';
-import {bodyPoseFromMarker,linearSolve,localCorners,trackerGeometry,type TrackerType} from './prismPose';
+import {linearSolve,trackerGeometry,type TrackerType} from './prismPose';
+import {fromLegacyQuaternion,physicalBodyPose,physicalCorners,toLegacyQuaternion} from './ringChirality';
 import {estimateMarkerPose} from './markerPose';
 import type {MarkerObservation} from './arucoTracking';
 type Pose={quaternion:Quaternion;translation:Vector3};
@@ -32,11 +33,11 @@ function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second
    const area=Math.abs(marker.corners.reduce((s,p,i)=>{const n=marker.corners[(i+1)%4];return s+p.x*n.y-n.x*p.y;},0))/2;
    if(area<16)continue;seen.add(marker.id);
    const normalized=marker.corners.map(p=>undistort(p,k,intrinsic.distortionCoefficients,source,size));
-   const local=localCorners(face,type);
+   const local=physicalCorners(face,type);
    normalized.forEach((p,i)=>points.push({local:local[i],x:p[0],y:p[1],fx,fy,camera,id:marker.id}));
    const mono=estimateMarkerPose({id:marker.id,corners:normalized.map(p=>({x:1000+p[0]*1000,y:1000+p[1]*1000}))},2000,2000,trackerGeometry(type).markerSizeMm,1000);
    if(!mono)continue;
-   const pose=bodyPoseFromMarker(mono,face,type);
+   const pose=physicalBodyPose(mono,face,type);
    if(camera){pose.translation.sub(translation2).applyQuaternion(inverse);pose.quaternion.premultiply(inverse);}
    if(!seeds.some(s=>s.quaternion.angleTo(pose.quaternion)<.08&&s.translation.distanceTo(pose.translation)<8))seeds.push(pose);
   }
@@ -125,6 +126,13 @@ function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second
  * constraints. Every accepted candidate still satisfies both cameras and the
  * unchanged reprojection limits; different-face fits keep the normal path. */
 export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null {
+ // The solver works in the mirror-corrected ring layout (ringChirality.ts);
+ // callers keep using the existing pose convention.
+ const toInternal=(pose?:Pose)=>pose&&{quaternion:fromLegacyQuaternion(pose.quaternion,type),translation:pose.translation};
+ const toCaller=(pose:StereoRigPose|null)=>pose&&{...pose,quaternion:toLegacyQuaternion(pose.quaternion,type)};
+ return toCaller(solveInternal(cal,first,second,size1,size2,firstId,type,toInternal(previous),diagnostics));
+}
+function solveInternal(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null {
  const joint=fitStereoRigPose(cal,first,second,size1,size2,firstId,type,previous,diagnostics);
  if(joint)return joint;
  const valid=(marker:MarkerObservation)=>marker.id>=firstId&&marker.id<firstId+trackerGeometry(type).faceCount;

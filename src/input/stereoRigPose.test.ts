@@ -2,7 +2,8 @@ import {measuredRing12} from './fixtures/measuredRing12';
 import {expect,it} from 'vitest';
 import {Euler,Matrix3,Quaternion,Vector3} from 'three';
 import {chooseFallbackPose,solveStereoRigPose} from './stereoRigPose';
-import {localCorners,type TrackerType} from './prismPose';
+import {type TrackerType} from './prismPose';
+import {fromLegacyQuaternion,physicalCorners} from './ringChirality';
 import type {StereoCalibration} from './stereoGeometry';
 const cal:StereoCalibration={format:'suturehero-stereo-calibration-v1',imageSize:{width:1920,height:1080},
  camera1:{cameraMatrix:[[1314,0,930],[0,1310,540],[0,0,1]],distortionCoefficients:[-.31,.02,-.001,.0005,0]},
@@ -10,9 +11,12 @@ const cal:StereoCalibration={format:'suturehero-stereo-calibration-v1',imageSize
  stereo:{rotation:[[0,0,1],[0,1,0],[-1,0,0]],translationMm:[-600,0,500]}};
 const sizes=[{width:960,height:540},{width:1280,height:720}] as const;
 const rotation=new Matrix3().set(...cal.stereo.rotation.flat() as [number,number,number,number,number,number,number,number,number]);
-function observation(camera:0|1,first:number,face:number,q:Quaternion,t:Vector3,type:TrackerType='ring6',noise=0,calibration=cal){
+// Synthetic views use the physically correct (mirror-corrected) ring, posed so
+// that the solver's caller-facing result should equal (q, t).
+function observation(camera:0|1,first:number,face:number,legacyQ:Quaternion,t:Vector3,type:TrackerType='ring6',noise=0,calibration=cal){
+ const q=fromLegacyQuaternion(legacyQ,type);
  const c=camera?calibration.camera2:calibration.camera1,k=c.cameraMatrix,d=c.distortionCoefficients;
- return {id:first+face,corners:localCorners(face,type).map((p,i)=>{
+ return {id:first+face,corners:physicalCorners(face,type).map((p,i)=>{
   p.applyQuaternion(q).add(t);if(camera)p.applyMatrix3(new Matrix3().set(...calibration.stereo.rotation.flat() as [number,number,number,number,number,number,number,number,number])).add(new Vector3(...calibration.stereo.translationMm as [number,number,number]));
   const x=p.x/p.z,y=p.y/p.z,r=x*x+y*y,f=1+d[0]*r+d[1]*r*r;
   const xd=x*f+2*d[2]*x*y+d[3]*(r+2*x*x),yd=y*f+d[2]*(r+2*y*y)+2*d[3]*x*y;

@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.89 — stereo uses the correct (unmirrored) ring layout
+
+Triangulating Lance's recordings showed the ring model is the mirror image
+of the printed ring: neighbouring markers sit on the other side of each
+marker's plane. One marker alone fits either way, which is why
+single-camera tracking works, but stereo fits combining several markers
+failed and single-marker fits disagreed by 60–120°, so the instrument jumped
+even at rest. Stereo now uses a mirror-corrected layout
+(`src/input/ringChirality.ts`) and reports poses in the existing convention.
+On Lance's at-rest recording every frame now fits using several markers
+(< 1 px) and the pose changes by a median 0.5° (max 1.4°) between frames.
+Single-camera tracking is unchanged.
+
 ## Build 0.88 — stereo pose stabilization
 
 Accepted stereo measurements now pass through a stereo-only continuity gate
