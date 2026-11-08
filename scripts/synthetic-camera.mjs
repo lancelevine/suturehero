@@ -6,8 +6,9 @@ export async function installSyntheticCamera(page,options={}){
  const preset=PRESETS[process.env.SUTURE_CAMERA_PRESET]??{};
  options={...preset,...options,frameRate:options.frameRate??preset.frameRate,secondFrameRate:options.secondFrameRate??preset.frameRate};
  await page.context().route('**/scripts/fixtures/aruco-4x4-50.png',async route=>route.fulfill({contentType:'image/png',body:await readFile(new URL('./fixtures/aruco-4x4-50.png',import.meta.url))}));
- await page.addInitScript(({muted,resolutionScale,jawEngine,frameRate,secondFrameRate,frameWidth,frameHeight,monochrome,cameraMode})=>{
+ await page.addInitScript(({muted,resolutionScale,jawEngine,frameRate,secondFrameRate,frameWidth,frameHeight,monochrome,cameraMode,frameDriven})=>{
   try{if(cameraMode&&window===window.top)localStorage.setItem('suturehero.cameraMode.v1',cameraMode);}catch{}
+  try{if(frameDriven&&window===window.top)localStorage.setItem('suturehero.frameDrivenCapture.v1',frameDriven);}catch{}
   // These 2D scenes exercise the classic colored/striped jaw tracker.
   try{if(window===window.top&&!localStorage.getItem('suturehero.jawEngine.v1'))localStorage.setItem('suturehero.jawEngine.v1',jawEngine);}catch{}
   window.__ballScene={shift:0,open:false,distractor:false,marker:true,muted};window.__jawEvents=[];
@@ -32,5 +33,5 @@ export async function installSyntheticCamera(page,options={}){
     c.restore();requestAnimationFrame(draw);
    };draw();const stream=canvas.captureStream(secondary?secondFrameRate:frameRate);const track=stream.getVideoTracks()[0],settings=track.getSettings.bind(track);track.getSettings=()=>({...settings(),deviceId:secondary?'synthetic-secondary':'synthetic'});return stream;
   };
- },{frameWidth:options.width,frameHeight:options.height,monochrome:!!options.monochrome,cameraMode:options.cameraMode,muted:!!options.muted,resolutionScale:options.resolutionScale??1,jawEngine:options.jawEngine??'classic',frameRate:options.frameRate??30,secondFrameRate:options.secondFrameRate??options.frameRate??30});
+ },{frameDriven:process.env.SUTURE_FRAME_DRIVEN,frameWidth:options.width,frameHeight:options.height,monochrome:!!options.monochrome,cameraMode:options.cameraMode,muted:!!options.muted,resolutionScale:options.resolutionScale??1,jawEngine:options.jawEngine??'classic',frameRate:options.frameRate??30,secondFrameRate:options.secondFrameRate??options.frameRate??30});
 }

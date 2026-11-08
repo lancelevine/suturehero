@@ -22,6 +22,8 @@ import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
 import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
+import {captureSettings,FLOW_MIN_INTERVAL_MS,frameDrivenEnabled} from './input/captureScheduling';
+import {cameraMode} from './input/cameraDevices';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
 import {drawHandleAxis,drawRingAxis,handleAxisSegment,ringAxisSegment} from './ui/ringAxisOverlay';
@@ -493,7 +495,7 @@ async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
  scanForcepsBalls(now,1);
  const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
- const clock=frameClock(video2),fastDue=!fastProcessing2&&now-lastFastFrame2>=(clock?20:33);
+ const clock=frameClock(video2),fastDue=!fastProcessing2&&now-lastFastFrame2>=(clock?flowMinIntervalMs():33);
  const doFast=fastDue&&(!clock||clock.fresh);if(fastDue&&!doFast)perf.count('Camera 2 duplicate flow requests skipped');
  const doSlow=!processing2&&now-lastSlowFrame2>=(recovering||roiDecodeToggle.checked?65:110);
  if(processing2)perf.count('Camera 2 decode busy checks');
@@ -1599,6 +1601,9 @@ let primaryCaptureAt=0;
 function readFrame(context:CanvasRenderingContext2D,name:string,x:number,y:number,w:number,h:number){return perf.measure(name,()=>context.getImageData(x,y,w,h));}
 const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
+/** Whether camera frames are processed as they arrive (requestVideoFrameCallback) rather than at display refresh. */
+const frameDriven=()=>!recordedInput()&&typeof video.requestVideoFrameCallback==='function'&&frameDrivenEnabled(captureSettings.frameDriven,cameraMode(),true);
+const flowMinIntervalMs=()=>frameDriven()?FLOW_MIN_INTERVAL_MS.frameDriven:FLOW_MIN_INTERVAL_MS.display;
 // Optical-flow frames as transferred bitmaps (src/input/flowFrames.ts): the flow worker reads the
 // pixels, so the main thread skips its canvas draw and getImageData. Off during Lab replay and after
 // any bitmap error, when the previous ImageData path is used.
@@ -1638,7 +1643,7 @@ async function detectFrame(now:number){
  scanForcepsBalls(now);
  // "Enable jaw tracking" off: skip jaw work entirely (frees time for instrument tracking).
  if(ballEnabled.checked)perf.measure('Jaw tracking',()=>markerJaws.update(now));
- const clock=frameClock(video),fastDue=!fastProcessing&&now-lastFastFrame>=(clock?20:33);
+ const clock=frameClock(video),fastDue=!fastProcessing&&now-lastFastFrame>=(clock?flowMinIntervalMs():33);
  const doFast=fastDue&&(!clock||clock.fresh);if(fastDue&&!doFast)perf.count('Camera 1 duplicate flow requests skipped');
  // Run decode faster when flow has no usable marker; only one decode can be in flight.
  const recovering=idleNoMarkers||now-latestFlowAt>120;
@@ -1858,7 +1863,8 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  if(simulation.checked)scissorsReadout.textContent=`Simulated · (${scissors.position.x.toFixed(2)}, ${scissors.position.z.toFixed(2)})`;
  if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
  renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
- if(!recordedInput()){void detectFrame(now);void detectSecondFrame(now);}
+ // Frame-driven capture starts from each camera's frame callback instead (see observeCameraFrames below).
+ if(!recordedInput()&&!frameDriven()){void detectFrame(now);void detectSecondFrame(now);}
  if(stereoEnabled.checked){
   if(!stereoCalibration){stereo3dStatus.textContent='Import a solved calibration JSON first.';}
   else if(trackingMode.value!=='stereo'){stereo3dStatus.textContent='Select 2 cameras in Tracking mode.';}
@@ -1910,8 +1916,10 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
-observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-const performanceContext=()=>({build:'0.122',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+// Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
+observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());});
+observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());});
+const performanceContext=()=>({build:'0.123',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);

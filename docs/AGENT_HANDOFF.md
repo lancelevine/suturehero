@@ -69,6 +69,20 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.123: frame-driven capture
+
+- New `src/input/captureScheduling.ts` (+ test): `FrameDrivenSetting`
+  auto/on/off (`suturehero.frameDrivenCapture.v1`), auto = on for camera
+  type ov9281; `FLOW_MIN_INTERVAL_MS` display 20 / frameDriven 4.
+- `src/tracking.ts`: `frameDriven()`; rVFC callbacks call
+  detectFrame/detectSecondFrame when on; animate() skips them then; flow
+  gate uses `flowMinIntervalMs()`. Profiler panel select + report option.
+- `scripts/synthetic-camera.mjs`: `SUTURE_FRAME_DRIVEN=on|off`.
+- Checked with frame-driven on: tracking-motion, ring-handoffs,
+  stereo-rig-faces, driver-depth, calibration-preview, tracking-storage;
+  OV9281 preset: tracking-motion, driver-depth; default: tracking-motion,
+  tracking-lab — all pass. Benefit needs > display-rate cameras to measure.
+
 ### 2026-11-08 — Claude — Build 0.122: stereo pairing by camera capture time
 
 - `CameraFrameClock` keeps rVFC `captureTime` (validated); new

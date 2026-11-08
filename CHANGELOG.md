@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.123 — process camera frames as they arrive (for 120 fps cameras)
+
+Camera frames used to be picked up only when the page redraws (about 30 Hz
+in Lance's profiles), and optical flow ran at most every 20 ms. Now each
+camera's frame callback can start its processing as soon as a frame
+arrives, with optical flow allowed every 4 ms. Setting in Diagnostics →
+Performance ("Camera frames processed"): Auto (default: as they arrive for
+the OV9281 camera type, unchanged for the current webcams), On or Off.
+Lab replay keeps the previous path. Not measured on 120 fps hardware yet.
+
 ## Build 0.122 — stereo pairs the cameras by real capture time
 
 The two cameras are not synchronised. Stereo used to pair their frames by

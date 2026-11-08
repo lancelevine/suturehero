@@ -1,6 +1,7 @@
 import type { CameraProfile, LiveProfiler, ProfilerSnapshot, ProfilerStage } from '../diagnostics/LiveProfiler';
 import type { StageStats } from '../diagnostics/profilerStats';
 import { flowFrameSettings, setDecodeBitmaps, setFlowBitmaps } from '../input/flowFrames';
+import { captureSettings, parseFrameDrivenSetting, setFrameDriven } from '../input/captureScheduling';
 
 /** The visible panel refreshes at most this often (ms): twice a second. */
 const UI_INTERVAL_MS = 500;
@@ -30,6 +31,7 @@ export function mountProfilerPanel(host: HTMLElement, profiler: LiveProfiler, co
   <button type="button" data-profiler-reset>Reset</button>
  </div>
  <label title="Stage 1 optimisation (build 0.111). Turn off to compare with the previous canvas readback; applies immediately."><input type="checkbox" data-flow-bitmaps> Optical-flow frames as transferred bitmaps (new; off = previous canvas readback)</label>
+ <label title="Build 0.123. Auto = on for the OV9281 camera type. Applies immediately.">Camera frames processed <select data-frame-driven><option value="auto">Auto (as they arrive for OV9281)</option><option value="on">As they arrive</option><option value="off">At display refresh (previous)</option></select></label>
  <label title="Build 0.121. Off by default until measured on real hardware; applies immediately."><input type="checkbox" data-decode-bitmaps> ArUco decode regions as transferred bitmaps (experimental; off = main-thread canvas readback)</label>
  <p role="status" data-profiler-summary>Off. Tick “Enable live profiler”, run the cameras for ~10 s, then copy or download the report.</p>
  <div data-profiler-body hidden>
@@ -82,6 +84,15 @@ export function mountProfilerPanel(host: HTMLElement, profiler: LiveProfiler, co
     summary.textContent = 'Off. Profiling hooks and frame callbacks are removed.';
   }
   enable.addEventListener('change', () => (enable.checked ? start() : stop()));
+  const frameDrivenSelect = $<HTMLSelectElement>('[data-frame-driven]');
+  frameDrivenSelect.value = captureSettings.frameDriven;
+  frameDrivenSelect.addEventListener('change', () => {
+    setFrameDriven(parseFrameDrivenSetting(frameDrivenSelect.value));
+    if (profiler.enabled) {
+      profiler.disable();
+      profiler.enable();
+    }
+  });
   const decodeBitmaps = $<HTMLInputElement>('[data-decode-bitmaps]');
   decodeBitmaps.checked = flowFrameSettings.useDecodeBitmaps;
   decodeBitmaps.addEventListener('change', () => {
