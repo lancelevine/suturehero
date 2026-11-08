@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — fix failing browser checks, performance pass
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,28 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-08 — Claude — 0.127 header fix; check fixes; depth drift traced
+
+- **0.127:** `src/ui/workspace.css` header is `height:auto;min-height:64px`.
+  Between ~760 and ~1100 px wide the header buttons wrapped into a second row
+  that overflowed the fixed 64 px header and sat under the camera panel /
+  calibration drawer (unclickable). Found by `check-tracking-panels`, which
+  now passes.
+- `check-predictive-decode` updated: periodic coverage counts discovery tiles
+  (since 0.124) as well as full scans. Passes.
+- `check-dual-camera-fit` passes now; removed from known-failing.
+- `check-depth-stability` (flaky ~50%): not a filter bug. Logged the
+  filter's input: after the ±1% size wobble starts, the tilt-corrected size
+  depth moves from 4.32 to ~4.10 and stays there while the scene alternates
+  evenly, and the filter correctly follows. Suspect flow-carried corners
+  shrinking the measured size. Not fixed (needs work in the corner/size
+  pipeline); next step: log the marker side length per decode vs flow frame.
+- Performance: synthetic profile (OV9281 preset, swiftshader) is limited by
+  the test browser (13 fps delivered; main thread ~0.5 ms/frame). The one
+  risk for two 120 fps cameras is `flow bitmap request` (5 ms/frame here on
+  the main thread). Needs a real OV9281 profile before deciding whether to
+  cap flow (FLOW_MIN_INTERVAL_MS.frameDriven = 4 ms allows 120 Hz).
 
 ### 2026-11-08 — Claude — 0.126 marker list shows only decoded markers
 

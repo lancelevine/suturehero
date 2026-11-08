@@ -90,8 +90,8 @@ area they cover; they are not run by CI.
   preset (`presetCalibration`); with it `check-stereo-motion` passes,
   `check-stereo-rig-faces` exceeds its 3 px fit limit (upscaled 2D scene) and
   `check-handle-jaws-stereo` reads 0.61–0.74 at the −15,205,0 pose (see handoff).
-- Known failing before 2026-11-07: `check-dual-camera-fit`; flaky:
-  `check-depth-stability`, `check-handle-jaws` (single-camera prism: mirror
+- Flaky: `check-depth-stability` (marker-size depth drifts under ±1% size
+  wobble, 2026-11-08 handoff), `check-handle-jaws` (single-camera prism: mirror
   flips at single-face poses, usually −15,60,0 or −15,300,0) (see handoff log).
 
 Never weaken a test threshold just to make it pass. If a limit is genuinely
