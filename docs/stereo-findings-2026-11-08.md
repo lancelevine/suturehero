@@ -29,28 +29,37 @@ Suggestion: gate an instrument's markers spatially (a ring is ~33 mm across;
 drop markers far from the instrument's main cluster / predicted pose) in
 both mono and stereo.
 
-## 3. The angled marker 6 is not where the model puts it
+## 3. The angled pads sit at the other end of the ring (confirmed physically)
 
-Part 5, 21 paired frames, stray IDs 2/3 removed:
+Lance checked the printed ring: **06 is on the angled pad next to 00, and the
+top edge of 00 touches the bottom edge of 06. 03 and 07 are oriented the same
+way.** In the model (`localCorners`, `faceGeometry`) it is the reverse: marker
+0's top edge is at body y = −8 and its bottom at y = +8, while face 6 sits at
+y ≈ +11…+25 with its *top* edge next to 0's bottom. So, relative to the
+printed marker orientation, the angled pads are at the opposite axial end.
 
-| Model variant | Stereo accepted |
-|---|---|
-| 16 mm | 0 / 21 |
-| 12 mm | 2 / 21 |
-| 12 mm, marker 6 treated as station 7 (6/7 swapped) | 16 / 21, median 0.52 px |
+Physical layout tested on the recorded corners: for faces 6 and 7, mirror y
+(y → −y) and swap the top/bottom corner rows (TL,TR,BR,BL ← BL,BR,TR,TL),
+which keeps the face tilted toward the new end and the marker upright; plus
+the 12 mm square. Results (stray IDs 2/3 removed):
 
-Per-frame search over marker 6 placement (station 6 or 7) × in-plane
-rotation (0/90/180/270°): the most constrained frame (camera 1 sees 6, 0, 1;
-camera 2 sees 6) fits **only** with marker 6 at the model's station-7 pad and
-rotated 180°. Frames with fewer faces fit several variants. Frames where
-camera 1 sees 6, 5, 0 and camera 2 sees 4 or 5 fit no variant (unresolved;
-possibly another layout difference or motion).
+| Model variant | Part 1 (4 pairs) | Part 5 (21 pairs) |
+|---|---|---|
+| 16 mm, current layout | 0 / 4 | 0 / 21 |
+| 12 mm, current layout | 4 / 4 | 2 / 21 |
+| **12 mm, angled pads at the other end (as measured)** | **4 / 4** | **12 / 21**, median 0.52 px |
 
-This also explains Lance's earlier live reading "cam1 6:28.5 0:9.2 · cam2
-6:24.8 0:18.1". Single-camera mode hides it because build 0.79 learns a
-per-marker correction for angled markers; stereo uses the raw model.
+With this layout camera 1 becomes internally consistent (e.g. markers 6, 5,
+0 at 1.3–1.7 px where marker 6 was 26 px before). An earlier note in this
+file suggested "6/7 swapped and rotated"; that was an inference and is
+superseded by the physical check.
 
-**Recommended:** confirm on the physical ring which side-face marker the
-angled marker 6 sits next to, and which way its top points, before changing
-the model. Alternatively give stereo the same learned angled-marker
-correction mono uses, or fit the ring's face poses from recordings.
+Remaining failures (9 of 25) are single-marker disagreements in camera 2
+(4–12 px). They are not timing (paired frames < 1 ms apart, no motion) and
+do not change with angled-pad shifts of ±2 mm or marker sizes 11.7–12.1 mm.
+Likely corner noise on small, steeply viewed markers in camera 2 or a small
+residual calibration error; unresolved.
+
+Mono mode hid this because build 0.79 learns a per-marker correction for
+angled markers. Once the model matches, that learned correction should be
+near identity; consider whether it is still needed.
