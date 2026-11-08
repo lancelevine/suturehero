@@ -98,3 +98,15 @@ it('keeps a single-marker fallback continuous instead of flipping between disagr
  expect(chooseFallbackPose([a,b],pose(55,0))).toBe(b);
  expect(chooseFallbackPose([a,b],pose(-40,0))).toBeNull(); // every option would jump >25°
 });
+it('keeps a slightly noisier fit while tracking, but only near the previous pose',()=>{
+ const q=new Quaternion().setFromAxisAngle(new Vector3(0,1,0),Math.PI),t=new Vector3(0,0,600);
+ // ~3.4 px corner noise: above the 3 px starting limit, within the 5 px tracking limit.
+ const noisy=[observation(0,0,0,q,t,'ring6',3.4),observation(0,0,1,q,t,'ring6',3.4)],other=[observation(1,0,4,q,t,'ring6',3.4),observation(1,0,5,q,t,'ring6',3.4)];
+ const strict=solveStereoRigPose(cal,noisy,other,...sizes,0,'ring6');
+ const tracked=solveStereoRigPose(cal,noisy,other,...sizes,0,'ring6',{quaternion:q.clone(),translation:t.clone()});
+ const far=solveStereoRigPose(cal,noisy,other,...sizes,0,'ring6',{quaternion:q.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0),.5)),translation:t.clone()});
+ expect(strict).toBeNull();
+ expect(tracked).not.toBeNull();
+ expect(tracked!.translation.distanceTo(t)).toBeLessThan(15);
+ expect(far).toBeNull();
+});

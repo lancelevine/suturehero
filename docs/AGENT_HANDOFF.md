@@ -69,6 +69,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.97: keep stereo while tracking, throttle jaw
+
+- `src/input/stereoRigPose.ts`: with a previous pose, accept a joint fit up
+  to 5 px RMS / 10 px corner if within 10° and 15 mm of it; the per-face
+  outlier cutoff now scales with the limit (unchanged 3.5 px when starting).
+  New test in `stereoRigPose.test.ts`.
+- `src/jaw/markerJawController.ts`: updates at most every 66 ms except while
+  calibrating. `src/tracking.ts`: "Jaw tracking" perf row.
+- Checked: stereo + jaw unit tests, tsc, check-marker-jaws, check-stereo-motion.
+- Lance: export a new performance report; compare "fit error" dropouts and
+  the Jaw tracking row. Next proposed: rest lock for rotation jitter.
+
 Newest first. Template:
 
 ```

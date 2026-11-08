@@ -10,11 +10,23 @@ export type StereoRigPose=Pose&{errorPx:number;faces:number;corners:number;first
 /** Filled with the reason when solveStereoRigPose returns null. */
 export type StereoRigDiagnostics={reason?:string};
 const RMS_LIMIT_PX=3,CORNER_LIMIT_PX=6;
+/**
+ * Once tracking, a fit up to these limits is kept if it stays close to the
+ * previous pose: small 12 mm markers make occasional 3–5 px fits normal, and
+ * dropping to the single-camera fallback for them caused visible jumps.
+ * Starting (no previous pose) still needs the strict limits.
+ */
+const TRACKING_RMS_LIMIT_PX=5,TRACKING_CORNER_LIMIT_PX=10;
+/** A face is dropped as an outlier when its own fit error exceeds the RMS limit by this much (3.5 px when starting). */
+const FACE_OUTLIER_MARGIN_PX=.5;
+const TRACKING_MAX_TURN_RADIANS=10*Math.PI/180,TRACKING_MAX_MOVE_MM=15;
+type Limits={rms:number;corner:number};
+const STRICT:Limits={rms:RMS_LIMIT_PX,corner:CORNER_LIMIT_PX};
 /** A single-marker fallback fit may turn at most this far from the previous pose per update. */
 const FALLBACK_MAX_TURN_RADIANS=25*Math.PI/180;
 /** Joint calibrated reprojection fit. Different cameras need not see the same
  * face: localCorners supplies the known rigid relationship between every ID. */
-function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null{
+export function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics,limits:Limits=STRICT):StereoRigPose|null{
  const reject=(reason:string)=>{if(diagnostics)diagnostics.reason=reason;return null;};
  if(diagnostics)delete diagnostics.reason;
  if(![size1.width,size1.height,size2.width,size2.height].every(v=>Number.isFinite(v)&&v>0))return reject('camera image size unknown');
@@ -97,7 +109,7 @@ function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second
  const groups=new Map<string,{sum:number;count:number}>();
  points.forEach((p,i)=>{const key=`${p.camera}:${p.id}`,g=groups.get(key)??{sum:0,count:0};g.sum+=best!.errors[i]**2;g.count++;groups.set(key,g);});
  let selected=points;
- const good=new Set([...groups].filter(([,g])=>Math.sqrt(g.sum/g.count)<3.5).map(([key])=>key));
+ const good=new Set([...groups].filter(([,g])=>Math.sqrt(g.sum/g.count)<limits.rms+FACE_OUTLIER_MARGIN_PX).map(([key])=>key));
  const filtered=points.filter(p=>good.has(`${p.camera}:${p.id}`));
  if(filtered.length<points.length&&filtered.some(p=>p.camera===0)&&filtered.some(p=>p.camera===1)){
   const fit=optimize(best.pose,filtered);if(fit){best=fit;selected=filtered;}
@@ -110,12 +122,12 @@ function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second
   return `cam${camera+1} `+[...byId].map(([id,e])=>`${id}:${Math.sqrt(e.reduce((s,x)=>s+x*x,0)/e.length).toFixed(1)}`).join(' ');
  }).join(' · ');
  const worst=Math.max(...best.errors);
- if(rms>RMS_LIMIT_PX||worst>CORNER_LIMIT_PX)return reject(`fit error ${rms.toFixed(1)} px (limit ${RMS_LIMIT_PX}), worst corner ${worst.toFixed(1)} px (limit ${CORNER_LIMIT_PX}) · per marker px: ${faceErrors()}`);
+ if(rms>limits.rms||worst>limits.corner)return reject(`fit error ${rms.toFixed(1)} px (limit ${limits.rms}), worst corner ${worst.toFixed(1)} px (limit ${limits.corner}) · per marker px: ${faceErrors()}`);
  for(const camera of [0,1]){
   const values=selected.flatMap((p,i)=>p.camera===camera?[best!.errors[i]]:[]);
   if(values.length<4)return reject(`camera ${camera+1} has fewer than 4 consistent corners`);
   const cameraRms=Math.sqrt(values.reduce((s,e)=>s+e*e,0)/values.length);
-  if(cameraRms>RMS_LIMIT_PX)return reject(`camera ${camera+1} fit error ${cameraRms.toFixed(1)} px (limit ${RMS_LIMIT_PX}) · per marker px: ${faceErrors()}`);
+  if(cameraRms>limits.rms)return reject(`camera ${camera+1} fit error ${cameraRms.toFixed(1)} px (limit ${limits.rms}) · per marker px: ${faceErrors()}`);
  }
  const firstIds=[...new Set(selected.filter(p=>p.camera===0).map(p=>p.id))],secondIds=[...new Set(selected.filter(p=>p.camera===1).map(p=>p.id))];
  return {...best.pose,errorPx:rms,faces:new Set([...firstIds,...secondIds]).size,corners:selected.length,firstIds,secondIds};
@@ -127,6 +139,14 @@ function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second
 export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null {
  const joint=fitStereoRigPose(cal,first,second,size1,size2,firstId,type,previous,diagnostics);
  if(joint)return joint;
+ // While tracking: accept a somewhat looser fit that stays near the previous pose.
+ if(previous){
+  const looser=fitStereoRigPose(cal,first,second,size1,size2,firstId,type,previous,undefined,{rms:TRACKING_RMS_LIMIT_PX,corner:TRACKING_CORNER_LIMIT_PX});
+  if(looser&&looser.quaternion.angleTo(previous.quaternion)<=TRACKING_MAX_TURN_RADIANS&&looser.translation.distanceTo(previous.translation)<=TRACKING_MAX_MOVE_MM){
+   if(diagnostics)delete diagnostics.reason;
+   return looser;
+  }
+ }
  const valid=(marker:MarkerObservation)=>marker.id>=firstId&&marker.id<firstId+trackerGeometry(type).faceCount;
  const a=first.filter(valid),b=second.filter(valid);
  if(a.length<=1&&b.length<=1)return null;

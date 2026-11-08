@@ -73,6 +73,8 @@ const STEREO_SEARCH_MARKER_SIDES = 6;
 const MAX_STEREO_CANDIDATES = 6;
 /** Minimum time between stereo ball searches, ms. */
 const STEREO_INTERVAL_MS = 66;
+/** Minimum time between jaw updates outside calibration (at most ~15 per second), ms. */
+const UPDATE_INTERVAL_MS = 66;
 /** The closed/open 3D ball distances must differ by at least this much. */
 const MIN_STEREO_SPAN_MM = 2;
 /** Ball sizes tried when snapping a click, relative to the diameter setting (each try accepts ~0.55–1.5×). */
@@ -544,6 +546,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       return;
     }
     if (host.video.currentTime === lastVideoTime) return;
+    // Jaw opening changes slowly; leave the rest of each frame for instrument tracking.
+    if (mode.kind !== 'capturing' && now - lastReadAt < UPDATE_INTERVAL_MS) return;
     lastVideoTime = host.video.currentTime;
     lastImageId=cameraImageId(host.video);
     lastReadAt=now;

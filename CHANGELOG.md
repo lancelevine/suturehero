@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.97 — stereo holds on while tracking; lighter jaw tracking
+
+Once stereo has a pose, a joint fit with up to 5 px error (10 px worst
+corner) is kept if it is within 10° and 15 mm of the previous pose. Starting
+still needs the strict 3 px limit. In Lance's 0.96 report, fits over 3 px
+caused about 120 stereo dropouts per minute; small 12 mm markers make 3–5 px
+normal. Jaw tracking now runs at most ~15 times per second outside
+calibration, and the performance report has a "Jaw tracking" row.
+Synthetic tests only; needs a new report on real hardware.
+
 ## Build 0.96 — jaw tracking no longer slows the page; workspace steps wait for the move
 
 Jaw ball searches were slowed ~8× by testing every pixel against every
