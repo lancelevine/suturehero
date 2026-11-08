@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.95 — stereo workspace calibration
+
+Tracking setup → stereo now has **Workspace (stereo)**: capture 1. Neutral,
+2. Right, 3. Forward and 4. Up (about 10 cm each, from neutral), then
+5. Sweep through the space you will use. Stereo positions are then expressed
+along your desk's right/up/forward axes (made exactly perpendicular) instead
+of camera 1's axes, so forward is forward whatever the camera tilt; the sweep
+scales your working space to fill the pad (before a sweep: 100 mm per scene
+unit). Saved per stereo calibration. Orientation (rotation) is unchanged.
+
 ## Build 0.94 — less rotation lag
 
 Rotation smoothing now adapts to turning speed (a "One Euro" style filter on

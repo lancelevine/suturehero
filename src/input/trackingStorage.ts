@@ -22,6 +22,8 @@ export const TRACKING_STORAGE_KEYS = {
   jawEngine: 'suturehero.jawEngine.v1',
   /** Marker-relative jaw models per instrument (src/jaw/JawTracker.ts). */
   markerJawModels: 'suturehero.markerJawModels.v1',
+  /** Stereo workspace axes and scale (src/input/stereoWorkspace.ts). */
+  stereoWorkspace: 'suturehero.stereoWorkspace.v1',
 } as const;
 
 type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;

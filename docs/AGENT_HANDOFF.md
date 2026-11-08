@@ -72,6 +72,21 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Stereo workspace calibration (build 0.95)
+- Changed: new `src/input/stereoWorkspace.ts` (axes from guided captures,
+  up = right × forward checked against the up move, sweep scale = 4 units /
+  larger horizontal extent, save/parse per stereo calibration) and
+  `src/ui/StereoWorkspacePanel.ts`; `tracking.ts` feeds needle-driver stereo
+  positions and maps rendered stereo positions with
+  `workspacePracticePosition` (old camera-axis mapping without a workspace).
+  Positions only; rotations still in the existing frame (follow-up).
+- Checked: `stereoWorkspace` tests (tilted-camera axes, forward → −z only,
+  rejections, persistence); stereo-motion, stereo-rig-faces,
+  tracking-storage pass; panel renders without errors. No synthetic 3D walk
+  through the guided steps; first full run is Lance's.
+- Lance to test: steps 1–5 with stereo active, then forward/back and
+  left/right movement.
+
 ### 2026-11-08 — Claude Code — Speed-adaptive rotation smoothing (build 0.94)
 - Changed: `TrackedPoseFilter` rotation time constant = min(previous
   error-based value, 1/(2π(1 Hz + 0.1 Hz per °/s))), with angular velocity

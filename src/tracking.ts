@@ -15,6 +15,8 @@ import {StereoFallback,type MonoView} from './input/StereoFallback';
 import {JawViewFusion} from './input/JawViewFusion';
 import {stereoBoard} from './input/stereoBoard';
 import {stereoPracticePosition} from './input/stereoTrackingPose';
+import {parseWorkspace,serializeWorkspace,workspacePracticePosition,type StereoWorkspace} from './input/stereoWorkspace';
+import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
 import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
@@ -234,6 +236,16 @@ const stereoGeometryStatus=stereoPanel.querySelector<HTMLElement>('#stereo-geome
 const stereo3dStatus=stereoPanel.querySelector<HTMLElement>('#stereo-3d-points')!;
 const stereoEnabled=stereoPanel.querySelector<HTMLInputElement>('#stereo-enable')!;
 let stereoCalibration:StereoCalibration|null=null;
+// Stereo workspace: user-defined right/up/forward axes and scale (stereoWorkspace.ts).
+let stereoWorkspace:StereoWorkspace|null=null;
+const stereoCalibrationKey=()=>stereoCalibration?`${stereoCalibration.cameraIds?.first??''}|${stereoCalibration.cameraIds?.second??''}|${Math.hypot(...stereoCalibration.stereo.translationMm).toFixed(1)}`:'';
+const loadStereoWorkspace=()=>{stereoWorkspace=stereoCalibration?parseWorkspace(readStoredJson(TRACKING_STORAGE_KEYS.stereoWorkspace),stereoCalibrationKey()):null;};
+const workspacePanel=mountStereoWorkspacePanel(stereoPanel,workspace=>{
+ stereoWorkspace=workspace;
+ if(workspace)writeStored(TRACKING_STORAGE_KEYS.stereoWorkspace,JSON.stringify(serializeWorkspace(workspace,stereoCalibrationKey())));
+ else removeStored(TRACKING_STORAGE_KEYS.stereoWorkspace);
+ resetTrackerPose();
+},()=>stereoWorkspace);
 type InstrumentName='needleDriver'|'forceps'|'scissors';
 const trackerTypeSelect=document.querySelector<HTMLSelectElement>('#tracker-type')!;
 const trackerTypeStatus=document.querySelector<HTMLElement>('#tracker-type-status')!;
@@ -363,6 +375,7 @@ function loadStereoCalibration(raw:unknown,restore=false){
   parsed.cameraIds={first:select.value,second:select2.value};
  }
  stereoCalibration=parsed;stereoEnabled.checked=false;if(!restore)resetTrackerPose();else stereoPositions.clear();
+ loadStereoWorkspace();workspacePanel.refresh();
  writeStored(stereoStorage,JSON.stringify(parsed));
  stereoGeometryStatus.textContent='Calibration loaded · '+Math.hypot(...parsed.stereo.translationMm).toFixed(1)+' mm baseline · stereo RMS '+(parsed.stereo.rmsPx?.toFixed(2)??'unknown')+' px. Enable metric 3D after checking camera setup.';
 }
@@ -375,7 +388,7 @@ stereoPanel.querySelector<HTMLInputElement>('#stereo-import')!.addEventListener(
  input.value='';
 });
 stereoPanel.querySelector<HTMLButtonElement>('#stereo-remove')!.addEventListener('click',()=>{
- stereoCalibration=null;stereoEnabled.checked=false;stereoPositions.clear();removeStored(stereoStorage);
+ stereoCalibration=null;stereoWorkspace=null;workspacePanel.refresh();stereoEnabled.checked=false;stereoPositions.clear();removeStored(stereoStorage);
  stereoGeometryStatus.textContent='Calibration removed.';stereo3dStatus.textContent='No triangulated markers.';
 });
 const frame2=document.createElement('canvas');
@@ -1706,7 +1719,8 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    }
    if(metric?!!fallback:target&&now-target.lastSeen<trackingHoldMs){
     let raw=rawRenderedPoses.get(name);if(!raw){raw=new TrackedPoseFilter();rawRenderedPoses.set(name,raw);}
-    raw.update(fallback?stereoPracticePosition(fallback.position):target!.position,fallback?.quaternion??target!.quaternion,now);
+    if(fallback?.source==='stereo'&&name==='needleDriver')workspacePanel.feed(fallback.position,now);
+    raw.update(fallback?workspacePracticePosition(fallback.position,stereoWorkspace):target!.position,fallback?.quaternion??target!.quaternion,now);
     const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,fallback?.at??target!.lastSeen,metric);
     mesh.position.copy(calibrated.position);mesh.quaternion.copy(calibrated.quaternion);
     // The standalone lab remains the camera/diagnostic owner. When embedded,
@@ -1784,7 +1798,7 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.94',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.95',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
 
 /** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
 export const trackingLabBridge = {
