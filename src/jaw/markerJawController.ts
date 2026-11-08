@@ -1,3 +1,4 @@
+import {cameraImage,cameraImageId} from '../trackingLab/runtime';
 import type { MarkerObservation } from '../input/arucoTracking';
 import { solvePrismPose, type PrismPose, type TrackerType } from '../input/prismPose';
 import { readStored, readStoredJson, TRACKING_STORAGE_KEYS, writeStored } from '../input/trackingStorage';
@@ -41,6 +42,8 @@ export interface MarkerJawHost {
   /** Deliver an opening (0 closed … 1 open) to the scene and previews. */
   publish(instrument: TrackedInstrument, opening: number): void;
 }
+
+export interface MarkerJawSnapshot {current:boolean;width:number;height:number;readings:Array<{instrument:TrackedInstrument;reading:JawReading}>;}
 
 export type JawEngine = 'marker' | 'classic';
 
@@ -137,6 +140,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   const poses = new Map<TrackedInstrument, PrismPose>();
   const readings = new Map<TrackedInstrument, JawReading>();
   let lastVideoTime = -1;
+  let lastImageId=-1;
+  let lastReadAt=-Infinity;
 
   const selected = () => instrumentSelect.value as TrackedInstrument;
   const diameter = () => {
@@ -204,7 +209,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     const height = Math.max(1, Math.round((y1 - y0) * scale));
     if (crop.width < width) crop.width = width;
     if (crop.height < height) crop.height = height;
-    cropContext.drawImage(video, x0 * toVideo, y0 * toVideo, (x1 - x0) * toVideo, (y1 - y0) * toVideo, 0, 0, width, height);
+    cropContext.drawImage(cameraImage(video), x0 * toVideo, y0 * toVideo, (x1 - x0) * toVideo, (y1 - y0) * toVideo, 0, 0, width, height);
     const image = grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
     return { image, region: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, scale: width / (x1 - x0) };
   }
@@ -390,6 +395,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     }
     if (host.video.currentTime === lastVideoTime) return;
     lastVideoTime = host.video.currentTime;
+    lastImageId=cameraImageId(host.video);
+    lastReadAt=now;
 
     if (mode.kind === 'capturing') {
       const frame = frameFor(mode.instrument, now);
@@ -428,6 +435,10 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   return {
     update,
     reloadModels,
+    /** Read-only diagnostics; held readings cannot masquerade as new image detections. */
+    snapshot(now=performance.now()):MarkerJawSnapshot {
+      return {current:engine==='marker'&&!host.video.paused&&now-lastReadAt<220&&lastImageId===cameraImageId(host.video),width:host.overlay.width,height:host.overlay.height,readings:structuredClone([...readings].map(([instrument,reading])=>({instrument,reading})))};
+    },
     /** Whether the classic jaw tracker should run. */
     classicActive: () => engine === 'classic',
   };

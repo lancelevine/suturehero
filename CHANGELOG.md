@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.83 — Tracking Lab recording and pipeline replay
+
+A dedicated top-level Tracking Lab workspace records both camera streams at
+native resolution into browser IndexedDB, including independent timestamps,
+configuration, calibration and available diagnostics. Recordings automatically
+stop after 30 seconds by default and support rename, delete and one-file export/import.
+Replay sends saved images through the existing marker, pose, jaw and stereo code
+in an isolated context. It supports seek with state reconstruction, frame stepping,
+speed selection, current/predicted overlays, coverage/loss/reacquisition metrics and
+stationary-interval jitter. Both the new marker-relative white-ball jaw tracker and
+the Classic tracker are supported; the new tracker's current camera-1 limitation
+is reported explicitly. See `TRACKING_LAB.md` for practical limits.
+
 ## Build 0.82 — different-face stereo and ball tracking lifecycle
 
 Stereo now jointly fits the known rigid tracker corners to both calibrated, time-aligned camera images. Camera 1 and Camera 2 may observe entirely different face IDs of the same instrument. The fit uses each camera's intrinsics/distortion, the calibrated camera transform, and the selected prism/six-face/eight-face geometry. It requires a valid constraint in both cameras, rejects inconsistent reprojection, and can exclude a bad extra face only while retaining a face in each camera. Position and orientation are published from the same accepted sample. Diagnostics list each camera's contributing IDs and joint pixel error; shared-ID center triangulation no longer gates movement.

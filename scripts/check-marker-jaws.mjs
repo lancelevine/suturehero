@@ -202,6 +202,7 @@ try {
   assert.equal(await page.evaluate(() => window.__jawMessages.length), before, 'classic engine (not enabled) should publish nothing');
   assert.equal(await page.evaluate(() => localStorage.getItem('suturehero.jawEngine.v1')), 'classic');
 
+  if(process.env.SUTURE_MARKER_JAW_LAB==='1'){await page.locator('#stop-camera').evaluate(e=>e.click());const {verifyMarkerJawLab}=await import('./check-tracking-lab-marker-jaws.mjs');await verifyMarkerJawLab(context,installRingCamera,base);}
   assert.deepEqual(errors, []);
   console.log('Passed: marker-relative jaw calibration and openings', JSON.stringify(results));
 } finally {

@@ -6,8 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Codex — integrating and deploying Tracking Lab with the latest camera/storage/messages and new jaw tracker. Please avoid `src/tracking.ts`, `src/main.ts`, shared camera/message inputs, and `src/trackingLab/` until cleared.
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Tracking Lab (build 0.83):** record a real single/stereo-camera failure,
+    stop, replay, and export it. Confirm practical recording FPS and image
+    quality with the actual webcams. Replay has synthetic-camera coverage,
+    not real-hardware validation.
   - **New jaw tracker** (Calibrate → Needle driver → Jaws → Jaw tracker
     "White balls (new)"): calibrate closed and open with the real
     instrument and camera, then check the reading. Only synthetic-camera
@@ -61,6 +65,35 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-07 (America/New_York) — Codex — Tracking Lab recording and actual pipeline replay
+- Changed: dedicated Simulator / Tracking Lab tabs, native-resolution JPEG
+  recording to IndexedDB, 30-second auto-stop, a local library and portable
+  versioned export/import. Replay runs the existing marker/pose/stereo and
+  both Classic and new marker-relative jaw algorithms in isolated contexts;
+  it never requests webcams or publishes scene messages. Seek/restart resets
+  all workers/state and reconstructs history. Offline worker jobs and search
+  clocks use recorded timing for repeatable results. Added current/predicted
+  overlays, coverage/loss/reacquisition metrics and stationary-interval jitter.
+- Files: `src/trackingLab/`, `tracking-engine.html`, narrow hooks in tracking,
+  camera devices/frame clocks/messages, and `src/jaw/markerJawController.ts`;
+  existing ArUco 2.0.0 sources bundled under `src/input/arucoLibraries/`.
+  Added browser checks and `TRACKING_LAB.md`; updated README/CHANGELOG.
+- Checked: Node 24 `npm ci`, tsc, all **504 tests / 117 files**, production
+  build; production Lab stereo/striped record/replay, identical reset/preroll
+  metrics, frame step/seek, rename/export/import/delete, interrupted recovery,
+  cold replay without hardware/CDN access, layout/keyboard isolation;
+  existing different-face metric stereo check; existing new white-ball jaw
+  calibration check extended to real recorded-image Lab replay (saved
+  observations erased). No test thresholds weakened.
+- Lance to test: real webcams as in Status. New marker-relative jaws still
+  support Camera 1 only; Lab reports Camera 2 ball support as Unavailable.
+- Notes for the other agent: preserve `cameraImage` / `videoSnapshot` source
+  reads and the `cameraDevices` hooks when extracting code. Replay messages
+  are blocked in the shared `publishTrackingMessage`; live dispatch remains
+  unchanged. Offline job ordering is deliberate; live workers stay parallel.
+  Update Lab snapshots when removing the Classic jaw code. Practical replay
+  limits and fresh-history/neutral behavior are documented in TRACKING_LAB.
 
 ### 2026-11-08 — Claude Code — New marker-relative jaw tracker (white balls)
 - Changed: new jaw tracker in `src/jaw/`, selectable in the jaw panel and

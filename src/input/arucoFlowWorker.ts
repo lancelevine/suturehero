@@ -4,11 +4,11 @@ import type {MarkerObservation} from './arucoTracking';
 type Track={marker:MarkerObservation;reference:GrayFrame[];decodedAt:number;trackedAt:number;motion:{x:number;y:number};pending?:{marker:MarkerObservation;reference:GrayFrame[]}};
 const tracks=new Map<number,Track>();
 let accepted=0,rejected=0;
-self.onmessage=(event:MessageEvent<{type:string;id?:number;frame?:ImageData;markers?:MarkerObservation[];ids?:number[]}>)=>{
+self.onmessage=(event:MessageEvent<{type:string;at?:number;id?:number;frame?:ImageData;markers?:MarkerObservation[];ids?:number[]}>)=>{
  const {type,id,frame,markers=[],ids=[]}=event.data;
  try{
   if(type==='init'){self.postMessage({type:'ready'});return;}
-  const now=performance.now();
+  const now=event.data.at??performance.now();
   if(type==='confirm'){for(const id of ids){const track=tracks.get(id);if(track)track.decodedAt=now;}return;}
   if(type==='seed'){
    if(!frame)return;

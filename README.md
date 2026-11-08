@@ -6,7 +6,7 @@ microsurgery, from the guided needle pass through free instrument tying. You
 can move the instruments with the keyboard, or with real instruments tracked
 by a webcam.
 
-**Status:** research prototype (build 0.82). Tissue, thread and knot behavior
+**Status:** research prototype (build 0.83). Tissue, thread and knot behavior
 are approximate models in arbitrary sandbox units, and camera tracking has been
 checked mostly with synthetic camera tests. SutureHero is **not** a validated
 clinical training or assessment tool yet.
@@ -31,6 +31,14 @@ pages are served:
 - `index.html`: the practice lab, with camera tracking available inside it.
 - `tracking.html`: the standalone **Instrument Tracking** page (same camera
   panels, without the practice scene).
+
+## Tracking Lab
+
+Open **Tracking Lab** beside **Simulator**. Click **Record**, move the
+instruments, **Stop** (or wait 30 seconds), then **Replay**. Camera images and
+settings save locally; replay reruns the actual trackers without webcam access.
+The library supports rename, delete, and portable `.suturetrack` export/import.
+See [Tracking Lab](TRACKING_LAB.md) for timeline controls, diagnostics and limits.
 
 ## Practice options
 

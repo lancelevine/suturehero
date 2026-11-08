@@ -1,3 +1,8 @@
+import {ReplayWorkQueue} from './trackingLab/ReplayWorkQueue';
+import {ARUCO_LIBRARY_URLS} from './input/arucoLibraryUrls';
+import {snapshotTrackingStorage} from './trackingLab/configuration';
+import {markerJawDiagnostics} from './trackingLab/markerJawDiagnostics';
+import {cameraImage,recordedInput} from './trackingLab/runtime';
 import {BallMotionTracker,validJawBall} from './input/BallMotionTracker';
 import {findSphereSilhouette} from './input/sphereSilhouette';
 import {solveStereoRigPose,type StereoRigPose} from './input/stereoRigPose';
@@ -120,11 +125,14 @@ const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
 const scissorsReadout=document.querySelector<HTMLElement>('#scissors-readout')!;
 const faceOverlapReadout=document.querySelector<HTMLElement>('#face-overlap-readout')!;
+const replayWorkQueue=new ReplayWorkQueue();
 class WorkerDetector {
  private worker:Worker|null=null;
  private pending=new Map<number,{resolve:(markers:MarkerObservation[])=>void;reject:(error:Error)=>void;started:number}>();
  constructor(private label:string){}
  lastFrameSize={width:0,height:0};
+ lastDetectedIds:number[]=[];lastResultAt=-Infinity;
+ get busy(){return this.pending.size>0;}
  private sequence=0;
  candidateCorners:Array<Array<{x:number;y:number}>>=[];
  diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting',pass:'—',contrast:'—'};
@@ -146,18 +154,20 @@ class WorkerDetector {
     for(const [stage,ms] of Object.entries(data.diagnostics?.timings??{}))perf.sample(this.label+' '+stage,ms);
     this.candidateCorners=data.candidates??[];
     if(data.diagnostics)this.diagnostics=data.diagnostics;
+    this.lastDetectedIds=(data.found??[]).map(m=>m.id);this.lastResultAt=pending.started;
     pending.resolve(data.found??[]);
    };
    worker.onerror=()=>{clearTimeout(timeout);reject(new Error('Detector worker failed to load'));};
-   worker.postMessage({type:'init',flowOnly});
+   worker.postMessage({type:'init',flowOnly,libraries:ARUCO_LIBRARY_URLS});
   });
  }
- confirm(markers:MarkerObservation[]){this.worker?.postMessage({type:'confirm',ids:markers.map(m=>m.id)});}
- seed(markers:MarkerObservation[],frame?:ImageData){this.worker?.postMessage({type:'seed',markers,frame});}
+ confirm(markers:MarkerObservation[]){this.worker?.postMessage({type:'confirm',at:recordedInput()?performance.now():undefined,ids:markers.map(m=>m.id)});}
+ seed(markers:MarkerObservation[],frame?:ImageData){this.worker?.postMessage({type:'seed',at:recordedInput()?performance.now():undefined,markers,frame});}
  detect(frame:ImageData,origin={x:0,y:0}):Promise<MarkerObservation[]>{
   if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
   const id=++this.sequence;this.lastFrameSize={width:frame.width,height:frame.height};
-  return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,frame,origin},[frame.data.buffer]);});
+  const request=()=>new Promise<MarkerObservation[]>((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',at:recordedInput()?performance.now():undefined,id,frame,origin},[frame.data.buffer]);});
+  return recordedInput()?replayWorkQueue.run(request):request();
  }
  dispose(){this.worker?.terminate();this.worker=null;for(const p of this.pending.values())p.reject(new Error('Worker stopped'));this.pending.clear();}
 }
@@ -322,7 +332,7 @@ function updateStereoViewIndicator(now:number){
  const state=mismatch?'mismatch':configured?(fallback.length?'fallback':active?'active':'waiting'):stream&&!simulation.checked?'mono':'off';
  const detail:TrackingStatusMessage={type:TRACKING_MESSAGE.status,state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
  const key=JSON.stringify(detail);
- if(embeddedTracking&&(key!==lastTrackingStatus||now-lastTrackingStatusAt>500)){
+ if(embeddedTracking&&!recordedInput()&&(key!==lastTrackingStatus||now-lastTrackingStatusAt>500)){
   lastTrackingStatus=key;lastTrackingStatusAt=now;
   publishTrackingMessage(detail,root.dataset.embedded==='true');
  }
@@ -449,7 +459,7 @@ async function detectSecondFrame(now:number){
  const snapshot=doSlow?perf.measure('Camera 2 video snapshot',()=>videoSnapshot(video2,captureCanvas2,captureContext2)):null;
  if(snapshot){snapshotBackend2=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 2 snapshot fallback');}
  try{
- perf.measure('Camera 2 flow resize',()=>context2.drawImage(snapshot?.source??video2,0,0,w,h));
+ perf.measure('Camera 2 flow resize',()=>context2.drawImage(snapshot?.source??cameraImage(video2),0,0,w,h));
  let preparedSeed:ImageData|undefined;const secondaryCaptureAt=performance.now();if(primaryCaptureAt)perf.sample('Camera capture skew',Math.abs(secondaryCaptureAt-primaryCaptureAt));
  const render=()=>{
   const fresh=liveSecondMarkers();
@@ -631,7 +641,7 @@ let idleNoMarkers=true,skippedFrames=0,renderFrames=0,renderFps=0,lastFpsTime=pe
 const motionCanvas=document.createElement('canvas');motionCanvas.width=64;motionCanvas.height=36;
 const motionCtx=motionCanvas.getContext('2d',{willReadFrequently:true})!;
 let motionPrevious:Uint8Array|null=null;
-function changedFrame(source:HTMLVideoElement){motionCtx.drawImage(source,0,0,64,36);const data=motionCtx.getImageData(0,0,64,36).data;const next=new Uint8Array(64*36);let changed=0;for(let i=0;i<next.length;i++){const p=i*4;next[i]=(data[p]*3+data[p+1]*6+data[p+2])/10;if(motionPrevious&&Math.abs(next[i]-motionPrevious[i])>24)changed++;}motionPrevious=next;return changed>32;}
+function changedFrame(source:HTMLVideoElement){motionCtx.drawImage(cameraImage(source),0,0,64,36);const data=motionCtx.getImageData(0,0,64,36).data;const next=new Uint8Array(64*36);let changed=0;for(let i=0;i<next.length;i++){const p=i*4;next[i]=(data[p]*3+data[p+1]*6+data[p+2])/10;if(motionPrevious&&Math.abs(next[i]-motionPrevious[i])>24)changed++;}motionPrevious=next;return changed>32;}
 
 let stream:MediaStream|null=null;
 async function refreshCameras(){
@@ -1102,7 +1112,7 @@ for(const [camera,state] of jawCameras.entries()){
  const x=Math.floor((event.clientX-rect.left-(rect.width-ballCanvas.width*fit)/2)/fit);
  const y=Math.floor((event.clientY-rect.top-(rect.height-ballCanvas.height*fit)/2)/fit);
  if(x<0||y<0||x>=ballCanvas.width||y>=ballCanvas.height)return;
- ballContext.drawImage(video,0,0,ballCanvas.width,ballCanvas.height);
+ ballContext.drawImage(cameraImage(video),0,0,ballCanvas.width,ballCanvas.height);
  const data=ballContext.getImageData(0,0,ballCanvas.width,ballCanvas.height).data;
  let rgb=[0,0,0],n=0;
  for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){
@@ -1237,7 +1247,7 @@ function requestStripedReacquisition(video:HTMLVideoElement,slot:number,track:Ba
   if(candidates[0])track.hint(candidates[0],marker,performance.now());
  };
  search.worker.onerror=finish;search.timeout=window.setTimeout(()=>{search!.worker.terminate();stripedSearchWorkers.delete(video);finish();},5000);
- void createImageBitmap(video).then(bitmap=>{
+ void createImageBitmap(cameraImage(video)).then(bitmap=>{
   if(video.srcObject!==source){bitmap.close();finish();return;}
   search!.worker.postMessage({id,bitmap,radius:Math.max(plan.ballRadius,marker?marker.side*10/trackerGeometry(trackerType).markerSizeMm/2:0)*scale,center:{x:plan.center.x*scale,y:plan.center.y*scale},marker:marker?{x:marker.x*scale,y:marker.y*scale}:null,maxReach:marker?marker.side*(55/trackerGeometry(trackerType).markerSizeMm+4)*scale:Infinity},[bitmap]);
  }).catch(finish);
@@ -1255,7 +1265,7 @@ function searchStripedJawBall(video:HTMLVideoElement,center:{x:number;y:number},
  const width=Math.min(video.videoWidth-left,Math.ceil(extent*2)),height=Math.min(video.videoHeight-top,Math.ceil(extent*2));
  if(width<16||height<16)return [];
  stripedCropCanvas.width=width;stripedCropCanvas.height=height;
- stripedCropContext.drawImage(video,left,top,width,height,0,0,width,height);
+ stripedCropContext.drawImage(cameraImage(video),left,top,width,height,0,0,width,height);
  const diagnostic:StripedBallDiagnostics={reason:'Searching',diameterPx:nativeRadius*2,contrast:0};
  const pixels=stripedCropContext.getImageData(0,0,width,height).data,local={x:center.x*scale-left,y:center.y*scale-top};
  let balls:BallBlob[]=[];
@@ -1275,7 +1285,7 @@ function scanForcepsBalls(now:number,camera=0){
  const state=jawCameras[camera];
  const {video,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations}=state;
  if(!ballEnabled.checked||!video.videoWidth||!video.srcObject||now-state.lastScan<90)return;
- const frame=frameClock(video),decoded=video.getVideoPlaybackQuality?.().totalVideoFrames??0;
+ const frame=frameClock(video),decoded=recordedInput()?.frameId(video)??video.getVideoPlaybackQuality?.().totalVideoFrames??0;
  const imageId=decoded>0?decoded:frame?.frameId;
  if(typeof video.requestVideoFrameCallback==='function'||decoded>0){
   if(video.paused||imageId===undefined){if(stripedNeedle){for(const i of [needlePair*2,needlePair*2+1])stripedMotion[camera].get(i)?.miss(now);ballCenters[needlePair*2]=ballCenters[needlePair*2+1]=null;ballPairValidAt[needlePair]=-Infinity;}return;}
@@ -1286,7 +1296,7 @@ function scanForcepsBalls(now:number,camera=0){
  const w=640,h=Math.max(1,Math.round(video.videoHeight/video.videoWidth*w));
  if(ballCanvas.height!==h)ballCanvas.height=h;
  const needsColor=ballColors.some((color,i)=>color&&!isStripedSlot(i));
- if(needsColor)ballContext.drawImage(video,0,0,w,h);
+ if(needsColor)ballContext.drawImage(cameraImage(video),0,0,w,h);
  const pixels=needsColor?ballContext.getImageData(0,0,w,h).data:new Uint8ClampedArray();
  const candidates:BallBlob[][]=Array.from({length:6},()=>[]);
  const markers=ballNames.map((_,pair)=>recentBallMarker(pair,now,camera));
@@ -1525,7 +1535,7 @@ async function detectFrame(now:number){
  const snapshot=doSlow?perf.measure('Camera 1 video snapshot',()=>videoSnapshot(video,captureCanvas,captureContext)):null;
  if(snapshot){snapshotBackend1=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 1 snapshot fallback');}
  try{
- perf.measure('Camera 1 flow resize',()=>frameContext.drawImage(snapshot?.source??video,0,0,w,h));
+ perf.measure('Camera 1 flow resize',()=>frameContext.drawImage(snapshot?.source??cameraImage(video),0,0,w,h));
  const frameCapturedAt=performance.now();primaryCaptureAt=frameCapturedAt;let preparedSeed:ImageData|undefined;
  if(doFast){
   fastProcessing=true;lastFastFrame=now;clock?.consume();
@@ -1704,8 +1714,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  if(simulation.checked)scissorsReadout.textContent=`Simulated · (${scissors.position.x.toFixed(2)}, ${scissors.position.z.toFixed(2)})`;
  if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
  renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
- void detectFrame(now);
- void detectSecondFrame(now);
+ if(!recordedInput()){void detectFrame(now);void detectSecondFrame(now);}
  if(stereoEnabled.checked){
   if(!stereoCalibration){stereo3dStatus.textContent='Import a solved calibration JSON first.';}
   else if(trackingMode.value!=='stereo'){stereo3dStatus.textContent='Select 2 cameras in Tracking mode.';}
@@ -1739,12 +1748,104 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
   }
  }
  perf.sample('Tracking CPU frame',performance.now()-loopStarted);
- requestAnimationFrame(animate);
+ if(!recordedInput())requestAnimationFrame(animate);
 }
-requestAnimationFrame(animate);
+if(!recordedInput())requestAnimationFrame(animate);
 window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit?.dispose();renderer?.dispose();});
 
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.82',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.83',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
+
+/** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
+export const trackingLabBridge = {
+ videos: () => [video, video2],
+ async start(cameras?: number[]) {
+  if (!stream) await startPrimaryCamera();
+  if ((cameras?.includes(1) ?? trackingMode.value === 'stereo') && !stream2) {
+   const primary = stream?.getVideoTracks()[0]?.getSettings().deviceId ?? select.value;
+   if (!select2.value || select2.value === primary) {
+    const other = (await availableCameras()).find(device => device.deviceId !== primary);
+    if (!other) throw new Error('Two-camera mode needs a second available camera');
+    select2.value = other.deviceId;
+   }
+   await startSecondaryCamera();
+   if (!stream2) throw new Error('Camera 2 did not start');
+  }
+ },
+ configuration() {
+  const profiles = Object.fromEntries((['needleDriver', 'forceps', 'scissors'] as const)
+   .map(name => [name, instrumentCalibration.profile(name)]));
+  const controls = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[id],select[id]'))
+   .filter(element => element.type !== 'file' && element.closest('#tracking-app,.tracking-tools-panel,#instrument-calibration'))
+   .map(element => ({id: element.id, value: element.value, checked: element instanceof HTMLInputElement ? element.checked : undefined}));
+  return {
+   storage: snapshotTrackingStorage({
+    'suturehero.instrument-calibration.v1': JSON.stringify(profiles),
+    [TRACKING_STORAGE_KEYS.jawEngine]: markerJaws.classicActive() ? 'classic' : 'marker',
+   }),
+   controls,
+   activeInstrument: document.querySelector('[data-calibration-tool][aria-pressed="true"]')?.getAttribute('data-calibration-tool') ?? ballInstrument.value,
+  };
+ },
+ snapshot(camera: number) {
+  const state = jawCameras[camera], now = performance.now();
+  const at = camera ? secondaryObservationsAt : observationsAt;
+  const sourceId = recordedInput()?.frameId(state.video) ?? state.video.getVideoPlaybackQuality?.().totalVideoFrames ?? frameClock(state.video)?.frameId;
+  const ballProcessed = sourceId === undefined ? state.lastVideoTime === state.video.currentTime : state.lastJawFrame === sourceId;
+  const currentWorkers = [camera ? detector2 : detector, camera ? fastTracker2 : fastTracker]
+   .filter(worker => worker.lastResultAt >= (frameClock(state.video)?.presentedAt ?? now) - 1);
+  const markers = (camera ? liveSecondMarkers() : liveMarkers()).map(marker => ({
+   ...marker,
+   current: currentWorkers.some(worker => worker.lastDetectedIds.includes(marker.id)),
+   corners: marker.corners.map(point => ({...point})),
+  }));
+  // Classic diagnostics read existing state only. The marker-relative engine supplies its own readings below.
+  const balls = markerJaws.classicActive() ? state.ballAnchors.flatMap((anchor, index) => {
+   if (!anchor) return [];
+   const track = stripedMotion[camera].get(index), detection = track?.current(now);
+   const plan = track?.plan(now, anchor, recentBallMarker(Math.floor(index / 2), now, camera), state.ballAnchorMarkers[index], 6);
+   const fresh = now - state.lastScan < 220 && ballProcessed;
+   const current = fresh && (isStripedSlot(index) ? !!detection
+    : state.ballPairValidAt[Math.floor(index / 2)] === state.lastScan && !!state.ballCenters[index]);
+   const point = isStripedSlot(index) ? detection ?? plan?.center : state.ballCenters[index] ?? anchor;
+   return [{
+    id: ballNames[Math.floor(index / 2)] + ' ' + (index % 2 ? 'B' : 'A'),
+    x: point?.x ?? anchor.x, y: point?.y ?? anchor.y,
+    radius: detection ? Math.sqrt(detection.count / Math.PI) : 6,
+    state: current ? 'detected' : (plan?.lostMs ?? 0) > 1200 ? 'lost' : 'predicted',
+    confidence: null,
+   }];
+  }) : [];
+  return {
+   at, ballProcessed, markerCurrent: markers.some(marker => marker.current),
+   markers: now - at < 220 ? markers : [],
+   width: (camera ? overlay2 : overlay).width, height: (camera ? overlay2 : overlay).height,
+   ballWidth: 640, ballHeight: state.ballCanvas.height,
+   balls, status: stereoViewLabel.textContent ?? '', confidence: null,
+   jawEngine: 'classic', ballSupported: true,
+   poses: [...liveTargets].filter(([, target]) => now - target.lastSeen < 220).map(([instrument, target]) => ({
+    instrument, markerId: target.id,
+    markerPose: {camera: 0, translationMm: target.pose.position.toArray(), quaternion: target.pose.quaternion.toArray(), reprojectionErrorPx: target.pose.reprojectionError},
+    position: target.position.toArray(), quaternion: target.quaternion.toArray(), at: target.lastSeen,
+   })),
+   stereo: stereoActive(),
+   ...(!markerJaws.classicActive() ? markerJawDiagnostics(markerJaws.snapshot(now), camera) : {}),
+  };
+ },
+ async process(camera: number, at: number) {
+  if (!recordedInput()) throw new Error('Recorded frame input is required');
+  await (camera ? detectSecondFrame(at) : detectFrame(at));
+  const started = Date.now();
+  while (detector.busy || detector2.busy || fastTracker.busy || fastTracker2.busy || fastProcessing || fastProcessing2
+   || processing || processing2 || [...stripedSearchWorkers.values()].some(search => search.busy)) {
+   if (Date.now() - started > 20000) throw new Error('Tracking worker timed out');
+   await new Promise(resolve => setTimeout(resolve, 1));
+  }
+  updateLiveTargets();
+  animate(at);
+  drawBallOutlines(camera);
+  return this.snapshot(camera);
+ },
+};

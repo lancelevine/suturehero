@@ -1,3 +1,4 @@
+import {recordedInput} from '../trackingLab/runtime';
 /**
  * Camera device helpers shared by the tracking page: which mode to request
  * from a webcam, listing devices, remembering the chosen device, and the
@@ -33,10 +34,12 @@ export function cameraConstraints(deviceId?: string): MediaStreamConstraints {
 }
 
 export async function openCamera(deviceId?: string): Promise<MediaStream> {
+  if(recordedInput())return recordedInput()!.open(deviceId);
   return navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId));
 }
 
 export async function availableCameras(): Promise<MediaDeviceInfo[]> {
+  if(recordedInput())return recordedInput()!.devices;
   const devices = await navigator.mediaDevices.enumerateDevices();
   return devices.filter((device) => device.kind === 'videoinput');
 }

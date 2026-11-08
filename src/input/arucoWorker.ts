@@ -57,7 +57,10 @@ function createFastThreshold(mult:readonly number[],shift:readonly number[],fall
 }
 // End full-scan blur implementation.
 const workerScope=self as DedicatedWorkerGlobalScope & {AR?:ArucoGlobal;CV?:CvGlobal};
-const base='https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
+// Legacy direct worker clients may omit URLs. The app supplies bundled assets.
+const legacyLibraryBase='https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/';
+let sourceTimestamp:number|undefined;
+const sourceNow=()=>sourceTimestamp??performance.now();
 let detector:LegacyDetector|null=null;
 let grayscaleFrame:ImageData|null=null;
 let timings:Record<string,number>={};
@@ -76,9 +79,9 @@ function cornersOf(candidate:unknown,ratio:number):Array<{x:number;y:number}>|nu
  const pts=vertices.map((p:unknown)=>{if(Array.isArray(p))return {x:Number(p[0])*ratio,y:Number(p[1])*ratio};const q=p as {x?:number;y?:number};return {x:Number(q?.x)*ratio,y:Number(q?.y)*ratio};});
  return pts.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))?pts:null;
 }
-async function initialize(){
+async function initialize(libraries?:{cv:string;aruco:string}){
  if(detector)return;
- importScripts(base+'cv.js',base+'aruco.js');
+ importScripts(libraries?.cv??legacyLibraryBase+'cv.js',libraries?.aruco??legacyLibraryBase+'aruco.js');
  if(!workerScope.AR)throw Error('ArUco library did not initialize in worker');
  workerScope.AR.DICTIONARIES.SUTUREHERO_4X4_50={nBits:16,tau:2,codeList:MARKER_CODES};
  detector=new workerScope.AR.Detector({dictionaryName:'SUTUREHERO_4X4_50',maxHammingDistance:2});
@@ -215,7 +218,7 @@ function recoverNative(frame:ImageData,original:MarkerObservation[]){
  const ids=new Set([...original,...found].map(m=>m.id));
  // Recover recently seen faces locally at native resolution. Recognizing one
  // easy face must not suppress recovery of the other instruments/faces.
- for(const marker of roiHints.filter(m=>!ids.has(m.id)&&performance.now()-(hintSeenAt.get(m.id)??-Infinity)<1500).slice(0,3)){
+ for(const marker of roiHints.filter(m=>!ids.has(m.id)&&sourceNow()-(hintSeenAt.get(m.id)??-Infinity)<1500).slice(0,3)){
   const xs=marker.corners.map(p=>p.x),ys=marker.corners.map(p=>p.y);
   const side=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));
   if(side>240)continue;
@@ -231,8 +234,8 @@ function recoverNative(frame:ImageData,original:MarkerObservation[]){
  }
  // Always retain the baseline full scan. Periodic alternate full scans also
  // discover new weak faces, even while another marker is recognized.
- if(original.length===0||performance.now()-lastAdaptiveScan>=500){
-  lastAdaptiveScan=performance.now();
+ if(original.length===0||sourceNow()-lastAdaptiveScan>=500){
+  lastAdaptiveScan=sourceNow();
   const explore=lastAdaptiveScan-lastAdaptiveExplore>=1000;
   if(explore){lastAdaptiveExplore=lastAdaptiveScan;adaptiveProfile=(adaptiveProfile+1)%adaptiveProfiles.length;}
   let adaptiveFound=false;
@@ -252,7 +255,7 @@ function detect(frame:ImageData){
  grayscaleFrame=null;
  timings={};
  const start=performance.now();
- const now=performance.now();
+ const now=sourceNow();
  const recovering=consecutiveRoiMisses>0||[...recoveryMisses.values()].some(n=>n>0);
  // Prioritize reliable reacquisition over ROI speed: stale ROI hints can
  // repeatedly miss a perfectly still, clearly visible marker.
@@ -300,20 +303,21 @@ function detect(frame:ImageData){
  const unique=new Map<number,MarkerObservation>();
  for(const marker of all)if(isSupportedMarkerId(marker.id)&&marker.corners.length===4&&!unique.has(marker.id))unique.set(marker.id,marker);
  const refinementStarted=performance.now();const decoded=refineCorners(frame,[...unique.values()]);timings['corner refinement']=performance.now()-refinementStarted;
- if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=performance.now();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded){merged.set(m.id,m);hintSeenAt.set(m.id,performance.now());}roiHints=[...merged.values()];}
+ if(decoded.length){for(const marker of decoded)recoveryMisses.delete(marker.id);lastSuccessfulDecodeAt=sourceNow();const merged=new Map(roiHints.map(m=>[m.id,m]));for(const m of decoded){merged.set(m.id,m);hintSeenAt.set(m.id,sourceNow());}roiHints=[...merged.values()];}
  // Expire stale search hints: a marker that has been absent should not
  // permanently trap the decoder in the wrong part of the image.
- if(!decoded.length&&performance.now()-lastSuccessfulDecodeAt>4000){roiHints=[];consecutiveRoiMisses=0;}
+ if(!decoded.length&&sourceNow()-lastSuccessfulDecodeAt>4000){roiHints=[];consecutiveRoiMisses=0;}
  const found=[...decoded];
  return {found,candidates,diagnostics:{timings,candidateCount:candidates.length,rawMarkerCount:new Set(all.map(m=>m.id)).size,recognizedCount:found.length,rejectedCount:all.filter(m=>!isSupportedMarkerId(m.id)).length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':'No tracked marker'),pass,contrast}};
 }
-self.onmessage=async(e:MessageEvent<{type:string;frame?:ImageData;id?:number;flowOnly?:boolean;markers?:MarkerObservation[];origin?:{x:number;y:number}}>)=>{
+self.onmessage=async(e:MessageEvent<{type:string;at?:number;frame?:ImageData;id?:number;flowOnly?:boolean;libraries?:{cv:string;aruco:string};markers?:MarkerObservation[];origin?:{x:number;y:number}}>)=>{
  try{
-  if(e.data.type==='init'){await initialize();self.postMessage({type:'ready'});}
+  sourceTimestamp=e.data.at;
+  if(e.data.type==='init'){await initialize(e.data.libraries);self.postMessage({type:'ready'});}
   else if(e.data.type==='seed'){
    const markers=(e.data.markers??[]).map(m=>({...m,corners:m.corners.map(p=>({x:p.x-frameOrigin.x,y:p.y-frameOrigin.y}))}));
    const merged=new Map(roiHints.map(m=>[m.id,m]));
-   for(const marker of markers){merged.set(marker.id,marker);hintSeenAt.set(marker.id,performance.now());recoveryMisses.delete(marker.id);}
+   for(const marker of markers){merged.set(marker.id,marker);hintSeenAt.set(marker.id,sourceNow());recoveryMisses.delete(marker.id);}
    roiHints=[...merged.values()];
   }
   else if(e.data.type==='detect'&&e.data.frame){const origin=e.data.origin??{x:0,y:0},dx=frameOrigin.x-origin.x,dy=frameOrigin.y-origin.y;if(dx||dy)roiHints=roiHints.map(m=>({...m,corners:m.corners.map(p=>({x:p.x+dx,y:p.y+dy}))}));frameOrigin=origin;const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}

@@ -1,3 +1,4 @@
+import {recordedInput} from '../trackingLab/runtime';
 /**
  * Messages from the camera tracking code (`src/tracking.ts`) to the practice
  * scene (`src/main.ts`) and the calibration preview.
@@ -61,6 +62,7 @@ export type TrackingMessage = TrackingPoseMessage | JawOpeningMessage | Tracking
  * the practice page) instead of `postMessage` to the parent window.
  */
 export function publishTrackingMessage(message: TrackingMessage, inPage: boolean): void {
+  if(recordedInput())return; // Replay observations never drive the live practice scene.
   if (inPage) window.dispatchEvent(new CustomEvent(message.type, { detail: message }));
   else window.parent.postMessage(message, location.origin);
 }

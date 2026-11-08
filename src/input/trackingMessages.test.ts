@@ -85,3 +85,9 @@ describe('publishing', () => {
     expect(postMessage).toHaveBeenCalledWith(fps, 'https://example.test');
   });
 });
+
+it('does not publish replay observations to live instruments or a parent window',()=>{
+ const dispatchEvent=vi.fn(),postMessage=vi.fn();
+ vi.stubGlobal('window',{sutureRecordedInput:{},dispatchEvent,parent:{postMessage}});
+ try{publishTrackingMessage(pose as Parameters<typeof publishTrackingMessage>[0],true);publishTrackingMessage(pose as Parameters<typeof publishTrackingMessage>[0],false);expect(dispatchEvent).not.toHaveBeenCalled();expect(postMessage).not.toHaveBeenCalled();}finally{vi.unstubAllGlobals();}
+});

@@ -11,7 +11,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
-    "test:layout": "npm run build && node scripts/check-layout.mjs"
+    "test:layout": "npm run build && node scripts/check-layout.mjs",
+    "test:tracking-lab": "vitest run src/trackingLab src/input",
+    "test:tracking-lab:browser": "node scripts/check-tracking-lab.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

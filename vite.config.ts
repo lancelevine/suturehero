@@ -11,6 +11,7 @@ export default defineConfig({
   define: { __SUTUREHERO_BUILD__: JSON.stringify(buildNumber), __SUTUREHERO_REVISION__: JSON.stringify(revision.slice(0,7)) },
   build: { rollupOptions: { input: {
     main: fileURLToPath(new URL('./index.html', import.meta.url)),
+    trackingEngine: fileURLToPath(new URL('./tracking-engine.html', import.meta.url)),
     tracking: fileURLToPath(new URL('./tracking.html', import.meta.url)),
   } } },
 });
