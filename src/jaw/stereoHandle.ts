@@ -41,12 +41,14 @@ export const prismApothem = (faceWidthMm: number) => faceWidthMm / (2 * Math.sqr
 
 /**
  * The prism's central axis next to one face: the face's centre moved inward by
- * the prism's apothem, so every face gives (nearly) the same point. Inward is
- * corner0→1 × corner0→3 for markers in ArUco corner order (into the object).
+ * the prism's apothem, so every face gives (nearly) the same point. For
+ * markers in ArUco corner order, corner0→1 × corner0→3 points out of the
+ * object (towards the viewer), so inward is its negation.
  */
 export function prismAxisPoint(corners: Vector3[], apothemMm: number): Vector3 {
   const center = corners.reduce((sum, p) => sum.add(p), new Vector3()).multiplyScalar(0.25);
-  const inward = new Vector3().crossVectors(corners[1].clone().sub(corners[0]), corners[3].clone().sub(corners[0])).normalize();
+  const outward = new Vector3().crossVectors(corners[1].clone().sub(corners[0]), corners[3].clone().sub(corners[0])).normalize();
+  const inward = outward.negate();
   return center.addScaledVector(inward, apothemMm);
 }
 

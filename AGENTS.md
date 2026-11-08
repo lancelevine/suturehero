@@ -88,7 +88,8 @@ area they cover; they are not run by CI.
   monochrome, 120 fps, camera type set to match. Single-camera checks pass
   with it (2026-11-08); two-camera checks embed 960×540 calibrations.
 - Known failing before 2026-11-07: `check-dual-camera-fit`; flaky:
-  `check-depth-stability` (see handoff log).
+  `check-depth-stability`, `check-handle-jaws` (single-camera prism: mirror
+  flips at single-face poses, usually −15,60,0 or −15,300,0) (see handoff log).
 
 Never weaken a test threshold just to make it pass. If a limit is genuinely
 wrong, say why in the commit message and the handoff entry.

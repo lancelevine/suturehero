@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { localCorners } from '../input/prismPose';
 import type { StereoCalibration } from '../input/stereoGeometry';
 import { inRingFrame, parseStereoHandle, prismApothem, prismAxisPoint, robustPoint, serializeStereoHandle, stereoOpening, triangulateMarker } from './stereoHandle';
 
@@ -14,7 +15,7 @@ const project = (p: Vector3, camera: 0 | 1) => {
 
 /** Corners of a 12 mm square face (ArUco corner order) whose inward normal is `inward`, centred at `center`. */
 function face(center: Vector3, inward: Vector3, up: Vector3) {
-  const right = new Vector3().crossVectors(inward, up).normalize();
+  const right = new Vector3().crossVectors(up, inward).normalize();
   const down = up.clone().negate();
   return [[-6, -6], [6, -6], [6, 6], [-6, 6]].map(([x, y]) => center.clone().addScaledVector(right, x).addScaledVector(down, y));
 }
@@ -31,6 +32,14 @@ describe('stereo handle prism', () => {
       return tri ? prismAxisPoint(tri, apothem) : null;
     });
     for (const point of results) expect(point!.distanceTo(axis)).toBeLessThan(1e-6);
+  });
+
+  it('finds the same axis point from every face of the real prism layout', () => {
+    // localCorners('prism') is the layout the pose solver matches against detected ArUco corners.
+    const width = localCorners(0, 'prism')[0].distanceTo(localCorners(0, 'prism')[1]);
+    for (let face = 0; face < 3; face++) {
+      expect(prismAxisPoint(localCorners(face, 'prism'), prismApothem(width)).length()).toBeLessThan(1e-9);
+    }
   });
 
   it('measures opening from position in the ring frame, unaffected by rolling the instrument', () => {

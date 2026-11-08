@@ -174,20 +174,13 @@ try {
   await capture('open', 'Stereo calibrated');
   console.log('calibration:', await status());
   const results = [];
-  // Known issue (also fails the single-camera check): at euler (−15, 300, 0) the ring is seen with nearly
-  // edge-on faces and its pose — hence the prism's position relative to it — is off. Reported, not asserted,
-  // until the ring pose at that angle is fixed (see docs/AGENT_HANDOFF.md).
-  const KNOWN_ISSUE_POSES = new Set(['-15,300,0']);
+  // (−15, 300, 0) shows only prism face 30 (calibrated on face 8): checks that every face gives the same prism axis.
   for (const [hingeDeg, expected, euler] of [[10, 0.5, null], [0, 0, null], [20, 1, null], [10, 0.5, [-15, 205, 0]], [10, 0.5, [-15, 300, 0]]]) {
     await page.evaluate(([h, e]) => { window.__scene.hingeDeg = h; if (e) window.__scene.euler = e; }, [hingeDeg, euler]);
     await wiggle(1500);
     const text = await readout();
     const match = /(\d+)% open/.exec(text ?? '');
     results.push({hingeDeg, expected, measured: match ? Number(match[1]) / 100 : null, readout: text});
-    if (euler && KNOWN_ISSUE_POSES.has(euler.join(','))) {
-      console.log('KNOWN ISSUE (not asserted):', JSON.stringify(results.at(-1)));
-      continue;
-    }
     assert(match && /stereo 3D/.test(text), JSON.stringify(results));
     assert(Math.abs(Number(match[1]) / 100 - expected) <= OPENING_TOLERANCE, JSON.stringify(results));
   }

@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.125 — stereo handle prism: every face now gives the same axis point
+
+Two-camera jaw tracking turns each triangulated prism face into a point on
+the prism's centre line. The step from the face to the centre line went
+outward instead of inward, so each face gave a point about two apothems
+(≈ 11 mm for 19 mm faces) away from the others. When the visible face
+changed (e.g. rolling the instrument), the opening reading jumped. In the
+synthetic two-camera check the pose that shows only face 30 now reads 44%
+instead of 89% (true 50%). Synthetic test only; not yet tried on hardware.
+
 ## Build 0.124 — whole-frame marker scans split into quarters
 
 While instruments are tracked, each camera looked for new instruments with
