@@ -6,6 +6,7 @@ import {cameraImage,recordedInput} from './trackingLab/runtime';
 import {BallMotionTracker,validJawBall} from './input/BallMotionTracker';
 import {findSphereSilhouette} from './input/sphereSilhouette';
 import {solveStereoRigPose,type StereoRigDiagnostics,type StereoRigPose} from './input/stereoRigPose';
+import {StereoPoseFilter} from './input/StereoPoseFilter';
 import {jawCameraParticipates} from './input/jawCameraMode';
 import {findStripedBalls,type StripedBallDiagnostics} from './input/stripedBallSearch';
 import {RingPoseTracker} from './input/RingPoseTracker';
@@ -253,7 +254,7 @@ function updateTrackerDescription(){
 function resetTrackerPose(){
  instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
- rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();
+ rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();stereoPoseFilters.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
  poseHistory.clear();depthHistory.clear();depthHistoryStamps.clear();
 }
@@ -270,6 +271,7 @@ updateTrackerDescription();
 
 const rotationFaceStates=new Map<InstrumentName,{id:number;pending:THREE.Quaternion|null;count:number}>();
 const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;lastSample:number}>();
+const stereoPoseFilters=new Map<InstrumentName,StereoPoseFilter>();
 
 type StereoRotation=StereoRigPose;
 const ringPoseTrackers=new Map<InstrumentName,RingPoseTracker>();
@@ -1747,8 +1749,10 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      const previous=stereoPositions.get(name),sampleAt=synchronized.at;
      if(previous?.lastSample===sampleAt)continue;
      const measured=stereoPracticePosition(rigid.translation);
-     if(previous){previous.position.copy(measured);previous.quaternion.copy(rigid.quaternion);previous.lastSeen=sampleAt;previous.lastSample=sampleAt;}
-     else stereoPositions.set(name,{position:measured,quaternion:rigid.quaternion.clone(),lastSeen:sampleAt,lastSample:sampleAt});
+     let filter=stereoPoseFilters.get(name);if(!filter){filter=new StereoPoseFilter();stereoPoseFilters.set(name,filter);}
+     filter.update(measured,rigid.quaternion,sampleAt);
+     if(previous){previous.position.copy(filter.position);previous.quaternion.copy(filter.quaternion);previous.lastSeen=sampleAt;previous.lastSample=sampleAt;}
+     else stereoPositions.set(name,{position:filter.position.clone(),quaternion:filter.quaternion.clone(),lastSeen:sampleAt,lastSample:sampleAt});
     }
     stereo3dStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';
    }
@@ -1773,7 +1777,7 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.87',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.88',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
 
 /** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
 export const trackingLabBridge = {

@@ -8,8 +8,13 @@ entry when finishing.
 
 - **In progress:** none
 - **Needs Lance to test by hand:**
-  - **Stereo correction (build 0.85):** reload, test the needle driver in both
-    cameras with unused instruments out of view, and confirm triangulation.
+  - **Stereo stabilization (build 0.88):** reload, hold the needle driver
+    still, and confirm that the virtual instrument no longer jumps. Then move
+    it deliberately and check that response remains usable. The supplied
+    1.9-second Lab recording showed ACTIVE fits around 0.6–1.1 px alongside
+    large pose discontinuities, motivating the continuity gate.
+  - **Stereo correction (build 0.85):** test the needle driver in both cameras
+    with unused instruments out of view, and confirm triangulation.
     IDs 2/3 on another instrument currently overlap the needle-driver group.
     Recapture ring mono Near/Far and marker-relative jaw calibrations made
     before this correction. Keep the existing checkerboard stereo calibration.
@@ -104,6 +109,17 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-08 — Codex — Stabilize accepted stereo poses
+- Changed: build 0.88 adds a stereo-only continuity gate and fixed temporal
+  filter before accepted metric poses reach the virtual instrument. One-off
+  position/orientation discontinuities are held; three consistent samples can
+  reacquire a sustained new pose. Mono tracking is unchanged.
+- Evidence: Lance's 1.9-second recording contained 61 diagnostic frames with
+  ACTIVE ID 7 fits around 0.6–1.1 px, while pose samples still had large
+  discontinuities. This distinguishes fit acceptance from temporal stability.
+- Checked: TypeScript, production build, and 18 focused stereo/filter tests.
+- Lance to test: stationary stability and deliberate movement on build 0.88.
 
 ### 2026-11-08 — Codex — Save Lance's faster workflow preferences
 - Changed: AGENTS.md now requires focused scope, targeted local checks with

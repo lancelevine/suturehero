@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.88 — stereo pose stabilization
+
+Accepted stereo measurements now pass through a stereo-only continuity gate
+and temporal filter before moving the virtual instrument. Isolated alternate
+pose solutions are rejected, while a sustained new pose can reacquire after
+three consistent samples. The normal render filter and mono tracking path are
+unchanged.
+
 ## Build 0.87 — Tracking Lab: reachable controls and compact export
 
 The Tracking Lab now scrolls within its own area, so Import, the recording

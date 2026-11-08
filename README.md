@@ -6,7 +6,7 @@ microsurgery, from the guided needle pass through free instrument tying. You
 can move the instruments with the keyboard, or with real instruments tracked
 by a webcam.
 
-**Status:** research prototype (build 0.85). Tissue, thread and knot behavior
+**Status:** research prototype (build 0.88). Tissue, thread and knot behavior
 are approximate models in arbitrary sandbox units, and camera tracking has been
 checked mostly with synthetic camera tests. SutureHero is **not** a validated
 clinical training or assessment tool yet.
