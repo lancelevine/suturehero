@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium} from 'playwright-core';
+import {cameraPreset, presetCalibration} from './synthetic-camera.mjs';
 
 const base = process.env.SUTURE_TEST_URL ?? 'http://127.0.0.1:5173/';
 /** Allowed error in the reported opening (fraction of closed→open). */
@@ -24,7 +25,8 @@ const browser = await chromium.launch({
 async function installCamera(page) {
   await page.context().route('**/scripts/fixtures/aruco-4x4-50.png', async (route) =>
     route.fulfill({contentType: 'image/png', body: await readFile(new URL('./fixtures/aruco-4x4-50.png', import.meta.url))}));
-  await page.addInitScript(() => {
+  await page.addInitScript((preset) => {
+    if (preset) localStorage.setItem('suturehero.cameraMode.v1', preset.cameraMode);
     localStorage.setItem('suturehero.trackerType', 'ring8');
     localStorage.setItem('suturehero.jawEngine.v1', 'handle');
     window.__scene = {swapFaces: !!window.__swapFaces, hingeDeg: 0, euler: [-15, 180, 0], translation: [10, -20, 380], frames: 0};
@@ -109,12 +111,25 @@ async function installCamera(page) {
         requestAnimationFrame(draw);
       };
       draw();
-      const stream = canvas.captureStream(30);
+      // SUTURE_CAMERA_PRESET: deliver the 960×540 scene at the preset size (scaled to the
+      // frame height and centred, monochrome), as scripts/synthetic-camera.mjs does.
+      let output = canvas;
+      if (preset) {
+        output = document.createElement('canvas');
+        output.width = preset.width;
+        output.height = preset.height;
+        const o = output.getContext('2d');
+        const scale = preset.height / H, offset = (preset.width - W * scale) / 2;
+        if (preset.monochrome) o.filter = 'grayscale(1)';
+        const copy = () => { o.drawImage(canvas, offset, 0, W * scale, H * scale); requestAnimationFrame(copy); };
+        copy();
+      }
+      const stream = output.captureStream(preset?.frameRate ?? 30);
       const track = stream.getVideoTracks()[0], settings = track.getSettings.bind(track);
       track.getSettings = () => ({...settings(), deviceId: secondary ? 'ring2' : 'ring'});
       return stream;
     };
-  });
+  }, cameraPreset() ?? null);
 }
 
 try {
@@ -142,7 +157,7 @@ try {
   const f = 960 / (2 * Math.tan((70 * Math.PI) / 360 / 2));
   const lens = {cameraMatrix: [[f, 0, 480], [0, f, 270], [0, 0, 1]], distortionCoefficients: [0, 0, 0, 0, 0]};
   const calibration = {format: 'suturehero-stereo-calibration-v1', imageSize: {width: 960, height: 540}, camera1: lens, camera2: lens, stereo: {rotation: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], translationMm: [-60, 0, 0], baselineMm: 60, rmsPx: 0}};
-  await page.locator('#stereo-import').setInputFiles({name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(calibration))});
+  await page.locator('#stereo-import').setInputFiles({name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(presetCalibration(calibration)))});
   await page.waitForFunction(() => document.querySelector('#stereo-geometry-status').textContent.includes('Calibration loaded'));
   await page.locator('#stereo-enable').evaluate((e) => { e.checked = true; e.dispatchEvent(new Event('change', {bubbles: true})); });
   // This synthetic prism is the 3-face model with 12 mm faces (markers fill them); the setting must match the

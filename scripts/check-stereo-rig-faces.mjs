@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium} from 'playwright-core';
-import {installSyntheticCamera} from './synthetic-camera.mjs';
+import {installSyntheticCamera,presetCalibration} from './synthetic-camera.mjs';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 try{
  const context=await browser.newContext({viewport:{width:1440,height:1000}}),page=await context.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));
@@ -18,7 +18,7 @@ try{
  await page.locator('#tracking-mode').selectOption('stereo',{force:true});
  const camera={cameraMatrix:[[700,0,480],[0,700,270],[0,0,1]],distortionCoefficients:[0,0,0,0,0]};
  const calibration={format:'suturehero-stereo-calibration-v1',imageSize:{width:960,height:540},camera1:camera,camera2:camera,stereo:{rotation:[[0,0,1],[0,1,0],[-1,0,0]],translationMm:[-600,0,500]}};
- await page.locator('#stereo-import').setInputFiles({name:'rig.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(calibration))});await page.waitForFunction(()=>document.querySelector('#stereo-geometry-status').textContent.includes('Calibration loaded'));await page.locator('#stereo-enable').evaluate(e=>{e.checked=true;e.dispatchEvent(new Event('change'));});
+ await page.locator('#stereo-import').setInputFiles({name:'rig.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(presetCalibration(calibration)))});await page.waitForFunction(()=>document.querySelector('#stereo-geometry-status').textContent.includes('Calibration loaded'));await page.locator('#stereo-enable').evaluate(e=>{e.checked=true;e.dispatchEvent(new Event('change'));});
  await page.evaluate(async()=>window.__cal=(await import('/src/input/InstrumentCalibration.ts')).instrumentCalibration);
  await page.waitForFunction(()=>window.__cal.preview('needleDriver')?.depthLocked===false);
  const sample=()=>page.evaluate(()=>{const p=window.__cal.preview('needleDriver');return {position:p.position.toArray(),quaternion:p.quaternion.toArray(),status:document.querySelector('#stereo-3d-points').textContent};});

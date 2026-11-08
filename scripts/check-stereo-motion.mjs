@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium} from 'playwright-core';
-import {installSyntheticCamera} from './synthetic-camera.mjs';
+import {installSyntheticCamera,presetCalibration} from './synthetic-camera.mjs';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 try{
  const context=await browser.newContext({viewport:{width:1440,height:1100}});
@@ -20,7 +20,7 @@ try{
  await page.locator('#tracking-mode').selectOption('stereo',{force:true});
  const camera={cameraMatrix:[[1800,0,480],[0,1800,270],[0,0,1]],distortionCoefficients:[0,0,0,0,0]};
  const calibration={format:'suturehero-stereo-calibration-v1',imageSize:{width:960,height:540},camera1:camera,camera2:camera,stereo:{rotation:[[1,0,0],[0,1,0],[0,0,1]],translationMm:[-60,0,0],baselineMm:60,rmsPx:0}};
- await page.locator('#stereo-import').setInputFiles({name:'synthetic.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(calibration))});
+ await page.locator('#stereo-import').setInputFiles({name:'synthetic.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(presetCalibration(calibration)))});
  await page.waitForFunction(()=>document.querySelector('#stereo-geometry-status').textContent.includes('Calibration loaded'));
  await page.locator('#stereo-enable').evaluate(e=>{e.checked=true;e.dispatchEvent(new Event('change',{bubbles:true}));});
  const position=()=>page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.position.z;});

@@ -2,6 +2,19 @@ import {readFile} from 'node:fs/promises';
 // SUTURE_CAMERA_PRESET=ov9281 rehearses the OV9281 cameras: 1280×800 monochrome at 120 fps
 // (the 960×540 scene is scaled to the frame height and centred), and the app's camera type is set to match.
 const PRESETS={ov9281:{width:1280,height:800,frameRate:120,monochrome:true,cameraMode:'ov9281'}};
+/** The active SUTURE_CAMERA_PRESET (or undefined for the default 960×540 camera). */
+export const cameraPreset=()=>PRESETS[process.env.SUTURE_CAMERA_PRESET];
+/**
+ * A stereo calibration written for the 960×540 scene, rescaled to the frame the
+ * preset camera delivers (scene scaled to the frame height and centred), so the
+ * same check runs at the OV9281 resolution.
+ */
+export function presetCalibration(calibration){
+ const preset=cameraPreset();if(!preset)return calibration;
+ const scale=preset.height/540,offsetX=(preset.width-960*scale)/2;
+ const lens=camera=>({...camera,cameraMatrix:[[camera.cameraMatrix[0][0]*scale,0,camera.cameraMatrix[0][2]*scale+offsetX],[0,camera.cameraMatrix[1][1]*scale,camera.cameraMatrix[1][2]*scale],[0,0,1]]});
+ return {...calibration,imageSize:{width:preset.width,height:preset.height},camera1:lens(calibration.camera1),camera2:lens(calibration.camera2)};
+}
 export async function installSyntheticCamera(page,options={}){
  const preset=PRESETS[process.env.SUTURE_CAMERA_PRESET]??{};
  options={...preset,...options,frameRate:options.frameRate??preset.frameRate,secondFrameRate:options.secondFrameRate??preset.frameRate};
