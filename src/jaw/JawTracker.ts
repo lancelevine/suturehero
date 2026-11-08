@@ -232,6 +232,8 @@ export interface JawBall {
 export interface JawModel {
   ballDiameterMm: number;
   balls: JawBall[];
+  /** 3D ball-to-ball distances from both cameras, when calibrated in stereo. */
+  stereo?: { closedMm: number; openMm: number };
 }
 
 /**
@@ -395,6 +397,7 @@ export interface SavedJawModel {
   ringLayout?:number;
   ballDiameterMm: number;
   balls: Array<{ closed: [number, number, number]; open: [number, number, number] }>;
+  stereo?: { closedMm: number; openMm: number };
 }
 
 export function serializeJawModel(model: JawModel, trackerType: string): SavedJawModel {
@@ -405,6 +408,7 @@ export function serializeJawModel(model: JawModel, trackerType: string): SavedJa
     ringLayout:RING_LAYOUT_REVISION,
     ballDiameterMm: model.ballDiameterMm,
     balls: model.balls.map((ball) => ({ closed: ball.closed.toArray(), open: ball.open.toArray() })),
+    ...(model.stereo ? { stereo: { ...model.stereo } } : {}),
   };
 }
 
@@ -433,5 +437,10 @@ export function parseJawModel(value: unknown, trackerType: string): JawModel | n
     if (!closed || !open) return null;
     balls.push({ closed, open });
   }
-  return balls.length ? { ballDiameterMm: diameter, balls } : null;
+  if (!balls.length) return null;
+  const stereo = (saved as { stereo?: { closedMm?: unknown; openMm?: unknown } }).stereo;
+  const valid = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 200;
+  return stereo && valid(stereo.closedMm) && valid(stereo.openMm)
+    ? { ballDiameterMm: diameter, balls, stereo: { closedMm: stereo.closedMm, openMm: stereo.openMm } }
+    : { ballDiameterMm: diameter, balls };
 }

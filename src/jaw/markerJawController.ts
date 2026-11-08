@@ -1,14 +1,18 @@
 import {cameraImage,cameraImageId} from '../trackingLab/runtime';
 import type { MarkerObservation } from '../input/arucoTracking';
-import { solvePrismPose, type PrismPose, type TrackerType } from '../input/prismPose';
+import { solvePrismPose, trackerGeometry, type PrismPose, type TrackerType } from '../input/prismPose';
 import { readStored, readStoredJson, TRACKING_STORAGE_KEYS, writeStored } from '../input/trackingStorage';
 import type { TrackedInstrument } from '../input/trackingMessages';
+import type { StereoCalibration } from '../input/stereoGeometry';
+import { expectedSpacing, median, openingFromDistance, stereoBallPair } from './stereoBallDistance';
 import { findBrightBalls, grayFromRGBA } from './brightBalls';
 import { defaultIntrinsics, projectBodyPoint, type Pixel } from './jawGeometry';
 import {
   ballRadiusPx,
   buildJawModel,
   DEFAULT_BALL_DIAMETER_MM,
+  HOLD_MS,
+  SMOOTHING,
   JawCapture,
   JawTracker,
   MIN_CAPTURE_SAMPLES,
@@ -41,6 +45,14 @@ export interface MarkerJawHost {
   firstMarkerId(instrument: TrackedInstrument): number;
   /** Deliver an opening (0 closed … 1 open) to the scene and previews. */
   publish(instrument: TrackedInstrument, opening: number): void;
+  /** Camera 2, for measuring the 3D ball-to-ball distance in stereo. */
+  second?: {
+    video: HTMLVideoElement;
+    overlay: HTMLCanvasElement;
+    markers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+  };
+  /** The stereo calibration while stereo tracking is active, else null. */
+  stereoCalibration?(): StereoCalibration | null;
 }
 
 export interface MarkerJawSnapshot {current:boolean;width:number;height:number;readings:Array<{instrument:TrackedInstrument;reading:JawReading}>;}
@@ -58,6 +70,11 @@ const MAX_CROP_PX = 256;
 /** Markers' white borders look like bright blobs; ignore a margin around them. */
 const MARKER_MASK_GROWTH = 1.25;
 const BALLS_PER_INSTRUMENT = 2;
+/** Search this many marker sides around the ring for jaw balls in stereo. */
+const STEREO_SEARCH_MARKER_SIDES = 6;
+const MAX_STEREO_CANDIDATES = 6;
+/** The closed/open 3D ball distances must differ by at least this much. */
+const MIN_STEREO_SPAN_MM = 2;
 /** Ball sizes tried when snapping a click, relative to the diameter setting (each try accepts ~0.55–1.5×). */
 const SNAP_SIZE_GUESSES = [1, 0.6, 0.4, 1.6];
 
@@ -143,6 +160,11 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   const readings = new Map<TrackedInstrument, JawReading>();
   /** Ball diameters measured at the closed/open clicks, mm. */
   const measuredDiameters = new Map<TrackedInstrument, Partial<Record<JawPose, number>>>();
+  /** 3D ball distances sampled during the closed/open captures, and their medians. */
+  const stereoSamples: number[] = [];
+  const stereoCaptured = new Map<TrackedInstrument, Partial<Record<JawPose, number>>>();
+  const stereoOpenings = new Map<TrackedInstrument, { opening: number; at: number }>();
+  const trackerGeometryMarkerMm = () => trackerGeometry(host.trackerType()).markerSizeMm;
   let lastVideoTime = -1;
   let lastImageId=-1;
   let lastReadAt=-Infinity;
@@ -218,8 +240,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     return pose;
   }
 
-  function sample(region: Region): SampledRegion | null {
-    const { video, overlay } = host;
+  function sample(region: Region, camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement } = host): SampledRegion | null {
+    const { video, overlay } = camera;
     if (!video.videoWidth || !overlay.width) return null;
     const x0 = Math.max(0, Math.floor(region.x));
     const y0 = Math.max(0, Math.floor(region.y));
@@ -235,6 +257,48 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     cropContext.drawImage(cameraImage(video), x0 * toVideo, y0 * toVideo, (x1 - x0) * toVideo, (y1 - y0) * toVideo, 0, 0, width, height);
     const image = grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
     return { image, region: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, scale: width / (x1 - x0) };
+  }
+
+  /** White-ball candidates near one camera's view of an instrument's ring, in that camera's overlay pixels. */
+  function ballCandidates(camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement }, markers: MarkerObservation[], diameterMm: number): Pixel[] {
+    if (!markers.length) return [];
+    const corners = markers.flatMap((m) => m.corners);
+    const cx = corners.reduce((sum, p) => sum + p.x, 0) / corners.length;
+    const cy = corners.reduce((sum, p) => sum + p.y, 0) / corners.length;
+    const side = Math.max(...markers.map((m) => Math.hypot(m.corners[1].x - m.corners[0].x, m.corners[1].y - m.corners[0].y)));
+    const half = side * STEREO_SEARCH_MARKER_SIDES;
+    const region = sample({ x: cx - half, y: cy - half, width: half * 2, height: half * 2 }, camera);
+    if (!region) return [];
+    const { scale } = region;
+    const masks = markers.map((m) => grownQuad(m.corners));
+    const ignore = (x: number, y: number) => masks.some((quad) => insideConvex({ x: region.region.x + x / scale, y: region.region.y + y / scale }, quad));
+    // Ball radius from the marker's apparent size (12 mm square) and the ball diameter.
+    const radius = (side * diameterMm) / 2 / trackerGeometryMarkerMm();
+    const found: Pixel[] = [];
+    for (const factor of [1, 0.6, 1.6]) {
+      for (const ball of findBrightBalls(region.image, radius * factor * scale, { ignore })) {
+        const point = { x: region.region.x + ball.x / scale, y: region.region.y + ball.y / scale };
+        if (!found.some((p) => Math.hypot(p.x - point.x, p.y - point.y) < radius)) found.push(point);
+      }
+    }
+    return found.slice(0, MAX_STEREO_CANDIDATES);
+  }
+
+  /**
+   * 3D distance between the two jaw balls from both cameras, or null.
+   * `known` gives camera-1 ball positions already being followed (during
+   * calibration), and `range` the plausible spacing (during tracking), so
+   * steel highlights or other bright spots cannot pair up by mistake.
+   */
+  function stereoDistance(name: TrackedInstrument, now: number, diameterMm: number, known?: readonly Pixel[], range?: { minMm: number; maxMm: number }): number | null {
+    const calibration = host.stereoCalibration?.();
+    const second = host.second;
+    if (!calibration || !second || !second.video.videoWidth || !second.overlay.width) return null;
+    const first = known ? [...known] : ballCandidates(host, host.markers(name, now), diameterMm);
+    const other = ballCandidates(second, second.markers(name, now), diameterMm);
+    if (first.length < 2 || other.length < 2) return null;
+    const pair = stereoBallPair(calibration, first, other, host.overlay, second.overlay, undefined, range);
+    return pair ? pair.distanceMm : null;
   }
 
   function frameFor(name: TrackedInstrument, now: number): JawFrame | null {
@@ -303,6 +367,9 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     const entry = captured.get(name) ?? {};
     entry[capture.jaw] = result;
     captured.set(name, entry);
+    const distance = median(stereoSamples);
+    stereoSamples.length = 0;
+    if (distance !== null) stereoCaptured.set(name, { ...stereoCaptured.get(name), [capture.jaw]: distance });
     cancel('');
     if ('error' in result) {
       status.textContent = `${LABELS[name]} ${capture.jaw}: ${result.error}`;
@@ -317,6 +384,10 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       if ('error' in model) {
         status.textContent = `${LABELS[name]}: ${model.error}`;
         return;
+      }
+      const distances = stereoCaptured.get(name);
+      if (distances?.closed !== undefined && distances.open !== undefined && Math.abs(distances.open - distances.closed) >= MIN_STEREO_SPAN_MM) {
+        model.stereo = { closedMm: distances.closed, openMm: distances.open };
       }
       trackers.set(name, new JawTracker(model));
       saveModel(name, model);
@@ -429,13 +500,15 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   function describe(name: TrackedInstrument) {
     if (mode.kind === 'capturing' && mode.instrument === name) {
       const progress = mode.capture.progress;
-      return `Capturing ${mode.capture.jaw}: ${Math.min(progress.samples, MIN_CAPTURE_SAMPLES)}/${MIN_CAPTURE_SAMPLES} frames · turned ${progress.spreadDeg.toFixed(0)}°/${MIN_CAPTURE_SPREAD_DEG}°`;
+      return (stereoSamples.length ? `Stereo ball distance ${median(stereoSamples)!.toFixed(1)} mm · ` : '') + `Capturing ${mode.capture.jaw}: ${Math.min(progress.samples, MIN_CAPTURE_SAMPLES)}/${MIN_CAPTURE_SAMPLES} frames · turned ${progress.spreadDeg.toFixed(0)}°/${MIN_CAPTURE_SPREAD_DEG}°`;
     }
     if (!trackers.has(name)) {
       const entry = captured.get(name);
       return entry?.closed && 'points' in entry.closed ? 'Closed captured; capture open next' : 'Not calibrated';
     }
     const reading = readings.get(name);
+    const stereo = stereoOpenings.get(name);
+    if (stereo && performance.now() - stereo.at < HOLD_MS) return `${Math.round(stereo.opening * 100)}% open · stereo 3D ball distance`;
     if (!reading || reading.opening === null) return 'Calibrated · balls or ring markers not visible';
     return `${Math.round(reading.opening * 100)}% open · ${Math.round(reading.confidence * 100)}% of moving balls seen`;
   }
@@ -453,6 +526,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
 
     if (mode.kind === 'capturing') {
       const frame = frameFor(mode.instrument, now);
+      const distance = stereoDistance(mode.instrument, now, mode.capture.ballDiameterMm, mode.capture.positions);
+      if (distance !== null) stereoSamples.push(distance);
       if (frame) {
         const progress = mode.capture.update(frame);
         if (progress.failed) {
@@ -463,6 +538,19 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     }
     for (const [name, tracker] of trackers) {
       if (mode.kind === 'capturing' && mode.instrument === name) continue;
+      // Stereo: the 3D distance between the balls, independent of the ring pose.
+      const stereo = tracker.model.stereo;
+      const distance = stereo ? stereoDistance(name, now, tracker.model.ballDiameterMm, undefined, expectedSpacing(tracker.model.balls) ?? undefined) : null;
+      let published = false;
+      if (stereo && distance !== null) {
+        const raw = openingFromDistance(distance, stereo.closedMm, stereo.openMm);
+        const previous = stereoOpenings.get(name);
+        const opening = previous && now - previous.at < HOLD_MS ? previous.opening + (raw - previous.opening) * SMOOTHING : raw;
+        stereoOpenings.set(name, { opening, at: now });
+        host.publish(name, opening);
+        published = true;
+      }
+      // Otherwise (single camera, or a ball hidden in one camera): ring-relative tracking.
       const frame = frameFor(name, now);
       if (!frame) {
         readings.delete(name);
@@ -470,7 +558,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       }
       const reading = tracker.update(frame);
       readings.set(name, reading);
-      if (reading.opening !== null) host.publish(name, reading.opening);
+      if (!published && reading.opening !== null) host.publish(name, reading.opening);
     }
     readout.textContent = describe(selected());
     draw();

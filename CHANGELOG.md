@@ -5,6 +5,18 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.93 — stereo jaw opening from the 3D ball-to-ball distance
+
+In stereo, the jaw opening now comes from the real 3D distance between the
+two jaw balls, triangulated from both cameras, instead of from where the
+balls sit relative to the ring. It no longer depends on which ring marker
+is visible, or on the instrument's distance or angle. Calibrate closed/open
+records the distance in each state (median over the capture); recalibrate
+the jaws in stereo to enable it. Pairings must have meeting camera rays and
+a spacing near the calibrated one, so stray bright spots are rejected. When
+a ball is not visible in both cameras, the ring-relative method is used.
+Unit-tested; not yet validated on real two-camera footage.
+
 ## Build 0.92 — jaw balls stay locked
 
 The white-ball jaw tracker now locks onto each ball: it predicts where the

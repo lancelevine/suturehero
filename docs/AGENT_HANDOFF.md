@@ -72,6 +72,20 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Stereo jaw opening from 3D ball distance (build 0.93)
+- Changed: new `src/jaw/stereoBallDistance.ts` (triangulate candidate
+  pairings, ray gap ≤ 3 mm, spacing range, median, opening from distance).
+  `markerJawController`: host `second` camera + `stereoCalibration()`
+  (wired in tracking.ts); calibration records distance medians (camera-1
+  balls = the tracked clicked balls); `JawModel.stereo {closedMm, openMm}`
+  saved; at run time stereo distance is preferred, ring method otherwise.
+- Checked: `src/jaw` tests (29); `check-marker-jaws`, Lab jaw check,
+  `check-stereo-motion` pass. Real-data check on Lance's 11:48 PM clip was
+  inconclusive: recorded at ~4 fps/camera with ~100 ms camera offsets; the
+  only raw matches were wrong (~57 mm), which the new spacing filter rejects.
+- Lance to test: recalibrate jaws in stereo; readout should say "stereo 3D
+  ball distance". A higher-FPS Lab recording would allow offline checks.
+
 ### 2026-11-08 — Claude Code — Jaw ball lock-on and bright-spot following (build 0.92)
 - Changed: `JawTracker` keeps a per-ball lock (path fraction, velocity),
   predicts, detects at 1/0.65/1.5× size near the prediction, and falls back
