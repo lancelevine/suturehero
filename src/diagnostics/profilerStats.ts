@@ -153,7 +153,7 @@ export function classifyStage(name: string): StageInfo {
     if (rest === 'flow seed copy') return { camera, category: 'readback', thread: 'main', label: 'Pixel copy: optical-flow seed frame' };
     if (rest === 'jaw frame copy') return { camera, category: 'readback', thread: 'main', nestedIn: 'Jaw tracking', label: 'Pixel readback for jaw ball search' };
     if (rest === 'decode worker') return { camera, category: 'aruco', thread: 'worker', label: 'ArUco marker detection (worker, total)' };
-    if (/^(predicted|expanded|full) decode worker$/.test(rest)) return { camera, category: 'aruco', thread: 'worker', nestedIn: parent('decode worker'), label: `ArUco detection, ${rest.split(' ')[0]} search region` };
+    if (/^(predicted|expanded|full|discovery) decode worker$/.test(rest)) return { camera, category: 'aruco', thread: 'worker', nestedIn: parent('decode worker'), label: `ArUco detection, ${rest.split(' ')[0]} search region` };
     if (rest.startsWith('decode ') && WORKER_SUBSTAGES[rest.slice(7)]) return { camera, category: rest.slice(7) === 'grayscale' ? 'preprocessing' : 'aruco', thread: 'worker', nestedIn: parent('decode worker'), label: WORKER_SUBSTAGES[rest.slice(7)] };
     if (rest === 'flow worker') return { camera, category: 'flow', thread: 'worker', label: 'Marker corner optical flow (worker)' };
     if (rest.startsWith('flow ') && WORKER_SUBSTAGES[rest.slice(5)]) return { camera, category: 'flow', thread: 'worker', nestedIn: parent('flow worker'), label: WORKER_SUBSTAGES[rest.slice(5)] };

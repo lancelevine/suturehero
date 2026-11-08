@@ -69,6 +69,19 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.124: tiled discovery scans
+
+- `src/input/PredictiveDecodeSearch.ts`: region kind `discovery`; 2×2 tiles
+  with overlap max(120 px, 10% of min dimension), one per 250 ms; first
+  scan and recovery stay full; discovery results never count as misses.
+  Tests updated/added (coverage, edge-straddling marker, no miss).
+  Profiler classifies `discovery decode worker`.
+- Checked: PredictiveDecodeSearch tests, tsc; tracking-motion,
+  ring-handoffs, driver-depth, tracking-lab, marker-jaws, handle-jaws-stereo,
+  calibration-preview, profiler, tracking-storage pass; stereo-rig-faces
+  passed 2 reruns. check-stereo-motion: 1/3 pass both before (0.123) and
+  with tiles — same flakiness (near step 0.6–1.0 vs > 1).
+
 ### 2026-11-08 — Claude — Build 0.123: frame-driven capture
 
 - New `src/input/captureScheduling.ts` (+ test): `FrameDrivenSetting`

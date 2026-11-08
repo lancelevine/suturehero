@@ -1,15 +1,24 @@
 import type {MarkerObservation} from './arucoTracking';
-export interface DecodeRegion {left:number;top:number;width:number;height:number;kind:'predicted'|'expanded'|'full';reason:string}
+export interface DecodeRegion {left:number;top:number;width:number;height:number;kind:'predicted'|'expanded'|'full'|'discovery';reason:string}
 /** Native-pixel searches: flow-guided prediction -> expanded search -> full frame.
  * Periodic global scans discover instruments outside the current search region. */
 /** While instruments are tracked, scan the whole frame for new ones this often, ms.
  * Full 1080p scans take ~100 ms and delay the tracked instrument's own decodes. */
 export const DISCOVERY_INTERVAL_MS=1000;
+/**
+ * The periodic discovery scan is split into this many overlapping tiles (2×2),
+ * one per DISCOVERY_INTERVAL_MS / DISCOVERY_TILES, so a whole-frame scan's
+ * 60–160 ms cost (0.116 profile) is spread out instead of stalling one decode.
+ * Recovery scans (nothing tracked, repeated misses) still use the full frame.
+ */
+export const DISCOVERY_TILES=4;
+/** Tile overlap so a marker on a tile edge is wholly inside one tile (px, at least). */
+export const DISCOVERY_OVERLAP_PX=120;
 export class PredictiveDecodeSearch {
  private hints=new Map<number,{marker:MarkerObservation;at:number;vx:number;vy:number}>();
- private lastFull=-Infinity;private misses=0;private expected=new Set<number>();
+ private lastFull=-Infinity;private lastDiscovery=-Infinity;private tile=0;private lastKind:DecodeRegion['kind']='full';private misses=0;private expected=new Set<number>();
  private groups:readonly (readonly number[])[]=[];private dimensions='';
- reset(){this.hints.clear();this.lastFull=-Infinity;this.misses=0;this.expected.clear();}
+ reset(){this.hints.clear();this.lastFull=-Infinity;this.lastDiscovery=-Infinity;this.tile=0;this.misses=0;this.expected.clear();}
  private group(id:number){const index=this.groups.findIndex(ids=>ids.includes(id));return index>=0?index:100+id;}
  plan(markers:readonly MarkerObservation[],now:number,width:number,height:number,enabled:boolean,groups:readonly (readonly number[])[]):DecodeRegion{
   const signature=width+'x'+height+JSON.stringify(groups);if(signature!==this.dimensions){this.reset();this.dimensions=signature;}
@@ -18,11 +27,17 @@ export class PredictiveDecodeSearch {
    this.hints.set(marker.id,{marker:structuredClone(marker),at:now,vx:dt>10?(a.x-b.x)/dt:previous?.vx??0,vy:dt>10?(a.y-b.y)/dt:previous?.vy??0});}
   for(const [id,hint] of this.hints)if(now-hint.at>500)this.hints.delete(id);
   this.expected=new Set([...this.hints.keys()].map(id=>this.group(id)));
-  const full=(reason:string):DecodeRegion=>{this.lastFull=now;return {left:0,top:0,width,height,kind:'full',reason};};
+  const full=(reason:string):DecodeRegion=>{this.lastFull=now;this.lastKind='full';return {left:0,top:0,width,height,kind:'full',reason};};
   if(!enabled)return full('baseline selected');
   if(!this.hints.size)return full('no recent hints');
   if(this.misses>=2)return full('repeated region misses');
-  if(now-this.lastFull>=DISCOVERY_INTERVAL_MS)return full('periodic discovery');
+  if(this.lastFull===-Infinity)return full('first scan');
+  if(now-Math.max(this.lastFull,this.lastDiscovery)>=DISCOVERY_INTERVAL_MS/DISCOVERY_TILES){
+   const index=this.tile;this.tile=(this.tile+1)%DISCOVERY_TILES;this.lastDiscovery=now;this.lastKind='discovery';
+   const overlap=Math.max(DISCOVERY_OVERLAP_PX,Math.round(Math.min(width,height)*.1));
+   const tileW=Math.min(width,Math.ceil(width/2)+overlap),tileH=Math.min(height,Math.ceil(height/2)+overlap);
+   return {left:(index%2)*(width-tileW),top:Math.floor(index/2)*(height-tileH),width:tileW,height:tileH,kind:'discovery',reason:`periodic discovery (tile ${index+1}/${DISCOVERY_TILES})`};
+  }
   let minX=width,minY=height,maxX=0,maxY=0;
   for(const hint of this.hints.values()){
    const corners=hint.marker.corners,side=corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-corners[(i+1)%4].x,p.y-corners[(i+1)%4].y),0)/4;
@@ -32,7 +47,9 @@ export class PredictiveDecodeSearch {
   }
   const left=Math.max(0,Math.floor(minX)),top=Math.max(0,Math.floor(minY)),w=Math.min(width,Math.ceil(maxX))-left,h=Math.min(height,Math.ceil(maxY))-top;
   if(w<=0||h<=0||w*h>width*height*.75)return full('region too large or invalid');
+  this.lastKind=this.misses?'expanded':'predicted';
   return {left,top,width:w,height:h,kind:this.misses?'expanded':'predicted',reason:this.misses?'region miss':'flow prediction'};
  }
- result(markers:readonly MarkerObservation[]){const found=new Set(markers.map(m=>this.group(m.id)));this.misses=markers.length&&[...this.expected].every(group=>found.has(group))?0:this.misses+1;}
+ result(markers:readonly MarkerObservation[]){if(this.lastKind==='discovery')return;// A discovery tile need not contain the tracked instruments: never a miss.
+ const found=new Set(markers.map(m=>this.group(m.id)));this.misses=markers.length&&[...this.expected].every(group=>found.has(group))?0:this.misses+1;}
 }

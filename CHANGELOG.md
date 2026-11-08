@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.124 — whole-frame marker scans split into quarters
+
+While instruments are tracked, each camera looked for new instruments with
+one whole-frame scan per second (60–160 ms each in the 0.116 profile),
+which caused the marker-age spikes. Discovery now scans one overlapping
+quarter of the frame every 250 ms (same full coverage each second, about a
+quarter of the cost each time). Recovery scans (nothing tracked, repeated
+misses) and the first scan still use the whole frame.
+
 ## Build 0.123 — process camera frames as they arrive (for 120 fps cameras)
 
 Camera frames used to be picked up only when the page redraws (about 30 Hz
