@@ -24,7 +24,7 @@ async function installCamera(page) {
   await page.addInitScript(() => {
     localStorage.setItem('suturehero.trackerType', 'ring8');
     localStorage.setItem('suturehero.jawEngine.v1', 'handle');
-    window.__scene = {hingeDeg: 0, euler: [-15, 180, 0], translation: [10, -20, 380], frames: 0};
+    window.__scene = {swapFaces: !!window.__swapFaces, hingeDeg: 0, euler: [-15, 180, 0], translation: [10, -20, 380], frames: 0};
     navigator.mediaDevices.enumerateDevices = async () => [{kind: 'videoinput', deviceId: 'ring', label: 'Synthetic ring camera', groupId: 'g', toJSON() { return {}; }}];
     navigator.mediaDevices.getUserMedia = async () => {
       const [{localCorners, faceGeometry}, {defaultIntrinsics, projectBodyPoint}, {HANDLE_PRISM_IDS}, THREE] = await Promise.all([
@@ -91,7 +91,8 @@ async function installCamera(page) {
         c.fillRect(0, 0, W, H);
         for (let face = 0; face < 8; face++) drawMarker(ring, face, localCorners(face, 'ring8'));
         const hinge = new THREE.Quaternion().setFromAxisAngle(hingeAxis, s.hingeDeg * Math.PI / 180);
-        HANDLE_PRISM_IDS.needleDriver.forEach((id, face) => {
+        // SUTURE_SWAP_FACES: stickers 9 and 30 swapped, as on a prism built in the reverse order.
+        (s.swapFaces ? [8, 30, 9] : HANDLE_PRISM_IDS.needleDriver).forEach((id, face) => {
           const corners = localCorners(face, 'prism').map((p) => p.applyQuaternion(mount).add(prismOrigin).sub(hingePoint).applyQuaternion(hinge).add(hingePoint));
           drawMarker(ring, id, corners);
         });
@@ -118,6 +119,8 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // Must run before installCamera's init script, which reads it.
+  if (process.env.SUTURE_SWAP_FACES) await page.addInitScript(() => { window.__swapFaces = true; });
   await installCamera(page);
   await page.goto(new URL('tracking.html', base).href);
   await page.locator('#ball-enable').evaluate((e) => { e.checked = true; e.dispatchEvent(new Event('change')); });
@@ -139,6 +142,17 @@ try {
   };
 
   await capture('closed', 'closed captured');
+  // Align prism faces (build 0.118): jaws closed, roll through the poses that show faces 9 and 30.
+  const startEuler = await page.evaluate(() => [...window.__scene.euler]);
+  await page.locator('[data-handle-align]').evaluate((b) => b.click());
+  for (const euler of [startEuler, [-15, 60, 0], [-15, 280, 0], startEuler]) {
+    await page.evaluate((e) => { window.__scene.euler = e; }, euler);
+    await page.waitForTimeout(1500);
+  }
+  if (!/Aligned|all prism faces aligned/.test(await status())) await page.locator('[data-handle-align]').evaluate((b) => b.click());
+  await page.waitForFunction(() => /Aligned face|all prism faces aligned/.test(document.querySelector('[data-handle-status]')?.textContent ?? ''), {}, {timeout: 5000})
+    .catch(async () => { throw new Error('alignment: ' + await status()); });
+  console.log('alignment:', await status());
   await page.evaluate(() => { window.__scene.hingeDeg = 20; });
   await page.waitForTimeout(600);
   await capture('open', 'calibrated');

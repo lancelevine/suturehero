@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
+import { faceGeometry } from '../input/prismPose';
 
 /**
  * Jaw opening from a triangular marker prism on the moving handle.
@@ -189,4 +190,85 @@ export class OpeningFilter {
     this.output = null;
     this.pendingJump = null;
   }
+}
+
+/**
+ * Per-face corrections for a prism whose faces are not laid out exactly as
+ * the 3-face model assumes (order reversed, a sticker turned). With the jaws
+ * still, every face must give the same handle-to-ring rotation; a face's
+ * correction maps its reading onto the reference face's. Learned by
+ * "Align prism faces" (handlePrismController.ts).
+ */
+export interface FaceLayout {
+  /** Face index (0–2, order of HANDLE_PRISM_IDS) whose reading is used as-is. */
+  reference: number;
+  /** Correction per face, or null if that face has not been aligned (reference: identity). */
+  corrections: Array<Quaternion | null>;
+}
+
+export function newFaceLayout(reference: number): FaceLayout {
+  return { reference, corrections: [0, 1, 2].map((face) => (face === reference ? new Quaternion() : null)) };
+}
+
+/** Correction for a face from its mean relative rotation and the reference face's, both measured with the jaws still. */
+export function faceCorrection(faceRelative: Quaternion, referenceRelative: Quaternion): Quaternion {
+  return faceRelative.clone().invert().multiply(referenceRelative).normalize();
+}
+
+/** A face's relative rotation expressed as the reference face would read it, or null if the face is not aligned. */
+export function correctedRelative(layout: FaceLayout, face: number, relative: Quaternion): Quaternion | null {
+  const correction = layout.corrections[face];
+  return correction ? relative.clone().multiply(correction).normalize() : null;
+}
+
+export function serializeFaceLayout(layout: FaceLayout) {
+  return { version: 1 as const, reference: layout.reference, corrections: layout.corrections.map((q) => (q ? q.toArray() : null)) };
+}
+
+export function parseFaceLayout(value: unknown): FaceLayout | null {
+  if (!value || typeof value !== 'object') return null;
+  const saved = value as { version?: unknown; reference?: unknown; corrections?: unknown };
+  if (saved.version !== 1 || typeof saved.reference !== 'number' || ![0, 1, 2].includes(saved.reference) || !Array.isArray(saved.corrections) || saved.corrections.length !== 3) return null;
+  const corrections = saved.corrections.map((q) =>
+    Array.isArray(q) && q.length === 4 && q.every((n) => typeof n === 'number' && Number.isFinite(n)) ? new Quaternion(...(q as [number, number, number, number])).normalize() : null,
+  );
+  if (!corrections[saved.reference]) return null;
+  return { reference: saved.reference, corrections };
+}
+
+/** A measured face correction within this angle of a physically possible sticker layout is snapped to it (radians). */
+export const FACE_SNAP_RADIANS = (25 * Math.PI) / 180;
+
+/**
+ * How a face's marker sits on the body, for a sticker that belongs on face k
+ * but sits on face `position`, turned `quarterTurns` × 90° on its face:
+ * derived body = true body × E. (Model marker frames: faceGeometry(·, 'prism').)
+ */
+function stickerError(face: number, position: number, quarterTurns: number): Quaternion {
+  const model = faceGeometry(face, 'prism').rotation;
+  const actual = faceGeometry(position, 'prism').rotation.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), (quarterTurns * Math.PI) / 2));
+  return actual.multiply(model.clone().invert()).normalize();
+}
+
+/**
+ * Snap a learned correction (faceCorrection) to the nearest one a real prism
+ * can produce — the face's and the reference face's stickers each on any of
+ * the three faces, turned by any multiple of 90° — removing single-camera
+ * pose noise from it. Corrections that match nothing physical are kept.
+ */
+export function snapFaceCorrection(measured: Quaternion, face: number, reference: number): Quaternion {
+  let best: Quaternion | null = null;
+  let bestAngle = Infinity;
+  for (let p = 0; p < 3; p++) for (let m = 0; m < 4; m++) {
+    const faceError = stickerError(face, p, m);
+    for (let pr = 0; pr < 3; pr++) for (let mr = 0; mr < 4; mr++) {
+      const candidate = faceError.clone().invert().multiply(stickerError(reference, pr, mr)).normalize();
+      const angle = candidate.angleTo(measured);
+      if (angle < bestAngle) {
+        bestAngle = angle;
+        best = candidate;
+      }
+    }
+  }
+  return best && bestAngle <= FACE_SNAP_RADIANS ? best : measured.clone();
 }

@@ -69,6 +69,23 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.118: learned prism face layout
+
+- Lance: overlay showed face 8 used closed, face 9 open; rolling with jaws
+  still opened/closed the reading → face layout mismatch.
+- `src/jaw/handleHinge.ts` (+ tests): `FaceLayout`, `newFaceLayout`,
+  `faceCorrection`, `correctedRelative`, `snapFaceCorrection` (nearest of
+  3 positions × 4 quarter-turns for face and reference, ≤ 25°),
+  (de)serialize. `handlePrismController.ts`: reference face set at the
+  first closed capture; Align prism faces collects raw per-face readings
+  from both cameras (12 each), unaligned faces skipped in live readings;
+  `suturehero.handlePrismFaces.v1`; Remove calibration clears it.
+- `scripts/check-handle-jaws.mjs`: alignment pass; `SUTURE_SWAP_FACES=1`
+  renders 9/30 swapped. Both layouts give identical readings; known pose
+  (euler -15,300,0) still fails in both.
+- Lance: Remove calibration, then Calibrate closed → Align prism faces →
+  Calibrate open; roll test with jaws still should no longer move the %.
+
 ### 2026-11-08 — Claude — Build 0.117: draw handle axis and hinge estimate
 
 - Lance on 0.116: tracking feels good; handle-prism jaws calibrate but don't

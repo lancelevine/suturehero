@@ -5,6 +5,13 @@ import type { TrackedInstrument } from '../input/trackingMessages';
 import { readStoredJson, writeStored } from '../input/trackingStorage';
 import {
   averageRotation,
+  correctedRelative,
+  faceCorrection,
+  snapFaceCorrection,
+  newFaceLayout,
+  parseFaceLayout,
+  serializeFaceLayout,
+  type FaceLayout,
   CAPTURE_INLIER_RADIANS,
   handleRelativeToRing,
   hingeOpening,
@@ -18,6 +25,10 @@ import {
 
 /** Saved hinge models per instrument (src/jaw/handleHinge.ts). */
 export const HANDLE_HINGE_STORAGE_KEY = 'suturehero.handleHinge.v1';
+/** Learned prism face layouts per instrument (Align prism faces). */
+export const HANDLE_FACES_STORAGE_KEY = 'suturehero.handlePrismFaces.v1';
+/** Readings needed per face (and for the reference face) to align it. */
+const ALIGN_SAMPLES = 12;
 /** Relative rotations averaged per closed/open capture. */
 const CAPTURE_SAMPLES = 20;
 /** Ring and single-marker fits worse than this are not used (px). */
@@ -52,6 +63,12 @@ export interface HandlePrismHost {
   };
 }
 
+interface FaceReading {
+  /** Prism face index (order of HANDLE_PRISM_IDS). */
+  face: number;
+  relative: Quaternion;
+}
+
 interface HandleCamera {
   index: 1 | 2;
   overlay: HTMLCanvasElement;
@@ -66,10 +83,12 @@ const TEMPLATE = `
 <p class="tracking-message">Uses Camera 1, the ring tracker and the triangular marker prism on the moving handle
 (seen by Camera 1 and, when running, Camera 2; needle driver IDs ${HANDLE_PRISM_IDS.needleDriver.join(', ')}; forceps ${HANDLE_PRISM_IDS.forceps.join(', ')}; scissors ${HANDLE_PRISM_IDS.scissors.join(', ')}).
 <strong>1.</strong> Hold the jaws closed with the ring and one prism face visible, press <em>Calibrate closed</em> and hold still.
-<strong>2.</strong> Open the jaws fully and press <em>Calibrate open</em>.</p>
+<strong>2.</strong> Keep the jaws closed, press <em>Align prism faces</em> and slowly roll the instrument so each prism face is seen by a camera (press again to stop early).
+<strong>3.</strong> Open the jaws fully and press <em>Calibrate open</em>.</p>
 <div class="tracking-actions">
  <label>Instrument <select data-handle-instrument>${INSTRUMENTS.map((n) => `<option value="${n}">${LABELS[n]}</option>`).join('')}</select></label>
  <button type="button" data-handle-capture="closed">Calibrate closed</button>
+ <button type="button" data-handle-align>Align prism faces</button>
  <button type="button" data-handle-capture="open">Calibrate open</button>
  <button type="button" data-handle-reset>Remove calibration</button>
 </div>
@@ -104,6 +123,8 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   const openings = new Map<TrackedInstrument, number>();
   const filters = new Map<TrackedInstrument, OpeningFilter>();
   let capture: { instrument: TrackedInstrument; jaw: 'closed' | 'open'; samples: Quaternion[] } | null = null;
+  let aligning: { instrument: TrackedInstrument; samples: Quaternion[][] } | null = null;
+  const layouts = new Map<TrackedInstrument, FaceLayout>();
   const failures = new Map<TrackedInstrument, string>();
 
   const saved = readStoredJson(HANDLE_HINGE_STORAGE_KEY);
@@ -113,6 +134,25 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
       if (model) models.set(name, model);
     }
   }
+  const savedLayouts = readStoredJson(HANDLE_FACES_STORAGE_KEY);
+  if (savedLayouts && typeof savedLayouts === 'object') {
+    for (const name of INSTRUMENTS) {
+      const layout = parseFaceLayout((savedLayouts as Record<string, unknown>)[name]);
+      if (layout) layouts.set(name, layout);
+    }
+  }
+  const saveLayouts = () => {
+    const out: Record<string, unknown> = {};
+    for (const [name, layout] of layouts) out[name] = serializeFaceLayout(layout);
+    writeStored(HANDLE_FACES_STORAGE_KEY, JSON.stringify(out));
+  };
+  const faceId = (name: TrackedInstrument, face: number) => HANDLE_PRISM_IDS[name][face];
+  const layoutSummary = (name: TrackedInstrument) => {
+    const layout = layouts.get(name);
+    if (!layout) return 'faces not aligned';
+    const aligned = layout.corrections.map((c, face) => (c ? faceId(name, face) : null)).filter((id) => id !== null);
+    return aligned.length === 3 ? 'all prism faces aligned' : `aligned faces: ${aligned.join(', ')} (reference ${faceId(name, layout.reference)}) — use Align prism faces for the rest`;
+  };
   const save = () => {
     const out: Record<string, unknown> = {};
     for (const [name, model] of models) out[name] = serializeHinge(model);
@@ -121,14 +161,19 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   const describe = () => {
     const name = selected();
     status.textContent = models.has(name)
-      ? `${LABELS[name]} calibrated (handle turns ${((models.get(name)!.openAngle * 180) / Math.PI).toFixed(0)}° closed → open).`
+      ? `${LABELS[name]} calibrated (handle turns ${((models.get(name)!.openAngle * 180) / Math.PI).toFixed(0)}° closed → open) · ${layoutSummary(name)}.`
       : closedCaptures.has(name)
         ? `${LABELS[name]}: closed captured. Open the jaws fully and press Calibrate open.`
         : `${LABELS[name]}: not calibrated.`;
   };
 
-  /** One camera's handle rotation relative to the ring, or the reason it has none. */
-  function cameraRelative(name: TrackedInstrument, now: number, camera: HandleCamera): Quaternion | string {
+  /**
+   * One camera's handle rotation(s) relative to the ring, or why there are
+   * none. 'corrected': the clearest aligned face, mapped onto the reference
+   * face (unaligned faces skipped). 'raw': every reliable face, uncorrected
+   * (for Align prism faces).
+   */
+  function cameraRelative(name: TrackedInstrument, now: number, camera: HandleCamera, mode: 'corrected' | 'raw' = 'corrected'): FaceReading[] | string {
     const { width, height } = camera.overlay;
     if (!width || !height) return `Camera ${camera.index} is not running.`;
     const type = host.trackerType();
@@ -148,28 +193,42 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     const ids: readonly number[] = HANDLE_PRISM_IDS[name];
     // Largest visible face: most pixels, most precise single-marker pose.
     const faces = camera.handleMarkers(name, now).filter((m) => ids.includes(m.id)).sort((a, b) => area(b) - area(a));
+    const layout = layouts.get(name);
+    const readings: FaceReading[] = [];
+    let unaligned: number[] = [];
     for (const marker of faces) {
       // One face at a time through the iterative prism solver (3-face layout,
       // 12 mm markers): its rotation is exact for any prism width, which is
       // all the hinge needs. (The closed-form single-marker pose was off by
       // 2–5 px on synthetic 48 px markers.)
       const face = ids.indexOf(marker.id);
+      const correction = layout?.corrections[face] ?? null;
+      if (mode === 'corrected' && layout && !correction) {
+        unaligned.push(marker.id);
+        continue;
+      }
       // A single small marker has two mirror-image pose solutions that fit
       // almost equally well. The handle's rotation relative to the ring
       // changes little between frames, so seed with ring × last relative
-      // rotation (or the closed calibration) and keep that solution unless it
-      // fits clearly worse.
+      // rotation (or the closed calibration), expressed in this face's own
+      // (uncorrected) frame, and keep that solution unless it fits clearly worse.
       const free = solvePrismPose([{ ...marker, id: face }], 0, width, height, undefined, undefined, 'prism');
-      const expected = lastRelative.get(name) ?? models.get(name)?.closed ?? closedCaptures.get(name);
+      const expectedCorrected = lastRelative.get(name) ?? models.get(name)?.closed ?? closedCaptures.get(name);
+      const expected = expectedCorrected && correction ? expectedCorrected.clone().multiply(correction.clone().invert()) : expectedCorrected;
       const seeded = expected && free
         ? solvePrismPose([{ ...marker, id: face }], 0, width, height, { ...free, quaternion: ring.quaternion.clone().multiply(expected) }, undefined, 'prism')
         : null;
       const body = seeded && free && seeded.error <= free.error + SEED_ERROR_MARGIN_PX ? seeded : free;
       if (!body || body.error > MAX_HANDLE_ERROR_PX) continue;
-      // Kept for the camera overlay (handle axis and estimated hinge, src/ui/ringAxisOverlay.ts).
-      handlePoses.set(`${name}:${camera.index}`, { pose: body, at: now });
-      return handleRelativeToRing(ring.quaternion, body.quaternion);
+      const raw = handleRelativeToRing(ring.quaternion, body.quaternion);
+      const relative = mode === 'raw' || !layout ? raw : correctedRelative(layout, face, raw)!;
+      if (!readings.length) handlePoses.set(`${name}:${camera.index}`, { pose: body, at: now });
+      readings.push({ face, relative });
+      // The corrected reading needs only the clearest usable face; alignment wants every face.
+      if (mode === 'corrected') break;
     }
+    if (readings.length) return readings;
+    if (unaligned.length && !faces.some((m) => !unaligned.includes(m.id))) return `prism face ${unaligned.join(', ')} not aligned yet (Align prism faces)`;
     return faces.length ? `prism seen by Camera ${camera.index} but its pose is not reliable` : `prism not visible to Camera ${camera.index}`;
   }
 
@@ -182,7 +241,10 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
    * the other's view is blocked.
    */
   function relativeRotation(name: TrackedInstrument, now: number): Quaternion | null {
-    const results = cameras.map((camera) => ({ camera, result: cameraRelative(name, now, camera) }));
+    const results = cameras.map((camera) => {
+      const result = cameraRelative(name, now, camera);
+      return { camera, result: typeof result === 'string' ? result : result[0].relative };
+    });
     const good = results.filter((r): r is { camera: HandleCamera; result: Quaternion } => typeof r.result !== 'string');
     const previous = lastRelative.get(name);
     let relative: Quaternion | null = null;
@@ -225,11 +287,74 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         status.textContent = 'Calibrate closed first.';
         return;
       }
+      aligning = null;
       capture = { instrument: name, jaw, samples: [] };
       status.textContent = `Hold the jaws ${jaw} and keep the instrument still…`;
     });
   });
+  panel.querySelector('[data-handle-align]')!.addEventListener('click', () => {
+    const name = selected();
+    if (aligning) {
+      finishAlignment();
+      return;
+    }
+    if (host.running && !host.running()) {
+      status.textContent = 'Turn on “Jaw tracking” at the top of the Jaws tab first.';
+      return;
+    }
+    if (!layouts.has(name)) {
+      status.textContent = 'Calibrate closed first (it picks the reference face).';
+      return;
+    }
+    capture = null;
+    aligning = { instrument: name, samples: [[], [], []] };
+    status.textContent = `Keep the jaws closed. Show reference face ${faceId(name, layouts.get(name)!.reference)} first, then roll slowly so each other face is seen…`;
+  });
+
+  /** Correction per face from readings taken with the jaws still: each face must match the reference face. */
+  function finishAlignment() {
+    const a = aligning!;
+    aligning = null;
+    const layout = layouts.get(a.instrument)!;
+    const reference = averageRotation(a.samples[layout.reference]).mean;
+    if (!reference || a.samples[layout.reference].length < ALIGN_SAMPLES) {
+      status.textContent = `Not enough steady readings of reference face ${faceId(a.instrument, layout.reference)}. Show it to a camera with the jaws closed and try again.`;
+      return;
+    }
+    const done: number[] = [];
+    for (const face of [0, 1, 2]) {
+      if (face === layout.reference || a.samples[face].length < ALIGN_SAMPLES) continue;
+      const mean = averageRotation(a.samples[face]).mean;
+      if (!mean) continue;
+      // Snapped to the nearest physically possible sticker layout, removing pose noise from the correction.
+      layout.corrections[face] = snapFaceCorrection(faceCorrection(mean, reference), face, layout.reference);
+      done.push(faceId(a.instrument, face));
+    }
+    saveLayouts();
+    filters.delete(a.instrument);
+    status.textContent = done.length
+      ? `Aligned face${done.length > 1 ? 's' : ''} ${done.join(', ')} · ${layoutSummary(a.instrument)}.`
+      : `No other face was seen steadily enough. Roll more slowly, keeping the jaws closed · ${layoutSummary(a.instrument)}.`;
+  }
+
+  /** One alignment step: collect every reliable face's uncorrected reading from both cameras. */
+  function alignStep(now: number) {
+    const a = aligning!;
+    for (const camera of cameras) {
+      const readings = cameraRelative(a.instrument, now, camera, 'raw');
+      if (typeof readings === 'string') continue;
+      for (const r of readings) if (a.samples[r.face].length < ALIGN_SAMPLES * 3) a.samples[r.face].push(r.relative);
+    }
+    const layout = layouts.get(a.instrument)!;
+    const progress = [0, 1, 2].map((face) => `${faceId(a.instrument, face)}${face === layout.reference ? ' (reference)' : ''}: ${Math.min(ALIGN_SAMPLES, a.samples[face].length)}/${ALIGN_SAMPLES}`).join(' · ');
+    status.textContent = `Aligning, jaws closed — roll slowly · ${progress} · press Align prism faces again to stop.`;
+    if ([0, 1, 2].every((face) => a.samples[face].length >= ALIGN_SAMPLES)) finishAlignment();
+  }
+
   panel.querySelector('[data-handle-reset]')!.addEventListener('click', () => {
+    layouts.delete(selected());
+    saveLayouts();
+    aligning = null;
     models.delete(selected());
     closedCaptures.delete(selected());
     capture = null;
@@ -276,10 +401,20 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     },
     /** Call once per processed camera-1 frame. */
     update(now: number) {
+      if (aligning) alignStep(now);
       for (const name of INSTRUMENTS) {
+        if (aligning?.instrument === name) continue;
         const capturing = capture?.instrument === name;
         const model = models.get(name);
         if (!capturing && !model) continue;
+        if (capturing && capture!.jaw === 'closed' && !layouts.has(name)) {
+          // The first face seen while capturing closed becomes the reference face; others need aligning.
+          const first = cameras.map((camera) => cameraRelative(name, now, camera, 'raw')).find((r) => typeof r !== 'string');
+          if (first && typeof first !== 'string') {
+            layouts.set(name, newFaceLayout(first[0].face));
+            saveLayouts();
+          }
+        }
         const relative = relativeRotation(name, now);
         if (!relative) continue;
         if (capturing) {

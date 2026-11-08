@@ -82,3 +82,42 @@ describe('opening filter', () => {
     expect(out).toBeGreaterThan(0.9);
   });
 });
+
+describe('prism face layout', () => {
+  it('learns corrections that make every face agree with the reference face, at any later pose', async () => {
+    const { correctedRelative, faceCorrection, newFaceLayout, parseFaceLayout, serializeFaceLayout } = await import('./handleHinge');
+    // Unknown per-face errors (e.g. order reversed: ±120° roll, or a sticker turned 90°).
+    const errors = [new Quaternion(), turn(new Vector3(0, 1, 0), 240), turn(new Vector3(0, 0, 1), 90)];
+    const reading = (trueRelative: Quaternion, face: number) => trueRelative.clone().multiply(errors[face]);
+    const stillPose = turn(new Vector3(0.3, 1, 0.2), 25);
+    const layout = newFaceLayout(0);
+    for (const face of [1, 2]) layout.corrections[face] = faceCorrection(reading(stillPose, face), reading(stillPose, 0));
+    const later = turn(new Vector3(1, 0.2, -0.4), 70);
+    for (const face of [0, 1, 2]) expect(correctedRelative(layout, face, reading(later, face))!.angleTo(reading(later, 0))).toBeLessThan(1e-6);
+    // Unaligned faces are not used; layouts survive saving.
+    expect(correctedRelative(newFaceLayout(0), 2, reading(later, 2))).toBeNull();
+    const restored = parseFaceLayout(JSON.parse(JSON.stringify(serializeFaceLayout(layout))))!;
+    expect(correctedRelative(restored, 2, reading(later, 2))!.angleTo(reading(later, 0))).toBeLessThan(1e-6);
+    expect(parseFaceLayout({ version: 1, reference: 1, corrections: [null, null, null] })).toBeNull();
+  });
+});
+
+describe('face correction snapping', () => {
+  it('snaps a noisy correction to the exact sticker layout, including reversed order and turned stickers', async () => {
+    const { faceCorrection, snapFaceCorrection } = await import('./handleHinge');
+    const { faceGeometry } = await import('../input/prismPose');
+    const F = (k: number) => faceGeometry(k, 'prism').rotation;
+    const Rz = (q: number) => new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), (q * Math.PI) / 2);
+    // Physical prism: sticker for face 1 sits on face 2 and is turned 90°; reference face 0 is correct.
+    const E1 = F(2).clone().multiply(Rz(1)).multiply(F(1).clone().invert());
+    const truth = turn(new Vector3(0.3, 1, 0.2), 25);
+    const exact = faceCorrection(truth.clone().multiply(E1), truth);
+    const noisy = faceCorrection(truth.clone().multiply(E1).multiply(turn(new Vector3(1, 0.5, 0), 6)), truth);
+    expect(snapFaceCorrection(noisy, 1, 0).angleTo(exact)).toBeLessThan(1e-6);
+    // Consistent faces: the noisy correction snaps to identity.
+    expect(snapFaceCorrection(turn(new Vector3(0, 1, 1), 7), 2, 0).angleTo(new Quaternion())).toBeLessThan(1e-6);
+    // Something no real layout explains is kept as measured.
+    const odd = turn(new Vector3(1, 1, 0), 45);
+    expect(snapFaceCorrection(odd, 1, 0).angleTo(odd)).toBeLessThan(1e-6);
+  });
+});

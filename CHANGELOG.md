@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.118 — "Align prism faces": the software learns your prism's layout
+
+Rolling the instrument with the jaws still made Lance's handle-prism
+reading open and close: the stickers' layout (face order or orientation)
+does not match the software's prism model, so each face change looked like
+a handle rotation. New step between Calibrate closed and Calibrate open:
+Align prism faces — keep the jaws closed and roll so each face is seen.
+Each face's correction to the reference face is learned and snapped to the
+nearest physically possible layout (sticker on another face and/or turned
+by 90° steps), removing pose noise. Until a face is aligned it is not used.
+Synthetic check: a prism with faces 9 and 30 swapped reads the same as a
+correct one after alignment.
+
 ## Build 0.117 — handle axis and estimated hinge in the camera view
 
 With the handle-prism jaw tracker selected, Camera 1 now shows an orange
