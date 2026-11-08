@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.117 — handle axis and estimated hinge in the camera view
+
+With the handle-prism jaw tracker selected, Camera 1 now shows an orange
+line along the handle prism's long axis, as the software sees it, and an
+orange triangle where that line crosses the black ring-shaft axis (an
+approximate image of the hinge). For checking whether the prism's pose is
+read the way it is mounted. Display only.
+
 ## Build 0.116 — optical flow about 2–3× cheaper, same results
 
 Profiling the flow worker showed 73% of its time in one loop: the coarse

@@ -69,6 +69,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.117: draw handle axis and hinge estimate
+
+- Lance on 0.116: tracking feels good; handle-prism jaws calibrate but don't
+  follow the real opening. Asked for a line on the arm and a triangle at
+  the crossing.
+- `handlePrismController.ts` keeps the last per-camera handle body pose
+  (`handlePose`), exposed via `markerJaws.handlePose`. `ringAxisOverlay.ts`:
+  `handleAxisSegment` (prism local ±Y 50 mm), `lineIntersection` (+ test),
+  `drawHandleAxis` (orange line + triangle). Drawn in `drawRingAxes`.
+- Checked: unit tests, tsc, synthetic screenshot (line along prism,
+  triangle at crossing).
+
 ### 2026-11-08 — Claude — Build 0.116: faster optical flow, identical output
 
 - Measured first (Node CPU profile of trackMarker/framePyramid): `score`

@@ -654,5 +654,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     classicActive: () => engine === 'classic',
     /** Which jaw tracker is selected. */
     engine: () => engine,
+    /** Handle-prism body pose for the camera overlay (null unless the handle-prism tracker sees it). */
+    handlePose: (name: TrackedInstrument, camera: 1 | 2, now: number) => (engine === 'handle' ? handle?.handlePose(name, camera, now) ?? null : null),
   };
 }

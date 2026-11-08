@@ -95,6 +95,7 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   const closedCaptures = new Map<TrackedInstrument, Quaternion>();
   const ringPoses = new Map<string, PrismPose>();
   const sources = new Map<TrackedInstrument, string>();
+  const handlePoses = new Map<string, { pose: PrismPose; at: number }>();
   const cameras: HandleCamera[] = [
     { index: 1, overlay: host.overlay, markers: host.markers, handleMarkers: host.handleMarkers },
     ...(host.second ? [{ index: 2 as const, ...host.second }] : []),
@@ -165,6 +166,8 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         : null;
       const body = seeded && free && seeded.error <= free.error + SEED_ERROR_MARGIN_PX ? seeded : free;
       if (!body || body.error > MAX_HANDLE_ERROR_PX) continue;
+      // Kept for the camera overlay (handle axis and estimated hinge, src/ui/ringAxisOverlay.ts).
+      handlePoses.set(`${name}:${camera.index}`, { pose: body, at: now });
       return handleRelativeToRing(ring.quaternion, body.quaternion);
     }
     return faces.length ? `prism seen by Camera ${camera.index} but its pose is not reliable` : `prism not visible to Camera ${camera.index}`;
@@ -266,6 +269,11 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   describe();
   return {
     panel,
+    /** Latest handle-prism body pose seen by Camera 1 or 2 (within maxAgeMs), for drawing. */
+    handlePose(name: TrackedInstrument, camera: 1 | 2, now: number, maxAgeMs = 250): PrismPose | null {
+      const entry = handlePoses.get(`${name}:${camera}`);
+      return entry && now - entry.at <= maxAgeMs ? entry.pose : null;
+    },
     /** Call once per processed camera-1 frame. */
     update(now: number) {
       for (const name of INSTRUMENTS) {
