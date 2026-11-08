@@ -46,11 +46,17 @@ export const MAX_KEPT_FLOW_FRAMES = 4;
 /** Small keyed cache of processed frames in the flow worker; the oldest entry is dropped first. */
 export class KeptFrames<T> {
   private frames = new Map<number, T>();
-  constructor(private limit = MAX_KEPT_FLOW_FRAMES) {}
+  /** `release` frees an evicted frame (e.g. ImageBitmap.close) that was never used. */
+  constructor(private limit = MAX_KEPT_FLOW_FRAMES, private release?: (frame: T) => void) {}
   keep(key: number, frame: T) {
     this.frames.delete(key);
     this.frames.set(key, frame);
-    while (this.frames.size > this.limit) this.frames.delete(this.frames.keys().next().value as number);
+    while (this.frames.size > this.limit) {
+      const oldest = this.frames.keys().next().value as number;
+      const evicted = this.frames.get(oldest)!;
+      this.frames.delete(oldest);
+      this.release?.(evicted);
+    }
   }
   /** The frame, removed from the cache (each seed uses its frame once). */
   take(key: number): T | undefined {

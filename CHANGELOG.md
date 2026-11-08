@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.115 — flow worker no longer processes frames it may never use
+
+Lance's 0.112 profile: the main thread got lighter (tracking frame 13.2 →
+6.4 ms) but optical flow slowed (Camera 1 21 → 15 updates/s, worker 20 →
+28 ms). Part of that was a mistake in 0.111: every decode-only frame was
+turned into an image pyramid in the flow worker (~20 ms) in case a seed
+needed it. Such frames are now kept as unread bitmaps and processed only
+when a seed actually uses them; unused ones are released.
+
 ## Build 0.114 — Camera 2 confirms the handle-prism jaw reading
 
 The handle's rotation relative to the ring is the same whichever camera

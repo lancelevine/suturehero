@@ -69,6 +69,23 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.115: lazy kept frames in the flow worker
+
+- Lance's 0.112 profile vs 0.110: main-thread tracking frame 13.2 → 6.4 ms;
+  flow worker 20–22 → 28–29.5 ms (5 ms readback moved in + store pyramids);
+  Camera 1 flow 21.3 → 15.2/s; flow frame age 27 → 40.5 ms; bitmap wait
+  4–6 ms median (p95 ~22). Handle-prism jaw tracking 0.33 ms/frame.
+- `arucoFlowWorker.ts`: `store` keeps the unread ImageBitmap; read +
+  pyramid only on `seed`; `KeptFrames` release callback closes evicted ones.
+- Checked: flowFrames/markerFlow tests, tsc; check-tracking-motion,
+  check-ring-handoffs, check-stereo-rig-faces, check-tracking-lab,
+  check-profiler pass.
+- Next (agreed with Lance/ChatGPT): make optical flow cheaper — flow
+  resolution 640×360, predicted windows around corners instead of
+  full-frame pyramids, fewer worker allocations; keep full-res ArUco and
+  recovery; benchmark each with jitter/loss/reacquisition; A/B the bitmap
+  path's latency under identical conditions.
+
 ### 2026-11-08 — Claude — Build 0.114: Camera 2 in handle-prism jaws
 
 - Lance: Camera 2 should verify Camera 1 or stand in when it's blocked.

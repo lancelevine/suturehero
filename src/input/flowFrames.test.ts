@@ -14,6 +14,15 @@ describe('kept flow frames', () => {
     expect(kept.take(3)).toBe('c');
   });
 
+  it('releases evicted frames that were never used', () => {
+    const released: string[] = [];
+    const kept = new KeptFrames<string>(1, (f) => released.push(f));
+    kept.keep(1, 'a');
+    kept.keep(2, 'b');
+    expect(released).toEqual(['a']);
+    expect(kept.take(2)).toBe('b');
+  });
+
   it('recognizes seed references and gives unique keys', () => {
     expect(isFlowSeedRef({ key: 1, ready: Promise.resolve() })).toBe(true);
     expect(isFlowSeedRef(undefined)).toBe(false);

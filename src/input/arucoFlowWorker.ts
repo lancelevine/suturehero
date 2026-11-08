@@ -5,7 +5,10 @@ import {KeptFrames} from './flowFrames';
 type Track={marker:MarkerObservation;reference:GrayFrame[];decodedAt:number;trackedAt:number;motion:{x:number;y:number};pending?:{marker:MarkerObservation;reference:GrayFrame[]}};
 const tracks=new Map<number,Track>();
 // Frames kept for seeding after a decode (src/input/flowFrames.ts), so the main thread never sends the same image twice.
-const kept=new KeptFrames<GrayFrame[]>();
+// A decode-only frame is kept as its unread bitmap and only read/processed if a seed actually uses it
+// (0.112 built a pyramid for every such frame, ~20 ms of flow-worker time, mostly never used).
+type Kept=GrayFrame[]|ImageBitmap;
+const kept=new KeptFrames<Kept>(undefined,frame=>{if(frame instanceof ImageBitmap)frame.close();});
 let readCanvas:OffscreenCanvas|null=null,readContext:OffscreenCanvasRenderingContext2D|null=null;
 /** Pixels of a transferred ImageBitmap, read here instead of on the main thread. */
 function readBitmap(bitmap:ImageBitmap):ImageData{
@@ -18,15 +21,21 @@ self.onmessage=(event:MessageEvent<{type:string;at?:number;id?:number;frame?:Ima
  const {type,id,markers=[],ids=[],keep,key}=event.data;
  const received=performance.now();
  // A transferred bitmap is read here; its time is reported as "worker readback".
- const frame=event.data.bitmap?readBitmap(event.data.bitmap):event.data.frame;
- const readbackMs=event.data.bitmap?performance.now()-received:0;
+ const storedBitmap=type==='store'?event.data.bitmap:undefined;
+ const frame=event.data.bitmap&&!storedBitmap?readBitmap(event.data.bitmap):event.data.frame;
+ const readbackMs=event.data.bitmap&&!storedBitmap?performance.now()-received:0;
  try{
   if(type==='init'){self.postMessage({type:'ready'});return;}
   const now=event.data.at??performance.now();
   if(type==='confirm'){for(const id of ids){const track=tracks.get(id);if(track)track.decodedAt=now;}return;}
-  if(type==='store'){if(frame&&keep!==undefined)kept.keep(keep,framePyramid(frame));return;}
+  if(type==='store'){
+   if(keep!==undefined&&storedBitmap)kept.keep(keep,storedBitmap);
+   else if(keep!==undefined&&frame)kept.keep(keep,framePyramid(frame));
+   return;
+  }
   if(type==='seed'){
-   const reference=key!==undefined?kept.take(key):frame?framePyramid(frame):undefined;
+   const stored=key!==undefined?kept.take(key):undefined;
+   const reference=stored instanceof ImageBitmap?framePyramid(readBitmap(stored)):stored??(frame?framePyramid(frame):undefined);
    if(!reference)return;
    for(const marker of markers){
     const track=tracks.get(marker.id);
