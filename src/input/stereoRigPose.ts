@@ -12,7 +12,7 @@ export type StereoRigDiagnostics={reason?:string};
 const RMS_LIMIT_PX=3,CORNER_LIMIT_PX=6;
 /** Joint calibrated reprojection fit. Different cameras need not see the same
  * face: localCorners supplies the known rigid relationship between every ID. */
-export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null{
+function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null{
  const reject=(reason:string)=>{if(diagnostics)diagnostics.reason=reason;return null;};
  if(diagnostics)delete diagnostics.reason;
  if(![size1.width,size1.height,size2.width,size2.height].every(v=>Number.isFinite(v)&&v>0))return reject('camera image size unknown');
@@ -117,4 +117,27 @@ export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation
  }
  const firstIds=[...new Set(selected.filter(p=>p.camera===0).map(p=>p.id))],secondIds=[...new Set(selected.filter(p=>p.camera===1).map(p=>p.id))];
  return {...best.pose,errorPx:rms,faces:new Set([...firstIds,...secondIds]).size,corners:selected.length,firstIds,secondIds};
+}
+
+/** If bad extra faces corrupt the joint optimum, retry independent shared-square
+ * constraints. Every accepted candidate still satisfies both cameras and the
+ * unchanged reprojection limits; different-face fits keep the normal path. */
+export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null {
+ const joint=fitStereoRigPose(cal,first,second,size1,size2,firstId,type,previous,diagnostics);
+ if(joint)return joint;
+ const valid=(marker:MarkerObservation)=>marker.id>=firstId&&marker.id<firstId+trackerGeometry(type).faceCount;
+ const a=first.filter(valid),b=second.filter(valid);
+ if(a.length<=1&&b.length<=1)return null;
+ let best:StereoRigPose|null=null;
+ const seen=new Set<number>();
+ for(const marker of a){
+  if(seen.has(marker.id))continue;
+  seen.add(marker.id);
+  const other=b.find(candidate=>candidate.id===marker.id);
+  if(!other)continue;
+  const candidate=fitStereoRigPose(cal,[marker],[other],size1,size2,firstId,type,previous);
+  if(candidate&&(!best||candidate.errorPx<best.errorPx))best=candidate;
+ }
+ if(best&&diagnostics)delete diagnostics.reason;
+ return best;
 }

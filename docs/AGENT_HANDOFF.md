@@ -6,13 +6,14 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Codex — correcting ring black-square size to the measured 12 mm and validating recorded stereo geometry. Please avoid `src/input/prismPose.ts`, `src/input/stereoRigPose.ts`, `src/jaw/JawTracker.ts`, associated geometry tests, and `src/tracking.ts` until cleared.
+- **In progress:** none
 - **Needs Lance to test by hand:**
-  - **Why stereo says "waiting" (build 0.84):** in 2-camera mode with the
-    needle driver in view of both cameras, read the line under the stereo
-    status in Tracking setup (or record in the Tracking Lab and replay). It
-    now states the reason, e.g. "fit error 4.2 px … per marker px: cam1
-    0:1.1 6:5.3 · cam2 …". Send that text to Claude.
+  - **Stereo correction (build 0.85):** reload, test the needle driver in both
+    cameras with unused instruments out of view, and confirm triangulation.
+    IDs 2/3 on another instrument currently overlap the needle-driver group.
+    Recapture ring mono Near/Far and marker-relative jaw calibrations made
+    before this correction. Keep the existing checkerboard stereo calibration.
+    If stereo still rejects, send the status/rejection text or a Lab recording.
   - **Tracking Lab (build 0.83):** record a real single/stereo-camera failure,
     stop, replay, and export it. Confirm practical recording FPS and image
     quality with the actual webcams. Replay has synthetic-camera coverage,
@@ -22,6 +23,9 @@ entry when finishing.
     instrument and camera, then check the reading. Only synthetic-camera
     tested so far. If it doesn't work, the selector switches back to Classic.
 - **Known issues:**
+  - Tracking Lab library can be clipped by camera setup's body overflow lock;
+    browser zoom-out is the current workaround. A separate Lab scrolling fix
+    is still needed.
   - `FreeKnotTechniques.test.ts` "retains a double surgeon first throw…"
     passes on Node 24 but fails on Node 22 (thread point moves 0.042 vs a
     0.034 limit). The result sits close to its threshold and is sensitive to
@@ -70,6 +74,32 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-07 (America/New_York) — Codex — Measured ring geometry and stereo recovery
+- Changed: 12 mm black squares (not the 16 mm white label); angled pads
+  moved to the physically confirmed marker-top end, using Claude's findings
+  in docs/stereo-findings-2026-11-08.md. Shared-ID fallback recovers stereo
+  when incompatible extra markers corrupt the joint fit; original 3 px RMS /
+  6 px corner rejection limits are unchanged. Small-ring-marker rotation
+  stability is retained without weakening the existing noise test.
+- Calibration: old ring Near/Far bindings and marker-relative jaw models
+  learned with 16 mm need recapturing. Stereo checkerboard calibration and
+  legacy prism compatibility are retained. Build 0.85.
+- Checked: full 511-test suite, tsc/build and real-image replay passed before
+  the final angled-pad correction. After that correction, tsc and all 259
+  focused input/jaw/Lab tests passed, including independent STL geometry and
+  physical adjacency. Full suite after the final layout change is delegated
+  to deployment CI at Lance's explicit request to deploy immediately.
+- Real recording evidence before final pad correction: 363/474 nearest-time
+  detection pairs accepted vs 0 before; actual 240-image / 6.933 s prefix
+  replay became ACTIVE, ending at 1.21 px. Final pad layout also has Claude's
+  independent real-image evidence in the findings document. These are not
+  ground-truth accuracy measurements.
+- Lance to test: refresh build 0.85, keep unused instruments out of view
+  initially (IDs 2/3 overlap the needle-driver group), confirm stereo, then
+  recapture mono Near/Far and white-ball jaw calibration as needed.
+- Notes for Claude: lock cleared; continue validation if needed. Numeric
+  real-camera fixture contains no uploaded images, camera IDs or names.
 
 ### 2026-11-08 — Claude Code — Stereo rejection reasons (build 0.84)
 - Context: Lance's stereo shows "waiting for trackers". Investigated with

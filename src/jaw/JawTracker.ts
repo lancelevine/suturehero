@@ -1,3 +1,4 @@
+import {trackerGeometry} from '../input/prismPose';
 import * as THREE from 'three';
 import { findBrightBalls, type GrayImage } from './brightBalls';
 import {
@@ -344,6 +345,7 @@ export class JawTracker {
 export interface SavedJawModel {
   version: 1;
   trackerType: string;
+  markerSizeMm?:number;
   ballDiameterMm: number;
   balls: Array<{ closed: [number, number, number]; open: [number, number, number] }>;
 }
@@ -352,6 +354,7 @@ export function serializeJawModel(model: JawModel, trackerType: string): SavedJa
   return {
     version: 1,
     trackerType,
+    markerSizeMm:trackerGeometry(trackerType==='ring6'||trackerType==='ring8'?trackerType:'prism').markerSizeMm,
     ballDiameterMm: model.ballDiameterMm,
     balls: model.balls.map((ball) => ({ closed: ball.closed.toArray(), open: ball.open.toArray() })),
   };
@@ -367,6 +370,10 @@ export function parseJawModel(value: unknown, trackerType: string): JawModel | n
   if (!value || typeof value !== 'object') return null;
   const saved = value as Partial<SavedJawModel>;
   if (saved.version !== 1 || saved.trackerType !== trackerType) return null;
+  const ring=trackerType==='ring6'||trackerType==='ring8';
+  const currentMarkerSize=trackerGeometry(ring?trackerType:'prism').markerSizeMm;
+  // Older ring models were learned with the incorrect 16 mm black-square assumption.
+  if((saved.markerSizeMm??(ring?16:12))!==currentMarkerSize)return null;
   const diameter = saved.ballDiameterMm;
   if (typeof diameter !== 'number' || !(diameter > 0 && diameter < 100) || !Array.isArray(saved.balls)) return null;
   const balls: JawBall[] = [];

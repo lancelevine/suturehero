@@ -6,7 +6,7 @@ microsurgery, from the guided needle pass through free instrument tying. You
 can move the instruments with the keyboard, or with real instruments tracked
 by a webcam.
 
-**Status:** research prototype (build 0.83). Tissue, thread and knot behavior
+**Status:** research prototype (build 0.85). Tissue, thread and knot behavior
 are approximate models in arbitrary sandbox units, and camera tracking has been
 checked mostly with synthetic camera tests. SutureHero is **not** a validated
 clinical training or assessment tool yet.
@@ -102,7 +102,7 @@ the virtual instruments.
 
 **Current hardware**
 
-- **Tracker:** the 8-face ring (`ring8`), with 16 mm markers on 19 mm pads.
+- **Tracker:** the 8-face ring (`ring8`), with 12 mm black marker squares (16 mm white labels) on 19 mm pads. Ring Near/Far and marker-relative jaw calibrations from before build 0.85 must be recaptured; checkerboard stereo calibration is retained.
   Marker IDs are needle driver 0–7, forceps 10–17 and scissors 20–27. The
   older prism (0–2 / 3–5 / 6–8) and 6-face ring (0–5 / 10–15 / 20–25) are
   still supported.

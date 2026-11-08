@@ -1,3 +1,4 @@
+import {measuredRing12} from './fixtures/measuredRing12';
 import {expect,it} from 'vitest';
 import {Euler,Matrix3,Quaternion,Vector3} from 'three';
 import {solveStereoRigPose} from './stereoRigPose';
@@ -69,4 +70,23 @@ it('reports why a stereo fit was rejected',()=>{
  expect(diagnostics.reason).toMatch(/fit error [\d.]+ px \(limit 3\).*per marker px: cam1 0:[\d.]+ · cam2 4:[\d.]+/);
  expect(solveStereoRigPose(cal,[a],[b],...sizes,0,'ring6',undefined,diagnostics)).not.toBeNull();
  expect(diagnostics.reason).toBeUndefined();
+});
+
+it('accepts measured 12 mm ring markers in recorded camera observations',()=>{
+ const f=measuredRing12;
+ const pose=solveStereoRigPose(f.calibration,f.first,f.second,f.size,f.size,0,'ring8');
+ expect(pose).not.toBeNull();
+ expect(pose!.errorPx).toBeLessThan(3);
+});
+it('recovers a genuine two-camera constraint despite conflicting extra instrument IDs',()=>{
+ const f=measuredRing12,diagnostics={reason:'old failure'};
+ const pose=solveStereoRigPose(f.calibration,f.allFirst,f.allSecond,f.size,f.size,0,'ring8',undefined,diagnostics);
+ expect(pose).not.toBeNull();
+ expect(pose!.firstIds).toEqual([6]);
+ expect(pose!.secondIds).toEqual([6]);
+ expect(pose!.errorPx).toBeLessThan(3);
+ expect(diagnostics.reason).toBeUndefined();
+ const corrupt=f.second.map(m=>({...m,corners:m.corners.map(p=>({x:p.x,y:p.y+80}))}));
+ expect(solveStereoRigPose(f.calibration,f.allFirst,corrupt,f.size,f.size,0,'ring8')).toBeNull();
+ expect(solveStereoRigPose(f.calibration,f.allFirst,[],f.size,f.size,0,'ring8')).toBeNull();
 });

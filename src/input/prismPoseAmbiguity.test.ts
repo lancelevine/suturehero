@@ -20,3 +20,15 @@ it('retains the forward tilt of a small needle-driver hexagonal marker across no
  }
  expect(min,`minimum pitch ${min*180/Math.PI}°, noise seed ${worst}`).toBeGreaterThan(0);
 });
+
+it('still follows deliberate rotation of a small 12 mm marker instead of freezing its prediction',()=>{
+ let previous:PrismPose|undefined;let target=new THREE.Quaternion();
+ for(let frame=0;frame<=24;frame++){
+  const roll=Math.PI-.4-frame*.03;
+  target=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),.28).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),roll));
+  const face=roll>Math.PI-1?0:1;
+  const pose=solvePrismPose([image(face,target,()=>0)],0,width,height,previous,previous,'ring6');
+  expect(pose).not.toBeNull();previous=pose!;
+ }
+ expect(previous!.quaternion.angleTo(target)).toBeLessThan(.1);
+});

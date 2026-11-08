@@ -4,10 +4,10 @@ import * as THREE from 'three';
 import {faceGeometry,localCorners,solvePrismPose,trackerGeometry,bodyPoseFromMarker} from './prismPose';
 const width=1280,height=720,focal=width/(2*Math.tan(70*Math.PI/360/2));
 const axisY=new THREE.Vector3(0,1,0);
-// Independent hexagonal reference: 19 mm faces, 16 mm marker, 60 degree stations.
+// Independent hexagonal reference: 19 mm faces, 12 mm black marker, 60 degree stations.
 function referenceCorners(index:number){
  const angle=index*Math.PI/3,radius=19*Math.sqrt(3)/2;
- return [[-8,-8],[8,-8],[8,8],[-8,8]].map(([x,y])=>new THREE.Vector3(Math.cos(angle)*x+Math.sin(angle)*radius,y,-Math.sin(angle)*x+Math.cos(angle)*radius));
+ return [[-6,-6],[6,-6],[6,6],[-6,6]].map(([x,y])=>new THREE.Vector3(Math.cos(angle)*x+Math.sin(angle)*radius,y,-Math.sin(angle)*x+Math.cos(angle)*radius));
 }
 function observe(firstId:number,face:number,rotation:THREE.Quaternion,translation=new THREE.Vector3(8,-6,240)){
  return {id:firstId+face,corners:referenceCorners(face).map(p=>{p.applyQuaternion(rotation).add(translation);return {x:width/2+focal*p.x/p.z,y:height/2+focal*p.y/p.z};})};
@@ -56,14 +56,23 @@ it.each([0,10,20])('keeps the hexagonal body frame through noisy single/overlap/
 });
 
 it('keeps face count, angular spacing and marker size explicit for each model',()=>{
- expect(trackerGeometry('ring6')).toEqual({faceCount:6,sideStepRadians:Math.PI/3,markerSizeMm:16});
+ expect(trackerGeometry('ring6')).toEqual({faceCount:6,sideStepRadians:Math.PI/3,markerSizeMm:12});
  expect(trackerGeometry('prism')).toEqual({faceCount:3,sideStepRadians:2*Math.PI/3,markerSizeMm:12});
- expect(trackerGeometry('ring8')).toEqual({faceCount:8,sideStepRadians:Math.PI/3,markerSizeMm:16});
+ expect(trackerGeometry('ring8')).toEqual({faceCount:8,sideStepRadians:Math.PI/3,markerSizeMm:12});
 });
 
 it('removes radial marker-face depth so a stationary ring center stays fixed when switching faces',()=>{
  const rotation=new THREE.Quaternion().setFromEuler(new THREE.Euler(.2,Math.PI-.2,.08,'YXZ'));
- const faces=[0,1].map(face=>estimateMarkerPose(observe(0,face,rotation),width,height,16)!);
+ const faces=[0,1].map(face=>estimateMarkerPose(observe(0,face,rotation),width,height,12)!);
  expect(Math.abs(faces[0].position.z-faces[1].position.z)).toBeGreaterThan(2);
  for(let i=0;i<2;i++)expect(bodyPoseFromMarker(faces[i],i,'ring6').translation.z).toBeCloseTo(240,5);
+});
+
+it('recovers metric translation from an independently projected 12 mm black square',()=>{
+ const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(.15,Math.PI,.08,'YXZ'));
+ const translation=new THREE.Vector3(8,-6,240);
+ const pose=solvePrismPose([observe(0,0,q,translation)],0,width,height,undefined,undefined,'ring8');
+ expect(pose).not.toBeNull();
+ expect(pose!.translation.distanceTo(translation)).toBeLessThan(.1);
+ expect(trackerGeometry('prism').markerSizeMm).toBe(12);
 });

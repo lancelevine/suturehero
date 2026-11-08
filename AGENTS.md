@@ -97,7 +97,10 @@ wrong, say why in the commit message and the handoff entry.
   1280×800 and a high frame rate instead of 1080p/30 fps; markers cover fewer pixels than at
   1080p; the two cameras are not hardware-synchronized. Keep current cameras
   working until Lance has switched.
-- **Tracker:** the **8-face ring** (`ring8`) is the one in use. The prism and
+- **Tracker:** the **8-face ring** (`ring8`) is the one in use. The black
+  ArUco square is **12 mm**, measured by Lance; 16 mm is the surrounding
+  white label, not the detected black-square edge. The physical pads remain
+  19 mm. The prism and
   6-face paths still exist; don't remove them without asking.
 - **Jaw markers:** needle driver uses **solid white** balls (new, untested on
   real hardware). Forceps marker choice is still undecided. Colored and

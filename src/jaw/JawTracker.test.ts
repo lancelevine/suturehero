@@ -226,3 +226,13 @@ describe('run-time opening', () => {
     expect(next).toBeLessThan(1);
   });
 });
+
+it('rejects old ring calibrations learned with 16 mm markers but preserves compatible prism models',()=>{
+ const model={ballDiameterMm:10,balls:[{closed:new THREE.Vector3(0,0,0),open:new THREE.Vector3(5,0,0)}]};
+ const saved=serializeJawModel(model,'ring8');
+ expect(saved.markerSizeMm).toBe(12);
+ expect(parseJawModel(saved,'ring8')).not.toBeNull();
+ expect(parseJawModel({...saved,markerSizeMm:16},'ring8')).toBeNull();
+ expect(parseJawModel({...saved,markerSizeMm:undefined},'ring8')).toBeNull();
+ expect(parseJawModel({...serializeJawModel(model,'prism'),markerSizeMm:undefined},'prism')).not.toBeNull();
+});

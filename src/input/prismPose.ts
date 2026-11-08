@@ -6,13 +6,15 @@ import {estimateMarkerPose,type MarkerPose} from './markerPose';
 // Local Y is the instrument shaft axis, with marker tops aligned along +Y.
 const PRISM_SIDE_MM=12;
 const RING_SIDE_MM=19;
-// 19 mm printed face, 16 mm outer marker square.
-const RING_MARKER_MM=16;
+// Measured black square: 12 mm. The surrounding white label is 16 mm on a 19 mm pad.
+const RING_MARKER_MM=12;
+const SMALL_SINGLE_MARKER_SIDE_PX=32;
+const SMALL_MARKER_ROTATION_PRIOR_PX_PER_RADIAN=3;
 export type TrackerType='prism'|'ring6'|'ring8';
 export const trackerGeometry=(type:TrackerType)=>({faceCount:type==='ring8'?8:type==='ring6'?6:3,sideStepRadians:type==='prism'?2*Math.PI/3:Math.PI/3,markerSizeMm:type==='prism'?PRISM_SIDE_MM:RING_MARKER_MM});
 const ringRadius=RING_SIDE_MM/(2*Math.tan(Math.PI/6));
 // Measured from suturehero_needledriver_angled_faces_rotated_60.stl.
-// Center of each 19 mm square pad, with a centered 16 mm marker.
+// Center of each 19 mm square pad, with a centered 12 mm black marker square.
 const ANGLED_AXIAL_MM=17.82725;
 const ANGLED_RADIAL_MM=12.3937061;
 const prismRadius=PRISM_SIDE_MM/(2*Math.tan(Math.PI/3));
@@ -24,10 +26,10 @@ export function faceGeometry(index:number,type:TrackerType='prism'){
  const radius=ring?ringRadius:prismRadius;
  const yaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),angle);
  const q=yaw.clone();
- // Both inclined faces lean toward the tip (+Y in the mount frame).
- if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/6));
+ // The inclined pads meet the top edges of the side markers (-Y).
+ if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/6));
  const angled=type==='ring8'&&index>=6;
- const center=new THREE.Vector3(0,angled?ANGLED_AXIAL_MM:0,angled?ANGLED_RADIAL_MM:radius).applyQuaternion(yaw);
+ const center=new THREE.Vector3(0,angled?-ANGLED_AXIAL_MM:0,angled?ANGLED_RADIAL_MM:radius).applyQuaternion(yaw);
  return {rotation:q,center};
 }
 export const localCorners=(index:number,type:TrackerType='prism')=>{
@@ -64,6 +66,9 @@ export function solvePrismPose(
   return localCorners(index,trackerType).map((p,i)=>({p,uv:marker.corners[i]}));
  });
  if(points.length<4)return null;
+ const reference=predicted??previous;
+ const markerSide=points.slice(0,4).reduce((sum,{uv},i)=>{const next=points[(i+1)%4].uv;return sum+Math.hypot(uv.x-next.x,uv.y-next.y);},0)/4;
+ const stabilizeSingle=trackerType!=='prism'&&points.length===4&&markerSide<SMALL_SINGLE_MARKER_SIDE_PX&&!!reference;
  const residual=(q:THREE.Quaternion,t:THREE.Vector3)=>{
   const out:number[]=[];
   for(const {p,uv} of points){
@@ -72,6 +77,17 @@ export function solvePrismPose(
    out.push((fx*v.x/v.z+cx-uv.x),(fx*v.y/v.z+cy-uv.y));
   }
   return out;
+ };
+ // Small noisy squares do not strongly constrain tilt. Regularize the
+ // optimizer toward predicted rotation without changing reported image error.
+ const fitResidual=(q:THREE.Quaternion,t:THREE.Vector3)=>{
+  const r=residual(q,t);
+  if(!r||!stabilizeSingle||!reference)return r;
+  const relative=reference.quaternion.clone().invert().multiply(q).normalize();
+  if(relative.w<0)relative.set(-relative.x,-relative.y,-relative.z,-relative.w);
+  const sine=Math.hypot(relative.x,relative.y,relative.z);
+  const scale=sine>1e-9?SMALL_MARKER_ROTATION_PRIOR_PX_PER_RADIAN*2*Math.atan2(sine,relative.w)/sine:0;
+  return [...r,relative.x*scale,relative.y*scale,relative.z*scale];
  };
  const apply=(q:THREE.Quaternion,t:THREE.Vector3,d:number[])=>{
   const dq=new THREE.Quaternion().setFromEuler(new THREE.Euler(d[0],d[1],d[2],'XYZ'));
@@ -88,14 +104,24 @@ export function solvePrismPose(
   seeds.push({q:body.quaternion,t:body.translation});
  }
  let best:PrismPose|null=null,bestScore=Infinity;
+ // A small single square has ambiguous tilt. Keep the motion prediction as
+ // a candidate too: optimizing every seed can discard the stable branch.
+ if(stabilizeSingle&&reference){
+  const r=residual(reference.quaternion,reference.translation);
+  if(r){
+   const error=Math.sqrt(r.reduce((sum,x)=>sum+x*x,0)/points.length);
+   bestScore=error;
+   best={quaternion:reference.quaternion.clone(),translation:reference.translation.clone(),error,faces:markers.length};
+  }
+ }
  for(const seed of seeds){
   let q=seed.q,t=seed.t,lambda=.01;
   for(let iteration=0;iteration<10;iteration++){
-   const r=residual(q,t);if(!r)break;
+   const r=fitResidual(q,t);if(!r)break;
    const J:number[][]=Array.from({length:r.length},()=>Array(6).fill(0));
    for(let k=0;k<6;k++){
     const step=k<3?1e-4:.03,d=Array(6).fill(0);d[k]=step;
-    const moved=apply(q,t,d),rr=residual(moved.q,moved.t);
+    const moved=apply(q,t,d),rr=fitResidual(moved.q,moved.t);
     if(!rr)continue;
     for(let j=0;j<r.length;j++)J[j][k]=(rr[j]-r[j])/step;
    }
@@ -106,7 +132,7 @@ export function solvePrismPose(
    }
    for(let k=0;k<6;k++)A[k][k]+=lambda;
    const delta=linearSolve(A,b);if(!delta)break;
-   const next=apply(q,t,delta),nr=residual(next.q,next.t);
+   const next=apply(q,t,delta),nr=fitResidual(next.q,next.t);
    if(nr&&nr.reduce((sum,x)=>sum+x*x,0)<r.reduce((sum,x)=>sum+x*x,0)){
     q=next.q;t=next.t;lambda=Math.max(.0001,lambda*.5);
    }else lambda=Math.min(100,lambda*5);

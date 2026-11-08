@@ -9,13 +9,14 @@ const pads=[
  [[-16.7991,10.0969,9.6],[-12.0491,1.86965,26.0545],[-.344615,19.5969,9.6],[4.40539,11.3696,26.0545]],
  [[-4.40539,-11.3696,26.0545],[.344615,-19.5969,9.6],[12.0491,-1.86965,26.0545],[16.7991,-10.0969,9.6]]
 ];
-const toBody=(v:number[])=>new Vector3(-Math.sqrt(3)/2*v[0]-.5*v[1],v[2],-.5*v[0]+Math.sqrt(3)/2*v[1]);
+const toBody=(v:number[])=>new Vector3(-Math.sqrt(3)/2*v[0]-.5*v[1],-v[2],-.5*v[0]+Math.sqrt(3)/2*v[1]);
 function reference(face:number){
  const pts=pads[face-6].map(toBody),center=pts.reduce((v,p)=>v.add(p),new Vector3()).multiplyScalar(.25);
+ // The black square is 12 mm within the unchanged 19 mm measured pad.
  // Pad corners ordered as marker top-left/top-right/bottom-right/bottom-left,
- // maintaining the same axial printed orientation as side markers.
- const order=face===6?[2,0,1,3]:[1,3,2,0];
- return order.map(i=>pts[i].clone().sub(center).multiplyScalar(16/19).add(center));
+ // with the side marker top edge adjacent to the angled marker bottom edge.
+ const order=face===6?[3,1,0,2]:[0,2,3,1];
+ return order.map(i=>pts[i].clone().sub(center).multiplyScalar(12/19).add(center));
 }
 const width=1280,height=720,focal=width/(2*Math.tan(70*Math.PI/360/2));
 const project=(points:Vector3[],id:number,q:Quaternion,t:Vector3)=>({id,corners:points.map(v=>{const p=v.clone().applyQuaternion(q).add(t);return {x:width/2+focal*p.x/p.z,y:height/2+focal*p.y/p.z};})});
@@ -42,9 +43,19 @@ it.each([0,10,20])('preserves pose through side/angled/overlap handoffs for inst
    const delta=q.clone().invert().multiply(next.quaternion);if(delta.w<0)delta.set(-delta.x,-delta.y,-delta.z,-delta.w);
    expect(new Vector3(delta.x,delta.y,delta.z).dot(axis)).toBeGreaterThan(.035);
   }
-  const mono=estimateMarkerPose(b,width,height,16)!;
+  const mono=estimateMarkerPose(b,width,height,12)!;
   expect(bodyPoseFromMarker(mono,angled,'ring8').translation.distanceTo(t)).toBeLessThan(.01);
   const stereo=fitStereoMarkerPose(localCorners(angled,'ring8'),reference(angled).map(p=>p.clone().applyQuaternion(q).add(t)))!;
   expect(stereo.translation.distanceTo(t)).toBeLessThan(.001);expect(stereo.quaternion.angleTo(q)).toBeLessThan(.0001);
+ }
+});
+
+it('places the angled pads beside the printed top edges of side markers',()=>{
+ for(const [side,angled] of [[0,6],[3,7]]){
+  const sideTop=localCorners(side,'ring8')[0].y;
+  const corners=localCorners(angled,'ring8');
+  expect(faceGeometry(angled,'ring8').center.y).toBeLessThan(0);
+  expect(corners[2].y).toBeLessThan(sideTop);
+  expect(corners[0].y).toBeLessThan(corners[2].y);
  }
 });

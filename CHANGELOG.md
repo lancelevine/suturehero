@@ -5,6 +5,23 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.85 — measured 12 mm ring markers and stereo outlier recovery
+
+Ring poses now use the measured **12 mm black square**, rather than the 16 mm
+white label. Angled pads now sit beside the side markers’ top edges, matching
+the physically confirmed label layout. Pad dimensions and legacy prism geometry
+remain unchanged. If extra
+faces corrupt a joint stereo fit, the solver can retry a shared square seen by
+both cameras, keeping the existing per-camera/corner reprojection limits. A
+small single-marker rotation prior preserves tilt stability at the reduced
+pixel footprint; the existing noise regression remains unchanged.
+
+Stereo checkerboard calibration is retained. Ring Near/Far captures and
+marker-relative jaw calibrations made with the old 16 mm assumption need
+recapturing. New saved jaw models include the physical marker size; compatible
+legacy prism models continue loading. De-identified recorded corner fixtures
+cover the actual failure, including rejection of missing or corrupted views.
+
 ## Build 0.84 — stereo explains why it is not used
 
 When metric stereo is enabled but an instrument gets no stereo pose, the
