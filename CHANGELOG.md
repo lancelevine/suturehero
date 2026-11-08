@@ -13,6 +13,16 @@ pose solutions are rejected, while a sustained new pose can reacquire after
 three consistent samples. The normal render filter and mono tracking path are
 unchanged.
 
+## Build 0.88 — stereo no longer flips between single-marker fits
+
+When the two cameras' markers cannot all be fitted together, stereo falls
+back to a marker seen by both cameras. It previously chose the lowest-error
+marker each frame, which could alternate between markers whose answers
+differ by tens of degrees, so the instrument jumped while still. It now
+keeps the fit nearest the previous pose (remembered for 0.5 s), and holds
+rather than jumping more than 25°. On Lance's recording: jumps over 20° went
+from 4 to 0 (largest turn 64° → 9.8°).
+
 ## Build 0.87 — Tracking Lab: reachable controls and compact export
 
 The Tracking Lab now scrolls within its own area, so Import, the recording

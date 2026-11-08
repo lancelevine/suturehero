@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — stop stereo flipping between single-marker fits (stereoRigPose.ts, tracking.ts).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -72,6 +72,21 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Continuous stereo single-marker fallback (build 0.88)
+- Changed: `solveStereoRigPose`'s 0.85 fallback now picks the single-marker
+  fit nearest the previous pose (`chooseFallbackPose`, max 25° turn) instead
+  of the lowest error; `tracking.ts` keeps the last accepted stereo pose for
+  500 ms through rejected frames as that reference.
+- Checked: tsc, stereo unit tests; replay of Lance's 8:58 PM corners: jumps
+  >20° 4 → 0, accepted 14 → 12 of 22. `check-stereo-rig-faces` passes.
+- **Known failing:** `check-stereo-motion` fails ({"far":-5.1…}) with and
+  without this change (tested on `27e6307`), so it broke earlier, most
+  likely with the 0.85 12 mm geometry change (its synthetic scene assumed
+  the old size). Needs updating or investigation.
+- Lance reports jumping continues even with markers 3 and 7 hidden, so this
+  is not the whole cause. Next: a compact Lab recording of the instrument
+  at rest in stereo.
+
 ### 2026-11-08 — Claude Code — Lab scrolling and compact export (build 0.87)
 - Changed: `.tracking-lab` scrolls (body is overflow:hidden; at 1536×730
   the Lab content was ~1050 px in a 666 px area, hiding Import/library/

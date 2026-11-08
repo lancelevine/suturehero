@@ -10,6 +10,8 @@ export type StereoRigPose=Pose&{errorPx:number;faces:number;corners:number;first
 /** Filled with the reason when solveStereoRigPose returns null. */
 export type StereoRigDiagnostics={reason?:string};
 const RMS_LIMIT_PX=3,CORNER_LIMIT_PX=6;
+/** A single-marker fallback fit may turn at most this far from the previous pose per update. */
+const FALLBACK_MAX_TURN_RADIANS=25*Math.PI/180;
 /** Joint calibrated reprojection fit. Different cameras need not see the same
  * face: localCorners supplies the known rigid relationship between every ID. */
 function fitStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null{
@@ -128,7 +130,7 @@ export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation
  const valid=(marker:MarkerObservation)=>marker.id>=firstId&&marker.id<firstId+trackerGeometry(type).faceCount;
  const a=first.filter(valid),b=second.filter(valid);
  if(a.length<=1&&b.length<=1)return null;
- let best:StereoRigPose|null=null;
+ const candidates:StereoRigPose[]=[];
  const seen=new Set<number>();
  for(const marker of a){
   if(seen.has(marker.id))continue;
@@ -136,8 +138,22 @@ export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation
   const other=b.find(candidate=>candidate.id===marker.id);
   if(!other)continue;
   const candidate=fitStereoRigPose(cal,[marker],[other],size1,size2,firstId,type,previous);
-  if(candidate&&(!best||candidate.errorPx<best.errorPx))best=candidate;
+  if(candidate)candidates.push(candidate);
  }
+ // Single-marker fits from different faces can disagree by tens of degrees
+ // (e.g. a steeply viewed angled marker). Choosing the lowest error per frame
+ // made the pose flip between them, so prefer continuity with the previous
+ // pose and refuse a large jump; without a previous pose, take the lowest error.
+ const best=chooseFallbackPose(candidates,previous);
  if(best&&diagnostics)delete diagnostics.reason;
+ else if(candidates.length&&diagnostics)diagnostics.reason=`single-marker fits turn more than ${Math.round(FALLBACK_MAX_TURN_RADIANS*180/Math.PI)}° from the previous pose`;
  return best;
+}
+
+/** Pick among single-marker fits: nearest the previous pose (refusing a turn
+ * beyond FALLBACK_MAX_TURN_RADIANS), or the lowest error without a previous pose. */
+export function chooseFallbackPose<T extends {quaternion:Quaternion;errorPx:number}>(candidates:T[],previous?:{quaternion:Quaternion}):T|null{
+ if(!previous)return [...candidates].sort((x,y)=>x.errorPx-y.errorPx)[0]??null;
+ const turn=(pose:T)=>pose.quaternion.angleTo(previous.quaternion);
+ return candidates.filter(pose=>turn(pose)<=FALLBACK_MAX_TURN_RADIANS).sort((x,y)=>turn(x)-turn(y))[0]??null;
 }

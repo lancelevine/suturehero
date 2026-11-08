@@ -1,7 +1,7 @@
 import {measuredRing12} from './fixtures/measuredRing12';
 import {expect,it} from 'vitest';
 import {Euler,Matrix3,Quaternion,Vector3} from 'three';
-import {solveStereoRigPose} from './stereoRigPose';
+import {chooseFallbackPose,solveStereoRigPose} from './stereoRigPose';
 import {localCorners,type TrackerType} from './prismPose';
 import type {StereoCalibration} from './stereoGeometry';
 const cal:StereoCalibration={format:'suturehero-stereo-calibration-v1',imageSize:{width:1920,height:1080},
@@ -89,4 +89,12 @@ it('recovers a genuine two-camera constraint despite conflicting extra instrumen
  const corrupt=f.second.map(m=>({...m,corners:m.corners.map(p=>({x:p.x,y:p.y+80}))}));
  expect(solveStereoRigPose(f.calibration,f.allFirst,corrupt,f.size,f.size,0,'ring8')).toBeNull();
  expect(solveStereoRigPose(f.calibration,f.allFirst,[],f.size,f.size,0,'ring8')).toBeNull();
+});
+it('keeps a single-marker fallback continuous instead of flipping between disagreeing faces',()=>{
+ const pose=(degrees:number,errorPx:number)=>({quaternion:new Quaternion().setFromAxisAngle(new Vector3(0,1,0),degrees*Math.PI/180),errorPx});
+ const a=pose(0,1.2),b=pose(60,.4);
+ expect(chooseFallbackPose([a,b])).toBe(b); // no history: lowest error
+ expect(chooseFallbackPose([a,b],pose(5,0))).toBe(a); // stays near the previous pose
+ expect(chooseFallbackPose([a,b],pose(55,0))).toBe(b);
+ expect(chooseFallbackPose([a,b],pose(-40,0))).toBeNull(); // every option would jump >25°
 });

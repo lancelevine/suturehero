@@ -279,7 +279,9 @@ const stereoFrames=new StereoFrames();
 const stereoFallbacks=new Map<InstrumentName,StereoFallback>();
 const stereoFallbackStatus=new Map<InstrumentName,string>();
 const stereoMonoCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;views:MonoView[]}>();
-const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;pose:StereoRotation|null}>();
+const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;pose:StereoRotation|null;lastGood?:StereoRotation;lastGoodAt?:number}>();
+/** A remembered stereo pose guides the next fit only while this recent (ms). */
+const STEREO_CONTINUITY_MS=500;
 // Fit all known face corners jointly in the calibrated camera frames.
 /** Why stereo was not used for each instrument on the latest frame (diagnostics only). */
 const stereoRejections=new Map<InstrumentName,string>();
@@ -294,9 +296,11 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
  const key=`${synchronized.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
  if(cached?.key===key&&cached.calibration===stereoCalibration)return cached.pose;
  const diagnostics:StereoRigDiagnostics={};
- const pose=solveStereoRigPose(stereoCalibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??undefined,diagnostics);
+ const pose=solveStereoRigPose(stereoCalibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??(cached?.lastGood&&synchronized.at-(cached.lastGoodAt??-Infinity)<STEREO_CONTINUITY_MS?cached.lastGood:undefined),diagnostics);
  if(pose)stereoRejections.delete(name);else noteStereoRejection(name,diagnostics.reason??'rejected');
- stereoPoseCache.set(name,{key,calibration:stereoCalibration,pose});return pose;
+ // Keep the last accepted pose through rejected frames so the next fit stays continuous.
+ const keep=cached?.calibration===stereoCalibration;
+ stereoPoseCache.set(name,{key,calibration:stereoCalibration,pose,lastGood:pose??(keep?cached?.lastGood:undefined),lastGoodAt:pose?synchronized.at:(keep?cached?.lastGoodAt:undefined)});return pose;
 }
 
 function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
