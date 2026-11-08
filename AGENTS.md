@@ -70,8 +70,9 @@ area they cover; they are not run by CI.
 - Useful set for tracking changes: `check-tracking-storage`,
   `check-camera-controls`, `check-tracking-motion`, `check-driver-depth`,
   `check-ring-handoffs`, `check-ball-pairs`, `check-striped-jaws`,
-  `check-striped-lifecycle`, `check-calibration-preview`.
-- Known failing before 2026-11-07: `check-dual-camera-fit` (see handoff log).
+  `check-striped-lifecycle`, `check-calibration-preview`, `check-marker-jaws`.
+- Known failing before 2026-11-07: `check-dual-camera-fit`; flaky:
+  `check-depth-stability` (see handoff log).
 
 Never weaken a test threshold just to make it pass. If a limit is genuinely
 wrong, say why in the commit message and the handoff entry.
@@ -116,6 +117,9 @@ wrong, say why in the commit message and the handoff entry.
 - `src/input/`: tracking, calibration, marker/ball detection, workers.
   Camera device handling (requested resolution/frame rate, device lists,
   remembered cameras) is in `src/input/cameraDevices.ts`.
+- `src/jaw/`: the new marker-relative white-ball jaw tracker (see the 2026-11-08
+  handoff entry). The classic ball code in `src/tracking.ts` is legacy and
+  slated for removal; don't extend it.
 - `src/suture/`, `src/tissue/`, `src/gameplay/`: thread/knot physics, tissue,
   practice-session logic. These are well unit-tested; keep it that way.
 - `src/scene/`, `src/visuals/`, `src/ui/`: rendering and UI.

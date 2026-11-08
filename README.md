@@ -98,9 +98,11 @@ the virtual instruments.
   Marker IDs are needle driver 0–7, forceps 10–17 and scissors 20–27. The
   older prism (0–2 / 3–5 / 6–8) and 6-face ring (0–5 / 10–15 / 20–25) are
   still supported.
-- **Jaw markers:** solid white balls on the needle driver (new, being tested).
-  Colored and striped (white with three black bands) modes also exist; the
-  forceps choice is still open.
+- **Jaw markers:** two white balls per instrument (default 10 mm), tracked
+  relative to the marker ring by the new jaw tracker (`src/jaw/`, being tested
+  on hardware). They can sit anywhere on the jaws or handles as long as at
+  least one moves when the jaws open. The previous colored/striped tracker is
+  still available as **Classic** and is planned for removal.
 - **Cameras:** one camera in daily use. A pair of OV9281 monochrome
   global-shutter cameras (1280×800, up to 120 fps) is planned for stereo.
   These cannot see color, so colored jaw balls will not work with them.
@@ -113,8 +115,11 @@ the virtual instruments.
    cameras).
 3. For each instrument, hold it in a comfortable position and **Set neutral
    pose**. Adjust sensitivity, axis mapping and tip offset, then **Save**.
-4. For jaws, assign or sample the balls, then capture closed/open at **Near**
-   and **Far**.
+4. For jaws (Camera 1): hold the jaws closed, press **Calibrate closed**, click
+   each ball, then turn the instrument about 15–20° slowly or in small steps
+   while the ring stays visible. Repeat with the jaws fully open using
+   **Calibrate open**. The reading then works at any distance and angle where
+   the ring and balls are visible.
 5. For stereo, capture about 20 varied checkerboard poses (default 9 × 7
    squares, 16 mm; verify your print), export them, and solve offline:
 

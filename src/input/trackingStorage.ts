@@ -18,6 +18,10 @@ export const TRACKING_STORAGE_KEYS = {
   needleJawPattern: 'suturehero.needleJawPattern.v1',
   jawTrackingCamera1: 'suturehero.jaw-tracking.v1',
   jawTrackingCamera2: 'suturehero.jaw-tracking.camera2.v1',
+  /** Which jaw tracker runs: 'marker' (white balls, marker-relative) or 'classic'. */
+  jawEngine: 'suturehero.jawEngine.v1',
+  /** Marker-relative jaw models per instrument (src/jaw/JawTracker.ts). */
+  markerJawModels: 'suturehero.markerJawModels.v1',
 } as const;
 
 type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;

@@ -34,6 +34,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
 import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
+import {mountMarkerJaws} from './jaw/markerJawController';
 import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from './input/trackingMessages';
 import {TRACKING_STORAGE_KEYS,readStored,readStoredJson,writeStored,removeStored,parseTrackerType,parseNeedleJawPattern,jawStorageKey,patternJawStorageKey,parseDepthCalibration,DEFAULT_WORKING_DEPTH_MM,type NeedleJawPattern,type SavedDepthCalibration} from './input/trackingStorage';
 import type {DetectorDiagnostics} from './input/arucoDetector';
@@ -250,6 +251,7 @@ trackerTypeSelect.addEventListener('change',()=>{
  trackerType=parseTrackerType(trackerTypeSelect.value);
  resetTrackerPose();
  updateTrackerDescription();
+ markerJaws.reloadModels();
  writeStored(TRACKING_STORAGE_KEYS.trackerType,trackerType);
 });
 trackerTypeSelect.value=parseTrackerType(readStored(TRACKING_STORAGE_KEYS.trackerType));
@@ -1159,6 +1161,22 @@ function restoreJaws(){
  });savedJawRevision=jawRevision();renderBallSwatches();
 }
 restoreJaws();
+/** Send a measured jaw opening (0 closed … 1 open) to the previews and the practice scene. */
+function deliverJawOpening(name:BallInstrumentName,measured:number,cameras:number[]){
+ const opening=instrumentCalibration.opening(name,measured);
+ if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(opening);
+ if(name==='needleDriver')previewInstrumentModels.get('right')?.setTrackedOpening(opening);
+ if(name==='scissors')previewScissorOpening(opening);
+ publishTrackingMessage({type:TRACKING_MESSAGE.jawOpening,instrument:name,opening,cameras:cameras.map(c=>c+1),seenAt:Date.now()},embeddedTracking);
+}
+// New jaw tracker (src/jaw/). It reads camera-1 markers and solves its own
+// tracker pose; instrument tracking state is never touched.
+const markerJaws=mountMarkerJaws(document.querySelector<HTMLElement>('#ball-enable')!.closest('details')!,{
+ video,overlay,trackerType:()=>trackerType,
+ markers:(name,now)=>{const ids:readonly number[]=markerGroups()[name];return observations.filter(m=>ids.includes(m.id)&&now-(markerLastConfirmed.get(m.id)??-Infinity)<250&&now-(markerLastDecoded.get(m.id)??-Infinity)<650);},
+ firstMarkerId:name=>markerGroups()[name][0],
+ publish:(name,opening)=>deliverJawOpening(name,opening,[0]),
+});
 const needlePattern=document.querySelector<HTMLSelectElement>('#needle-ball-pattern')!;needlePattern.value=needleBallMode;
 needlePattern.addEventListener('change',()=>{
  cancelJointJaws('Capture cancelled when changing ball pattern.');persistJaws();needleBallMode=parseNeedleJawPattern(needlePattern.value);stripedNeedle=needleBallMode!=='color';
@@ -1252,6 +1270,7 @@ function searchStripedJawBall(video:HTMLVideoElement,center:{x:number;y:number},
 }
 
 function scanForcepsBalls(now:number,camera=0){
+ if(!markerJaws.classicActive())return;
  if(!jawCameraParticipates(trackingMode.value,camera))return;
  const state=jawCameras[camera];
  const {video,ballCanvas,ballContext,ballColors,ballCenters,ballAnchors,ballSeenAt,ballDisplayColors,ballSampleBrightness,ballAnchorMarkers,ballPairStates,ballPairReferences,ballPairValidAt,ballProvisional,ballLastMarkers,ballCalibrations}=state;
@@ -1371,11 +1390,7 @@ function scanForcepsBalls(now:number,camera=0){
    const name=ballNames[pair];
    const fused=jawFusion[pair].update(camera,cal.value,ballPairValidAt[pair],Math.min(a.count,b.count),now);if(!fused)continue;
    jawViewStatus[pair]='Jaw view: '+fused.cameras.map(c=>'Camera '+(c+1)).join(' + ');
-   const opening=instrumentCalibration.opening(name,fused.opening);
-   if(name==='forceps')previewInstrumentModels.get('left')?.setTrackedOpening(opening);
-   if(name==='needleDriver')previewInstrumentModels.get('right')?.setTrackedOpening(opening);
-   if(name==='scissors')previewScissorOpening(opening);
-   publishTrackingMessage({type:TRACKING_MESSAGE.jawOpening,instrument:name,opening,cameras:fused.cameras.map(c=>c+1),seenAt:Date.now()},embeddedTracking);
+   deliverJawOpening(name,fused.opening,fused.cameras);
   }
  }
  if(camera!==(Number(ballCamera.value)||0)){perf.sample(`Camera ${camera+1} jaw color scan + calibration`,performance.now()-jawStarted);return;}
@@ -1397,6 +1412,7 @@ function drawBallOutlines(camera=0){
  const {overlay:source,ballCanvas,ballPairValidAt,ballProvisional,ballCenters,ballDisplayColors,ballAnchors,ballAnchorMarkers,video}=jawCameras[camera];
  const overlay=jawOverlays[camera];if(overlay.width!==source.width||overlay.height!==source.height){overlay.width=source.width;overlay.height=source.height;}
  const overlayContext=overlay.getContext('2d')!;overlayContext.clearRect(0,0,overlay.width,overlay.height);
+ if(!markerJaws.classicActive())return;
  if(!ballEnabled.checked||!video.srcObject||!jawCameraParticipates(trackingMode.value,camera))return;
  overlayContext.font='12px sans-serif';
  for(let i=0;i<6;i++){
@@ -1488,6 +1504,7 @@ const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 async function detectFrame(now:number){
  if(!stream||!detectorReady||!video.videoWidth)return;
  scanForcepsBalls(now);
+ markerJaws.update(now);
  const clock=frameClock(video),fastDue=!fastProcessing&&now-lastFastFrame>=(clock?20:33);
  const doFast=fastDue&&(!clock||clock.fresh);if(fastDue&&!doFast)perf.count('Camera 1 duplicate flow requests skipped');
  // Run decode faster when flow has no usable marker; only one decode can be in flight.

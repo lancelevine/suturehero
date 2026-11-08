@@ -6,10 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — rebuilding jaw tracking (white balls, marker-relative) as a new module alongside the old one. Please avoid editing `src/tracking.ts`, `src/ui/InstrumentCalibrationPanel.ts` and jaw-related files under `src/input/` until cleared.
+- **In progress:** none
 - **Needs Lance to test by hand:**
-  - Solid white needle-driver ball mode (commit `7f44662`): not yet tried
-    with a real camera.
+  - **New jaw tracker** (Calibrate → Needle driver → Jaws → Jaw tracker
+    "White balls (new)"): calibrate closed and open with the real
+    instrument and camera, then check the reading. Only synthetic-camera
+    tested so far. If it doesn't work, the selector switches back to Classic.
 - **Known issues:**
   - `FreeKnotTechniques.test.ts` "retains a double surgeon first throw…"
     passes on Node 24 but fails on Node 22 (thread point moves 0.042 vs a
@@ -19,17 +21,29 @@ entry when finishing.
   - `scripts/check-dual-camera-fit.mjs` fails at 1024×768 (camera previews
     not stacked / wrong proportions). Already failing before 2026-11-07
     changes (verified on `7f44662`); not yet investigated.
-  - `src/tracking.ts` (~156 KB) and `src/main.ts` (~57 KB) are monolithic and
+  - `scripts/check-depth-stability.mjs` is flaky (passes ~30–50% of runs on
+    both the original `7f44662` and current code; A/B tested 10 vs 10). It
+    samples depth while it is still settling after unlock. Not a regression.
+  - The single-camera pose solvers compute focal length as
+    `width/(2·tan(70·π/360/2))` = a **35°** horizontal field of view, though
+    comments say 70°. Instrument tracking is self-consistent with it; mm
+    distances in mono mode are scaled by this guess. Don't change it without
+    re-checking depth calibration; new code must use the same model
+    (`defaultIntrinsics` in `src/jaw/jawGeometry.ts`).
+  - `src/tracking.ts` (~150 KB) and `src/main.ts` (~57 KB) are monolithic and
     are the most likely place for merge conflicts.
 - **Next up (proposed, not started):**
-  1. Continue splitting `src/tracking.ts` into tested modules. Done:
-     camera devices/controls, saved settings, tracking → scene messages.
-     Next candidates: stereo calibration import/status panel; the jaw-ball
-     detection loop (largest and riskiest — do in small steps with the
-     ball/striped browser checks after each).
-  2. Add a code formatter in one dedicated commit (agree with Lance first).
-  3. Make the needle-driver solid-white path solid once Lance has tested it.
-  4. When the OV9281 cameras arrive (monochrome, global shutter, 1280×800 @
+  1. After Lance confirms the new jaw tracker on hardware: delete the
+     classic jaw tracker (~70 KB: ball code in `src/tracking.ts`,
+     `colorBallSearch`, `stripedBallSearch`, `ballPairTracking`,
+     `BallMotionTracker`, `JawCalibration`, `JawViewFusion`, the striped
+     worker, and their checks) in its own commit.
+  2. New jaw tracker follow-ups: second camera (stereo), forceps balls,
+     reduce frame lag by reading balls from the same frame as the markers.
+  3. Continue splitting `src/tracking.ts`; next candidate: stereo
+     calibration import/status panel.
+  4. Add a code formatter in one dedicated commit (agree with Lance first).
+  5. When the OV9281 cameras arrive (monochrome, global shutter, 1280×800 @
      up to 120 fps): change `CAMERA_REQUEST` in `src/input/cameraDevices.ts`,
      use white/striped jaw balls for the forceps, then recalibrate and retest
      stereo. Needs real-camera testing by Lance. Lance asked to wait until
@@ -47,6 +61,35 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-08 — Claude Code — New marker-relative jaw tracker (white balls)
+- Changed: new jaw tracker in `src/jaw/`, selectable in the jaw panel and
+  the default; the classic tracker remains under "Classic (previous)".
+  Calibration: click each white ball with jaws closed, turn the instrument
+  ~15–20° slowly (samples are only recorded below 6°/s), repeat open. Each
+  ball's 3D position is solved in the ring's own frame, so ball placement
+  is free and Near/Far captures are gone. At run time the ring pose
+  predicts each ball's closed→open path; the bright blob on that path gives
+  0–1 opening. Brightness only (works with the monochrome OV9281s).
+  Instrument tracking is untouched: the jaw code reads camera-1 markers and
+  solves its own pose with the pure `solvePrismPose` (ring8: side faces
+  only). Openings go through the same `deliverJawOpening` path and
+  `suturehero:jaw-opening` message as before.
+- Files: `src/jaw/jawGeometry.ts`, `brightBalls.ts`, `JawTracker.ts`,
+  `markerJawController.ts` (+ tests), `src/tracking.ts` (mount, per-frame
+  call, classic on/off, shared `deliverJawOpening`),
+  `src/input/trackingStorage.ts` (two keys),
+  `scripts/check-marker-jaws.mjs` (new 3D synthetic ring + balls),
+  `scripts/synthetic-camera.mjs` (2D scenes select the classic engine).
+- Checked: tsc, full `npm test`, build on Node 24. Instrument-tracking
+  browser checks before/after: same results (see Known issues for the flaky
+  depth check). `check-marker-jaws` passed 4/4 runs: closed 0–0.07,
+  half 0.49–0.50, open 0.91–0.92, 0.3 with a bright distractor 0.28–0.33.
+  Classic jaw checks (ball-pairs, striped-jaws, striped-lifecycle) pass.
+- Lance to test: see Status. Ball diameter is configurable (default 10 mm).
+- Notes for the other agent: only camera 1 for now. A camera 2 path should
+  reuse `JawTracker` with that camera's calibrated intrinsics/pose. Do not
+  add features to the classic tracker; it is slated for removal.
 
 ### 2026-11-07 — Claude Code — Typed tracking → practice-scene messages
 - Changed: the four messages tracking sends (pose, jaw opening, status,

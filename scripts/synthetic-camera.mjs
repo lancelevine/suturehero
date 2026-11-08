@@ -1,7 +1,9 @@
 import {readFile} from 'node:fs/promises';
 export async function installSyntheticCamera(page,options={}){
  await page.context().route('**/scripts/fixtures/aruco-4x4-50.png',async route=>route.fulfill({contentType:'image/png',body:await readFile(new URL('./fixtures/aruco-4x4-50.png',import.meta.url))}));
- await page.addInitScript(({muted,resolutionScale})=>{
+ await page.addInitScript(({muted,resolutionScale,jawEngine})=>{
+  // These 2D scenes exercise the classic colored/striped jaw tracker.
+  try{if(!localStorage.getItem('suturehero.jawEngine.v1'))localStorage.setItem('suturehero.jawEngine.v1',jawEngine);}catch{}
   window.__ballScene={shift:0,open:false,distractor:false,marker:true,muted};window.__jawEvents=[];
   window.addEventListener('message',e=>{if(e.data?.type==='suturehero:jaw-opening')window.__jawEvents.push(e.data);});
   navigator.mediaDevices.enumerateDevices=async()=>[{kind:'videoinput',deviceId:'synthetic',label:'Synthetic ball pair camera',groupId:'test',toJSON(){return {};}},{kind:'videoinput',deviceId:'synthetic-secondary',label:'Synthetic second camera',groupId:'test-2',toJSON(){return {};}}];
@@ -24,5 +26,5 @@ export async function installSyntheticCamera(page,options={}){
     c.restore();requestAnimationFrame(draw);
    };draw();const stream=canvas.captureStream(30);const track=stream.getVideoTracks()[0],settings=track.getSettings.bind(track);track.getSettings=()=>({...settings(),deviceId:secondary?'synthetic-secondary':'synthetic'});return stream;
   };
- },{muted:!!options.muted,resolutionScale:options.resolutionScale??1});
+ },{muted:!!options.muted,resolutionScale:options.resolutionScale??1,jawEngine:options.jawEngine??'classic'});
 }
