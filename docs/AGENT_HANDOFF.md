@@ -69,6 +69,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.106: revert jaw region reads to 0.98 cache
+
+- `src/jaw/markerJawController.ts`: `cameraGray` frame cache restored
+  (0.99 and 0.103 per-region reads measured slower on Lance's PC: 45 ms and
+  28 ms vs ~8 ms).
+- Checked: tsc, check-marker-jaws.
+
 ### 2026-11-08 — Claude — Build 0.105: no mono deltas between stereo samples
 
 - `src/input/StereoFallback.ts`: when the stereo sample is unchanged, return

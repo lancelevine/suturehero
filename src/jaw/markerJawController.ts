@@ -151,12 +151,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   host.video.parentElement!.append(canvas);
   const context = canvas.getContext('2d')!;
 
-  // A GPU-backed canvas on purpose: drawing the video is a GPU copy and only
-  // the small region is read back. With willReadFrequently (a CPU canvas)
-  // every draw copied the whole video frame to the CPU — ~45 ms per update
-  // in the 0.100 report.
   const crop = document.createElement('canvas');
-  const cropContext = crop.getContext('2d')!;
+  const cropContext = crop.getContext('2d', { willReadFrequently: true })!;
 
   let engine: JawEngine = parseJawEngine(readStored(TRACKING_STORAGE_KEYS.jawEngine));
   let mode: Mode = { kind: 'idle' };
@@ -247,29 +243,43 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   }
 
   /**
-   * Grayscale pixels of one region of a camera's current frame, at overlay
-   * resolution. Only the region is copied out of the video: reading back the
-   * whole frame cost up to ~30 ms per update (0.97 report).
+   * One grayscale copy of each camera's current frame, at overlay resolution.
+   * Reading pixels back from a video is the expensive part of jaw tracking,
+   * so it happens once per camera per frame; every search region is then cut
+   * from this copy in JavaScript. Measured on Lance's PC: ~8 ms per update
+   * (0.98). Per-region reads were slower: 45 ms through a CPU canvas (0.100),
+   * 28 ms through a GPU canvas (0.104).
    */
-  function sample(region: Region, camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement } = host): SampledRegion | null {
+  const frameCache = new Map<HTMLVideoElement, { id: number; image: GrayImage }>();
+  function cameraGray(camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement }): GrayImage | null {
     const { video, overlay } = camera;
     if (!video.videoWidth || !overlay.width) return null;
+    const id = cameraImageId(video);
+    const cached = frameCache.get(video);
+    if (cached && cached.id === id && cached.image.width === overlay.width && cached.image.height === overlay.height) return cached.image;
+    const { width, height } = overlay;
+    if (crop.width !== width || crop.height !== height) {
+      crop.width = width;
+      crop.height = height;
+    }
+    cropContext.drawImage(cameraImage(video), 0, 0, width, height);
+    const image = grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
+    frameCache.set(video, { id, image });
+    return image;
+  }
+
+  function sample(region: Region, camera: { video: HTMLVideoElement; overlay: HTMLCanvasElement } = host): SampledRegion | null {
+    const frame = cameraGray(camera);
+    if (!frame) return null;
     const x0 = Math.max(0, Math.floor(region.x));
     const y0 = Math.max(0, Math.floor(region.y));
-    const x1 = Math.min(overlay.width, Math.ceil(region.x + region.width));
-    const y1 = Math.min(overlay.height, Math.ceil(region.y + region.height));
+    const x1 = Math.min(frame.width, Math.ceil(region.x + region.width));
+    const y1 = Math.min(frame.height, Math.ceil(region.y + region.height));
     if (x1 - x0 < 4 || y1 - y0 < 4) return null;
     const width = x1 - x0;
-    const height = y1 - y0;
-    if (crop.width < width || crop.height < height) {
-      crop.width = Math.max(crop.width, width);
-      crop.height = Math.max(crop.height, height);
-    }
-    const toVideoX = video.videoWidth / overlay.width;
-    const toVideoY = video.videoHeight / overlay.height;
-    cropContext.drawImage(cameraImage(video), x0 * toVideoX, y0 * toVideoY, width * toVideoX, height * toVideoY, 0, 0, width, height);
-    const image = grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
-    return { image, region: { x: x0, y: y0, width, height }, scale: 1 };
+    const data = new Uint8Array(width * (y1 - y0));
+    for (let y = y0; y < y1; y++) data.set(frame.data.subarray(y * frame.width + x0, y * frame.width + x1), (y - y0) * width);
+    return { image: { width, height: y1 - y0, data }, region: { x: x0, y: y0, width, height: y1 - y0 }, scale: 1 };
   }
 
   /** White-ball candidates near one camera's view of an instrument's ring, in that camera's overlay pixels. */

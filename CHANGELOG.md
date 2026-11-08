@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.106 — jaw tracking back to one frame copy per camera
+
+Reading each small jaw search area separately turned out slower on Lance's
+PC: 45 ms per update through a CPU canvas (0.100–0.102) and 28 ms through
+a GPU canvas (0.103–0.104), against ~8 ms for 0.98's single grayscale copy
+of each camera frame. This restores the 0.98 method.
+
 ## Build 0.105 — hold the stereo pose between stereo updates
 
 Between stereo poses, the instrument followed changes in each camera's own
