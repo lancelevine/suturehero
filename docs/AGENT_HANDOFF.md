@@ -69,6 +69,21 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — 0.126 marker list shows only decoded markers
+
+- Lance spotted that ring ID 3 isn't on the angled face. Correct: at
+  −15,300,0 the synthetic scene draws ring faces 4, 5, 0 and 6 (6 is the
+  angled one); 3 and 2 are hidden. The previous entry's "face 3 is really
+  visible" was wrong. The list showed 2 and 3 for 3–6 s because optical flow
+  kept their old outlines alive. Pose paths already require a decode within
+  250–650 ms, so poses were not affected.
+- `src/tracking.ts`: `#marker-readout` lists only IDs decoded within
+  `MARKER_READOUT_DECODED_MS` (650, same as the overlay). Probe: ghosts clear
+  within ~1.5 s. check-tracking-motion and check-marker-rest pass.
+- Follow-ups (fail at HEAD before this change too): `check-predictive-decode`
+  asserts `Camera 1 search full` > 0, likely out of date since the 0.124
+  discovery tiles; `check-tracking-panels` times out. Not investigated.
+
 ### 2026-11-08 — Claude — 0.125 stereo prism axis fix; OV9281 two-camera rehearsal
 
 - **Bug fixed (0.125):** `prismAxisPoint` (`src/jaw/stereoHandle.ts`) moved

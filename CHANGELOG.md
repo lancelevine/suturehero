@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.126 — marker list shows only markers actually seen
+
+The tracking page's marker list included outlines that optical flow was
+still carrying after their face had turned away (for 3–6 s in a synthetic
+test), so hidden ring faces appeared as "visible". It now lists only
+markers decoded in the last 650 ms, as the overlay already did. Pose
+estimation was not affected: it already required recent decodes.
+
 ## Build 0.125 — stereo handle prism: every face now gives the same axis point
 
 Two-camera jaw tracking turns each triangulated prism face into a point on

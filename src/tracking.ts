@@ -617,6 +617,8 @@ const cornerDebugStatus=document.querySelector<HTMLElement>('#corner-debug-statu
 
 const markerLastConfirmed=new Map<number,number>();
 const markerLastDecoded=new Map<number,number>();
+/** Marker list: only IDs decoded within this time (ms), matching the overlay outlines. */
+const MARKER_READOUT_DECODED_MS=650;
 const OVERLAP_DECODE_MS=220;
 const verifiedMarkers=()=>{
  const now=performance.now();
@@ -1576,7 +1578,10 @@ function drawDetections(){
  drawCornerDebug();
  perf.sample('Marker overlay drawing',performance.now()-overlayStarted);
  perf.measure('Pose estimation + filtering',updateLiveTargets);const uiStarted=performance.now();
- markerReadout.textContent=observations.length?observations.map(m=>m.id).sort((a,b)=>a-b).join(', '):'None visible';
+ // List only markers decoded recently (same rule as the overlay): optical flow can carry an
+ // outline for seconds after its face has turned away, which made hidden faces look visible.
+ const decodedIds=observations.filter(m=>performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<=MARKER_READOUT_DECODED_MS).map(m=>m.id).sort((a,b)=>a-b);
+ markerReadout.textContent=decodedIds.length?decodedIds.join(', '):'None visible';
  if(!simulation.checked){
   const readout=(name:'needleDriver'|'forceps'|'scissors')=>{
    const target=liveTargets.get(name);if(!target)return 'Not visible';
