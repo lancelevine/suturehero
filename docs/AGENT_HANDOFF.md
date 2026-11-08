@@ -75,6 +75,14 @@ Newest first. Template:
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
 
+### 2026-11-08 — Codex — Save Lance's faster workflow preferences
+- Changed: AGENTS.md now requires focused scope, targeted local checks with
+  full tests in CI, early updates for investigations exceeding 5–10 minutes,
+  and no duplicated Claude work. Deployment is preauthorized; stop when it
+  starts. Replaced the conflicting mandatory local full-suite requirement.
+- Checked: documentation diff only; no application changes or deployment.
+- Lance to test: nothing.
+
 ### 2026-11-07 (America/New_York) — Codex — Measured ring geometry and stereo recovery
 - Changed: 12 mm black squares (not the 16 mm white label); angled pads
   moved to the physically confirmed marker-top end, using Claude's findings

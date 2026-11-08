@@ -40,22 +40,33 @@ camera, which agents cannot test).
 - Commit messages: imperative summary line (e.g. `Fix stripe threshold for
   small balls`), then a short body saying why.
 
-## Checks before every commit
+## Lance's standing preferences: speed and deployment
+
+- Keep each change focused. Record additional findings as separate follow-ups
+  rather than expanding the current task.
+- Run targeted checks locally; let deployment CI run the full unit suite.
+  Do not repeat broad checks without new changes or a concrete unresolved risk.
+- Deploy once the relevant checks pass. Lance has authorized deployment
+  without asking again. Stop processing when deployment starts; do not wait
+  for completion or send a later completion update.
+- Flag investigations likely to exceed 5–10 minutes early, so Lance can
+  redirect the work. This is a progress update, not a routine approval gate.
+- Respect the shared agent lock and avoid duplicating Claude's work.
+- These preferences supersede the former requirement to run the full suite
+  locally before every commit. Documentation-only changes need a diff check,
+  not application tests or a build.
+
+## Checks appropriate to the change
 
 Use **Node 24** (see `.nvmrc`). Some physics tests are sensitive to tiny
 floating-point differences between Node versions and fail on Node 22.
 
-```sh
-npm ci
-npx tsc --noEmit      # strict type check
-npm test              # ~4 min full unit suite; must be all green
-npm run build
-```
-
-While iterating, run a single file: `npx vitest run src/path/File.test.ts`.
-The full suite must still pass before pushing, because the GitHub Pages
-deploy (`.github/workflows/deploy.yml`) runs it and will not publish on
-failure.
+Install dependencies with `npm ci` when needed, not for every edit. For code
+changes run relevant tests (`npx vitest run src/path/File.test.ts`),
+`npx tsc --noEmit`, and a production build when relevant (`npm run build`).
+The GitHub Pages deploy (`.github/workflows/deploy.yml`) runs the full unit
+suite and will not publish on failure. Reserve a local full suite for a
+specific risk or explicit request.
 
 Browser checks in `scripts/check-*.mjs` need `npm run dev` running and use
 local Chromium (Playwright). Run them one at a time when a change touches the
