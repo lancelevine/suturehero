@@ -25,16 +25,24 @@ try{
  await page.locator('#stereo-enable').evaluate(e=>{e.checked=true;e.dispatchEvent(new Event('change',{bubbles:true}));});
  const position=()=>page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.position.z;});
  await page.waitForFunction(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.depthLocked===false;},{},{timeout:30000});
+ // Large synthetic depth jumps (~270–470 mm) take ~2 s to settle through the pose smoothing (traced
+ // 2026-11-08: −3.91 → −2.08 over 3 s, still moving at the old fixed 1 s read). Wait until the position
+ // stops changing (≤ 0.02 between 250 ms samples, at most 4 s); the movement thresholds are unchanged.
+ // Move the synthetic marker in depth over ~1 s like a hand would, instead of teleporting it 270–470 mm in
+ // one frame: with unsynchronised cameras a teleport pairs an old view with a new one for a frame or two,
+ // and the stereo continuity limits then (correctly) refuse the impossible jump, freezing the pose.
+ const ramp=async target=>{const from=await page.evaluate(()=>window.__ballScene.scale??1);for(let k=1;k<=20;k++){await page.evaluate(v=>{window.__ballScene.scale=v;},from+(target-from)*k/20);await page.waitForTimeout(50);}};
+ const settled=async()=>{let previous=await position();for(let k=0;k<16;k++){await page.waitForTimeout(250);const now=await position();if(Math.abs(now-previous)<=.02)return now;previous=now;}return previous;};
  for(const fallback of (process.env.SUTURE_STEREO_DELAY||process.env.SUTURE_MAIN_STATUS)?[]:[false]){
   await page.evaluate(f=>{window.__forceCenter=f;window.__ballScene.scale=1;},fallback);await page.waitForTimeout(1200);const start=await position();
   // Far at ~867 mm (600 mm / 0.69): the original 267 mm start→far movement with 12 mm squares.
-  await page.evaluate(()=>window.__ballScene.scale=.69);
+  await ramp(.69);
   await page.waitForFunction(async start=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('needleDriver')?.position.z-start)>.75;},start,{timeout:5000});
-  await page.waitForTimeout(1000);const far=await position();assert(far<start-.75,JSON.stringify({start,far}));
+  const far=await settled();assert(far<start-.75,JSON.stringify({start,far}));
   // Near at 400 mm (600 mm / 1.5), keeping the original 400 mm far→near movement with 12 mm squares.
-  await page.evaluate(()=>window.__ballScene.scale=1.5);
+  await ramp(1.5);
   await page.waitForFunction(async far=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('needleDriver')?.position.z-far)>1;},far,{timeout:5000});
-  await page.waitForTimeout(1000);const near=await position();assert(near>far+1,JSON.stringify({far,near}));console.log({fallback,start,far,near});
+  const near=await settled();assert(near>far+1,JSON.stringify({far,near}));console.log({fallback,start,far,near});
  }
  // Exercise each physical camera dropout, not just a rejected corner fit.
  await page.evaluate(()=>{window.__forceCenter=false;window.__ballScene.scale=1;window.__ballScene.camera2={shift:-180,marker:true};});

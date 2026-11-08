@@ -69,6 +69,20 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Fix flaky stereo depth checks (test realism)
+
+- Traced check-stereo-motion: when it worked, the pose settled ~1.6–2 s
+  after a depth step (still moving at the old fixed 1 s read); when it
+  failed, the pose froze after a brief spike. Cause: the checks teleported
+  the marker 270–470 mm (and the rig check 80 mm + 8.6°) in one frame —
+  with unsynchronised cameras an old and a new view get paired, and the
+  stereo continuity limits (10°, 15 mm per update once locked) correctly
+  refuse the impossible jump.
+- `check-stereo-motion.mjs`: `ramp()` moves scale over ~1 s, `settled()`
+  waits for ≤ 0.02 change per 250 ms (≤ 4 s). `check-stereo-rig-faces.mjs`:
+  10-step ramp + settle. Thresholds unchanged. Both 5/5 passes (were ~1/3
+  and ~2/3).
+
 ### 2026-11-08 — Claude — Build 0.124: tiled discovery scans
 
 - `src/input/PredictiveDecodeSearch.ts`: region kind `discovery`; 2×2 tiles

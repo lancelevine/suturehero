@@ -24,6 +24,10 @@ try{
  const sample=()=>page.evaluate(()=>{const p=window.__cal.preview('needleDriver');return {position:p.position.toArray(),quaternion:p.quaternion.toArray(),status:document.querySelector('#stereo-3d-points').textContent};});
  await page.waitForTimeout(500);const before=await sample();assert.match(before.status,/Camera 1 IDs 0 \/ Camera 2 IDs 4/);
  await scene(5,4);await page.waitForTimeout(700);const handoff=await sample();assert(Math.hypot(...handoff.position.map((v,i)=>v-before.position[i]))<.03);assert(Math.abs(handoff.quaternion.reduce((s,v,i)=>s+v*before.quaternion[i],0))>.999);
- await scene(5,4,680,.15);await page.waitForTimeout(1000);const moved=await sample();assert(moved.position[2]<handoff.position[2]-.3);await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('ACTIVE'));
+ // Move 80 mm deeper and turn 8.6° over ~1 s like a hand would (a one-frame teleport exceeds the tracking
+// continuity limits of 10° / 15 mm per update and was intermittently not followed), then wait to settle.
+for(let k=1;k<=10;k++){await scene(5,4,600+80*k/10,.15*k/10);await page.waitForTimeout(100);}
+let moved=await sample();for(let k=0;k<16;k++){await page.waitForTimeout(250);const next=await sample();const still=Math.abs(next.position[2]-moved.position[2])<=.01;moved=next;if(still)break;}
+assert(moved.position[2]<handoff.position[2]-.3);await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('ACTIVE'));
  assert.deepEqual(errors,[]);console.log('Passed: different-face stereo with 90-degree cameras, face handoff without jumps, and metric depth motion.');
 }finally{await browser.close();}
