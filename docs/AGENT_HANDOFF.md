@@ -69,6 +69,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.99: jaw reads only its search regions
+
+- `src/jaw/markerJawController.ts`: `sample()` copies just the region from
+  the video instead of caching a full-frame grayscale copy per camera (0.97
+  report: Jaw tracking 9 ms mean, 30 ms p95).
+- Checked: jaw unit tests, tsc, check-marker-jaws.
+- Lance: new report; Jaw tracking row should drop to a few ms.
+
 ### 2026-11-08 — Claude — Build 0.98: discovery scans every 1 s while tracking
 
 - `src/input/PredictiveDecodeSearch.ts`: `DISCOVERY_INTERVAL_MS=1000` (was

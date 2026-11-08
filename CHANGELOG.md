@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.99 — jaw tracking reads only the areas around the balls
+
+The 0.97 report showed jaw tracking taking 9 ms per frame on average and
+30 ms at worst, because it copied each camera's whole frame back from the
+GPU. It now copies only the small search areas around the ring.
+
 ## Build 0.98 — fewer full-frame marker scans while tracking
 
 While an instrument is tracked, each camera now scans the whole frame for
