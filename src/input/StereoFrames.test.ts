@@ -13,3 +13,11 @@ it('ignores old decoded geometry arriving after newer flow and clears on reset',
  const f=new StereoFrames();f.push(0,30,[marker(30)]);f.push(0,10,[marker(10)]);f.push(1,30,[marker(0)]);
  expect(f.pair(40)!.first[0].corners[0].x).toBe(30);f.clear();expect(f.pair(40)).toBeNull();
 });
+it('explains why no pair is available',()=>{
+ const f=new StereoFrames();
+ f.push(0,0,[marker(0)]);expect(f.pair(10)).toBeNull();expect(f.lastFailure).toBe('no frames yet from camera 2');
+ f.push(1,5,[marker(0)]);expect(f.pair(300)).toBeNull();expect(f.lastFailure).toMatch(/camera 1 newest frame is 300 ms old/);
+ const g=new StereoFrames();g.push(0,0,[marker(0)]);g.push(0,150,[marker(0)]);g.push(1,100,[marker(0)]);
+ expect(g.pair(160)).toBeNull();expect(g.lastFailure).toMatch(/camera 1 frame gap 150 ms/);
+ g.push(0,200,[marker(0)]);g.push(1,190,[marker(0)]);expect(g.pair(210)).not.toBeNull();expect(g.lastFailure).toBeNull();
+});

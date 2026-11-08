@@ -7,10 +7,15 @@ type Pose={quaternion:Quaternion;translation:Vector3};
 type Size={width:number;height:number};
 type Point={local:Vector3;x:number;y:number;fx:number;fy:number;camera:0|1;id:number};
 export type StereoRigPose=Pose&{errorPx:number;faces:number;corners:number;firstIds:number[];secondIds:number[]};
+/** Filled with the reason when solveStereoRigPose returns null. */
+export type StereoRigDiagnostics={reason?:string};
+const RMS_LIMIT_PX=3,CORNER_LIMIT_PX=6;
 /** Joint calibrated reprojection fit. Different cameras need not see the same
  * face: localCorners supplies the known rigid relationship between every ID. */
-export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose):StereoRigPose|null{
- if(![size1.width,size1.height,size2.width,size2.height].every(v=>Number.isFinite(v)&&v>0))return null;
+export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation[],second:MarkerObservation[],size1:Size,size2:Size,firstId:number,type:TrackerType,previous?:Pose,diagnostics?:StereoRigDiagnostics):StereoRigPose|null{
+ const reject=(reason:string)=>{if(diagnostics)diagnostics.reason=reason;return null;};
+ if(diagnostics)delete diagnostics.reason;
+ if(![size1.width,size1.height,size2.width,size2.height].every(v=>Number.isFinite(v)&&v>0))return reject('camera image size unknown');
  const R=cal.stereo.rotation,T=cal.stereo.translationMm;
  const extrinsic=new Quaternion().setFromRotationMatrix(new Matrix4().set(...[...R[0],0,...R[1],0,...R[2],0,0,0,0,1] as [number,number,number,number,number,number,number,number,number,number,number,number,number,number,number,number]));
  const inverse=extrinsic.clone().invert(),translation2=new Vector3(...T as [number,number,number]);
@@ -34,7 +39,12 @@ export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation
    if(!seeds.some(s=>s.quaternion.angleTo(pose.quaternion)<.08&&s.translation.distanceTo(pose.translation)<8))seeds.push(pose);
   }
  }
- if(!points.some(p=>p.camera===0)||!points.some(p=>p.camera===1)||!seeds.length)return null;
+ for(const camera of [0,1] as const){
+  if(points.some(p=>p.camera===camera))continue;
+  const ids=(camera?second:first).map(m=>m.id).filter(id=>id-firstId>=0&&id-firstId<trackerGeometry(type).faceCount);
+  return reject(ids.length?`camera ${camera+1} markers ${ids.join(',')} too small or malformed`:`camera ${camera+1} sees no marker of this instrument`);
+ }
+ if(!seeds.length)return reject('no starting pose from any single marker');
  function evaluate(pose:Pose,list:Point[],jacobian=false){
   const e=new Matrix4().makeRotationFromQuaternion(pose.quaternion).elements;
   const A=Array.from({length:6},()=>Array(6).fill(0)),b=Array(6).fill(0),errors:number[]=[];
@@ -79,7 +89,7 @@ export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation
  for(const seed of seeds.slice(0,7)){
   const fit=optimize(seed,points);if(fit&&(!best||fit.cost<best.cost))best=fit;
  }
- if(!best)return null;
+ if(!best)return reject('fit failed (pose went behind a camera)');
  // A bad extra face may be dropped only if another face in that same camera
  // still constrains the body. Never relabel a one-camera fit as stereo.
  const groups=new Map<string,{sum:number;count:number}>();
@@ -91,10 +101,19 @@ export function solveStereoRigPose(cal:StereoCalibration,first:MarkerObservation
   const fit=optimize(best.pose,filtered);if(fit){best=fit;selected=filtered;}
  }
  const rms=Math.sqrt(best.errors.reduce((s,e)=>s+e*e,0)/selected.length);
- if(rms>3||Math.max(...best.errors)>6)return null;
+ // Per-face fit error, e.g. "cam1 0:0.8 6:5.1 · cam2 0:1.0 5:0.9", to show which marker disagrees.
+ const faceErrors=()=>[0,1].map(camera=>{
+  const byId=new Map<number,number[]>();
+  selected.forEach((p,i)=>{if(p.camera===camera)byId.set(p.id,[...(byId.get(p.id)??[]),best!.errors[i]]);});
+  return `cam${camera+1} `+[...byId].map(([id,e])=>`${id}:${Math.sqrt(e.reduce((s,x)=>s+x*x,0)/e.length).toFixed(1)}`).join(' ');
+ }).join(' · ');
+ const worst=Math.max(...best.errors);
+ if(rms>RMS_LIMIT_PX||worst>CORNER_LIMIT_PX)return reject(`fit error ${rms.toFixed(1)} px (limit ${RMS_LIMIT_PX}), worst corner ${worst.toFixed(1)} px (limit ${CORNER_LIMIT_PX}) · per marker px: ${faceErrors()}`);
  for(const camera of [0,1]){
   const values=selected.flatMap((p,i)=>p.camera===camera?[best!.errors[i]]:[]);
-  if(values.length<4||Math.sqrt(values.reduce((s,e)=>s+e*e,0)/values.length)>3)return null;
+  if(values.length<4)return reject(`camera ${camera+1} has fewer than 4 consistent corners`);
+  const cameraRms=Math.sqrt(values.reduce((s,e)=>s+e*e,0)/values.length);
+  if(cameraRms>RMS_LIMIT_PX)return reject(`camera ${camera+1} fit error ${cameraRms.toFixed(1)} px (limit ${RMS_LIMIT_PX}) · per marker px: ${faceErrors()}`);
  }
  const firstIds=[...new Set(selected.filter(p=>p.camera===0).map(p=>p.id))],secondIds=[...new Set(selected.filter(p=>p.camera===1).map(p=>p.id))];
  return {...best.pose,errorPx:rms,faces:new Set([...firstIds,...secondIds]).size,corners:selected.length,firstIds,secondIds};

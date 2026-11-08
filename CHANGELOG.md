@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.84 — stereo explains why it is not used
+
+When metric stereo is enabled but an instrument gets no stereo pose, the
+stereo status line (Tracking setup) and each Tracking Lab frame now say why:
+no time-matched camera pair (which camera, how old, or the frame gap), a
+camera that sees no marker of the instrument, markers too small, or the fit
+error against the 3 px limit with the error of each marker in each camera.
+The performance report lists the latest reason per instrument
+(`stereoRejections`) and counts each kind. Stereo behavior is unchanged.
+
 ## Build 0.83 — Tracking Lab recording and pipeline replay
 
 A dedicated top-level Tracking Lab workspace records both camera streams at

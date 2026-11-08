@@ -54,3 +54,19 @@ it('supports general calibrated camera roll/pitch/yaw rather than only rectified
  const pose=solveStereoRigPose(calibration,[observation(0,0,0,q,t,'ring6',0,calibration)],[observation(1,0,4,q,t,'ring6',0,calibration)],...sizes,0,'ring6')!;
  expect(pose).not.toBeNull();expect(pose.translation.distanceTo(t)).toBeLessThan(.02);expect(pose.quaternion.angleTo(q)).toBeLessThan(.001);
 });
+it('reports why a stereo fit was rejected',()=>{
+ const q=new Quaternion().setFromAxisAngle(new Vector3(0,1,0),Math.PI),t=new Vector3(0,0,600),a=observation(0,0,0,q,t),b=observation(1,0,4,q,t);
+ const diagnostics:{reason?:string}={};
+ expect(solveStereoRigPose(cal,[a],[],...sizes,0,'ring6',undefined,diagnostics)).toBeNull();
+ expect(diagnostics.reason).toBe('camera 2 sees no marker of this instrument');
+ expect(solveStereoRigPose(cal,[a],[{...b,id:14}],...sizes,0,'ring6',undefined,diagnostics)).toBeNull();
+ expect(diagnostics.reason).toBe('camera 2 sees no marker of this instrument');
+ const tiny={id:4,corners:[{x:100,y:100},{x:102,y:100},{x:102,y:102},{x:100,y:102}]};
+ expect(solveStereoRigPose(cal,[a],[tiny],...sizes,0,'ring6',undefined,diagnostics)).toBeNull();
+ expect(diagnostics.reason).toBe('camera 2 markers 4 too small or malformed');
+ const bad={...b,corners:b.corners.map((p,i)=>i?p:{x:p.x,y:p.y+60})};
+ expect(solveStereoRigPose(cal,[a],[bad],...sizes,0,'ring6',undefined,diagnostics)).toBeNull();
+ expect(diagnostics.reason).toMatch(/fit error [\d.]+ px \(limit 3\).*per marker px: cam1 0:[\d.]+ · cam2 4:[\d.]+/);
+ expect(solveStereoRigPose(cal,[a],[b],...sizes,0,'ring6',undefined,diagnostics)).not.toBeNull();
+ expect(diagnostics.reason).toBeUndefined();
+});

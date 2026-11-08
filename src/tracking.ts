@@ -5,7 +5,7 @@ import {markerJawDiagnostics} from './trackingLab/markerJawDiagnostics';
 import {cameraImage,recordedInput} from './trackingLab/runtime';
 import {BallMotionTracker,validJawBall} from './input/BallMotionTracker';
 import {findSphereSilhouette} from './input/sphereSilhouette';
-import {solveStereoRigPose,type StereoRigPose} from './input/stereoRigPose';
+import {solveStereoRigPose,type StereoRigDiagnostics,type StereoRigPose} from './input/stereoRigPose';
 import {jawCameraParticipates} from './input/jawCameraMode';
 import {findStripedBalls,type StripedBallDiagnostics} from './input/stripedBallSearch';
 import {RingPoseTracker} from './input/RingPoseTracker';
@@ -279,13 +279,21 @@ const stereoFallbackStatus=new Map<InstrumentName,string>();
 const stereoMonoCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;views:MonoView[]}>();
 const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;pose:StereoRotation|null}>();
 // Fit all known face corners jointly in the calibrated camera frames.
+/** Why stereo was not used for each instrument on the latest frame (diagnostics only). */
+const stereoRejections=new Map<InstrumentName,string>();
+function noteStereoRejection(name:InstrumentName,reason:string){
+ if(stereoRejections.get(name)!==reason)perf.count('Stereo not used: '+reason.replace(/·.*$/,'').replace(/-?\d+(\.\d+)?/g,'#').trim());
+ stereoRejections.set(name,reason);
+}
 function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null{
  if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
- const synchronized=stereoFrames.pair(now);if(!synchronized)return null;
+ const synchronized=stereoFrames.pair(now);if(!synchronized){noteStereoRejection(name,'no time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));return null;}
  const key=`${synchronized.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
  if(cached?.key===key&&cached.calibration===stereoCalibration)return cached.pose;
- const pose=solveStereoRigPose(stereoCalibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??undefined);
+ const diagnostics:StereoRigDiagnostics={};
+ const pose=solveStereoRigPose(stereoCalibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??undefined,diagnostics);
+ if(pose)stereoRejections.delete(name);else noteStereoRejection(name,diagnostics.reason??'rejected');
  stereoPoseCache.set(name,{key,calibration:stereoCalibration,pose});return pose;
 }
 
@@ -1724,8 +1732,17 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    if(mismatch){stereo3dStatus.textContent='Stereo inactive: '+mismatch;}
    else{
     const synchronized=stereoFrames.pair(now),notes:string[]=[];
+    if(!synchronized)notes.push('No time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));
     for(const name of ['needleDriver','forceps','scissors'] as const){
-     const rigid=stereoPrismRotation(name,now);if(!rigid||!synchronized)continue;
+     const rigid=stereoPrismRotation(name,now);
+     if(!rigid&&synchronized){
+      // Explain instruments that at least one camera sees.
+      const ids:readonly number[]=markerGroups()[name];
+      const seen=[...synchronized.first,...synchronized.second].some(m=>ids.includes(m.id));
+      const reason=stereoRejections.get(name);
+      if(seen&&reason)notes.push(name+' · stereo not used: '+reason);
+     }
+     if(!rigid||!synchronized)continue;
      notes.push(name+' · Camera 1 IDs '+rigid.firstIds.join(',')+' / Camera 2 IDs '+rigid.secondIds.join(',')+' · joint error '+rigid.errorPx.toFixed(2)+' px');
      const previous=stereoPositions.get(name),sampleAt=synchronized.at;
      if(previous?.lastSample===sampleAt)continue;
@@ -1756,7 +1773,7 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.83',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.84',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:350,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:stripedNeedle?'striped10':'color',stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
 
 /** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
 export const trackingLabBridge = {
@@ -1823,7 +1840,8 @@ export const trackingLabBridge = {
    markers: now - at < 220 ? markers : [],
    width: (camera ? overlay2 : overlay).width, height: (camera ? overlay2 : overlay).height,
    ballWidth: 640, ballHeight: state.ballCanvas.height,
-   balls, status: stereoViewLabel.textContent ?? '', confidence: null,
+   // In stereo, add why each instrument did or did not get a stereo pose this frame.
+   balls, status: (stereoViewLabel.textContent ?? '') + (stereoActive() && stereo3dStatus.textContent ? '\n' + stereo3dStatus.textContent : ''), confidence: null,
    jawEngine: 'classic', ballSupported: true,
    poses: [...liveTargets].filter(([, target]) => now - target.lastSeen < 220).map(([instrument, target]) => ({
     instrument, markerId: target.id,

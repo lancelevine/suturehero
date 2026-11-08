@@ -6,8 +6,13 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — stereo diagnostics: report why stereo is rejected (pairing or fit). Touches `src/tracking.ts`, `src/input/StereoFrames.ts`, `src/input/stereoRigPose.ts`. Please avoid those until cleared.
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Why stereo says "waiting" (build 0.84):** in 2-camera mode with the
+    needle driver in view of both cameras, read the line under the stereo
+    status in Tracking setup (or record in the Tracking Lab and replay). It
+    now states the reason, e.g. "fit error 4.2 px … per marker px: cam1
+    0:1.1 6:5.3 · cam2 …". Send that text to Claude.
   - **Tracking Lab (build 0.83):** record a real single/stereo-camera failure,
     stop, replay, and export it. Confirm practical recording FPS and image
     quality with the actual webcams. Replay has synthetic-camera coverage,
@@ -65,6 +70,34 @@ Newest first. Template:
 - Lance to test: <hand checks needed, or "nothing">
 - Notes for the other agent: <anything surprising, follow-ups>
 ```
+
+### 2026-11-08 — Claude Code — Stereo rejection reasons (build 0.84)
+- Context: Lance's stereo shows "waiting for trackers". Investigated with
+  his calibration and performance report: calibration is good (re-solved
+  from his captures with the repo solver: 279.6 mm baseline, 0.71 px vs
+  his 283.5 mm, 0.69 px); frame ages ~33 ms (limit 180); the joint solver
+  with his real calibration accepts simulated views, including model
+  errors of 1–3 mm / 10° and a swapped or rotated angled marker. The cause
+  must be in real images, so stereo now says why it rejects.
+- Changed: `StereoFrames.lastFailure` (no frames / stale / frame gap) and
+  an optional `diagnostics` argument to `solveStereoRigPose` (no marker,
+  too small, fit error with per-marker errors, per-camera error). Same
+  return values as before. `src/tracking.ts` shows reasons in the stereo
+  status line (`#stereo-3d-points`), adds them to the Tracking Lab frame
+  status and to the performance report (`stereoRejections`, counters
+  "Stereo not used: …"). Build label 0.84; CHANGELOG entry.
+- Files: `src/input/StereoFrames.ts`, `src/input/stereoRigPose.ts` (+ tests),
+  `src/tracking.ts`, `src/main.ts`, `CHANGELOG.md`.
+- Checked: tsc, full `npm test`, build (Node 24). Browser: stereo-motion,
+  stereo-rig-faces, tracking-motion, driver-depth, ring-handoffs,
+  marker-jaws, tracking-lab (mono and stereo) pass; a probe showed the
+  expected reasons for consistent, inconsistent and missing camera-2 views.
+- Lance to test: see Status.
+- Notes for the other agent: the synthetic stereo Lab recording (9/7 FPS)
+  never pairs: "camera 1 frame gap 134 ms around the pairing time (limit
+  120)". Real stereo replays need recordings above ~10 FPS per camera, or
+  StereoFrames' 120 ms interpolation limit would need revisiting for
+  replay. Lab check still passes because it does not assert a stereo pose.
 
 ### 2026-11-07 (America/New_York) — Codex — Tracking Lab recording and actual pipeline replay
 - Changed: dedicated Simulator / Tracking Lab tabs, native-resolution JPEG
