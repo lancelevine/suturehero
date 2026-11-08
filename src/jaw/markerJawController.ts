@@ -61,6 +61,8 @@ export interface MarkerJawHost {
   handleMarkers?(instrument: TrackedInstrument, now: number): MarkerObservation[];
   /** False while the "Jaw tracking" switch is off (update() is not called). */
   running?(): boolean;
+  /** The ring's latest stereo pose (camera-1 mm), for handle-prism stereo jaws. */
+  stereoRingPose?(instrument: TrackedInstrument, now: number): { quaternion: import('three').Quaternion; translation: import('three').Vector3 } | null;
 }
 
 export interface MarkerJawSnapshot {current:boolean;width:number;height:number;readings:Array<{instrument:TrackedInstrument;reading:JawReading}>;}
@@ -208,6 +210,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
 
   const handle = host.handleMarkers
     ? mountHandlePrismJaws(section, { overlay: host.overlay, trackerType: host.trackerType, markers: host.markers, handleMarkers: host.handleMarkers, firstMarkerId: host.firstMarkerId, publish: host.publish, running: host.running,
+        stereo: host.stereoCalibration && host.stereoRingPose ? { calibration: host.stereoCalibration, ringPose: host.stereoRingPose } : undefined,
         second: host.second?.handleMarkers ? { overlay: host.second.overlay, markers: host.second.markers, handleMarkers: host.second.handleMarkers } : undefined })
     : null;
 

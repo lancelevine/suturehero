@@ -15,7 +15,7 @@ try{
   window.Worker=class extends Original{
    constructor(url,options){
     if(!String(url).includes('checkerboardWorker'))return new Original(url,options);
-    return new class{onmessage=null;onerror=null;stopped=false;postMessage(data){const result=structuredClone(window.__captureMeasurements);if(data.type==='check')window.__captureChecks=(window.__captureChecks??0)+1;setTimeout(()=>{if(!this.stopped)this.onmessage?.({data:{id:data.id,...(data.type==='init'?{ready:true}:{result})}});},window.__captureDelay??20);}terminate(){this.stopped=true;}};
+    return new class{onmessage=null;onerror=null;stopped=false;postMessage(data){const result=data.type==='refine'?(window.__refineNext?.()??{width:1920,height:1080,corners:null}):structuredClone(window.__captureMeasurements);if(data.type==='check')window.__captureChecks=(window.__captureChecks??0)+1;setTimeout(()=>{if(!this.stopped)this.onmessage?.({data:{id:data.id,...(data.type==='init'?{ready:true}:{result})}});},window.__captureDelay??20);}terminate(){this.stopped=true;}};
    }
   };
  });
@@ -53,6 +53,28 @@ try{
  const downloadPromise=page.waitForEvent('download');await page.locator('#export-stereo-pairs').evaluate(e=>e.click());const download=await downloadPromise;const data=JSON.parse(await readFile(await download.path(),'utf8'));
  assert.equal(data.pairs.length,Number(done));assert.equal(data.diagnostics.coverage.complete,true);assert(data.pairs.every(p=>p.quality.first.focus>=.08&&p.quality.second.focus>=.08));
 
+ // In-app solve (build 0.119): refine requests answered with corners of a known synthetic stereo rig.
+ await page.evaluate(async()=>{
+  const {boardPoints,projectPoint,rodrigues,rotationVector}=await import('/src/input/stereoCalibrationSolver.ts');
+  const board={innerCornersX:8,innerCornersY:6,squareSizeMm:16},object=boardPoints(board);
+  const K1=[1400,1395,965,548,-0.11,0.06,0.0012,-0.0006],K2=[1385,1380,950,532,-0.08,0.03,-0.0008,0.0004],ext=[0,15*Math.PI/180,0.02,-283,6,24];
+  let request=0;
+  window.__refineNext=()=>{
+   const i=Math.floor(request/2)%20,camera=request%2;request++;
+   const pose1=[-0.45+(i%5)*0.22,-0.4+Math.floor(i/5)*0.27,(i%3)*0.2-0.2,-116+(i%5)*18,-80+Math.floor(i/5)*12,520+(i%4)*60];
+   let pose=pose1;
+   if(camera){const R2=rodrigues(ext),Rb=rodrigues(pose1),Rc=[0,1,2].flatMap(r=>[0,1,2].map(c=>R2[r*3]*Rb[c]+R2[r*3+1]*Rb[3+c]+R2[r*3+2]*Rb[6+c])),t=pose1.slice(3);pose=[...rotationVector(Rc),...[0,1,2].map(r=>R2[r*3]*t[0]+R2[r*3+1]*t[1]+R2[r*3+2]*t[2]+ext[3+r])];}
+   return {width:1920,height:1080,corners:object.map(X=>projectPoint(camera?K2:K1,pose,X))};
+  };
+ });
+ await page.locator('#solve-stereo-calibration').evaluate(e=>e.click());
+ await page.waitForFunction(()=>/Calibration solved and applied|not accepted|Solve failed/.test(document.querySelector('#stereo-calibration-status').textContent),{},{timeout:60000});
+ const solved=await page.locator('#stereo-calibration-status').textContent();
+ assert.match(solved,/Calibration solved and applied/,solved);
+ const geometry=await page.locator('#stereo-geometry-status').textContent();
+ const baseline=Number(/([\d.]+) mm baseline/.exec(geometry)?.[1]);
+ assert(Math.abs(baseline-284.1)<3,geometry);
+ console.log('In-app solve:',solved);
  page.once('dialog',d=>d.accept());await page.locator('#clear-stereo-pairs').evaluate(e=>e.click());assert.equal(await count(),'0');
  await set(0);await page.locator('#capture-stereo-pair').evaluate(e=>e.click());await page.waitForFunction(()=>document.querySelector('#stereo-calibration-status').dataset.accepted==='1');
  await page.locator('#camera-select-2').selectOption('synthetic',{force:true});await page.waitForFunction(()=>document.querySelector('#stereo-calibration-status').textContent.includes('device selection changed'));assert.equal(await count(),'1');

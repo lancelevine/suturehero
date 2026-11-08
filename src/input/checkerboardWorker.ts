@@ -39,8 +39,35 @@ function detectCheckerboard(cv:any,image:{width:number;height:number;data:Uint8C
   return {width:image.width,height:image.height,corners:points,contrast,focus};
  }finally{corners?.delete();gray?.delete();src?.delete();}
 }
+/** Width at which full-size captures are searched for the board before sub-pixel refinement (as the Python solver). */
+const REFINE_SEARCH_WIDTH=960;
+/**
+ * Full-resolution corners of one stored capture (JPEG data URL) for the
+ * in-app stereo solve: find the board on a ≤960 px copy, then refine each
+ * corner with cornerSubPix on the full-size image. Null if not found.
+ */
+async function refineCheckerboardCapture(cv:any,dataUrl:string){
+ const bitmap=await createImageBitmap(await (await fetch(dataUrl)).blob());
+ const canvas=new OffscreenCanvas(bitmap.width,bitmap.height),context=canvas.getContext('2d',{willReadFrequently:true})!;
+ context.drawImage(bitmap,0,0);bitmap.close();
+ const image=context.getImageData(0,0,canvas.width,canvas.height);
+ let src:any,gray:any,small:any,corners:any;
+ try{
+  src=new cv.Mat(image.height,image.width,cv.CV_8UC4);src.data.set(image.data);gray=new cv.Mat();cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+  const scale=Math.min(1,REFINE_SEARCH_WIDTH/image.width);small=new cv.Mat();
+  if(scale<1)cv.resize(gray,small,new cv.Size(Math.round(image.width*scale),Math.round(image.height*scale)),0,0,cv.INTER_AREA);else gray.copyTo(small);
+  corners=new cv.Mat();
+  const found=cv.findChessboardCorners(small,new cv.Size(8,6),corners,cv.CALIB_CB_ADAPTIVE_THRESH|cv.CALIB_CB_NORMALIZE_IMAGE);
+  if(!found||corners.rows*corners.cols!==48)return {width:image.width,height:image.height,corners:null};
+  for(let i=0;i<96;i++)corners.data32F[i]/=scale;
+  cv.cornerSubPix(gray,corners,new cv.Size(5,5),new cv.Size(-1,-1),new cv.TermCriteria(cv.TERM_CRITERIA_EPS+cv.TERM_CRITERIA_COUNT,40,0.001));
+  const points=Array.from({length:48},(_,i)=>({x:corners.data32F[i*2],y:corners.data32F[i*2+1]}));
+  return {width:image.width,height:image.height,corners:points};
+ }finally{corners?.delete();small?.delete();gray?.delete();src?.delete();}
+}
 self.onmessage=async({data})=>{
  try{const cv=await initializeCheckerboard(data.url);if(data.type==='init'){self.postMessage({id:data.id,ready:true});return;}
+  if(data.type==='refine'){self.postMessage({id:data.id,result:await refineCheckerboardCapture(cv,data.image)});return;}
   const result=data.images.map((image:any)=>detectCheckerboard(cv,image));self.postMessage({id:data.id,result});
  }catch(error){self.postMessage({id:data.id,error:String(error)});}
 };

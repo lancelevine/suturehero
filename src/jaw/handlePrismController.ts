@@ -1,5 +1,20 @@
 import type { Quaternion } from 'three';
 import type { MarkerObservation } from '../input/arucoTracking';
+import type { StereoCalibration } from '../input/stereoGeometry';
+import { Vector3 } from 'three';
+import {
+  DEFAULT_PRISM_FACE_WIDTH_MM,
+  inRingFrame,
+  parseStereoHandle,
+  prismApothem,
+  prismAxisPoint,
+  robustPoint,
+  serializeStereoHandle,
+  stereoOpening,
+  triangulateMarker,
+  MIN_STEREO_TRAVEL_MM,
+  type StereoHandleModel,
+} from './stereoHandle';
 import { solvePrismPose, type PrismPose, type TrackerType } from '../input/prismPose';
 import type { TrackedInstrument } from '../input/trackingMessages';
 import { readStoredJson, writeStored } from '../input/trackingStorage';
@@ -27,6 +42,11 @@ import {
 export const HANDLE_HINGE_STORAGE_KEY = 'suturehero.handleHinge.v1';
 /** Learned prism face layouts per instrument (Align prism faces). */
 export const HANDLE_FACES_STORAGE_KEY = 'suturehero.handlePrismFaces.v1';
+/** Stereo prism positions per instrument (closed/open, ring frame). */
+export const HANDLE_STEREO_STORAGE_KEY = 'suturehero.handleStereo.v1';
+export const HANDLE_FACE_WIDTH_STORAGE_KEY = 'suturehero.handlePrismFaceWidth.v1';
+/** Stereo positions per closed/open capture. */
+const STEREO_CAPTURE_SAMPLES = 15;
 /** Readings needed per face (and for the reference face) to align it. */
 const ALIGN_SAMPLES = 12;
 /** Relative rotations averaged per closed/open capture. */
@@ -55,6 +75,11 @@ export interface HandlePrismHost {
   publish(instrument: TrackedInstrument, opening: number): void;
   /** False while the Jaws tab's "Jaw tracking" switch is off (no updates run). */
   running?(): boolean;
+  /** Stereo: calibration while stereo tracking is active, and the ring's latest stereo pose (camera-1 mm). */
+  stereo?: {
+    calibration(): StereoCalibration | null;
+    ringPose(instrument: TrackedInstrument, now: number): { quaternion: Quaternion; translation: Vector3 } | null;
+  };
   /** Camera 2's view, to confirm Camera 1 or stand in when Camera 1's view is blocked. */
   second?: {
     overlay: HTMLCanvasElement;
@@ -82,6 +107,7 @@ const CAMERAS_AGREE_RADIANS = (8 * Math.PI) / 180;
 const TEMPLATE = `
 <p class="tracking-message">Uses Camera 1, the ring tracker and the triangular marker prism on the moving handle
 (seen by Camera 1 and, when running, Camera 2; needle driver IDs ${HANDLE_PRISM_IDS.needleDriver.join(', ')}; forceps ${HANDLE_PRISM_IDS.forceps.join(', ')}; scissors ${HANDLE_PRISM_IDS.scissors.join(', ')}).
+With both cameras running and stereo active, the jaw reading uses the prism's 3D position from both cameras (far more reliable than one camera's view of a small face).
 <strong>1.</strong> Hold the jaws closed with the ring and one prism face visible, press <em>Calibrate closed</em> and hold still.
 <strong>2.</strong> Keep the jaws closed, press <em>Align prism faces</em> and slowly roll the instrument so each prism face is seen by a camera (press again to stop early).
 <strong>3.</strong> Open the jaws fully and press <em>Calibrate open</em>.</p>
@@ -91,6 +117,7 @@ const TEMPLATE = `
  <button type="button" data-handle-align>Align prism faces</button>
  <button type="button" data-handle-capture="open">Calibrate open</button>
  <button type="button" data-handle-reset>Remove calibration</button>
+ <label title="Width of each prism face (the 12 mm square plus its white border). Used with both cameras to find the prism's centre line.">Prism face width (mm) <input data-handle-face-width type="number" min="12" max="40" step="0.5" value="${DEFAULT_PRISM_FACE_WIDTH_MM}" style="width:5em"></label>
 </div>
 <p class="tracking-message" role="status" data-handle-status></p>
 <p class="tracking-message" data-handle-readout></p>`;
@@ -122,7 +149,9 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   const lastRelative = new Map<TrackedInstrument, Quaternion>();
   const openings = new Map<TrackedInstrument, number>();
   const filters = new Map<TrackedInstrument, OpeningFilter>();
-  let capture: { instrument: TrackedInstrument; jaw: 'closed' | 'open'; samples: Quaternion[] } | null = null;
+  let capture: { instrument: TrackedInstrument; jaw: 'closed' | 'open'; samples: Quaternion[]; stereoSamples: Vector3[] } | null = null;
+  const stereoModels = new Map<TrackedInstrument, StereoHandleModel>();
+  const stereoClosed = new Map<TrackedInstrument, Vector3>();
   let aligning: { instrument: TrackedInstrument; samples: Quaternion[][] } | null = null;
   const layouts = new Map<TrackedInstrument, FaceLayout>();
   const failures = new Map<TrackedInstrument, string>();
@@ -140,6 +169,52 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
       const layout = parseFaceLayout((savedLayouts as Record<string, unknown>)[name]);
       if (layout) layouts.set(name, layout);
     }
+  }
+  const savedStereo = readStoredJson(HANDLE_STEREO_STORAGE_KEY);
+  if (savedStereo && typeof savedStereo === 'object') {
+    for (const name of INSTRUMENTS) {
+      const model = parseStereoHandle((savedStereo as Record<string, unknown>)[name]);
+      if (model) stereoModels.set(name, model);
+    }
+  }
+  const saveStereo = () => {
+    const out: Record<string, unknown> = {};
+    for (const [name, model] of stereoModels) out[name] = serializeStereoHandle(model);
+    writeStored(HANDLE_STEREO_STORAGE_KEY, JSON.stringify(out));
+  };
+  const faceWidthInput = panel.querySelector<HTMLInputElement>('[data-handle-face-width]')!;
+  {
+    const stored = Number(readStoredJson(HANDLE_FACE_WIDTH_STORAGE_KEY));
+    if (stored >= 12 && stored <= 40) faceWidthInput.value = String(stored);
+  }
+  faceWidthInput.addEventListener('change', () => {
+    const value = Number(faceWidthInput.value);
+    if (!(value >= 12 && value <= 40)) { faceWidthInput.value = String(DEFAULT_PRISM_FACE_WIDTH_MM); return; }
+    writeStored(HANDLE_FACE_WIDTH_STORAGE_KEY, JSON.stringify(value));
+  });
+  /**
+   * The prism's centre line in the ring frame from both cameras: each prism
+   * face seen by both is triangulated, moved inward by the prism's apothem,
+   * and averaged. Null without stereo, a fresh stereo ring pose, or a face in both views.
+   */
+  function stereoPoint(name: TrackedInstrument, now: number): { point: Vector3; ids: number[] } | null {
+    const calibration = host.stereo?.calibration();
+    const ring = calibration ? host.stereo!.ringPose(name, now) : null;
+    if (!calibration || !ring || cameras.length < 2) return null;
+    const [one, two] = cameras;
+    const second = new Map(two.handleMarkers(name, now).map((m) => [m.id, m]));
+    const apothem = prismApothem(Number(faceWidthInput.value) || DEFAULT_PRISM_FACE_WIDTH_MM);
+    const points: Vector3[] = [], ids: number[] = [];
+    for (const marker of one.handleMarkers(name, now)) {
+      const other = second.get(marker.id);
+      if (!other) continue;
+      const corners = triangulateMarker(calibration, marker.corners, other.corners, { width: one.overlay.width, height: one.overlay.height }, { width: two.overlay.width, height: two.overlay.height });
+      if (!corners) continue;
+      points.push(inRingFrame(prismAxisPoint(corners, apothem), ring));
+      ids.push(marker.id);
+    }
+    if (!points.length) return null;
+    return { point: points.reduce((sum, p) => sum.add(p), new Vector3()).multiplyScalar(1 / points.length), ids };
   }
   const saveLayouts = () => {
     const out: Record<string, unknown> = {};
@@ -160,11 +235,12 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   };
   const describe = () => {
     const name = selected();
-    status.textContent = models.has(name)
+    const stereoNote = stereoModels.has(name) ? ' · stereo (both cameras) calibrated' : stereoClosed.has(name) ? ' · stereo closed captured' : '';
+    status.textContent = (models.has(name)
       ? `${LABELS[name]} calibrated (handle turns ${((models.get(name)!.openAngle * 180) / Math.PI).toFixed(0)}° closed → open) · ${layoutSummary(name)}.`
       : closedCaptures.has(name)
         ? `${LABELS[name]}: closed captured. Open the jaws fully and press Calibrate open.`
-        : `${LABELS[name]}: not calibrated.`;
+        : `${LABELS[name]}: not calibrated.`) + stereoNote;
   };
 
   /**
@@ -283,12 +359,12 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         status.textContent = 'Turn on “Jaw tracking” at the top of the Jaws tab first.';
         return;
       }
-      if (jaw === 'open' && !closedCaptures.has(name)) {
+      if (jaw === 'open' && !closedCaptures.has(name) && !stereoClosed.has(name)) {
         status.textContent = 'Calibrate closed first.';
         return;
       }
       aligning = null;
-      capture = { instrument: name, jaw, samples: [] };
+      capture = { instrument: name, jaw, samples: [], stereoSamples: [] };
       status.textContent = `Hold the jaws ${jaw} and keep the instrument still…`;
     });
   });
@@ -354,6 +430,9 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   panel.querySelector('[data-handle-reset]')!.addEventListener('click', () => {
     layouts.delete(selected());
     saveLayouts();
+    stereoModels.delete(selected());
+    stereoClosed.delete(selected());
+    saveStereo();
     aligning = null;
     models.delete(selected());
     closedCaptures.delete(selected());
@@ -366,11 +445,44 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     describe();
   });
 
+  /** Stereo half of a capture; returns a message, or '' if there were too few stereo readings. */
+  function finishStereoCapture(c: NonNullable<typeof capture>): string {
+    if (c.stereoSamples.length < STEREO_CAPTURE_SAMPLES * 0.6) return '';
+    const robust = robustPoint(c.stereoSamples);
+    if (!robust) return 'Stereo: the prism position varied too much; hold still and try again.';
+    if (c.jaw === 'closed') {
+      stereoClosed.set(c.instrument, robust.point);
+      stereoModels.delete(c.instrument);
+      return 'Stereo closed position captured.';
+    }
+    const closed = stereoClosed.get(c.instrument);
+    if (!closed) return '';
+    const travel = robust.point.distanceTo(closed);
+    if (travel < MIN_STEREO_TRAVEL_MM) return `Stereo: the prism only moved ${travel.toFixed(1)} mm between closed and open; open the jaws fully.`;
+    stereoModels.set(c.instrument, { closed, open: robust.point });
+    filters.delete(c.instrument);
+    saveStereo();
+    return `Stereo calibrated: the prism moves ${travel.toFixed(1)} mm from closed to open.`;
+  }
+
   function finishCapture(c: NonNullable<typeof capture>) {
+    capture = null;
+    const stereoMessage = finishStereoCapture(c);
+    const usedStereo = stereoMessage.startsWith('Stereo calibrated') || stereoMessage.startsWith('Stereo closed');
+    if (c.samples.length < CAPTURE_SAMPLES * 0.6) {
+      // Not enough single-camera readings: fine if stereo succeeded.
+      if (usedStereo) describe();
+      status.textContent = stereoMessage || 'Not enough readings; keep the ring and a prism face in view of both cameras and try again.';
+      if (usedStereo) status.textContent = `${LABELS[c.instrument]}: ${stereoMessage}`;
+      return;
+    }
     const average = averageRotation(c.samples);
     const mean = average.mean;
-    capture = null;
     if (!mean) {
+      if (usedStereo) {
+        status.textContent = `${LABELS[c.instrument]}: ${stereoMessage} (single-camera readings were too noisy and were not used.)`;
+        return;
+      }
       status.textContent = `The readings spread ${((average.spread * 180) / Math.PI).toFixed(1)}° (only ${average.inliers} of ${c.samples.length} within ${((CAPTURE_INLIER_RADIANS * 180) / Math.PI).toFixed(0)}°). Hold still, keep one prism face and a flat ring face toward Camera 1, and try again.`;
       return;
     }
@@ -378,17 +490,19 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
       closedCaptures.set(c.instrument, mean);
       models.delete(c.instrument);
       describe();
+      if (stereoMessage) status.textContent += ' ' + stereoMessage;
       return;
     }
-    const model = solveHinge(closedCaptures.get(c.instrument)!, mean);
+    const closedMono = closedCaptures.get(c.instrument);
+    const model = closedMono ? solveHinge(closedMono, mean) : { error: '' };
     if ('error' in model) {
-      status.textContent = model.error;
+      status.textContent = usedStereo ? `${LABELS[c.instrument]}: ${stereoMessage}` : model.error || 'Calibrate closed first.';
       return;
     }
     models.set(c.instrument, model);
     filters.delete(c.instrument);
     save();
-    status.textContent = `${LABELS[c.instrument]} calibrated. Open and close the jaws to check the reading.`;
+    status.textContent = `${LABELS[c.instrument]} calibrated. Open and close the jaws to check the reading.` + (stereoMessage ? ' ' + stereoMessage : '');
   }
 
   describe();
@@ -406,7 +520,9 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         if (aligning?.instrument === name) continue;
         const capturing = capture?.instrument === name;
         const model = models.get(name);
-        if (!capturing && !model) continue;
+        const stereoModel = stereoModels.get(name);
+        if (!capturing && !model && !stereoModel) continue;
+        const stereo = stereoPoint(name, now);
         if (capturing && capture!.jaw === 'closed' && !layouts.has(name)) {
           // The first face seen while capturing closed becomes the reference face; others need aligning.
           const first = cameras.map((camera) => cameraRelative(name, now, camera, 'raw')).find((r) => typeof r !== 'string');
@@ -416,10 +532,10 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
           }
         }
         const relative = relativeRotation(name, now);
-        if (!relative) continue;
         if (capturing) {
-          capture!.samples.push(relative);
-          if (capture!.samples.length >= CAPTURE_SAMPLES) finishCapture(capture!);
+          if (relative) capture!.samples.push(relative);
+          if (stereo) capture!.stereoSamples.push(stereo.point);
+          if (capture!.samples.length >= CAPTURE_SAMPLES || capture!.stereoSamples.length >= STEREO_CAPTURE_SAMPLES) finishCapture(capture!);
           continue;
         }
         let filter = filters.get(name);
@@ -427,14 +543,22 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
           filter = new OpeningFilter();
           filters.set(name, filter);
         }
-        const opening = filter.update(hingeOpening(model!, relative));
+        // Prefer the stereo (both-camera) position; fall back to one camera's face rotation.
+        let raw: number | null = null;
+        if (stereoModel && stereo) {
+          raw = stereoOpening(stereoModel, stereo.point);
+          sources.set(name, `stereo 3D, face${stereo.ids.length > 1 ? 's' : ''} ${stereo.ids.join(', ')}`);
+          failures.delete(name);
+        } else if (model && relative) raw = hingeOpening(model, relative);
+        if (raw === null) continue;
+        const opening = filter.update(raw);
         openings.set(name, opening);
         host.publish(name, Math.min(1, opening));
       }
       const name = selected();
       const opening = openings.get(name);
       const failure = failures.get(name) ?? '';
-      readout.textContent = models.has(name)
+      readout.textContent = models.has(name) || stereoModels.has(name)
         ? failure ? `Holding last reading · ${failure}` : `${Math.round(Math.min(1, opening ?? 0) * 100)}% open · ${sources.get(name) ?? ''}`
         : failure;
     },

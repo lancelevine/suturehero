@@ -5,6 +5,25 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.119 — stereo calibration in the app; stereo handle-prism jaws; clearer board capture
+
+- **Solve and use calibration** (Calibrate tab, stereo capture): after the
+  guided checkerboard capture, the app refines the corners at full
+  resolution and solves the stereo calibration itself (same method and
+  validation gates as the Python script), then applies it. No JSON export
+  or upload needed. Export captures remains for the offline solver.
+- **Board capture feedback:** outlines are green only when the pair will be
+  saved; yellow with the reason written on the camera view when both boards
+  are fine but the pair is waiting (hold still, timing, duplicate pose).
+  Boards are checked every 300 ms instead of 650 ms.
+- **Handle-prism jaws with both cameras:** Lance's recording showed one
+  camera's view of a 12 mm prism face often flips 40–160° and its depth is
+  unusable. With stereo active, prism faces seen by both cameras are
+  triangulated, and the jaw opening is measured from the prism's position
+  relative to the ring (rolling no longer matters). Calibrate closed/open
+  record it automatically; falls back to the single-camera method otherwise.
+  New "Prism face width (mm)" setting (default 19). Unit tests only so far.
+
 ## Build 0.118 — "Align prism faces": the software learns your prism's layout
 
 Rolling the instrument with the jaws still made Lance's handle-prism

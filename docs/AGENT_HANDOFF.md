@@ -69,6 +69,36 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.119: in-app stereo calibration, stereo handle prism
+
+- Replay of Lance's 11:21 AM roll recording: single-camera 12 mm prism-face
+  rotation flips 40–160° even on the reference face; single-camera depth is
+  off by hundreds of mm. Alignment learned from bad data (face 8's correction
+  matched no physical layout).
+- New `src/input/stereoCalibrationSolver.ts` (+ tests): Zhang + LM intrinsics
+  (k1,k2,p1,p2; k3 = 0), camera-2 corner-order disambiguation (Python's
+  seed/cost), joint LM of extrinsics + board poses, Python's gates. Pure TS
+  (opencv.js is CI-built only and lacks stereoCalibrate). Synthetic: noise-
+  floor RMS, rotation < 0.5°, translation < 3 mm.
+- `checkerboardWorker.ts`: `refine` (≤960 px search + full-res cornerSubPix).
+  `stereoAutoCapture.ts`: Solve and use calibration → event
+  `suturehero:stereo-calibration-solved` → `loadStereoCalibration` in
+  tracking.ts. Overlay states ready/waiting/problem with reason text; check
+  interval 300 ms. `check-stereo-capture-quality` extended with a solve step
+  (mocked refine corners from a known rig; baseline 284.1 mm).
+- New `src/jaw/stereoHandle.ts` (+ tests): triangulated prism corners →
+  axis point (apothem from face width) → ring frame → opening by projection
+  between closed/open; robust capture mean; `suturehero.handleStereo.v1`,
+  `suturehero.handlePrismFaceWidth.v1`. Controller prefers stereo; ring pose
+  from `stereoPoseCache.lastGood` (≤ 2 s).
+- Checked: unit tests (jaw, solver), tsc, build; check-stereo-capture-quality,
+  check-marker-jaws, check-tracking-motion, check-stereo-rig-faces,
+  check-tracking-storage pass; check-handle-jaws known pose only;
+  check-stereo-motion borderline as before (0.98 vs > 1).
+- Not tested: OpenCV `refine` in the real worker (opencv.js not available
+  locally); stereo handle path in a browser. Lance: stereo capture → Solve;
+  then handle prism Remove → Calibrate closed → Calibrate open with stereo on.
+
 ### 2026-11-08 — Claude — Build 0.118: learned prism face layout
 
 - Lance: overlay showed face 8 used closed, face 9 open; rolling with jaws
