@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import {framePyramid,trackMarker,type GrayFrame} from './markerFlow';
+import {framePyramid,halfScalePyramid,trackMarker,type GrayFrame} from './markerFlow';
 import type {MarkerObservation} from './arucoTracking';
 import {KeptFrames} from './flowFrames';
 type Track={marker:MarkerObservation;reference:GrayFrame[];decodedAt:number;trackedAt:number;motion:{x:number;y:number};pending?:{marker:MarkerObservation;reference:GrayFrame[]}};
@@ -22,7 +22,10 @@ self.onmessage=(event:MessageEvent<{type:string;at?:number;id?:number;frame?:Ima
  const received=performance.now();
  // A transferred bitmap is read here; its time is reported as "worker readback".
  const storedBitmap=type==='store'?event.data.bitmap:undefined;
- const frame=event.data.bitmap&&!storedBitmap?readBitmap(event.data.bitmap):event.data.frame;
+ // Bitmaps arrive already scaled to half the flow resolution (src/input/flowFrames.ts); ImageData frames are full flow size.
+ const fromBitmap=!!event.data.bitmap&&!storedBitmap;
+ const frame=fromBitmap?readBitmap(event.data.bitmap!):event.data.frame;
+ const pyramidOf=(f:ImageData)=>fromBitmap?halfScalePyramid(f):framePyramid(f);
  const readbackMs=event.data.bitmap&&!storedBitmap?performance.now()-received:0;
  try{
   if(type==='init'){self.postMessage({type:'ready'});return;}
@@ -30,12 +33,12 @@ self.onmessage=(event:MessageEvent<{type:string;at?:number;id?:number;frame?:Ima
   if(type==='confirm'){for(const id of ids){const track=tracks.get(id);if(track)track.decodedAt=now;}return;}
   if(type==='store'){
    if(keep!==undefined&&storedBitmap)kept.keep(keep,storedBitmap);
-   else if(keep!==undefined&&frame)kept.keep(keep,framePyramid(frame));
+   else if(keep!==undefined&&frame)kept.keep(keep,pyramidOf(frame));
    return;
   }
   if(type==='seed'){
    const stored=key!==undefined?kept.take(key):undefined;
-   const reference=stored instanceof ImageBitmap?framePyramid(readBitmap(stored)):stored??(frame?framePyramid(frame):undefined);
+   const reference=stored instanceof ImageBitmap?halfScalePyramid(readBitmap(stored)):stored??(frame?pyramidOf(frame):undefined);
    if(!reference)return;
    for(const marker of markers){
     const track=tracks.get(marker.id);
@@ -45,7 +48,7 @@ self.onmessage=(event:MessageEvent<{type:string;at?:number;id?:number;frame?:Ima
    return;
   }
   if(type!=='detect'||!frame)return;
-  const start=received,current=framePyramid(frame),found:MarkerObservation[]=[];
+  const start=received,current=pyramidOf(frame),found:MarkerObservation[]=[];
   if(keep!==undefined)kept.keep(keep,current);
   for(const [markerId,track] of tracks){
    if(now-track.trackedAt>450||now-track.decodedAt>5000){tracks.delete(markerId);continue;}

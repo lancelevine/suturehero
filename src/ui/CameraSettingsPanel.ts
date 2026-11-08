@@ -1,4 +1,4 @@
-import { cameraControlScale, isUsableRange, SLIDER_STEPS, type CameraRange } from '../input/cameraDevices';
+import { CAMERA_MODES, cameraControlScale, cameraMode, isUsableRange, setCameraMode, SLIDER_STEPS, type CameraModeId, type CameraRange } from '../input/cameraDevices';
 
 export interface CameraSlot {
   label: string;
@@ -30,8 +30,34 @@ function modeLabel(mode: string) {
  * Returns a render function; call it whenever a camera starts or stops.
  */
 export function createCameraSettingsPanel(container: HTMLElement, cameras: () => CameraSlot[]) {
+  /** Camera type: which video mode to request (applies when a camera is started). */
+  function cameraTypeRow() {
+    const row = document.createElement('div');
+    row.className = 'tracking-actions';
+    const label = document.createElement('label');
+    label.textContent = 'Camera type ';
+    const select = document.createElement('select');
+    select.dataset.cameraType = '';
+    for (const [id, mode] of Object.entries(CAMERA_MODES)) select.append(new Option(mode.label, id));
+    select.value = cameraMode();
+    const note = document.createElement('p');
+    note.className = 'tracking-message';
+    const describe = () => {
+      const mode = CAMERA_MODES[select.value as CameraModeId];
+      note.textContent = `Requests ${mode.width}×${mode.height} at ${mode.frameRate} fps. Stop and start each camera to apply.` + (mode.monochrome ? ' Monochrome: use white or striped jaw balls, or the handle prism; coloured balls cannot work.' : '');
+    };
+    select.addEventListener('change', () => {
+      setCameraMode(select.value as CameraModeId);
+      describe();
+    });
+    describe();
+    label.append(select);
+    row.append(label);
+    return [row, note];
+  }
+
   function render() {
-    container.replaceChildren();
+    container.replaceChildren(...cameraTypeRow());
     for (const { label, stream } of cameras()) {
       container.append(cameraSection(label, stream));
     }

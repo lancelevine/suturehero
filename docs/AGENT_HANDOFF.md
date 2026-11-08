@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude — OV9281 camera mode + readback optimisations (cameraDevices, tracking.ts capture paths, flow/ArUco workers)
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-08 — Claude — Build 0.120: camera type, half-scale flow bitmaps
+
+- `src/input/cameraDevices.ts` (+ test): `CAMERA_MODES` (webcam1080,
+  ov9281 1280×800@120 mono), `cameraMode`/`setCameraMode`/`cameraRequest`,
+  `suturehero.cameraMode.v1`; `cameraConstraints` uses the selected mode.
+  Selector at the top of `CameraSettingsPanel`. Profiler reports it.
+- `src/input/markerFlow.ts` `halfScalePyramid` (+ test vs framePyramid
+  on a 2×2-averaged frame, ≤ 1 grey level); flow worker uses it for all
+  bitmap frames; `postFlowBitmap` requests ceil(w/2)×ceil(h/2).
+- Checked: unit tests, tsc; check-tracking-motion, ring-handoffs,
+  stereo-rig-faces, tracking-lab, camera-controls, marker-jaws, profiler
+  pass; handle-jaws known pose only. Synthetic flow worker 8.0 → 3.1 ms.
 
 ### 2026-11-08 — Claude — Build 0.119: in-app stereo calibration, stereo handle prism
 

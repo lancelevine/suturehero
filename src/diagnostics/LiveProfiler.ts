@@ -1,4 +1,4 @@
-import { CAMERA_REQUEST } from '../input/cameraDevices';
+import { cameraMode, cameraRequest } from '../input/cameraDevices';
 import { flowFrameSettings } from '../input/flowFrames';
 import { FrameCadence, type CadenceReport, type FrameMetadata } from './frameCadence';
 import { breakdown, classifyStage, RollingSamples, type Breakdown, type StageInfo, type StageStats } from './profilerStats';
@@ -167,7 +167,7 @@ export class LiveProfiler {
     return {
       index,
       running: !!track && track.readyState === 'live',
-      requested: { ...CAMERA_REQUEST },
+      requested: (({ width, height, frameRate }) => ({ width, height, frameRate }))(cameraRequest()),
       settings,
       video: { width: video.videoWidth, height: video.videoHeight },
       cadence: this.cadences.get(index)?.report(now) ?? new FrameCadence('none').report(now),
@@ -189,7 +189,7 @@ export class LiveProfiler {
       version: 1,
       collectedAt: new Date().toISOString(),
       browser: { userAgent: navigator.userAgent, logicalCores: navigator.hardwareConcurrency },
-      options: { flowBitmaps: flowFrameSettings.useBitmaps },
+      options: { flowBitmaps: flowFrameSettings.useBitmaps, cameraType: cameraMode() },
       trackingContext: context,
       ...this.snapshot(),
     };

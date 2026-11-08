@@ -3,6 +3,18 @@ export type GrayFrame={width:number;height:number;pixels:Uint8Array};
 type FramePixels={width:number;height:number;data:ArrayLike<number>};
 type Point={x:number;y:number};
 export const framePyramid=(frame:FramePixels)=>pyramid(grayFrame(frame));
+/**
+ * Pyramid from a frame the browser has already scaled to half the flow
+ * resolution (e.g. a 480×270 bitmap for 960×540 flow): level 0 is the same
+ * half-scale grayscale image framePyramid would make, so marker coordinates
+ * stay in flow pixels. Per-pixel luminance, no 2×2 averaging.
+ */
+export const halfScalePyramid=(frame:FramePixels)=>pyramid(grayPixels(frame));
+function grayPixels(frame:FramePixels):GrayFrame{
+ const pixels=new Uint8Array(frame.width*frame.height),data=frame.data;
+ for(let i=0,k=0;i<pixels.length;i++,k+=4)pixels[i]=Math.round(.299*data[k]+.587*data[k+1]+.114*data[k+2]);
+ return {width:frame.width,height:frame.height,pixels};
+}
 function grayFrame(frame:FramePixels):GrayFrame{
  const width=Math.ceil(frame.width/2),height=Math.ceil(frame.height/2),pixels=new Uint8Array(width*height);
  // Interior 2×2 blocks never need edge clamping: same arithmetic, same order, no Math.min (bit-identical).

@@ -9,26 +9,56 @@ import {recordedInput} from '../trackingLab/runtime';
  */
 
 /**
- * The video mode requested from each camera. These are `ideal` values: the
- * browser picks the closest mode the camera supports.
- *
- * To change camera hardware (e.g. OV9281 global-shutter cameras at
- * 1280×800 / 120 fps), change these values and re-test tracking speed.
+ * Camera types (the video mode requested from each camera). These are
+ * `ideal` values: the browser picks the closest mode the camera supports.
+ * Chosen in Camera controls → Camera type; applies when a camera is started.
  */
-export const CAMERA_REQUEST = {
-  width: 1920,
-  height: 1080,
-  frameRate: 30,
+export const CAMERA_MODES = {
+  /** The webcams in use until late 2026. */
+  webcam1080: { label: 'Current webcams (1920×1080 @ 30 fps)', width: 1920, height: 1080, frameRate: 30, monochrome: false },
+  /** Arducam B0332 OV9281: monochrome global shutter, MJPEG 1280×800 up to 120 fps. */
+  ov9281: { label: 'OV9281 global shutter (1280×800 @ 120 fps, monochrome)', width: 1280, height: 800, frameRate: 120, monochrome: true },
 } as const;
+export type CameraModeId = keyof typeof CAMERA_MODES;
+export const CAMERA_MODE_STORAGE_KEY = 'suturehero.cameraMode.v1';
+const DEFAULT_CAMERA_MODE: CameraModeId = 'webcam1080';
 
-export function cameraConstraints(deviceId?: string): MediaStreamConstraints {
+export function parseCameraMode(value: unknown): CameraModeId {
+  return typeof value === 'string' && value in CAMERA_MODES ? (value as CameraModeId) : DEFAULT_CAMERA_MODE;
+}
+
+export function cameraMode(storage = defaultStorage()): CameraModeId {
+  try {
+    return parseCameraMode(storage?.getItem(CAMERA_MODE_STORAGE_KEY));
+  } catch {
+    return DEFAULT_CAMERA_MODE;
+  }
+}
+
+export function setCameraMode(mode: CameraModeId, storage = defaultStorage()) {
+  try {
+    storage?.setItem(CAMERA_MODE_STORAGE_KEY, mode);
+  } catch {
+    // Storage blocked: the default mode is used.
+  }
+}
+
+/** The requested video mode for the selected camera type. */
+export function cameraRequest(storage = defaultStorage()) {
+  return CAMERA_MODES[cameraMode(storage)];
+}
+
+/** Default request (current webcams); prefer cameraRequest(), which follows the Camera type setting. */
+export const CAMERA_REQUEST = { width: CAMERA_MODES.webcam1080.width, height: CAMERA_MODES.webcam1080.height, frameRate: CAMERA_MODES.webcam1080.frameRate } as const;
+
+export function cameraConstraints(deviceId?: string, request: { width: number; height: number; frameRate: number } = cameraRequest()): MediaStreamConstraints {
   return {
     audio: false,
     video: {
       deviceId: deviceId ? { exact: deviceId } : undefined,
-      width: { ideal: CAMERA_REQUEST.width },
-      height: { ideal: CAMERA_REQUEST.height },
-      frameRate: { ideal: CAMERA_REQUEST.frameRate },
+      width: { ideal: request.width },
+      height: { ideal: request.height },
+      frameRate: { ideal: request.frameRate },
     },
   };
 }

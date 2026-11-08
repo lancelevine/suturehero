@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.120 — OV9281 camera type; optical flow reads a quarter of the pixels
+
+- **Camera type** (Camera controls · focus & exposure): "Current webcams
+  (1920×1080 @ 30 fps)" or "OV9281 global shutter (1280×800 @ 120 fps,
+  monochrome)". Saved in this browser; applies when a camera is started.
+  The profiler report records it.
+- **Optical flow:** the flow bitmap is requested at half the flow
+  resolution (480×270 for 960×540). The flow worker's image pyramid starts
+  at half scale anyway, so the GPU now does that step and the worker reads
+  and converts a quarter of the pixels. Marker coordinates are unchanged.
+  Synthetic profile: flow worker 8.0 → 3.1 ms per update, readback 2.6 →
+  0.5 ms, flow frame age 25 → 17 ms.
+
 ## Build 0.119 — stereo calibration in the app; stereo handle-prism jaws; clearer board capture
 
 - **Solve and use calibration** (Calibrate tab, stereo capture): after the

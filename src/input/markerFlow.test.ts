@@ -60,3 +60,15 @@ it('fast grayscale pyramid is bit-identical to the clamped reference, including 
   const lastRow=H-1;for(let x=0;x<W;x++){let value=0;for(let j=0;j<2;j++)for(let i=0;i<2;i++){const k=(Math.min(h-1,lastRow*2+j)*w+Math.min(w-1,x*2+i))*4;value+=.299*data[k]+.587*data[k+1]+.114*data[k+2];}expect(gray.pixels[lastRow*W+x]).toBe(Math.round(value/4));}
  }
 });
+
+it('half-scale pyramid from a 2×2-averaged frame matches the full-size pyramid',async()=>{
+ const {framePyramid,halfScalePyramid}=await import('./markerFlow');
+ const w=96,h=64,full=new Uint8ClampedArray(w*h*4);
+ for(let i=0;i<w*h;i++){const v=(i*37+(i>>5)*13)%256;full[i*4]=full[i*4+1]=full[i*4+2]=v;full[i*4+3]=255;}
+ // What a GPU 2× downscale produces: each pixel the average of a 2×2 block.
+ const half=new Uint8ClampedArray((w/2)*(h/2)*4);
+ for(let y=0;y<h/2;y++)for(let x=0;x<w/2;x++){let v=0;for(const [dx,dy] of [[0,0],[1,0],[0,1],[1,1]])v+=full[((y*2+dy)*w+x*2+dx)*4];v/=4;const k=(y*(w/2)+x)*4;half[k]=half[k+1]=half[k+2]=v;half[k+3]=255;}
+ const a=framePyramid({width:w,height:h,data:full}),b=halfScalePyramid({width:w/2,height:h/2,data:half});
+ expect(b.length).toBe(a.length);
+ for(let level=0;level<a.length;level++){expect(b[level].width).toBe(a[level].width);let worst=0;for(let i=0;i<a[level].pixels.length;i++)worst=Math.max(worst,Math.abs(a[level].pixels[i]-b[level].pixels[i]));expect(worst).toBeLessThanOrEqual(1);}
+});

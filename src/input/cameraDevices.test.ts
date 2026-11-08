@@ -21,7 +21,7 @@ function memoryStorage() {
 
 describe('camera constraints', () => {
   it('requests the configured mode as ideal values, with an exact device when given', () => {
-    const video = cameraConstraints('cam-1').video as MediaTrackConstraints;
+    const video = cameraConstraints('cam-1', CAMERA_REQUEST).video as MediaTrackConstraints;
     expect(video.deviceId).toEqual({ exact: 'cam-1' });
     expect(video.width).toEqual({ ideal: CAMERA_REQUEST.width });
     expect(video.height).toEqual({ ideal: CAMERA_REQUEST.height });
@@ -109,5 +109,20 @@ describe('camera control sliders', () => {
     expect(isUsableRange(undefined)).toBe(false);
     expect(isUsableRange({ min: 5, max: 5 })).toBe(false);
     expect(isUsableRange({ min: Number.NaN, max: 1 })).toBe(false);
+  });
+});
+
+describe('camera type', () => {
+  it('defaults to the current webcams and requests 1280×800 @ 120 fps for the OV9281', async () => {
+    const { cameraMode, cameraRequest, setCameraMode, parseCameraMode, CAMERA_MODES } = await import('./cameraDevices');
+    const store = new Map<string, string>();
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+    expect(cameraMode(storage)).toBe('webcam1080');
+    setCameraMode('ov9281', storage);
+    expect(cameraRequest(storage)).toMatchObject({ width: 1280, height: 800, frameRate: 120, monochrome: true });
+    const video = cameraConstraints('x', cameraRequest(storage)).video as MediaTrackConstraints;
+    expect(video.frameRate).toEqual({ ideal: 120 });
+    expect(parseCameraMode('nonsense')).toBe('webcam1080');
+    expect(CAMERA_MODES.webcam1080.frameRate).toBe(30);
   });
 });
