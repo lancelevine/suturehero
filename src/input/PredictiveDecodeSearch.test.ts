@@ -29,3 +29,9 @@ it('accepts face changes within an instrument but recovers a separately missing 
 it('bounds searches, expires old hints, and retains an explicit full-frame option',()=>{
  const s=new PredictiveDecodeSearch();s.plan([marker()],0,1920,1080,true,groups);s.result([marker()]);expect(s.plan([marker()],65,1920,1080,false,groups).kind).toBe('full');expect(s.plan([],600,1920,1080,true,groups).kind).toBe('full');expect(s.plan([marker()],650,640,480,true,groups).kind).toBe('full');
 });
+it('tiles the OV9281 frame (1280×800) completely, each tile inside the frame',()=>{
+ const s=new PredictiveDecodeSearch();s.plan([marker(0,600)],0,1280,800,true,groups);s.result([marker(0,600)]);
+ const tiles=[1,2,3,4].map(i=>{const r=s.plan([marker(0,600)],i*260,1280,800,true,groups);s.result([]);return r;});
+ expect(tiles.every(t=>t.kind==='discovery'&&t.left>=0&&t.top>=0&&t.left+t.width<=1280&&t.top+t.height<=800)).toBe(true);
+ for(let x=0;x<1280;x+=40)for(let y=0;y<800;y+=40)expect(tiles.some(t=>x>=t.left&&x<t.left+t.width&&y>=t.top&&y<t.top+t.height)).toBe(true);
+});
