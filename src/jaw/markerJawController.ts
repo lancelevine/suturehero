@@ -151,8 +151,12 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   host.video.parentElement!.append(canvas);
   const context = canvas.getContext('2d')!;
 
+  // A GPU-backed canvas on purpose: drawing the video is a GPU copy and only
+  // the small region is read back. With willReadFrequently (a CPU canvas)
+  // every draw copied the whole video frame to the CPU — ~45 ms per update
+  // in the 0.100 report.
   const crop = document.createElement('canvas');
-  const cropContext = crop.getContext('2d', { willReadFrequently: true })!;
+  const cropContext = crop.getContext('2d')!;
 
   let engine: JawEngine = parseJawEngine(readStored(TRACKING_STORAGE_KEYS.jawEngine));
   let mode: Mode = { kind: 'idle' };

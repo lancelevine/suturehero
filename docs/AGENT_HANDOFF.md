@@ -69,6 +69,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.103: GPU canvas for jaw region reads
+
+- `src/jaw/markerJawController.ts`: crop canvas no longer uses
+  `willReadFrequently`. 0.100 report: Jaw tracking 45 ms mean, loop 13 fps.
+- Checked: tsc, check-marker-jaws (timing not measurable headless).
+- Lance: new report; Jaw tracking row should be a few ms. If not, revert to
+  the 0.98 full-frame cache (~9 ms) as the fallback.
+
 ### 2026-11-08 — Claude — Build 0.102: hold jaw opening during fast moves
 
 - `src/jaw/stereoBallDistance.ts`: `ringSpeedSidesPerSecond`,

@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.103 — fix the jaw-tracking slowdown from 0.99
+
+0.99 made jaw tracking read small regions, but through a CPU canvas, so
+each region draw copied the whole video frame: ~45 ms per update and the
+tracking loop fell to 13 fps (0.100 report). The region canvas is now
+GPU-backed, so only the small region is read back. Not measured on real
+cameras yet.
+
 ## Build 0.102 — jaw opening holds during fast moves
 
 Moving the needle driver quickly with the jaws closed briefly read them as
