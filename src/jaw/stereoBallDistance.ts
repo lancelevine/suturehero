@@ -96,3 +96,26 @@ export function median(values: readonly number[]): number | null {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[sorted.length >> 1];
 }
+
+/**
+ * The two cameras are not synchronized (frames up to ~70 ms apart), so while
+ * the instrument moves fast each ball is seen at a different moment and the
+ * triangulated distance between them is wrong — closed jaws read as open.
+ * Above this ring speed, in marker sides per second, jaw readings are held.
+ */
+export const MAX_JAW_MOTION_SIDES_PER_S = 3;
+
+export interface RingSample {
+  x: number;
+  y: number;
+  /** Mean marker side, px. */
+  side: number;
+  at: number;
+}
+
+/** Ring centre speed between two samples, in marker sides per second (0 without a usable earlier sample). */
+export function ringSpeedSidesPerSecond(previous: RingSample | undefined, current: RingSample): number {
+  if (!previous || current.at <= previous.at || current.side <= 0) return 0;
+  const dt = (current.at - previous.at) / 1000;
+  return Math.hypot(current.x - previous.x, current.y - previous.y) / current.side / dt;
+}

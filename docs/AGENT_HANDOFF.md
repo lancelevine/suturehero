@@ -69,6 +69,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.102: hold jaw opening during fast moves
+
+- `src/jaw/stereoBallDistance.ts`: `ringSpeedSidesPerSecond`,
+  `MAX_JAW_MOTION_SIDES_PER_S = 3` (+ test). `markerJawController.ts` skips
+  jaw updates (holds last opening) above that ring speed.
+- Checked: jaw tests, tsc, check-marker-jaws.
+- Lance: fast closed-jaw moves should no longer flash open. If opening the
+  jaws while moving feels delayed, the 3 sides/s limit can be raised.
+
 ### 2026-11-08 — Claude — Build 0.101: stereo rest lock
 
 - New `src/input/RestLock.ts` (+ test): holds pose within 3° / 2.5 mm,

@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.102 — jaw opening holds during fast moves
+
+Moving the needle driver quickly with the jaws closed briefly read them as
+wide open. The two cameras are not synchronized (frames up to ~70 ms
+apart), so during a fast move each ball is triangulated from two different
+moments. While the ring moves faster than 3 marker sides per second, the
+jaw opening now holds its last value. Synthetic tests only.
+
 ## Build 0.101 — rest lock for stereo; single-camera backup holds position at rest
 
 A still-instrument recording on 0.100 showed the stereo pose itself

@@ -4,7 +4,7 @@ import { solvePrismPose, trackerGeometry, type PrismPose, type TrackerType } fro
 import { readStored, readStoredJson, TRACKING_STORAGE_KEYS, writeStored } from '../input/trackingStorage';
 import type { TrackedInstrument } from '../input/trackingMessages';
 import type { StereoCalibration } from '../input/stereoGeometry';
-import { expectedSpacing, median, openingFromDistance, stereoBallPair } from './stereoBallDistance';
+import { expectedSpacing, median, openingFromDistance, ringSpeedSidesPerSecond, stereoBallPair, MAX_JAW_MOTION_SIDES_PER_S, type RingSample } from './stereoBallDistance';
 import { findBrightBalls, grayFromRGBA, maskFromQuads, type GrayImage } from './brightBalls';
 import { defaultIntrinsics, projectBodyPoint, type Pixel } from './jawGeometry';
 import {
@@ -295,6 +295,22 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
    * steel highlights or other bright spots cannot pair up by mistake.
    */
   const lastStereo = new Map<TrackedInstrument, { at: number; distance: number | null }>();
+  const lastRing = new Map<TrackedInstrument, RingSample>();
+  /** True while the instrument's ring moves too fast for a trustworthy jaw reading (see MAX_JAW_MOTION_SIDES_PER_S). */
+  function movingFast(name: TrackedInstrument, now: number): boolean {
+    const markers = host.markers(name, now);
+    if (!markers.length) return false;
+    const corners = markers.flatMap((m) => m.corners);
+    const current: RingSample = {
+      x: corners.reduce((sum, p) => sum + p.x, 0) / corners.length,
+      y: corners.reduce((sum, p) => sum + p.y, 0) / corners.length,
+      side: markers.reduce((sum, m) => sum + Math.hypot(m.corners[1].x - m.corners[0].x, m.corners[1].y - m.corners[0].y), 0) / markers.length,
+      at: now,
+    };
+    const speed = ringSpeedSidesPerSecond(lastRing.get(name), current);
+    lastRing.set(name, current);
+    return speed > MAX_JAW_MOTION_SIDES_PER_S;
+  }
   function stereoDistance(name: TrackedInstrument, now: number, diameterMm: number, known?: readonly Pixel[], range?: { minMm: number; maxMm: number }): number | null {
     // At most ~15 times a second: it searches both cameras.
     const previous = lastStereo.get(name);
@@ -554,6 +570,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     }
     for (const [name, tracker] of trackers) {
       if (mode.kind === 'capturing' && mode.instrument === name) continue;
+      // Fast moves: hold the last opening (unsynchronized cameras and blur misread the balls).
+      if (movingFast(name, now)) continue;
       // Stereo: the 3D distance between the balls, independent of the ring pose.
       const stereo = tracker.model.stereo;
       const distance = stereo ? stereoDistance(name, now, tracker.model.ballDiameterMm, undefined, expectedSpacing(tracker.model.balls) ?? undefined) : null;

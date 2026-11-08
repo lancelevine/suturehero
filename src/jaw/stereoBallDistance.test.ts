@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StereoCalibration } from '../input/stereoGeometry';
-import { expectedSpacing, median, openingFromDistance, stereoBallPair } from './stereoBallDistance';
+import { expectedSpacing, median, openingFromDistance, ringSpeedSidesPerSecond, stereoBallPair } from './stereoBallDistance';
 
 // Two pinhole cameras 100 mm apart, camera 2 turned 20° toward camera 1.
 const angle = (-20 * Math.PI) / 180;
@@ -51,5 +51,12 @@ describe('expected spacing', () => {
     expect(expectedSpacing([{ closed: v(0), open: v(0) }])).toBeNull();
     const a = [10, 5, 300], b = [22, 9, 305];
     expect(stereoBallPair(cal, [project(a, false), project(b, false)], [project(a, true), project(b, true)], size, size, undefined, { minMm: 20, maxMm: 30 })).toBeNull();
+  });
+});
+
+describe('ring speed', () => {
+  it('is in marker sides per second', () => {
+    expect(ringSpeedSidesPerSecond(undefined, { x: 0, y: 0, side: 20, at: 0 })).toBe(0);
+    expect(ringSpeedSidesPerSecond({ x: 0, y: 0, side: 20, at: 0 }, { x: 30, y: 40, side: 20, at: 500 })).toBeCloseTo(5);
   });
 });
