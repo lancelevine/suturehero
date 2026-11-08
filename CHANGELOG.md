@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.105 — hold the stereo pose between stereo updates
+
+Between stereo poses, the instrument followed changes in each camera's own
+single-marker estimate. Those are noisy on 12 mm markers, so a still
+instrument jumped on nearly every frame, even though the stereo poses
+themselves were steady (replay of the 1:03 AM recording: under 0.1° after
+the rest lock). The last stereo pose is now held until the next one.
+Movement may look slightly steppier at the stereo update rate.
+
 ## Build 0.104 — "Enable jaw tracking" switches jaw tracking off completely
 
 The existing "Enable ball tracking" checkbox (renamed "Enable jaw

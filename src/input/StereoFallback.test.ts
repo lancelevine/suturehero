@@ -34,13 +34,13 @@ it('holds depth along the remaining camera axis and maintains rotation continuit
  const a=f.update(undefined,[changed],120)!;expect(a.position.toArray()).toEqual([0,20,800]);expect(a.quaternion.angleTo(new Quaternion())).toBeCloseTo(.2);
 });
 
-it('does not replay an old stereo position over newer monocular movement',()=>{
+it('takes each new stereo sample once and holds it until the next',()=>{
  const f=new StereoFallback(),stereo=pose(800,0);
  f.update(stereo,[view(0,700,0)],0);
- expect(f.update(stereo,[view(0,700,60,30)],60)!.position.x).toBe(30);
+ expect(f.update(stereo,[view(0,700,60,30)],60)!.position.x).toBe(0);
  const delayed=f.update(pose(820,80,40),[view(0,720,200,40)],200)!;
  expect(delayed.source).toBe('stereo');expect(delayed.position.x).toBe(40);
- expect(f.update(pose(820,80,40),[view(0,720,220,60)],220)!.position.x).toBe(60);
+ expect(f.update(pose(820,80,40),[view(0,720,220,60)],220)!.position.x).toBe(40);
 });
 
 it('holds rotation through single-marker noise and flips, but follows a clear turn',()=>{
@@ -55,4 +55,11 @@ it('holds the stereo pose exactly while single-camera views only jitter',()=>{
  const f=new StereoFallback();f.update(pose(800,0),[view(0,700,0)],0);
  let out;for(let t=100;t<1500;t+=50)out=f.update(undefined,[view(0,700+(t%100?25:-25),t,t%100?3:-3)],t)!;
  expect(out!.position.toArray()).toEqual([0,0,800]);
+});
+
+it('holds the stereo pose between stereo samples',()=>{
+ const f=new StereoFallback(),stereo=pose(800,0);
+ f.update(stereo,[view(0,700,0)],0);
+ expect(f.update(stereo,[view(0,700,40,3)],40)!.position.x).toBe(0);
+ expect(f.update(stereo,[view(0,700,80,30)],80)!.position.x).toBe(0);
 });

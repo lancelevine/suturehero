@@ -69,6 +69,17 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.105: no mono deltas between stereo samples
+
+- `src/input/StereoFallback.ts`: when the stereo sample is unchanged, return
+  the held stereo output (previously anchor + mono delta). The test that
+  expected mono movement between samples now expects the hold (behaviour
+  change, not a loosened limit).
+- Evidence: Lance's 1:03 AM recording (0.101) replayed: stereo + RestLock
+  under 0.1°/0.03 mm per frame, yet Lance saw definite jumping.
+- Checked: StereoFallback tests, tsc. check-stereo-motion still fails as
+  before (near step 0.93 vs >1).
+
 ### 2026-11-08 — Claude — Build 0.104: jaw tracking can be turned off
 
 - `src/tracking.ts`: `markerJaws.update` runs only when `#ball-enable` is

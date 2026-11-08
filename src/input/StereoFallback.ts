@@ -29,16 +29,10 @@ export class StereoFallback {
   const fresh=views.filter(v=>now-v.at<180);
   const dt=Math.max(0,Math.min(.1,(now-this.lastAt)/1000));this.lastAt=now;
   if(stereo&&now-stereo.at<180){
-   if(this.output&&stereo.at===this.lastStereoSample){
-    const view=fresh.find(v=>this.anchors.has(v.camera));
-    if(view){
-     const anchor=this.anchors.get(view.camera)!;
-     const delta=view.position.clone().sub(anchor.view.position);
-     delta.addScaledVector(view.axis,-delta.dot(view.axis));
-     this.output={position:anchor.pose.position.clone().add(delta),quaternion:monoRotation(view,anchor),at:view.at};
-    }
-    return {...this.clone(this.output),source:'stereo' as const};
-   }
+   // Between stereo samples hold the last stereo pose. Adding single-camera
+   // changes (12 mm markers: noisy, sometimes flipped) made a still
+   // instrument jump on nearly every frame (11/8 recordings, 0.101).
+   if(this.output&&stereo.at===this.lastStereoSample)return {...this.clone(this.output),source:'stereo' as const};
    this.lastStereoSample=stereo.at;
    if(this.output&&this.source!=='stereo'){
     this.recovery=this.output.position.clone().sub(stereo.position);
