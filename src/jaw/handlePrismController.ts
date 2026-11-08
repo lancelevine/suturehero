@@ -44,11 +44,27 @@ export interface HandlePrismHost {
   publish(instrument: TrackedInstrument, opening: number): void;
   /** False while the Jaws tab's "Jaw tracking" switch is off (no updates run). */
   running?(): boolean;
+  /** Camera 2's view, to confirm Camera 1 or stand in when Camera 1's view is blocked. */
+  second?: {
+    overlay: HTMLCanvasElement;
+    markers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+    handleMarkers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+  };
 }
+
+interface HandleCamera {
+  index: 1 | 2;
+  overlay: HTMLCanvasElement;
+  markers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+  handleMarkers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+}
+
+/** Two cameras' relative rotations within this angle are averaged (radians). */
+const CAMERAS_AGREE_RADIANS = (8 * Math.PI) / 180;
 
 const TEMPLATE = `
 <p class="tracking-message">Uses Camera 1, the ring tracker and the triangular marker prism on the moving handle
-(needle driver IDs ${HANDLE_PRISM_IDS.needleDriver.join(', ')}; forceps ${HANDLE_PRISM_IDS.forceps.join(', ')}; scissors ${HANDLE_PRISM_IDS.scissors.join(', ')}).
+(seen by Camera 1 and, when running, Camera 2; needle driver IDs ${HANDLE_PRISM_IDS.needleDriver.join(', ')}; forceps ${HANDLE_PRISM_IDS.forceps.join(', ')}; scissors ${HANDLE_PRISM_IDS.scissors.join(', ')}).
 <strong>1.</strong> Hold the jaws closed with the ring and one prism face visible, press <em>Calibrate closed</em> and hold still.
 <strong>2.</strong> Open the jaws fully and press <em>Calibrate open</em>.</p>
 <div class="tracking-actions">
@@ -77,7 +93,12 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
 
   const models = new Map<TrackedInstrument, HingeModel>();
   const closedCaptures = new Map<TrackedInstrument, Quaternion>();
-  const ringPoses = new Map<TrackedInstrument, PrismPose>();
+  const ringPoses = new Map<string, PrismPose>();
+  const sources = new Map<TrackedInstrument, string>();
+  const cameras: HandleCamera[] = [
+    { index: 1, overlay: host.overlay, markers: host.markers, handleMarkers: host.handleMarkers },
+    ...(host.second ? [{ index: 2 as const, ...host.second }] : []),
+  ];
   const lastRelative = new Map<TrackedInstrument, Quaternion>();
   const openings = new Map<TrackedInstrument, number>();
   const filters = new Map<TrackedInstrument, OpeningFilter>();
@@ -105,31 +126,27 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         : `${LABELS[name]}: not calibrated.`;
   };
 
-  /** Handle orientation relative to the ring, or null with a reason in `failures`. */
-  function relativeRotation(name: TrackedInstrument, now: number): Quaternion | null {
-    const { width, height } = host.overlay;
+  /** One camera's handle rotation relative to the ring, or the reason it has none. */
+  function cameraRelative(name: TrackedInstrument, now: number, camera: HandleCamera): Quaternion | string {
+    const { width, height } = camera.overlay;
+    if (!width || !height) return `Camera ${camera.index} is not running.`;
     const type = host.trackerType();
     const first = host.firstMarkerId(name);
-    const visible = host.markers(name, now);
+    const visible = camera.markers(name, now);
     const area = (m: MarkerObservation) => Math.abs(m.corners.reduce((s, p, i) => { const n = m.corners[(i + 1) % 4]; return s + p.x * n.y - n.x * p.y; }, 0)) / 2;
     const side = type === 'ring8' ? visible.filter((m) => m.id - first < RING_SIDE_FACES) : visible;
     const candidates = side.length ? side : visible;
     // Faces seen nearly edge-on have unreliable corners and skew the ring rotation.
     const largest = Math.max(0, ...candidates.map(area));
     const ringMarkers = candidates.filter((m) => area(m) >= largest * MIN_RING_FACE_AREA_RATIO);
-    if (!ringMarkers.length) {
-      failures.set(name, 'Ring markers not visible to Camera 1.');
-      return null;
-    }
-    const ring = solvePrismPose(ringMarkers, first, width, height, ringPoses.get(name), undefined, type);
-    if (!ring || ring.error > MAX_RING_ERROR_PX) {
-      failures.set(name, 'Ring pose not reliable in this view.');
-      return null;
-    }
-    ringPoses.set(name, ring);
+    if (!ringMarkers.length) return `ring not visible to Camera ${camera.index}`;
+    const ringKey = `${name}:${camera.index}`;
+    const ring = solvePrismPose(ringMarkers, first, width, height, ringPoses.get(ringKey), undefined, type);
+    if (!ring || ring.error > MAX_RING_ERROR_PX) return `ring pose not reliable in Camera ${camera.index}`;
+    ringPoses.set(ringKey, ring);
     const ids: readonly number[] = HANDLE_PRISM_IDS[name];
     // Largest visible face: most pixels, most precise single-marker pose.
-    const faces = host.handleMarkers(name, now).filter((m) => ids.includes(m.id)).sort((a, b) => area(b) - area(a));
+    const faces = camera.handleMarkers(name, now).filter((m) => ids.includes(m.id)).sort((a, b) => area(b) - area(a));
     for (const marker of faces) {
       // One face at a time through the iterative prism solver (3-face layout,
       // 12 mm markers): its rotation is exact for any prism width, which is
@@ -148,13 +165,49 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         : null;
       const body = seeded && free && seeded.error <= free.error + SEED_ERROR_MARGIN_PX ? seeded : free;
       if (!body || body.error > MAX_HANDLE_ERROR_PX) continue;
-      const relative = handleRelativeToRing(ring.quaternion, body.quaternion);
-      lastRelative.set(name, relative);
-      failures.delete(name);
-      return relative;
+      return handleRelativeToRing(ring.quaternion, body.quaternion);
     }
-    failures.set(name, faces.length ? 'Handle prism seen but its pose is not reliable in this view.' : 'Handle prism not visible to Camera 1.');
-    return null;
+    return faces.length ? `prism seen by Camera ${camera.index} but its pose is not reliable` : `prism not visible to Camera ${camera.index}`;
+  }
+
+  /**
+   * The handle's rotation relative to the ring is a property of the
+   * instrument, so each camera measures it independently with the same
+   * calibration (no stereo calibration needed). Two agreeing cameras are
+   * averaged; on disagreement the one nearer the last good reading wins (the
+   * other is likely a mirror-ambiguity flip); one camera alone is used when
+   * the other's view is blocked.
+   */
+  function relativeRotation(name: TrackedInstrument, now: number): Quaternion | null {
+    const results = cameras.map((camera) => ({ camera, result: cameraRelative(name, now, camera) }));
+    const good = results.filter((r): r is { camera: HandleCamera; result: Quaternion } => typeof r.result !== 'string');
+    const previous = lastRelative.get(name);
+    let relative: Quaternion | null = null;
+    let source = '';
+    if (good.length === 2) {
+      const [a, b] = good;
+      if (a.result.angleTo(b.result) <= CAMERAS_AGREE_RADIANS) {
+        relative = a.result.clone().slerp(b.result, 0.5);
+        source = 'Cameras 1 + 2 agree';
+      } else {
+        const pick = previous && b.result.angleTo(previous) < a.result.angleTo(previous) ? b : a;
+        relative = pick.result;
+        source = `Camera ${pick.camera.index} (cameras disagree by ${((a.result.angleTo(b.result) * 180) / Math.PI).toFixed(0)}°)`;
+      }
+    } else if (good.length === 1) {
+      relative = good[0].result;
+      source = `Camera ${good[0].camera.index} only`;
+    }
+    const reasons = results.filter((r) => typeof r.result === 'string').map((r) => r.result as string);
+    if (!relative) {
+      failures.set(name, reasons.join('; ') || 'no camera view');
+      sources.delete(name);
+      return null;
+    }
+    lastRelative.set(name, relative);
+    failures.delete(name);
+    sources.set(name, source + (reasons.length && good.length === 1 && cameras.length > 1 ? ` · ${reasons.join('; ')}` : ''));
+    return relative;
   }
 
   panel.querySelectorAll<HTMLButtonElement>('[data-handle-capture]').forEach((button) => {
@@ -239,7 +292,7 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
       const opening = openings.get(name);
       const failure = failures.get(name) ?? '';
       readout.textContent = models.has(name)
-        ? failure ? `Holding last reading · ${failure}` : `${Math.round(Math.min(1, opening ?? 0) * 100)}% open`
+        ? failure ? `Holding last reading · ${failure}` : `${Math.round(Math.min(1, opening ?? 0) * 100)}% open · ${sources.get(name) ?? ''}`
         : failure;
     },
   };

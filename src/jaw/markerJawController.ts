@@ -52,6 +52,8 @@ export interface MarkerJawHost {
     video: HTMLVideoElement;
     overlay: HTMLCanvasElement;
     markers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+    /** Camera 2's handle prism markers, for handle-prism jaw tracking. */
+    handleMarkers?(instrument: TrackedInstrument, now: number): MarkerObservation[];
   };
   /** The stereo calibration while stereo tracking is active, else null. */
   stereoCalibration?(): StereoCalibration | null;
@@ -205,7 +207,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   }
 
   const handle = host.handleMarkers
-    ? mountHandlePrismJaws(section, { overlay: host.overlay, trackerType: host.trackerType, markers: host.markers, handleMarkers: host.handleMarkers, firstMarkerId: host.firstMarkerId, publish: host.publish, running: host.running })
+    ? mountHandlePrismJaws(section, { overlay: host.overlay, trackerType: host.trackerType, markers: host.markers, handleMarkers: host.handleMarkers, firstMarkerId: host.firstMarkerId, publish: host.publish, running: host.running,
+        second: host.second?.handleMarkers ? { overlay: host.second.overlay, markers: host.second.markers, handleMarkers: host.second.handleMarkers } : undefined })
     : null;
 
   function applyEngine() {

@@ -69,6 +69,19 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.114: Camera 2 in handle-prism jaws
+
+- Lance: Camera 2 should verify Camera 1 or stand in when it's blocked.
+- `handlePrismController.ts`: `cameraRelative()` per camera (ring pose
+  cache per camera), `relativeRotation()` combines: agree ≤ 8°
+  (`CAMERAS_AGREE_RADIANS`) → slerp average; disagree → nearer last good;
+  one camera → that one. Readout names the source.
+- Host: `second.handleMarkers` (markerJawController → tracking.ts, from
+  `secondaryObservations` + `confirmed2`).
+- Checked: jaw tests, tsc, check-handle-jaws (single camera; asserts
+  "Camera 1 only"; known pose still fails). Two-camera path untested
+  synthetically — Lance to test.
+
 ### 2026-11-08 — Claude — Build 0.113: filter the handle-prism opening
 
 - Lance: calibration now works, but the reading jumps a lot.

@@ -5,6 +5,17 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.114 — Camera 2 confirms the handle-prism jaw reading
+
+The handle's rotation relative to the ring is the same whichever camera
+measures it, so Camera 2 now measures it too, with the same calibration
+(no stereo calibration needed). When both cameras agree within 8° their
+readings are averaged; when they disagree, the one nearer the last good
+reading is used (the other is likely a single-marker flip); when one
+camera's view is blocked, the other is used alone. The Jaws panel shows
+which camera(s) the reading came from. Synthetic test covers one camera
+only; the two-camera combination is untested until real hardware.
+
 ## Build 0.113 — steadier handle-prism jaw reading
 
 The handle-prism opening jumped around on real hardware: each reading comes

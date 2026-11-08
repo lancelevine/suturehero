@@ -142,6 +142,8 @@ try {
   await page.evaluate(() => { window.__scene.hingeDeg = 20; });
   await page.waitForTimeout(600);
   await capture('open', 'calibrated');
+  await page.waitForTimeout(800);
+  assert.match(await readout(), /Camera 1 only/, 'single-camera readings say which camera they came from');
   const results = [];
   for (const [hingeDeg, expected, euler] of [[10, 0.5, null], [0, 0, null], [20, 1, null], [10, 0.5, [-5, 195, 8]], [10, 0.5, [-15, 60, 0]], [10, 0.5, [-15, 280, 0]], [10, 0.5, [-15, 300, 0]]]) {
     await page.evaluate(([h, e]) => { window.__scene.hingeDeg = h; if (e) window.__scene.euler = e; }, [hingeDeg, euler]);
