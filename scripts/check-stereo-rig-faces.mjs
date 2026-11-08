@@ -11,9 +11,8 @@ try{
  await page.route('**/src/tracking.ts*',async r=>{const response=await r.fetch(),body=await response.text(),patched=body.replace('const id = ++this.sequence;',"if(window.__rigFrames)return Promise.resolve(window.__rigFrames[this.label.startsWith('Camera 2')?1:0].map(m=>({...m,corners:m.corners.map(p=>({x:p.x-origin.x,y:p.y-origin.y}))})));\nconst id = ++this.sequence;");assert.notEqual(patched,body);await r.fulfill({response,body:patched});});
  await page.goto(new URL('tracking.html',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  const scene=async(face1=0,face2=4,z=600,turn=0)=>page.evaluate(async({face1,face2,z,turn})=>{
-  // Views come from the physically correct (mirror-corrected) ring; q is the expected caller-facing pose.
-  const {faceGeometry}=await import('/src/input/prismPose.ts'),{physicalCorners,fromLegacyQuaternion}=await import('/src/input/ringChirality.ts'),g=faceGeometry(0,'ring6'),q=g.rotation.clone().setFromAxisAngle(g.center.clone().set(0,1,0),Math.PI+turn),qPhysical=fromLegacyQuaternion(q,'ring6');
-  window.__rigFrames=[face1,face2].map((face,camera)=>[{id:face,corners:physicalCorners(face,'ring6').map(p=>{p.applyQuaternion(qPhysical).add(g.center.clone().set(0,-15,z));if(camera)p.set(p.z-600,p.y,500-p.x);return {x:480+700*p.x/p.z,y:270+700*p.y/p.z};})}]);
+  const {faceGeometry,localCorners}=await import('/src/input/prismPose.ts'),g=faceGeometry(0,'ring6'),q=g.rotation.clone().setFromAxisAngle(g.center.clone().set(0,1,0),Math.PI+turn);
+  window.__rigFrames=[face1,face2].map((face,camera)=>[{id:face,corners:localCorners(face,'ring6').map(p=>{p.applyQuaternion(q).add(g.center.clone().set(0,-15,z));if(camera)p.set(p.z-600,p.y,500-p.x);return {x:480+700*p.x/p.z,y:270+700*p.y/p.z};})}]);
  },{face1,face2,z,turn});
  await scene();await page.locator('#camera-select').selectOption('synthetic',{force:true});await page.locator('#start-camera').click();await page.locator('#camera-select-2').selectOption('synthetic-secondary',{force:true});await page.locator('#start-camera-2').evaluate(e=>e.click());await page.waitForFunction(()=>document.querySelector('#camera-video-2').videoWidth>0);
  await page.locator('#tracking-mode').selectOption('stereo',{force:true});

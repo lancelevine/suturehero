@@ -5,16 +5,20 @@ import {faceGeometry,localCorners,solvePrismPose,trackerGeometry,bodyPoseFromMar
 const width=1280,height=720,focal=width/(2*Math.tan(70*Math.PI/360/2));
 const axisY=new THREE.Vector3(0,1,0);
 // Independent hexagonal reference: 19 mm faces, 12 mm black marker, 60 degree stations.
+// Mirrored in z (layout revision 2): triangulated recordings of the printed ring
+// put neighbouring markers on the other side of each marker's plane than the
+// earlier, unmirrored reference did.
 function referenceCorners(index:number){
  const angle=index*Math.PI/3,radius=19*Math.sqrt(3)/2;
- return [[-6,-6],[6,-6],[6,6],[-6,6]].map(([x,y])=>new THREE.Vector3(Math.cos(angle)*x+Math.sin(angle)*radius,y,-Math.sin(angle)*x+Math.cos(angle)*radius));
+ return [[-6,-6],[6,-6],[6,6],[-6,6]].map(([x,y])=>new THREE.Vector3(Math.cos(angle)*x+Math.sin(angle)*radius,y,-(-Math.sin(angle)*x+Math.cos(angle)*radius)));
 }
 function observe(firstId:number,face:number,rotation:THREE.Quaternion,translation=new THREE.Vector3(8,-6,240)){
  return {id:firstId+face,corners:referenceCorners(face).map(p=>{p.applyQuaternion(rotation).add(translation);return {x:width/2+focal*p.x/p.z,y:height/2+focal*p.y/p.z};})};
 }
 it('uses six 60 degree stations with identical geometry for all instrument ID ranges',()=>{
  for(let face=0;face<6;face++){
-  expect(faceGeometry(face,'ring6').rotation.angleTo(new THREE.Quaternion().setFromAxisAngle(axisY,face*Math.PI/3))).toBeLessThan(1e-7);
+  // Layout revision 2 (mirrored in z): face k is turned by −k·60° about the shaft.
+  expect(faceGeometry(face,'ring6').rotation.angleTo(new THREE.Quaternion().setFromAxisAngle(axisY,-face*Math.PI/3))).toBeLessThan(1e-7);
   for(let corner=0;corner<4;corner++)expect(localCorners(face,'ring6')[corner].distanceTo(referenceCorners(face)[corner])).toBeLessThan(1e-9);
  }
 });

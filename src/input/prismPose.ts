@@ -30,8 +30,18 @@ export function faceGeometry(index:number,type:TrackerType='prism'){
  if(ring&&index>=6)q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/6));
  const angled=type==='ring8'&&index>=6;
  const center=new THREE.Vector3(0,angled?-ANGLED_AXIAL_MM:0,angled?ANGLED_RADIAL_MM:radius).applyQuaternion(yaw);
- return {rotation:q,center};
+ if(!ring)return {rotation:q,center};
+ // Ring chirality (layout revision 2): the layout built above is the mirror
+ // image of the printed ring — triangulated recordings put neighbouring
+ // markers on the opposite side of each marker's plane. Reflecting z → −z
+ // gives the physical ring. A marker's own plane points are unchanged by
+ // the reflection, so the rotation is conjugated by it: (qx,qy,qz,qw) →
+ // (−qx,−qy,qz,qw). Poses keep the previous orientation convention for
+ // faces 0 and 3; ring centres move to the physical centre.
+ return {rotation:new THREE.Quaternion(-q.x,-q.y,q.z,q.w),center:new THREE.Vector3(center.x,center.y,-center.z)};
 }
+/** Bump when the ring face layout changes, so calibrations learned on an older layout are not reused. */
+export const RING_LAYOUT_REVISION=2;
 export const localCorners=(index:number,type:TrackerType='prism')=>{
  const {rotation,center}=faceGeometry(index,type),s=trackerGeometry(type).markerSizeMm/2;
  return [[-s,-s],[s,-s],[s,s],[-s,s]].map(([x,y])=>new THREE.Vector3(x,y,0).applyQuaternion(rotation).add(center));

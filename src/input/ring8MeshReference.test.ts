@@ -9,7 +9,9 @@ const pads=[
  [[-16.7991,10.0969,9.6],[-12.0491,1.86965,26.0545],[-.344615,19.5969,9.6],[4.40539,11.3696,26.0545]],
  [[-4.40539,-11.3696,26.0545],[.344615,-19.5969,9.6],[12.0491,-1.86965,26.0545],[16.7991,-10.0969,9.6]]
 ];
-const toBody=(v:number[])=>new Vector3(-Math.sqrt(3)/2*v[0]-.5*v[1],-v[2],-.5*v[0]+Math.sqrt(3)/2*v[1]);
+// STL → body frame, mirrored in z (layout revision 2): triangulated recordings
+// showed the printed ring is the mirror image of the previous mapping.
+const toBody=(v:number[])=>new Vector3(-Math.sqrt(3)/2*v[0]-.5*v[1],-v[2],-(-.5*v[0]+Math.sqrt(3)/2*v[1]));
 function reference(face:number){
  const pts=pads[face-6].map(toBody),center=pts.reduce((v,p)=>v.add(p),new Vector3()).multiplyScalar(.25);
  // The black square is 12 mm within the unchanged 19 mm measured pad.

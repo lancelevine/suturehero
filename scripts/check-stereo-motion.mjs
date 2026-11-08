@@ -11,7 +11,10 @@ try{
  await installSyntheticCamera(page);await page.addInitScript(()=>localStorage.setItem('suturehero.trackerType','ring6'));
  await page.route('**/src/tracking.ts*',async r=>{const response=await r.fetch(),body=await response.text();let patched=body.replace(/function stereoPrismRotation\(name, now\) \{/, '$&\nif(window.__forceCenter)return null;');assert.notEqual(patched,body);if(process.env.SUTURE_STEREO_DELAY)patched=patched.replace('pending.resolve(data.found ?? []);',"setTimeout(()=>pending.resolve(data.found ?? []),this.label==='Camera 2 flow'?35:0);");await r.fulfill({response,body:patched});});
  await page.goto(process.env.SUTURE_MAIN_STATUS?'http://127.0.0.1:5173/?graphics=low':'http://127.0.0.1:5173/tracking.html');
- await page.evaluate(()=>window.__ballScene.camera2={shift:-135});
+ // Camera 2's view is shifted by the disparity of the synthetic marker's depth:
+ // 36 px for a 12 mm square at fx 1800 → 600 mm, and 1800 × 60 mm baseline / 600 mm = 180 px.
+ // (Was 135 px, matching the old 16 mm assumption.)
+ await page.evaluate(()=>window.__ballScene.camera2={shift:-180});
  await page.locator('#camera-select').selectOption('synthetic',{force:true});await page.locator('#start-camera').click();
  await page.locator('#camera-select-2').selectOption('synthetic-secondary',{force:true});await page.locator('#start-camera-2').evaluate(e=>e.click());
  await page.locator('#tracking-mode').selectOption('stereo',{force:true});
@@ -24,22 +27,25 @@ try{
  await page.waitForFunction(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.depthLocked===false;},{},{timeout:30000});
  for(const fallback of (process.env.SUTURE_STEREO_DELAY||process.env.SUTURE_MAIN_STATUS)?[]:[false]){
   await page.evaluate(f=>{window.__forceCenter=f;window.__ballScene.scale=1;},fallback);await page.waitForTimeout(1200);const start=await position();
-  await page.evaluate(()=>window.__ballScene.scale=.75);
+  // Far at ~867 mm (600 mm / 0.69): the original 267 mm start→far movement with 12 mm squares.
+  await page.evaluate(()=>window.__ballScene.scale=.69);
   await page.waitForFunction(async start=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('needleDriver')?.position.z-start)>.75;},start,{timeout:5000});
-  await page.waitForTimeout(1000);const far=await position();assert(far<start-.75,JSON.stringify({start,far}));await page.evaluate(()=>window.__ballScene.scale=1.2);
+  await page.waitForTimeout(1000);const far=await position();assert(far<start-.75,JSON.stringify({start,far}));
+  // Near at 400 mm (600 mm / 1.5), keeping the original 400 mm far→near movement with 12 mm squares.
+  await page.evaluate(()=>window.__ballScene.scale=1.5);
   await page.waitForFunction(async far=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return Math.abs(c.preview('needleDriver')?.position.z-far)>1;},far,{timeout:5000});
   await page.waitForTimeout(1000);const near=await position();assert(near>far+1,JSON.stringify({far,near}));console.log({fallback,start,far,near});
  }
  // Exercise each physical camera dropout, not just a rejected corner fit.
- await page.evaluate(()=>{window.__forceCenter=false;window.__ballScene.scale=1;window.__ballScene.camera2={shift:-135,marker:true};});
+ await page.evaluate(()=>{window.__forceCenter=false;window.__ballScene.scale=1;window.__ballScene.camera2={shift:-180,marker:true};});
  await page.waitForTimeout(1300);
  await page.evaluate(()=>window.__ballScene.marker=false);
  await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('Camera 2'),{},{timeout:5000});
  const xy=()=>page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts');return c.preview('needleDriver')?.position.toArray();});
  if(process.env.SUTURE_MAIN_STATUS)await page.waitForFunction(()=>/fallback.*Camera 2/.test(document.querySelector('#practice-tracking-status').textContent));
- const secondStart=await xy();await page.evaluate(()=>window.__ballScene.camera2.shift=-35);await page.waitForTimeout(800);const secondMove=await xy();
+ const secondStart=await xy();await page.evaluate(()=>window.__ballScene.camera2.shift=-80);await page.waitForTimeout(800);const secondMove=await xy();
  assert(secondMove[0]>secondStart[0]+.12,JSON.stringify({secondStart,secondMove}));
- await page.evaluate(()=>{window.__ballScene.marker=true;window.__ballScene.camera2={shift:-135,marker:true};});
+ await page.evaluate(()=>{window.__ballScene.marker=true;window.__ballScene.camera2={shift:-180,marker:true};});
  await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('ACTIVE'),{},{timeout:5000});await page.waitForTimeout(1000);
  await page.evaluate(()=>window.__ballScene.camera2.marker=false);
  await page.waitForFunction(()=>document.querySelector('#stereo-view-label').textContent.includes('Camera 1'),{},{timeout:5000});

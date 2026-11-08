@@ -1,4 +1,4 @@
-import {trackerGeometry} from '../input/prismPose';
+import {RING_LAYOUT_REVISION,trackerGeometry} from '../input/prismPose';
 import * as THREE from 'three';
 import { findBrightBalls, type GrayImage } from './brightBalls';
 import {
@@ -346,6 +346,8 @@ export interface SavedJawModel {
   version: 1;
   trackerType: string;
   markerSizeMm?:number;
+  /** Ring face layout revision the model was learned with (absent = 1). */
+  ringLayout?:number;
   ballDiameterMm: number;
   balls: Array<{ closed: [number, number, number]; open: [number, number, number] }>;
 }
@@ -355,6 +357,7 @@ export function serializeJawModel(model: JawModel, trackerType: string): SavedJa
     version: 1,
     trackerType,
     markerSizeMm:trackerGeometry(trackerType==='ring6'||trackerType==='ring8'?trackerType:'prism').markerSizeMm,
+    ringLayout:RING_LAYOUT_REVISION,
     ballDiameterMm: model.ballDiameterMm,
     balls: model.balls.map((ball) => ({ closed: ball.closed.toArray(), open: ball.open.toArray() })),
   };
@@ -374,6 +377,8 @@ export function parseJawModel(value: unknown, trackerType: string): JawModel | n
   const currentMarkerSize=trackerGeometry(ring?trackerType:'prism').markerSizeMm;
   // Older ring models were learned with the incorrect 16 mm black-square assumption.
   if((saved.markerSizeMm??(ring?16:12))!==currentMarkerSize)return null;
+  // Ball positions are stored in the ring's body frame, which moved with the layout correction.
+  if(ring&&(saved.ringLayout??1)!==RING_LAYOUT_REVISION)return null;
   const diameter = saved.ballDiameterMm;
   if (typeof diameter !== 'number' || !(diameter > 0 && diameter < 100) || !Array.isArray(saved.balls)) return null;
   const balls: JawBall[] = [];

@@ -168,6 +168,9 @@ describe('jaw model', () => {
     expect(parseJawModel(saved, 'ring8')?.balls[1].open.toArray()).toEqual(openBalls[1].toArray());
     expect(parseJawModel(saved, 'prism')).toBeNull();
     expect(parseJawModel({ ...saved, balls: [{ closed: [0, 0], open: [0, 0, 0] }] }, 'ring8')).toBeNull();
+    // Models learned before the ring layout correction (no ringLayout) are not reused.
+    expect(parseJawModel({ ...saved, ringLayout: undefined }, 'ring8')).toBeNull();
+    expect(parseJawModel({ ...saved, ringLayout: 1 }, 'ring8')).toBeNull();
   });
 });
 

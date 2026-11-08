@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.90 — one corrected ring model for single-camera and stereo
+
+The mirror correction from 0.89 now lives in the shared ring model
+(`faceGeometry` in `src/input/prismPose.ts`, layout revision 2), so
+single-camera tracking, stereo, the jaw tracker and the Tracking Lab all use
+the physical ring. It is a reflection of depth (z → −z), which keeps the
+previous orientation convention for faces 0 and 3; tracked positions move to
+the true ring centre (about 33 mm). On Lance's recordings, single-camera
+fits that combine faces improved (median 1.41 → 1.01, 2.31 → 1.77 and
+1.14 → 0.77 px; worst 6.8 → 2.2 px); stereo results are identical to 0.89.
+**Recalibrate** neutral pose, Near/Far depth and jaws: saved depth and jaw
+calibrations from the old layout are no longer reused.
+
 ## Build 0.89 — stereo uses the correct (unmirrored) ring layout
 
 Triangulating Lance's recordings showed the ring model is the mirror image

@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — correct ring chirality in the shared model (prismPose.ts) for mono + stereo; then check-stereo-motion.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -72,6 +72,31 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Shared ring model corrected; stereo checks fixed (build 0.90)
+- Changed: `faceGeometry` (prismPose.ts) reflects ring faces z → −z
+  (rotation (−qx,−qy,qz,qw), centre z negated); `RING_LAYOUT_REVISION = 2`.
+  Removed 0.89's stereo-only `ringChirality.ts` (equivalent; stereo results
+  identical on all recordings). Saved jaw models carry `ringLayout` and the
+  depth binding includes `layout2`, so old calibrations are not reused.
+- Tests: independent references in `prismPose.test.ts` and
+  `ring8MeshReference.test.ts` mirrored in z with comments citing the
+  triangulated recordings (assertions/tolerances unchanged); face k now
+  turns −k·60°. Added a jaw test rejecting pre-revision models.
+- Browser checks: `check-ring-configuration` expected 16 mm ring squares →
+  12 mm. `check-stereo-motion` (failing since 0.85): its synthetic camera-2
+  shift was the disparity for 16 mm (135 px); now 180 px for 12 mm, and the
+  far/near scales (0.69 / 1.5) restore its original 267 / 400 mm movements,
+  thresholds unchanged. Passed 3/3.
+- Checked: tsc; `src/input`, `src/jaw`, `src/trackingLab` (265 tests);
+  stereo-rig-faces, tracking-motion, ring-handoffs, driver-depth,
+  ring-configuration, rotation-frame, neutral-placement, marker-jaws,
+  calibration-preview, stereo-motion pass.
+- Lance to test: recalibrate neutral, Near/Far and jaws; then mono and
+  stereo, at rest and moving.
+- Note: mono still has workarounds (angled-marker alignment learning,
+  face-handoff logic) written for the mirrored model; they still pass their
+  checks but may now be unnecessary. Review later, not urgent.
+
 ### 2026-11-08 — Claude Code — Stereo ring chirality correction (build 0.89)
 - Finding: the ring model (`prismPose.ts` faceGeometry/localCorners) is the
   x-mirror of the physical ring. Triangulated in marker 3's frame, marker 2
