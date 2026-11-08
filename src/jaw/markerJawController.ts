@@ -5,6 +5,7 @@ import { readStored, readStoredJson, TRACKING_STORAGE_KEYS, writeStored } from '
 import type { TrackedInstrument } from '../input/trackingMessages';
 import type { StereoCalibration } from '../input/stereoGeometry';
 import { expectedSpacing, median, openingFromDistance, ringSpeedSidesPerSecond, stereoBallPair, MAX_JAW_MOTION_SIDES_PER_S, type RingSample } from './stereoBallDistance';
+import { mountHandlePrismJaws } from './handlePrismController';
 import { findBrightBalls, grayFromRGBA, maskFromQuads, type GrayImage } from './brightBalls';
 import { defaultIntrinsics, projectBodyPoint, type Pixel } from './jawGeometry';
 import {
@@ -53,11 +54,13 @@ export interface MarkerJawHost {
   };
   /** The stereo calibration while stereo tracking is active, else null. */
   stereoCalibration?(): StereoCalibration | null;
+  /** Fresh camera-1 handle prism markers (src/jaw/handleHinge.ts IDs), overlay pixels. */
+  handleMarkers?(instrument: TrackedInstrument, now: number): MarkerObservation[];
 }
 
 export interface MarkerJawSnapshot {current:boolean;width:number;height:number;readings:Array<{instrument:TrackedInstrument;reading:JawReading}>;}
 
-export type JawEngine = 'marker' | 'classic';
+export type JawEngine = 'marker' | 'classic' | 'handle';
 
 const INSTRUMENTS: TrackedInstrument[] = ['needleDriver', 'forceps', 'scissors'];
 const LABELS: Record<TrackedInstrument, string> = { needleDriver: 'Needle driver', forceps: 'Forceps', scissors: 'Scissors' };
@@ -86,7 +89,7 @@ type Mode =
   | { kind: 'capturing'; instrument: TrackedInstrument; capture: JawCapture };
 
 export function parseJawEngine(value: unknown): JawEngine {
-  return value === 'classic' ? 'classic' : 'marker';
+  return value === 'classic' || value === 'handle' ? value : 'marker';
 }
 
 function insideConvex(point: Pixel, corners: Pixel[]) {
@@ -110,7 +113,8 @@ function grownQuad(corners: Pixel[]) {
 
 const TEMPLATE = `
 <div class="tracking-actions"><label>Jaw tracker <select data-jaw-engine>
- <option value="marker">White balls (new)</option>
+ <option value="handle">Handle prism (new)</option>
+ <option value="marker">White balls</option>
  <option value="classic">Classic (previous)</option>
 </select></label></div>
 <div data-jaw-marker>
@@ -197,9 +201,14 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     }
   }
 
+  const handle = host.handleMarkers
+    ? mountHandlePrismJaws(section, { overlay: host.overlay, trackerType: host.trackerType, markers: host.markers, handleMarkers: host.handleMarkers, firstMarkerId: host.firstMarkerId, publish: host.publish })
+    : null;
+
   function applyEngine() {
     markerPanel.hidden = engine !== 'marker';
-    for (const part of classicParts) part.hidden = engine === 'marker';
+    if (handle) handle.panel.hidden = engine !== 'handle';
+    for (const part of classicParts) part.hidden = engine !== 'classic';
     canvas.style.display = engine === 'marker' ? '' : 'none';
     if (engine !== 'marker') cancel('');
   }
@@ -559,6 +568,10 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
 
   /** Call once per processed camera-1 frame. */
   function update(now: number) {
+    if (engine === 'handle') {
+      handle?.update(now);
+      return;
+    }
     if (engine !== 'marker' || !host.video.videoWidth || host.video.paused) {
       if (engine === 'marker') draw();
       return;
@@ -630,5 +643,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     },
     /** Whether the classic jaw tracker should run. */
     classicActive: () => engine === 'classic',
+    /** Which jaw tracker is selected. */
+    engine: () => engine,
   };
 }

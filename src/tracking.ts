@@ -24,6 +24,7 @@ import {frameClock,observeCameraFrames} from './input/CameraFrameClock';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
 import {drawRingAxis,ringAxisSegment} from './ui/ringAxisOverlay';
+import {HANDLE_PRISM_IDS} from './jaw/handleHinge';
 import {videoSnapshot} from './input/videoSnapshot';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {mountPerformancePanel} from './ui/PerformancePanel';
@@ -258,6 +259,8 @@ const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
  scissors:[20,21,22,23,24,25,26,27]
 };
 const sixMarkerGroups:Record<InstrumentName,readonly number[]>={needleDriver:[0,1,2,3,4,5],forceps:[10,11,12,13,14,15],scissors:[20,21,22,23,24,25]};
+/** Marker groups for the decode region search: each instrument's ring plus its handle prism, so a hidden handle face is not treated as a lost object (which forces whole-frame scans). */
+const decodeSearchGroups=()=>(Object.entries(markerGroups()) as Array<[InstrumentName,readonly number[]]>).map(([name,ids])=>[...ids,...HANDLE_PRISM_IDS[name]]);
 const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:trackerType==='ring6'?sixMarkerGroups:MARKER_GROUPS;
 function updateTrackerDescription(){
  const geometry=trackerGeometry(trackerType),groups=markerGroups(),spacing=THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0);
@@ -536,7 +539,7 @@ async function detectSecondFrame(now:number){
  if(doSlow){
   processing2=true;lastSlowFrame2=now;
   const flowSeedFrame=preparedSeed??readFrame(context2,'Camera 2 flow readback',0,0,w,h);
-  const region=secondarySearch.plan(toNative(liveSecondMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,Object.values(markerGroups()));
+  const region=secondarySearch.plan(toNative(liveSecondMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,decodeSearchGroups());
   const {left,top,width:regionW,height:regionH}=region;perf.count('Camera 2 search '+region.kind);if(region.kind==='full')perf.count('Camera 2 full reason: '+region.reason);perf.count('Camera 2 searched pixels',regionW*regionH);
   if(decodeCanvas2.width!==regionW||decodeCanvas2.height!==regionH){decodeCanvas2.width=regionW;decodeCanvas2.height=regionH;}
   perf.measure('Camera 2 decode crop',()=>decodeContext2.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
@@ -1218,6 +1221,8 @@ const markerJaws=mountMarkerJaws(document.querySelector<HTMLElement>('#ball-enab
  // Camera 2 and the stereo calibration let jaws use the 3D ball-to-ball distance.
  second:{video:video2,overlay:overlay2,markers:(name,now)=>{const ids:readonly number[]=markerGroups()[name];return secondaryObservations.filter(m=>ids.includes(m.id)&&now-(confirmed2.get(m.id)??-Infinity)<250);}},
  stereoCalibration:()=>stereoActive()?stereoCalibration:null,
+ // Handle prism jaw tracking (src/jaw/handleHinge.ts).
+ handleMarkers:(name,now)=>{const ids:readonly number[]=HANDLE_PRISM_IDS[name];return observations.filter(m=>ids.includes(m.id)&&now-(markerLastConfirmed.get(m.id)??-Infinity)<250&&now-(markerLastDecoded.get(m.id)??-Infinity)<650);},
 });
 const needlePattern=document.querySelector<HTMLSelectElement>('#needle-ball-pattern')!;needlePattern.value=needleBallMode;
 needlePattern.addEventListener('change',()=>{
@@ -1623,7 +1628,7 @@ async function detectFrame(now:number){
  if(doSlow){
   processing=true;lastSlowFrame=now;
   const flowSeedFrame=preparedSeed??readFrame(frameContext,'Camera 1 flow readback',0,0,w,h);
-  const region=primarySearch.plan(toNative(liveMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,Object.values(markerGroups()));
+  const region=primarySearch.plan(toNative(liveMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,decodeSearchGroups());
   const {left,top,width:regionW,height:regionH}=region,cropped=region.kind!=='full';
   perf.count('Camera 1 search '+region.kind);if(region.kind==='full')perf.count('Camera 1 full reason: '+region.reason);perf.count('Camera 1 searched pixels',regionW*regionH);
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
@@ -1818,7 +1823,7 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.108',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
+mountPerformancePanel(diagnosticsHost,()=>({build:'0.109',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
 
 /** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
 export const trackingLabBridge = {
@@ -1845,7 +1850,7 @@ export const trackingLabBridge = {
   return {
    storage: snapshotTrackingStorage({
     'suturehero.instrument-calibration.v1': JSON.stringify(profiles),
-    [TRACKING_STORAGE_KEYS.jawEngine]: markerJaws.classicActive() ? 'classic' : 'marker',
+    [TRACKING_STORAGE_KEYS.jawEngine]: markerJaws.engine(),
    }),
    controls,
    activeInstrument: document.querySelector('[data-calibration-tool][aria-pressed="true"]')?.getAttribute('data-calibration-tool') ?? ballInstrument.value,

@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.109 — handle prism jaw tracking (new, synthetic tests only)
+
+New jaw tracker option, "Handle prism (new)", in the Jaws section: a
+triangular ArUco prism on the moving handle. Needle driver IDs 8, 9, 30;
+forceps 18, 19, 31; scissors 28, 29, 32. Prism layout is the original
+3-face prism tracker's: 12 mm markers, faces 120° apart around the long
+axis, each marker's top edge across that axis, faces in ID order. Calibrate
+closed, then open; the hinge axis is learned from the two captures. The
+opening is the handle's rotation about that axis relative to the ring.
+Uses the marker detector that already runs, so it costs almost nothing per
+frame. Synthetic check: correct within 0.11 at 6 of 7 test poses; one
+rolled pose (only face 30 visible, ring faces 0/3–6) still reads 0.
+
 ## Build 0.108 — ring shaft axis drawn in the camera view
 
 Each visible ring tracker now has a black line along its shaft axis (60 mm

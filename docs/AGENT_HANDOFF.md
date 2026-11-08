@@ -69,6 +69,28 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.109: handle prism jaw tracking
+
+- IDs per Lance: needle driver 8, 9, 30; forceps 18, 19, 31; scissors 28,
+  29, 32 (`HANDLE_PRISM_IDS`, `src/jaw/handleHinge.ts`). Legacy 'prism'
+  tracker's scissors group also uses 8 — that tracker is not in use.
+- New `src/jaw/handlePrismController.ts`: engine `'handle'` in the Jaws
+  section (`markerJawController.ts`). Ring rotation: mono `solvePrismPose`
+  (side faces, edge-on faces < 35% of largest dropped). Handle: largest face
+  solved alone as the legacy 3-face 'prism' type, seeded by ring × last
+  relative rotation to avoid the single-marker mirror ambiguity. Closed/open
+  captures (15 samples, ≤ 3° spread) → `solveHinge`; saved in
+  `suturehero.handleHinge.v1`.
+- `src/tracking.ts`: `handleMarkers` host callback; decode region search
+  groups include handle IDs (`decodeSearchGroups`) so a hidden handle face
+  doesn't force whole-frame scans; Lab storage records `markerJaws.engine()`.
+- New `scripts/check-handle-jaws.mjs`. **Known failing:** pose euler
+  [-15,300,0] reads 0 (expected 0.5); the other 6 poses pass within 0.11.
+  Not yet diagnosed (ring pose vs face-30 ambiguity).
+- Checked: jaw + PredictiveDecodeSearch unit tests, tsc, check-marker-jaws,
+  check-tracking-motion, check-ring-handoffs.
+- Lance: build the prism to the layout above; test closed/open calibration.
+
 ### 2026-11-08 — Claude — Build 0.108: draw ring shaft axis
 
 - New `src/ui/ringAxisOverlay.ts` (+ test): projects ring local ±Y (60 mm)

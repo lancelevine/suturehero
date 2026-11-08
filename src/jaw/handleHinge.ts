@@ -12,32 +12,27 @@ import { Quaternion, Vector3 } from 'three';
  * Synthetic tests only so far; not yet validated on real hardware.
  */
 
-/** ArUco IDs of the handle prism faces, per instrument (4×4_50 dictionary; rings use 0–27). */
+/**
+ * ArUco IDs of the handle prism faces, per instrument, in face order (face
+ * 0, 1, 2 going around the prism). Chosen by Lance: the two IDs right after
+ * each 8-face ring, plus one free ID. (The legacy 3-face prism tracker's
+ * scissors group also uses 8; that tracker is not in use.)
+ */
 export const HANDLE_PRISM_IDS = {
-  needleDriver: [30, 31, 32],
-  forceps: [33, 34, 35],
-  scissors: [36, 37, 38],
+  needleDriver: [8, 9, 30],
+  forceps: [18, 19, 31],
+  scissors: [28, 29, 32],
 } as const;
 
-/** Faces of an equilateral triangular prism, evenly spaced about its long (x) axis. */
-export const HANDLE_PRISM_FACES = 3;
+/**
+ * Prism layout: the original 3-face prism tracker's (src/input/prismPose.ts,
+ * type 'prism'): faces 120° apart around the prism's long axis, each
+ * marker's top edge across that axis, faces in ID order. Only rotation is
+ * used, so the prism's width does not matter.
+ */
 
 /** The closed→open rotation must be at least this large to define a hinge (radians). */
 export const MIN_HINGE_SPAN_RADIANS = (5 * Math.PI) / 180;
-
-/**
- * Rotation from a face's marker frame to the prism body frame. Face k's
- * marker is turned k·120° about the prism's long (x) axis.
- */
-export function faceToBody(face: number): Quaternion {
-  const angle = (face * 2 * Math.PI) / HANDLE_PRISM_FACES;
-  return new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -angle);
-}
-
-/** Prism body orientation (camera frame) from one face's marker orientation. */
-export function prismBodyFromFace(markerRotation: Quaternion, face: number): Quaternion {
-  return markerRotation.clone().multiply(faceToBody(face)).normalize();
-}
 
 /** Handle orientation relative to the ring: ring⁻¹ · handle. */
 export function handleRelativeToRing(ring: Quaternion, handle: Quaternion): Quaternion {
@@ -98,4 +93,20 @@ export function parseHinge(value: unknown): HingeModel | null {
   const axis = new Vector3(...(saved.axis as [number, number, number]));
   if (Math.abs(axis.length() - 1) > 1e-3) return null;
   return { closed: new Quaternion(...(saved.closed as [number, number, number, number])).normalize(), axis, openAngle: saved.openAngle };
+}
+
+/** Most rotations a capture may differ from its mean and still count as "held still" (radians). */
+export const MAX_CAPTURE_SPREAD_RADIANS = (3 * Math.PI) / 180;
+
+/** Mean of nearby rotations (sign-aligned, normalized sum), or null if they spread too far. */
+export function averageRotation(samples: readonly Quaternion[]): Quaternion | null {
+  if (!samples.length) return null;
+  const reference = samples[0];
+  const sum = new Quaternion(0, 0, 0, 0);
+  for (const q of samples) {
+    const sign = q.dot(reference) < 0 ? -1 : 1;
+    sum.set(sum.x + sign * q.x, sum.y + sign * q.y, sum.z + sign * q.z, sum.w + sign * q.w);
+  }
+  const mean = sum.normalize();
+  return samples.every((q) => q.angleTo(mean) <= MAX_CAPTURE_SPREAD_RADIANS) ? mean : null;
 }

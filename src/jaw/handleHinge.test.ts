@@ -1,6 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { faceToBody, handleRelativeToRing, hingeOpening, parseHinge, prismBodyFromFace, serializeHinge, solveHinge } from './handleHinge';
+import { averageRotation, handleRelativeToRing, hingeOpening, parseHinge, serializeHinge, solveHinge } from './handleHinge';
 
 const deg = (d: number) => (d * Math.PI) / 180;
 const turn = (axis: Vector3, d: number) => new Quaternion().setFromAxisAngle(axis.clone().normalize(), deg(d));
@@ -35,19 +35,20 @@ describe('handle hinge jaw opening', () => {
     expect(hingeOpening(model, handleRelativeToRing(ring, handle))).toBeCloseTo(0.5, 2);
   });
 
-  it('gives the same body orientation from any prism face', () => {
-    const body = turn(new Vector3(0.4, 0.2, 1), 80);
-    for (let face = 0; face < 3; face++) {
-      const marker = body.clone().multiply(faceToBody(face).invert());
-      expect(prismBodyFromFace(marker, face).angleTo(body)).toBeLessThan(1e-9);
-    }
-  });
-
   it('rejects a too-small open capture and round-trips saved models', () => {
     const closed = handleRelativeToRing(ringAtCalibration, handleAt(ringAtCalibration, 0));
     expect(solveHinge(closed, handleRelativeToRing(ringAtCalibration, handleAt(ringAtCalibration, 2)))).toHaveProperty('error');
     const restored = parseHinge(JSON.parse(JSON.stringify(serializeHinge(model as Exclude<typeof model, { error: string }>))));
     expect(restored).not.toBeNull();
     expect(parseHinge({ version: 1, closed: [0, 0, 0, 1], axis: [0, 0, 2], openAngle: 0.3 })).toBeNull();
+  });
+});
+
+describe('capture averaging', () => {
+  it('averages a held-still capture and rejects a moving one', () => {
+    const base = turn(new Vector3(0, 1, 0), 40);
+    const still = [-1, 0, 1].map((d) => base.clone().multiply(turn(new Vector3(1, 0, 0), d)));
+    expect(averageRotation(still)!.angleTo(base)).toBeLessThan(1e-6);
+    expect(averageRotation([base, base.clone().multiply(turn(new Vector3(1, 0, 0), 12))])).toBeNull();
   });
 });
