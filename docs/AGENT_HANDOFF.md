@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Codex — integrating and deploying Tracking Lab with the latest camera/storage/messages and new jaw tracker. Please avoid `src/tracking.ts`, `src/main.ts`, shared camera/message inputs, and `src/trackingLab/` until cleared.
 - **Needs Lance to test by hand:**
   - **New jaw tracker** (Calibrate → Needle driver → Jaws → Jaw tracker
     "White balls (new)"): calibrate closed and open with the real
