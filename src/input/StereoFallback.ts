@@ -1,6 +1,18 @@
 import {Quaternion,Vector3} from 'three';
 export type FallbackPose={position:Vector3;quaternion:Quaternion;at:number};
 export type MonoView=FallbackPose&{camera:0|1;axis:Vector3};
+/** Single-marker rotation changes smaller than this are noise on small markers: hold rotation (radians). */
+export const MONO_ROTATION_DEADBAND_RADIANS=4*Math.PI/180;
+/** Larger single-marker rotation changes are pose-ambiguity flips: hold rotation (radians). */
+export const MONO_MAX_TURN_RADIANS=30*Math.PI/180;
+/** Rotation from a single-camera view relative to its anchor. Small 12 mm
+ * markers give 1–3° noise and occasional large flips per frame, so only a
+ * clear, plausible turn moves the instrument; otherwise the anchor's (stereo) rotation holds. */
+function monoRotation(view:MonoView,anchor:{view:MonoView;pose:FallbackPose}):Quaternion{
+ const turn=view.quaternion.angleTo(anchor.view.quaternion);
+ if(turn<MONO_ROTATION_DEADBAND_RADIANS||turn>MONO_MAX_TURN_RADIANS)return anchor.pose.quaternion.clone();
+ return view.quaternion.clone().multiply(anchor.view.quaternion.clone().invert()).multiply(anchor.pose.quaternion).normalize();
+}
 /** All poses share camera 1's metric frame; source changes never reset calibration. */
 export class StereoFallback {
  private output:FallbackPose|undefined;
@@ -19,7 +31,7 @@ export class StereoFallback {
      const anchor=this.anchors.get(view.camera)!;
      const delta=view.position.clone().sub(anchor.view.position);
      delta.addScaledVector(view.axis,-delta.dot(view.axis));
-     this.output={position:anchor.pose.position.clone().add(delta),quaternion:view.quaternion.clone().multiply(anchor.view.quaternion.clone().invert()).multiply(anchor.pose.quaternion).normalize(),at:view.at};
+     this.output={position:anchor.pose.position.clone().add(delta),quaternion:monoRotation(view,anchor),at:view.at};
     }
     return {...this.clone(this.output),source:'stereo' as const};
    }
@@ -47,7 +59,7 @@ export class StereoFallback {
   const approximate=now-Math.max(this.lastStereo,this.switchedAt)>350;
   this.depth+=( (approximate?along:0)-this.depth)*(1-Math.exp(-dt/.3));
   delta.addScaledVector(view.axis,this.depth-along);
-  this.output={position:anchor.pose.position.clone().add(delta),quaternion:view.quaternion.clone().multiply(anchor.view.quaternion.clone().invert()).multiply(anchor.pose.quaternion).normalize(),at:view.at};
+  this.output={position:anchor.pose.position.clone().add(delta),quaternion:monoRotation(view,anchor),at:view.at};
   return {...this.clone(this.output),source:view.camera===0?'camera1' as const:'camera2' as const};
  }
  private clone(p:FallbackPose):FallbackPose{return {position:p.position.clone(),quaternion:p.quaternion.clone(),at:p.at};}

@@ -69,6 +69,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.100: hold stereo rotation against mono noise
+
+- `src/input/StereoFallback.ts`: `monoRotation` ignores single-camera
+  rotation changes < 4° (noise) or > 30° (ambiguity flips). Test added.
+- Checked: StereoFallback tests, tsc.
+- **Known issue:** `check-stereo-motion` fails since 0.98 (near/far depth
+  step under camera-1 fallback not reached within 1 s); 0.97 passed. Likely
+  the 1 s discovery interval (`PredictiveDecodeSearch`). Not yet fixed.
+- Lance: does the instrument still jump at rest in stereo?
+
 ### 2026-11-08 — Claude — Build 0.99: jaw reads only its search regions
 
 - `src/jaw/markerJawController.ts`: `sample()` copies just the region from

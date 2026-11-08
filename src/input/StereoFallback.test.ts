@@ -42,3 +42,11 @@ it('does not replay an old stereo position over newer monocular movement',()=>{
  expect(delayed.source).toBe('stereo');expect(delayed.position.x).toBe(40);
  expect(f.update(pose(820,80,40),[view(0,720,220,60)],220)!.position.x).toBe(60);
 });
+
+it('holds rotation through single-marker noise and flips, but follows a clear turn',()=>{
+ const f=new StereoFallback();f.update(pose(800,0),[view(0,700,0)],0);
+ const turned=(deg:number,at:number)=>{const v=view(0,700,at);v.quaternion.setFromAxisAngle(new Vector3(0,1,0),deg*Math.PI/180);return v;};
+ expect(f.update(undefined,[turned(2,100)],100)!.quaternion.angleTo(new Quaternion())).toBe(0);
+ expect(f.update(undefined,[turned(60,140)],140)!.quaternion.angleTo(new Quaternion())).toBe(0);
+ expect(f.update(undefined,[turned(12,180)],180)!.quaternion.angleTo(new Quaternion())*180/Math.PI).toBeCloseTo(12,4);
+});

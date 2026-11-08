@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.100 — stereo instrument no longer jumps at rest
+
+Between stereo poses, and whenever stereo has not updated for a moment
+(always at rest, because an unchanged image is not re-solved), the rendered
+rotation followed single-camera marker poses. On 12 mm markers those wobble
+a few degrees and sometimes flip tens of degrees per frame. Single-camera
+rotation changes under 4° or over 30° are now ignored, so the last stereo
+rotation holds. Synthetic tests only.
+
 ## Build 0.99 — jaw tracking reads only the areas around the balls
 
 The 0.97 report showed jaw tracking taking 9 ms per frame on average and
