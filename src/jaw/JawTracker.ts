@@ -1,6 +1,6 @@
 import {RING_LAYOUT_REVISION,trackerGeometry} from '../input/prismPose';
 import * as THREE from 'three';
-import { findBrightBalls, type GrayImage } from './brightBalls';
+import { brightSpotCentroid, findBrightBalls, type GrayImage } from './brightBalls';
 import {
   bodyRay,
   nearestPointToRays,
@@ -275,19 +275,32 @@ export interface JawReading {
   balls: BallView[];
 }
 
+/** Per-ball lock: where along its closed→open path the ball was, and how fast it moved. */
+interface BallLock {
+  fraction: number;
+  /** Fraction per ms. */
+  velocity: number;
+  at: number;
+}
+
+/** Keep following a locked ball for this long without any measurement. */
+export const LOCK_TIMEOUT_MS = 300;
+/** Sizes tried when detecting, relative to the calibrated ball size. */
+const DETECT_SIZE_FACTORS = [1, 0.65, 1.5];
+
 export class JawTracker {
   private smoothed: number | null = null;
   private lastFoundAt = -Infinity;
-  private readonly lastFraction: Array<number | null>;
+  private readonly locks: Array<BallLock | null>;
 
   constructor(readonly model: JawModel) {
-    this.lastFraction = model.balls.map(() => null);
+    this.locks = model.balls.map(() => null);
   }
 
   reset() {
     this.smoothed = null;
     this.lastFoundAt = -Infinity;
-    this.lastFraction.fill(null);
+    this.locks.fill(null);
   }
 
   update(frame: JawFrame): JawReading {
@@ -307,23 +320,55 @@ export class JawTracker {
       if (!moving) return;
       measurable++;
       const radius = ballRadiusPx(this.model.ballDiameterMm, (closed.depth + open.depth) / 2, frame.intrinsics);
+      const lock = this.locks[index];
+      const locked = lock && frame.now - lock.at <= LOCK_TIMEOUT_MS ? lock : null;
+      // Prediction along the path (the ring pose already accounts for instrument motion).
+      const predicted = locked ? THREE.MathUtils.clamp(locked.fraction + locked.velocity * (frame.now - locked.at), -0.2, 1.2) : null;
+      const at = (f: number) => ({ x: closed.x + (open.x - closed.x) * f, y: closed.y + (open.y - closed.y) * f });
+      const pathTolerance = Math.max(radius * 2, 8) * (locked ? 1.5 : 1);
+      const lockReach = radius * 3 + 10;
+
+      // 1. Round-blob detection, over a range of sizes.
       const center = { x: (closed.x + open.x) / 2, y: (closed.y + open.y) / 2 };
       const halfSize = travel / 2 + radius * 4 + 6;
-      const tolerance = Math.max(radius * 2, 8);
-      const previous = this.lastFraction[index];
-      const best = ballsInRegion(frame, center, halfSize, radius)
-        .map((candidate) => ({ candidate, path: pathPosition(candidate, closed, open) }))
-        .filter(({ path }) => path.offsetPx <= tolerance && path.fraction >= -0.35 && path.fraction <= 1.35)
-        .map((entry) => ({
-          ...entry,
-          cost: entry.path.offsetPx + (previous === null ? 0 : Math.abs(entry.path.fraction - previous) * travel * 0.5),
-        }))
-        .sort((a, b) => a.cost - b.cost)[0];
+      let best: { point: Pixel; fraction: number; cost: number } | null = null;
+      for (const factor of DETECT_SIZE_FACTORS) {
+        for (const candidate of ballsInRegion(frame, center, halfSize, radius * factor)) {
+          const path = pathPosition(candidate, closed, open);
+          if (path.offsetPx > pathTolerance || path.fraction < -0.35 || path.fraction > 1.35) continue;
+          if (predicted !== null && Math.hypot(candidate.x - at(predicted).x, candidate.y - at(predicted).y) > lockReach + travel * 0.25) continue;
+          const cost = path.offsetPx + (predicted === null ? 0 : Math.abs(path.fraction - predicted) * travel);
+          if (!best || cost < best.cost) best = { point: { x: candidate.x, y: candidate.y }, fraction: path.fraction, cost };
+        }
+        if (best) break;
+      }
+
+      // 2. Locked but no round blob: follow the bright spot at the prediction.
+      if (!best && predicted !== null) {
+        const p = at(predicted);
+        const half = radius * 2 + 6;
+        const size = Math.ceil(half * 2);
+        const sampled = frame.sample({ x: Math.floor(p.x - half), y: Math.floor(p.y - half), width: size, height: size });
+        if (sampled) {
+          const { scale, region } = sampled;
+          const ignore = frame.ignore;
+          const spot = brightSpotCentroid(sampled.image, Math.PI * (radius * scale) ** 2 * 0.15,
+            ignore ? (x, y) => ignore(region.x + x / scale, region.y + y / scale) : undefined);
+          if (spot) {
+            const point = { x: region.x + spot.x / scale, y: region.y + spot.y / scale };
+            const path = pathPosition(point, closed, open);
+            if (path.offsetPx <= pathTolerance * 1.5) best = { point, fraction: path.fraction, cost: 0 };
+          }
+        }
+      }
+
       if (!best) return;
       found++;
-      const fraction = THREE.MathUtils.clamp(best.path.fraction, 0, 1);
-      this.lastFraction[index] = fraction;
-      view.found = { x: best.candidate.x, y: best.candidate.y };
+      const fraction = THREE.MathUtils.clamp(best.fraction, 0, 1);
+      const elapsed = locked ? Math.max(1, frame.now - locked.at) : 0;
+      const velocity = locked ? THREE.MathUtils.clamp((fraction - locked.fraction) / elapsed, -0.01, 0.01) * 0.5 + locked.velocity * 0.5 : 0;
+      this.locks[index] = { fraction, velocity, at: frame.now };
+      view.found = best.point;
       weighted += fraction * travel;
       weights += travel;
     });
@@ -334,7 +379,7 @@ export class JawTracker {
       this.lastFoundAt = frame.now;
     } else if (frame.now - this.lastFoundAt > HOLD_MS) {
       this.smoothed = null;
-      this.lastFraction.fill(null);
+      this.locks.fill(null);
     }
     return { opening: this.smoothed, confidence: measurable ? found / measurable : 0, balls: views };
   }

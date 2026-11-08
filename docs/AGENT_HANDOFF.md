@@ -72,6 +72,16 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Jaw ball lock-on and bright-spot following (build 0.92)
+- Changed: `JawTracker` keeps a per-ball lock (path fraction, velocity),
+  predicts, detects at 1/0.65/1.5× size near the prediction, and falls back
+  to `brightSpotCentroid` (new, `brightBalls.ts`) at the prediction; lock
+  timeout 300 ms.
+- Checked: `src/jaw` tests (new: smaller ball, partly blocked ball kept only
+  when locked, lock dropped when gone); `check-marker-jaws`,
+  `check-tracking-lab-marker-jaws` pass.
+- Lance to test: jaw opening/closing after calibration.
+
 ### 2026-11-08 — Claude Code — Jaw ball size measured at calibration (build 0.91)
 - Changed: `markerJawController` snapSeeds tries sizes 1/0.6/0.4/1.6× the
   setting, measures diameter = setting × measured/expected radius, uses it

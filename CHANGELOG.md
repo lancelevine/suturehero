@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.92 — jaw balls stay locked
+
+The white-ball jaw tracker now locks onto each ball: it predicts where the
+ball will be from its recent motion along the jaw path, searches there
+first (over a range of sizes), and if the ball no longer looks like a clean
+round blob (blur, partial blocking) it follows the bright spot at the
+predicted position. A lock is dropped after 0.3 s without any measurement.
+
 ## Build 0.91 — jaw calibration measures the white balls itself
 
 Clicking the balls for Calibrate closed/open now searches a wide range of

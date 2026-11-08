@@ -180,3 +180,59 @@ export function findBrightBalls(
     .sort((a, b) => a.score - b.score)
     .map(({ x, y, radius, contrast }) => ({ x, y, radius, contrast }));
 }
+
+export interface BrightSpot {
+  x: number;
+  y: number;
+  /** Bright pixels used. */
+  pixels: number;
+  /** Brightest minus median brightness in the window. */
+  contrast: number;
+}
+
+/** Minimum brightest-minus-median difference for a spot to count. */
+export const SPOT_MIN_CONTRAST = 45;
+
+/**
+ * Brightness-weighted centre of the bright pixels in an image — a looser
+ * fallback than findBrightBalls for following an already-locked ball through
+ * blur, partial blocking or odd lighting. The caller supplies a small window
+ * around the predicted position.
+ */
+export function brightSpotCentroid(image: GrayImage, minPixels: number, ignore?: (x: number, y: number) => boolean): BrightSpot | null {
+  const values: number[] = [];
+  let max = 0;
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      if (ignore?.(x, y)) continue;
+      const v = image.data[y * image.width + x];
+      values.push(v);
+      if (v > max) max = v;
+    }
+  }
+  if (!values.length) return null;
+  values.sort((a, b) => a - b);
+  const median = values[values.length >> 1];
+  const contrast = max - median;
+  if (contrast < SPOT_MIN_CONTRAST) return null;
+  // Pixels in the top part of the window's brightness range.
+  const threshold = median + contrast * 0.55;
+  let sx = 0;
+  let sy = 0;
+  let sw = 0;
+  let pixels = 0;
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      if (ignore?.(x, y)) continue;
+      const v = image.data[y * image.width + x];
+      if (v < threshold) continue;
+      const w = v - threshold + 1;
+      sx += (x + 0.5) * w;
+      sy += (y + 0.5) * w;
+      sw += w;
+      pixels++;
+    }
+  }
+  if (pixels < minPixels) return null;
+  return { x: sx / sw, y: sy / sw, pixels, contrast };
+}

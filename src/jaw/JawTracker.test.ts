@@ -239,3 +239,41 @@ it('rejects old ring calibrations learned with 16 mm markers but preserves compa
  expect(parseJawModel({...saved,markerSizeMm:undefined},'ring8')).toBeNull();
  expect(parseJawModel({...serializeJawModel(model,'prism'),markerSizeMm:undefined},'prism')).not.toBeNull();
 });
+
+describe('locked tracking', () => {
+  const model = buildJawModel(closedBalls, openBalls);
+  if (!('balls' in model)) throw new Error('model');
+  const p = pose([-20, 0, 0]);
+  /** Draw the balls, then black out the upper part of ball B and/or shrink it. */
+  function scene(opening: number, options: { cover?: number; shrink?: number; hide?: boolean } = {}) {
+    const balls = ballsAt(opening);
+    const image = render(p, options.hide ? [balls[0]] : [balls[0]]);
+    if (!options.hide) {
+      const b = projectBodyPoint(p, balls[1], k)!;
+      const r = ((k.fx * DIAMETER) / 2 / b.depth) * (options.shrink ?? 1);
+      for (let y = Math.floor(b.y - r - 1); y <= b.y + r + 1; y++)
+        for (let x = Math.floor(b.x - r - 1); x <= b.x + r + 1; x++)
+          if (Math.hypot(x + 0.5 - b.x, y + 0.5 - b.y) <= r && y >= b.y - r + (options.cover ?? 0) * 2 * r) image.data[y * WIDTH + x] = 235;
+    }
+    return image;
+  }
+
+  it('finds a ball that looks smaller than calibrated', () => {
+    const reading = new JawTracker(model).update(frame(scene(0.5, { shrink: 0.7 }), p, 0));
+    expect(Math.abs(reading.opening! - 0.5)).toBeLessThan(0.08);
+  });
+
+  it('keeps a lock through a partly blocked ball, and drops it when the ball is gone', () => {
+    const tracker = new JawTracker(model);
+    tracker.update(frame(scene(0.4), p, 0));
+    // Upper 60% blocked: no longer round, but still a bright spot on the path.
+    const blocked = tracker.update(frame(scene(0.45, { cover: 0.6 }), p, 33));
+    expect(blocked.confidence).toBe(1);
+    expect(Math.abs(blocked.opening! - 0.43)).toBeLessThan(0.1);
+    // Without a lock, the same blocked ball is not accepted.
+    expect(new JawTracker(model).update(frame(scene(0.45, { cover: 0.6 }), p, 0)).confidence).toBe(0);
+    // Gone for longer than the lock and hold times: reported lost.
+    tracker.update(frame(scene(0.45, { hide: true }), p, 100));
+    expect(tracker.update(frame(scene(0.45, { hide: true }), p, 500)).opening).toBeNull();
+  });
+});
