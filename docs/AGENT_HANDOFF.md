@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude — OV9281 rehearsal, stereo prism test, capture-time pairing, frame-driven capture, scan spreading, flaky checks
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,16 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-08 — Claude — OV9281 rehearsal preset for synthetic checks
+
+- `scripts/synthetic-camera.mjs`: `SUTURE_CAMERA_PRESET=ov9281` (1280×800,
+  greyscale, 120 fps, `suturehero.cameraMode.v1` = ov9281).
+- With it: check-tracking-motion, driver-depth, tracking-storage,
+  calibration-preview, ring-handoffs pass; confirmed video 1280×800 →
+  flow/overlay 960×600, marker detected. check-profiler fails only its
+  frame-rate separation (software rendering of 1280×800 greyscale at 120
+  fps saturates the headless machine: ~6 fps).
 
 ### 2026-11-08 — Claude — Build 0.121: optional worker-side ArUco readback
 
