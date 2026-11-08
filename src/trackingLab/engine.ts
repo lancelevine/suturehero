@@ -69,12 +69,14 @@ window.sutureLabEngine = {
         await bridge.start(session.cameras.map(c => c.index));
     },
     async process(frame) { clock = 10000 + frame.at; const bitmap = await createImageBitmap(frame.image); try {
-        if (bitmap.width !== frame.width || bitmap.height !== frame.height)
+        // Compact exports store smaller images with the recorded size in the
+        // manifest; scale them back so the pipeline sees the recorded size.
+        if (Math.abs(bitmap.width / bitmap.height - frame.width / frame.height) > 0.01 || bitmap.width > frame.width)
             throw new Error('Frame dimensions do not match the manifest');
         const canvas = canvases[frame.camera];
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+        canvas.width = frame.width;
+        canvas.height = frame.height;
+        canvas.getContext('2d')!.drawImage(bitmap, 0, 0, frame.width, frame.height);
         ids[frame.camera]++;
     }
     finally {

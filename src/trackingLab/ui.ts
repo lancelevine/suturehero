@@ -1,7 +1,17 @@
 import './lab.css';
 import { Recorder } from './recorder';
 import { RecordingStore } from './store';
+import { compactFrames } from './compactExport';
 import { exportRecording, importRecording, orderedFrames, ReplayCursor, metrics, jitter, type Session, type Frame, type Diagnostics } from './model';
+
+/** Save a recording export as a .suturetrack file. */
+function download(blob: Blob, name: string) {
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url;
+    a.download = name.replace(/[^a-z0-9_-]/gi, '_') + '.suturetrack';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
 import { RecordedFrameProcessor } from './processor';
 declare const __SUTUREHERO_REVISION__: string;
 export function mountTrackingLab(app: HTMLElement) {
@@ -127,9 +137,10 @@ export function mountTrackingLab(app: HTMLElement) {
         }
         const bitmap = await createImageBitmap(frame.image);
         const canvas = images[camera];
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+        // Draw at the recorded size (compact exports store smaller images).
+        canvas.width = frame.width;
+        canvas.height = frame.height;
+        canvas.getContext('2d')!.drawImage(bitmap, 0, 0, frame.width, frame.height);
         bitmap.close();
         canvas.hidden = false;
         videos[camera].hidden = true;
@@ -186,7 +197,18 @@ export function mountTrackingLab(app: HTMLElement) {
         details.textContent = `${new Date(s.createdAt).toLocaleString()} · ${(s.duration / 1000).toFixed(1)}s · ${s.frames} frames · ${s.cameras.map(c => `${c.width}×${c.height}`).join(' / ')} · ${s.status}${s.note ? ' · ' + s.note : ''}`;
         title.append(name, details);
         row.append(title);
-        for (const [label, action] of [['Replay', async () => { await select(s); await play(); }], ['Export', async () => { const blob = exportRecording(s, await store.frames(s.id)), url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = s.name.replace(/[^a-z0-9_-]/gi, '_') + '.suturetrack'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60000); }], ['Delete', async () => { if (session?.id === s.id) {
+        for (const [label, action] of [['Replay', async () => { await select(s); await play(); }], ['Export', async () => { download(exportRecording(s, await store.frames(s.id)), s.name); }], ['Export compact', async () => {
+                    // Smaller file for sharing: re-encoded images, same coordinates and calibrations.
+                    busy = true; buttons();
+                    try {
+                        const result = await compactFrames(await store.frames(s.id), (done, total) => { q('message').textContent = `Preparing compact export… ${done}/${total} frames`; });
+                        const preset = `${result.preset.maxWidth} px, JPEG ${Math.round(result.preset.quality * 100)}%`;
+                        const blob = exportRecording({ ...s, note: [s.note, `Compact export (${preset})`].filter(Boolean).join(' · ') }, result.frames);
+                        download(blob, s.name + '_compact');
+                        const mb = (blob.size / 1048576).toFixed(1);
+                        q('message').textContent = result.fitsTarget ? `Compact export: ${mb} MB (${preset}).` : `Compact export: ${mb} MB (${preset}) — still above 28 MB. Record a shorter clip to get under 30 MB.`;
+                    } finally { busy = false; buttons(); }
+                }], ['Delete', async () => { if (session?.id === s.id) {
                     playing = false;
                     epoch++;
                     cursor?.dispose();

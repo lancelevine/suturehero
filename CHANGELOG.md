@@ -5,6 +5,17 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.87 — Tracking Lab: reachable controls and compact export
+
+The Tracking Lab now scrolls within its own area, so Import, the recording
+library and Export stay reachable on shorter screens without zooming out.
+Each recording has **Export compact**: images are re-encoded smaller (1280 px
+at JPEG 80%, stepping down to 960 or 800 px if needed) to stay under about
+28 MB. Recorded frame sizes are kept and replay scales images back up, so
+coordinates and calibrations are unchanged; only image detail is reduced.
+Lance's 1.9 s stereo clip went from 17 MB to 5.4 MB. Longer clips may still
+need to be recorded shorter.
+
 ## Build 0.86 — white-ball jaw setup works from the angled ring markers
 
 The new jaw tracker now uses the angled ring markers (6 and 7) when no

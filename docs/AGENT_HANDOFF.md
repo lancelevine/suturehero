@@ -67,6 +67,24 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Lab scrolling and compact export (build 0.87)
+- Changed: `.tracking-lab` scrolls (body is overflow:hidden; at 1536×730
+  the Lab content was ~1050 px in a 666 px area, hiding Import/library/
+  Export). New `src/trackingLab/compactExport.ts` + "Export compact" per
+  recording; replay (`engine.ts`) and Lab display (`ui.ts`) draw images at
+  the manifest's recorded size, accepting smaller same-aspect images.
+- Checked: tsc, `src/trackingLab` unit tests; browser: Record/Import
+  reachable at 1366×650, 1536×730, 1920×1000; Lance's real 17 MB stereo
+  recording → compact 5.4 MB, imported without errors.
+- Lance to test: Export compact on a longer recording; upload it.
+- Open: stereo jumps at rest (Lance). In his 8:58 PM clip the 0.85 stereo
+  outlier fallback picks a single marker per frame, alternating 7 and 3,
+  whose single-marker poses differ ~20 mm / ~60°. Triangulation shows the
+  model 3↔7 relation is right (measured 18.4 mm / 32.8° vs 18.3 / 30°);
+  marker 7 corners read ~12.5 mm (steep view). Proposed: keep the previous
+  marker set (hysteresis) and reject large jumps unless sustained; later,
+  reuse mono's learned angled-marker correction in stereo. Awaiting Lance.
+
 ### 2026-11-08 — Claude Code — Jaw setup with angled markers; specific click errors (build 0.86)
 - Changed: `markerJawController` uses side faces when visible, otherwise the
   angled faces (previously side faces only, so "only marker 6 visible" gave
