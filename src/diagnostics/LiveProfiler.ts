@@ -189,7 +189,7 @@ export class LiveProfiler {
       version: 1,
       collectedAt: new Date().toISOString(),
       browser: { userAgent: navigator.userAgent, logicalCores: navigator.hardwareConcurrency },
-      options: { flowBitmaps: flowFrameSettings.useBitmaps, cameraType: cameraMode() },
+      options: { flowBitmaps: flowFrameSettings.useBitmaps, decodeBitmaps: flowFrameSettings.useDecodeBitmaps, cameraType: cameraMode() },
       trackingContext: context,
       ...this.snapshot(),
     };

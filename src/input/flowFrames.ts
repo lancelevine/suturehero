@@ -40,6 +40,17 @@ export function requestFlowBitmap(source: CanvasImageSource | VideoFrame, width:
   return isVideoFrame ? bitmap.finally(() => (image as VideoFrame).close()) : bitmap;
 }
 
+/**
+ * A cropped (unscaled) bitmap of a decode region, for the ArUco worker to read
+ * off the main thread. A VideoFrame snapshot is cloned so the caller may close it.
+ */
+export function requestCropBitmap(source: CanvasImageSource | VideoFrame, left: number, top: number, width: number, height: number): Promise<ImageBitmap> {
+  const isVideoFrame = typeof VideoFrame !== 'undefined' && source instanceof VideoFrame;
+  const image = isVideoFrame ? (source as VideoFrame).clone() : source;
+  const bitmap = createImageBitmap(image as ImageBitmapSource, left, top, width, height);
+  return isVideoFrame ? bitmap.finally(() => (image as VideoFrame).close()) : bitmap;
+}
+
 /** Frames kept per worker for seeding (a decode result is normally seeded within one or two flow frames). */
 export const MAX_KEPT_FLOW_FRAMES = 4;
 
@@ -72,16 +83,36 @@ export class KeptFrames<T> {
 /** Browser-storage key for the A/B switch in Diagnostics → Performance ('off' disables the bitmap path). */
 export const FLOW_BITMAPS_STORAGE_KEY = 'suturehero.flowBitmaps.v1';
 
-/** Live switch read on every frame, so the profiler can compare both paths without a reload. */
-export const flowFrameSettings = {
-  useBitmaps: (() => {
-    try {
-      return localStorage.getItem(FLOW_BITMAPS_STORAGE_KEY) !== 'off';
-    } catch {
-      return true;
-    }
-  })(),
+/** A/B switch for ArUco decode regions as bitmaps ('on' enables; off by default until measured on real hardware). */
+export const DECODE_BITMAPS_STORAGE_KEY = 'suturehero.decodeBitmaps.v1';
+
+const stored = (key: string) => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 };
+
+/** Live switches read on every frame, so the profiler can compare both paths without a reload. */
+export const flowFrameSettings = {
+  useBitmaps: stored(FLOW_BITMAPS_STORAGE_KEY) !== 'off',
+  /**
+   * Off by default: in a synthetic headless test (software graphics) the
+   * worker-side readback made decode results ~14 ms older; on real GPUs it may
+   * be cheaper. Compare with the profiler before enabling by default.
+   */
+  useDecodeBitmaps: stored(DECODE_BITMAPS_STORAGE_KEY) === 'on',
+};
+
+export function setDecodeBitmaps(enabled: boolean) {
+  flowFrameSettings.useDecodeBitmaps = enabled;
+  try {
+    localStorage.setItem(DECODE_BITMAPS_STORAGE_KEY, enabled ? 'on' : 'off');
+  } catch {
+    // Storage blocked: the switch still applies until reload.
+  }
+}
 
 export function setFlowBitmaps(enabled: boolean) {
   flowFrameSettings.useBitmaps = enabled;

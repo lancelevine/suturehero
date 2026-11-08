@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — OV9281 camera mode + readback optimisations (cameraDevices, tracking.ts capture paths, flow/ArUco workers)
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,26 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-08 — Claude — Build 0.121: optional worker-side ArUco readback
+
+- `arucoWorker.ts`: accepts a transferred cropped bitmap (`readCropBitmap`,
+  `worker readback` timing). `flowFrames.ts`: `requestCropBitmap`,
+  `useDecodeBitmaps` switch (`suturehero.decodeBitmaps.v1`, default off).
+  `tracking.ts`: `decodeViaBitmap` for both cameras when the switch is on
+  (not with threshold/crop debug views, Lab replay, or after errors);
+  `WorkerDetector.detectBitmap` takes an origin. Profiler rows + switch.
+- Synthetic (software GL) with it on: main-thread tracking frame 5.2 → 5.9
+  ms, decode worker readback 11 ms, decode age 22.5 → 36.8 ms — hence off by
+  default. Real-GPU A/B needed.
+- Checked: tsc, build; check-tracking-motion, ring-handoffs, stereo-rig-
+  faces, stereo-motion, tracking-lab, driver-depth, marker-jaws,
+  calibration-preview, tracking-storage, profiler pass (switch on and off);
+  handle-jaws known pose only.
+- Follow-up for 120 fps cameras: capture is driven by the tracking loop
+  (requestAnimationFrame; 30 Hz in Lance's profiles), and flow is capped at
+  50 Hz (20 ms gate). To use 120 fps, drive capture from each camera's
+  requestVideoFrameCallback.
 
 ### 2026-11-08 — Claude — Build 0.120: camera type, half-scale flow bitmaps
 

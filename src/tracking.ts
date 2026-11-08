@@ -20,7 +20,7 @@ import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
 import {mapMonocularDepth} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
-import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
+import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames} from './input/CameraFrameClock';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
@@ -177,10 +177,10 @@ class WorkerDetector {
   this.worker?.postMessage({type:'seed',at:recordedInput()?performance.now():undefined,markers,frame});
  }
  /** Flow from a transferred bitmap; `keep` asks the worker to keep this frame for a later seed. */
- detectBitmap(bitmap:ImageBitmap,keep?:number):Promise<MarkerObservation[]>{
+ detectBitmap(bitmap:ImageBitmap,keep?:number,origin?:{x:number;y:number}):Promise<MarkerObservation[]>{
   if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
   const id=++this.sequence;this.lastFrameSize={width:bitmap.width,height:bitmap.height};
-  return new Promise<MarkerObservation[]>((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,bitmap,keep},[bitmap]);});
+  return new Promise<MarkerObservation[]>((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,bitmap,keep,origin},[bitmap]);});
  }
  /** Keep a frame in the flow worker for a later seed, without running flow on it. */
  store(bitmap:ImageBitmap,keep:number){if(this.worker)this.worker.postMessage({type:'store',bitmap,keep},[bitmap]);else bitmap.close();}
@@ -567,8 +567,13 @@ async function detectSecondFrame(now:number){
   const region=secondarySearch.plan(toNative(liveSecondMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,decodeSearchGroups());
   const {left,top,width:regionW,height:regionH}=region;perf.count('Camera 2 search '+region.kind);if(region.kind==='full')perf.count('Camera 2 full reason: '+region.reason);perf.count('Camera 2 searched pixels',regionW*regionH);
   if(decodeCanvas2.width!==regionW||decodeCanvas2.height!==regionH){decodeCanvas2.width=regionW;decodeCanvas2.height=regionH;}
-  perf.measure('Camera 2 decode crop',()=>decodeContext2.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
-  void detector2.detect(readFrame(decodeContext2,'Camera 2 decode readback',0,0,regionW,regionH),{x:left,y:top}).then(nativeFound=>{
+  const decodeRequest2=useBitmapFlow()&&flowFrameSettings.useDecodeBitmaps
+   ?decodeViaBitmap(detector2,'Camera 2',snapshot!.source,left,top,regionW,regionH)
+   :(()=>{
+     perf.measure('Camera 2 decode crop',()=>decodeContext2.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
+     return detector2.detect(readFrame(decodeContext2,'Camera 2 decode readback',0,0,regionW,regionH),{x:left,y:top});
+    })();
+  void decodeRequest2.then(nativeFound=>{
    if(currentSession!==session2)return;
    perf.sample('Camera 2 decode frame age',performance.now()-secondaryCaptureAt);decodedFrames2++;
    const nativeMarkers=nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))}));secondarySearch.result(nativeMarkers);perf.sample('Camera 2 '+region.kind+' decode worker',detector2.diagnostics.durationMs);
@@ -1617,6 +1622,17 @@ function postFlowBitmap(tracker:WorkerDetector,label:string,source:CanvasImageSo
   seed:key!==undefined?{key,ready:posted.catch(()=>null)} as FlowSeedRef:undefined,
  };
 }
+/**
+ * ArUco decode region as a cropped bitmap read by the marker worker (build 0.121),
+ * instead of a main-thread canvas draw + getImageData (~4 ms, p95 15 ms per decode
+ * in the 0.116 profile). Same fallbacks as the flow path; the threshold/crop debug
+ * views need the pixels on the main thread, so they keep the previous path.
+ */
+function decodeViaBitmap(detector:WorkerDetector,label:string,source:CanvasImageSource|VideoFrame,left:number,top:number,w:number,h:number):Promise<MarkerObservation[]>{
+ const requested=performance.now();
+ const bitmap=perf.measure(label+' decode bitmap request',()=>requestCropBitmap(source,left,top,w,h));
+ return bitmap.then(image=>{perf.sample(label+' decode bitmap wait',performance.now()-requested);return detector.detectBitmap(image,undefined,{x:left,y:top});},error=>{bitmapFlowAvailable=false;perf.count(label+' decode bitmap errors');throw error;});
+}
 async function detectFrame(now:number){
  if(!stream||!detectorReady||!video.videoWidth)return;
  scanForcepsBalls(now);
@@ -1694,12 +1710,17 @@ async function detectFrame(now:number){
   const {left,top,width:regionW,height:regionH}=region,cropped=region.kind!=='full';
   perf.count('Camera 1 search '+region.kind);if(region.kind==='full')perf.count('Camera 1 full reason: '+region.reason);perf.count('Camera 1 searched pixels',regionW*regionH);
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
-  perf.measure('Camera 1 decode crop',()=>decodeContext.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
-  const frame=readFrame(decodeContext,'Camera 1 decode readback',0,0,regionW,regionH);
   const capturedAt=frameCapturedAt;
-  if(thresholdToggle.checked)renderThreshold(frame);
-  if(cropToggle.checked)renderCrop(frame);
-  void detector.detect(frame,{x:left,y:top}).then(nativeFound=>{
+  const decodeRequest=useBitmapFlow()&&flowFrameSettings.useDecodeBitmaps&&!thresholdToggle.checked&&!cropToggle.checked
+   ?decodeViaBitmap(detector,'Camera 1',snapshot!.source,left,top,regionW,regionH)
+   :(()=>{
+     perf.measure('Camera 1 decode crop',()=>decodeContext.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
+     const frame=readFrame(decodeContext,'Camera 1 decode readback',0,0,regionW,regionH);
+     if(thresholdToggle.checked)renderThreshold(frame);
+     if(cropToggle.checked)renderCrop(frame);
+     return detector.detect(frame,{x:left,y:top});
+    })();
+  void decodeRequest.then(nativeFound=>{
    const nativeMarkers=nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))}));
    const found=toFlow(nativeMarkers);
    if(session!==cameraSession)return;primarySearch.result(nativeMarkers);perf.sample('Camera 1 '+region.kind+' decode worker',detector.diagnostics.durationMs);
@@ -1888,7 +1909,7 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-const performanceContext=()=>({build:'0.120',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.121',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);

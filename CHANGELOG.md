@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.121 — optional: ArUco regions read in the worker
+
+New switch in Diagnostics → Performance, off by default: "ArUco decode
+regions as transferred bitmaps". When on, each marker-decode region is a
+cropped bitmap that the ArUco worker reads, instead of a main-thread canvas
+draw + readback (~4 ms per decode, p95 15 ms, in Lance's 0.116 profile).
+Off by default because in the headless test (software graphics) it made
+decode results ~14 ms older; compare both with the profiler on real
+hardware. The profiler report records both switches.
+
 ## Build 0.120 — OV9281 camera type; optical flow reads a quarter of the pixels
 
 - **Camera type** (Camera controls · focus & exposure): "Current webcams

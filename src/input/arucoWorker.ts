@@ -310,7 +310,15 @@ function detect(frame:ImageData){
  const found=[...decoded];
  return {found,candidates,diagnostics:{timings,candidateCount:candidates.length,rawMarkerCount:new Set(all.map(m=>m.id)).size,recognizedCount:found.length,rejectedCount:all.filter(m=>!isSupportedMarkerId(m.id)).length,durationMs:performance.now()-start,note:(decoded.length?'Markers decoded':'No tracked marker'),pass,contrast}};
 }
-self.onmessage=async(e:MessageEvent<{type:string;at?:number;frame?:ImageData;id?:number;flowOnly?:boolean;libraries?:{cv:string;aruco:string};markers?:MarkerObservation[];origin?:{x:number;y:number}}>)=>{
+// Decode regions can arrive as transferred, cropped ImageBitmaps (build 0.121): read their pixels here, off the main thread.
+let readbackMs=0;
+let cropCanvas:OffscreenCanvas|null=null,cropContext:OffscreenCanvasRenderingContext2D|null=null;
+function readCropBitmap(bitmap:ImageBitmap):ImageData{
+ if(!cropCanvas||cropCanvas.width!==bitmap.width||cropCanvas.height!==bitmap.height){cropCanvas=new OffscreenCanvas(bitmap.width,bitmap.height);cropContext=cropCanvas.getContext('2d',{willReadFrequently:true});}
+ cropContext!.drawImage(bitmap,0,0);bitmap.close();
+ return cropContext!.getImageData(0,0,cropCanvas.width,cropCanvas.height);
+}
+self.onmessage=async(e:MessageEvent<{type:string;at?:number;frame?:ImageData;bitmap?:ImageBitmap;id?:number;flowOnly?:boolean;libraries?:{cv:string;aruco:string};markers?:MarkerObservation[];origin?:{x:number;y:number}}>)=>{
  try{
   sourceTimestamp=e.data.at;
   if(e.data.type==='init'){await initialize(e.data.libraries);self.postMessage({type:'ready'});}
@@ -320,6 +328,7 @@ self.onmessage=async(e:MessageEvent<{type:string;at?:number;frame?:ImageData;id?
    for(const marker of markers){merged.set(marker.id,marker);hintSeenAt.set(marker.id,sourceNow());recoveryMisses.delete(marker.id);}
    roiHints=[...merged.values()];
   }
-  else if(e.data.type==='detect'&&e.data.frame){const origin=e.data.origin??{x:0,y:0},dx=frameOrigin.x-origin.x,dy=frameOrigin.y-origin.y;if(dx||dy)roiHints=roiHints.map(m=>({...m,corners:m.corners.map(p=>({x:p.x+dx,y:p.y+dy}))}));frameOrigin=origin;const result=detect(e.data.frame);self.postMessage({type:'result',id:e.data.id,...result});}
+  else if(e.data.type==='detect'&&e.data.bitmap&&!e.data.frame){const started=performance.now();e.data.frame=readCropBitmap(e.data.bitmap);readbackMs=performance.now()-started;}
+  if(e.data.type==='detect'&&e.data.frame){const origin=e.data.origin??{x:0,y:0},dx=frameOrigin.x-origin.x,dy=frameOrigin.y-origin.y;if(dx||dy)roiHints=roiHints.map(m=>({...m,corners:m.corners.map(p=>({x:p.x+dx,y:p.y+dy}))}));frameOrigin=origin;const result=detect(e.data.frame);if(readbackMs&&result.diagnostics)result.diagnostics.timings={...(result.diagnostics.timings??{}),'worker readback':readbackMs};readbackMs=0;self.postMessage({type:'result',id:e.data.id,...result});}
  }catch(error){self.postMessage({type:'error',id:e.data.id,message:String(error)});}
 };

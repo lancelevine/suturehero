@@ -1,6 +1,6 @@
 import type { CameraProfile, LiveProfiler, ProfilerSnapshot, ProfilerStage } from '../diagnostics/LiveProfiler';
 import type { StageStats } from '../diagnostics/profilerStats';
-import { flowFrameSettings, setFlowBitmaps } from '../input/flowFrames';
+import { flowFrameSettings, setDecodeBitmaps, setFlowBitmaps } from '../input/flowFrames';
 
 /** The visible panel refreshes at most this often (ms): twice a second. */
 const UI_INTERVAL_MS = 500;
@@ -30,6 +30,7 @@ export function mountProfilerPanel(host: HTMLElement, profiler: LiveProfiler, co
   <button type="button" data-profiler-reset>Reset</button>
  </div>
  <label title="Stage 1 optimisation (build 0.111). Turn off to compare with the previous canvas readback; applies immediately."><input type="checkbox" data-flow-bitmaps> Optical-flow frames as transferred bitmaps (new; off = previous canvas readback)</label>
+ <label title="Build 0.121. Off by default until measured on real hardware; applies immediately."><input type="checkbox" data-decode-bitmaps> ArUco decode regions as transferred bitmaps (experimental; off = main-thread canvas readback)</label>
  <p role="status" data-profiler-summary>Off. Tick “Enable live profiler”, run the cameras for ~10 s, then copy or download the report.</p>
  <div data-profiler-body hidden>
   <div data-profiler-cameras style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px"></div>
@@ -81,6 +82,15 @@ export function mountProfilerPanel(host: HTMLElement, profiler: LiveProfiler, co
     summary.textContent = 'Off. Profiling hooks and frame callbacks are removed.';
   }
   enable.addEventListener('change', () => (enable.checked ? start() : stop()));
+  const decodeBitmaps = $<HTMLInputElement>('[data-decode-bitmaps]');
+  decodeBitmaps.checked = flowFrameSettings.useDecodeBitmaps;
+  decodeBitmaps.addEventListener('change', () => {
+    setDecodeBitmaps(decodeBitmaps.checked);
+    if (profiler.enabled) {
+      profiler.disable();
+      profiler.enable();
+    }
+  });
   const bitmaps = $<HTMLInputElement>('[data-flow-bitmaps]');
   bitmaps.checked = flowFrameSettings.useBitmaps;
   bitmaps.addEventListener('change', () => {
