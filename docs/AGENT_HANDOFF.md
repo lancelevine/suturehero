@@ -84,6 +84,10 @@ entry when finishing.
   faces, stereo-motion, tracking-lab, driver-depth, marker-jaws,
   calibration-preview, tracking-storage, profiler pass (switch on and off);
   handle-jaws known pose only.
+- Note: `check-stereo-rig-faces` is intermittent (depth step
+  `moved.position[2] < handoff.position[2] − 0.3`): failed 1 of 3 runs both
+  on 0.121 and on 0.119 (59ee929), so pre-existing flakiness, not from this
+  change. Same family as `check-stereo-motion`'s borderline depth step.
 - Follow-up for 120 fps cameras: capture is driven by the tracking loop
   (requestAnimationFrame; 30 Hz in Lance's profiles), and flow is capped at
   50 Hz (20 ms gate). To use 120 fps, drive capture from each camera's
