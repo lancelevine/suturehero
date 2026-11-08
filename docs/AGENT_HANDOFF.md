@@ -69,6 +69,19 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.122: stereo pairing by camera capture time
+
+- `CameraFrameClock` keeps rVFC `captureTime` (validated); new
+  `pairingTime(clock, readAt)` (+ tests): capture time if ≤ readAt and
+  within `MAX_CAPTURE_TO_READ_MS` (200), else readAt. tracking.ts: all six
+  `stereoFrames.push` calls use `framePairAt` / `secondaryPairAt`; staleness
+  and frame-age checks still use the read time. Profiler row
+  `Camera N capture to read`.
+- Headless Chromium reports no captureTime for canvas streams, so checks
+  exercise the fallback: stereo-rig-faces, handle-jaws-stereo,
+  tracking-motion, tracking-lab, profiler pass; stereo-motion borderline as
+  before (0.87 vs > 1). Real path: Lance's profiles showed captureTime 14–19 ms.
+
 ### 2026-11-08 — Claude — Two-camera browser check for stereo handle-prism jaws
 
 - New `scripts/check-handle-jaws-stereo.mjs`: synthetic ring + 3-face prism

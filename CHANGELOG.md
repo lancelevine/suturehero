@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.122 — stereo pairs the cameras by real capture time
+
+The two cameras are not synchronised. Stereo used to pair their frames by
+when the app read them, which includes 15–19 ms of camera/browser delay that
+differs per camera. Chrome reports each frame's camera capture time; stereo
+now pairs (and interpolates) on that, falling back to the read time when a
+browser does not report it. New profiler row per camera: "capture to read".
+Frame-age statistics are unchanged (still from the app's read time).
+
 ## Build 0.121 — optional: ArUco regions read in the worker
 
 New switch in Diagnostics → Performance, off by default: "ArUco decode

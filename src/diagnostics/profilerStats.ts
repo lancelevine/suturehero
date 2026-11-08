@@ -149,6 +149,7 @@ export function classifyStage(name: string): StageInfo {
     if (rest === 'decode bitmap request') return { camera, category: 'acquisition', thread: 'main', label: 'Cropped bitmap request for marker decode (main thread)' };
     if (rest === 'decode bitmap wait') return { camera, category: 'latency', thread: 'latency', label: 'Wait for the cropped decode bitmap (browser, off the main thread)' };
     if (rest === 'decode worker readback') return { camera, category: 'readback', thread: 'worker', label: 'Pixel readback for marker decode, in the ArUco worker' };
+    if (rest === 'capture to read') return { camera, category: 'latency', thread: 'latency', label: 'Camera capture → app read (requestVideoFrameCallback captureTime); used to pair the cameras' };
     if (rest === 'flow seed copy') return { camera, category: 'readback', thread: 'main', label: 'Pixel copy: optical-flow seed frame' };
     if (rest === 'jaw frame copy') return { camera, category: 'readback', thread: 'main', nestedIn: 'Jaw tracking', label: 'Pixel readback for jaw ball search' };
     if (rest === 'decode worker') return { camera, category: 'aruco', thread: 'worker', label: 'ArUco marker detection (worker, total)' };
