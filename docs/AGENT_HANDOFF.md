@@ -69,6 +69,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.113: filter the handle-prism opening
+
+- Lance: calibration now works, but the reading jumps a lot.
+- `OpeningFilter` in `src/jaw/handleHinge.ts` (+ tests): median of 5,
+  `OPENING_JUMP` 0.3 must repeat, `OPENING_SMOOTHING` 0.35; used per
+  instrument in `handlePrismController.ts` (reset on recalibration).
+- Checked: handleHinge tests, tsc, check-handle-jaws (known pose only).
+- Next if still noisy: a Lab recording to measure raw noise; then stereo
+  (Camera 2) ring/prism poses or averaging several prism faces.
+
 ### 2026-11-08 — Claude — Build 0.112: robust handle-prism captures
 
 - First real-hardware try (Lance): closed capture always failed the 3°

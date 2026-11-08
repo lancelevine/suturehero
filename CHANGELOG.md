@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.113 — steadier handle-prism jaw reading
+
+The handle-prism opening jumped around on real hardware: each reading comes
+from two noisy single-camera poses. The opening now goes through a filter:
+median of the last 5 readings, a jump over 30% of the range must repeat
+before it is followed, then light smoothing. Adds roughly 0.1–0.15 s of
+delay. Synthetic test plus unit tests only.
+
 ## Build 0.112 — handle-prism calibration tolerates real pose noise
 
 With the instrument held still, Lance's closed capture failed with "The

@@ -146,3 +146,47 @@ export function averageRotation(samples: readonly Quaternion[]): CaptureAverage 
   const spread = Math.max(0, ...(enough ? inliers : samples).map((q) => q.angleTo(mean)));
   return { mean: enough ? mean : null, inliers: inliers.length, spread };
 }
+
+/** Readings in the rolling median (≈ 0.2–0.3 s at 15–25 Hz). */
+export const OPENING_MEDIAN_SAMPLES = 5;
+/** A jump larger than this (fraction of closed→open) must repeat before it is followed. */
+export const OPENING_JUMP = 0.3;
+/** Fraction of the way the output moves toward the median per reading. */
+export const OPENING_SMOOTHING = 0.35;
+
+/**
+ * Steadies the hinge opening. Each raw reading comes from two single-camera
+ * marker poses (ring and prism) that wobble and occasionally flip, so a
+ * median rejects isolated outliers, a large jump must be seen twice in a row,
+ * and light exponential smoothing removes the remaining jitter.
+ */
+export class OpeningFilter {
+  private recent: number[] = [];
+  private output: number | null = null;
+  private pendingJump: number | null = null;
+
+  update(raw: number): number {
+    if (this.output !== null && Math.abs(raw - this.output) > OPENING_JUMP) {
+      // First sighting of a large jump: hold until a second reading agrees.
+      if (this.pendingJump === null || Math.abs(raw - this.pendingJump) > OPENING_JUMP / 2) {
+        this.pendingJump = raw;
+        return this.output;
+      }
+      // Confirmed: restart the median at the new opening.
+      this.recent = [this.pendingJump];
+    }
+    this.pendingJump = null;
+    this.recent.push(raw);
+    if (this.recent.length > OPENING_MEDIAN_SAMPLES) this.recent.shift();
+    const sorted = [...this.recent].sort((a, b) => a - b);
+    const median = sorted[sorted.length >> 1];
+    this.output = this.output === null ? median : this.output + (median - this.output) * OPENING_SMOOTHING;
+    return this.output;
+  }
+
+  reset() {
+    this.recent = [];
+    this.output = null;
+    this.pendingJump = null;
+  }
+}

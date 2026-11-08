@@ -12,6 +12,7 @@ import {
   parseHinge,
   serializeHinge,
   solveHinge,
+  OpeningFilter,
   type HingeModel,
 } from './handleHinge';
 
@@ -24,8 +25,6 @@ const MAX_RING_ERROR_PX = 4;
 const MAX_HANDLE_ERROR_PX = 3;
 /** Keep the seeded (continuity) handle solution unless it fits worse than the unseeded one by more than this (px). */
 const SEED_ERROR_MARGIN_PX = 1;
-/** Fraction of the way each new opening moves the published value (light smoothing). */
-const SMOOTHING = 0.4;
 /** Ring side faces 0–5 give the most precise pose; angled faces 6–7 only when no side face is visible. */
 const RING_SIDE_FACES = 6;
 /** Ring faces smaller than this fraction of the largest visible face (nearly edge-on) are left out. */
@@ -81,6 +80,7 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   const ringPoses = new Map<TrackedInstrument, PrismPose>();
   const lastRelative = new Map<TrackedInstrument, Quaternion>();
   const openings = new Map<TrackedInstrument, number>();
+  const filters = new Map<TrackedInstrument, OpeningFilter>();
   let capture: { instrument: TrackedInstrument; jaw: 'closed' | 'open'; samples: Quaternion[] } | null = null;
   const failures = new Map<TrackedInstrument, string>();
 
@@ -205,6 +205,7 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
       return;
     }
     models.set(c.instrument, model);
+    filters.delete(c.instrument);
     save();
     status.textContent = `${LABELS[c.instrument]} calibrated. Open and close the jaws to check the reading.`;
   }
@@ -225,9 +226,12 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
           if (capture!.samples.length >= CAPTURE_SAMPLES) finishCapture(capture!);
           continue;
         }
-        const raw = hingeOpening(model!, relative);
-        const previous = openings.get(name);
-        const opening = previous === undefined ? raw : previous + (raw - previous) * SMOOTHING;
+        let filter = filters.get(name);
+        if (!filter) {
+          filter = new OpeningFilter();
+          filters.set(name, filter);
+        }
+        const opening = filter.update(hingeOpening(model!, relative));
         openings.set(name, opening);
         host.publish(name, Math.min(1, opening));
       }

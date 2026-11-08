@@ -63,3 +63,22 @@ describe('capture averaging', () => {
     expect(result.spread).toBeGreaterThan(deg(5));
   });
 });
+
+describe('opening filter', () => {
+  it('ignores isolated flips and settles near the true opening', async () => {
+    const { OpeningFilter } = await import('./handleHinge');
+    const f = new OpeningFilter();
+    let out = 0;
+    for (let i = 0; i < 40; i++) out = f.update(0.5 + (i % 2 ? 0.08 : -0.08) + (i === 20 ? 0.45 : 0));
+    expect(Math.abs(out - 0.5)).toBeLessThan(0.05);
+  });
+
+  it('follows a real, repeated change', async () => {
+    const { OpeningFilter } = await import('./handleHinge');
+    const f = new OpeningFilter();
+    for (let i = 0; i < 10; i++) f.update(0);
+    let out = 0;
+    for (let i = 0; i < 12; i++) out = f.update(1);
+    expect(out).toBeGreaterThan(0.9);
+  });
+});
