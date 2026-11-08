@@ -69,6 +69,20 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Two-camera browser check for stereo handle-prism jaws
+
+- New `scripts/check-handle-jaws-stereo.mjs`: synthetic ring + 3-face prism
+  in two cameras (camera 2 at T = (−60, 0, 0) mm), stereo calibration
+  imported, closed/open captured; passes at calibration, half/closed/open
+  and a rolled pose (0.49/0.01/1.00/0.50), all "stereo 3D". Travel 12.0 mm.
+- Finding: the **Prism face width** setting matters. With 19 mm on this
+  12 mm synthetic prism, face 30 read 1.00 instead of 0.50 (each face's
+  inward shift to the centre line is wrong by the width error). Lance must
+  enter his prism's real face width.
+- Known issue, printed not asserted: euler (−15, 300, 0) reads 0.89 —
+  the same pose fails the single-camera check; likely the ring pose at that
+  angle (near edge-on faces 3/6). To investigate with the failing checks.
+
 ### 2026-11-08 — Claude — OV9281 rehearsal preset for synthetic checks
 
 - `scripts/synthetic-camera.mjs`: `SUTURE_CAMERA_PRESET=ov9281` (1280×800,

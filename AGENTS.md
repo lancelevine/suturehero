@@ -82,7 +82,7 @@ area they cover; they are not run by CI.
   `check-camera-controls`, `check-tracking-motion`, `check-driver-depth`,
   `check-ring-handoffs`, `check-ball-pairs`, `check-striped-jaws`,
   `check-striped-lifecycle`, `check-calibration-preview`, `check-marker-jaws`,
-  `check-handle-jaws`, `check-profiler`.
+  `check-handle-jaws`, `check-handle-jaws-stereo`, `check-profiler`.
 - `SUTURE_CAMERA_PRESET=ov9281` makes the shared synthetic camera
   (`scripts/synthetic-camera.mjs`) rehearse the OV9281s: 1280×800,
   monochrome, 120 fps, camera type set to match. Single-camera checks pass
