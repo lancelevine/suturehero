@@ -50,3 +50,9 @@ it('holds rotation through single-marker noise and flips, but follows a clear tu
  expect(f.update(undefined,[turned(60,140)],140)!.quaternion.angleTo(new Quaternion())).toBe(0);
  expect(f.update(undefined,[turned(12,180)],180)!.quaternion.angleTo(new Quaternion())*180/Math.PI).toBeCloseTo(12,4);
 });
+
+it('holds the stereo pose exactly while single-camera views only jitter',()=>{
+ const f=new StereoFallback();f.update(pose(800,0),[view(0,700,0)],0);
+ let out;for(let t=100;t<1500;t+=50)out=f.update(undefined,[view(0,700+(t%100?25:-25),t,t%100?3:-3)],t)!;
+ expect(out!.position.toArray()).toEqual([0,0,800]);
+});

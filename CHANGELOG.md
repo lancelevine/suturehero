@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.101 — rest lock for stereo; single-camera backup holds position at rest
+
+A still-instrument recording on 0.100 showed the stereo pose itself
+wobbling 0.5–3.4° per frame (under ~1.3 mm), from 12 mm markers. While the
+stereo pose stays within 3° and 2.5 mm of the held pose, the instrument now
+stays put and only drifts slowly toward the average; larger changes are
+followed at once. The single-camera backup also keeps the last stereo
+position while its own estimate only jitters (under 6 mm sideways, 40 mm in
+depth). Synthetic tests and a replay of the recording only.
+
 ## Build 0.100 — stereo instrument no longer jumps at rest
 
 Between stereo poses, and whenever stereo has not updated for a moment

@@ -69,6 +69,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.101: stereo rest lock
+
+- New `src/input/RestLock.ts` (+ test): holds pose within 3° / 2.5 mm,
+  blending 5% per update; applied to stereo poses only in `src/tracking.ts`.
+- `src/input/StereoFallback.ts`: mono backup keeps the anchor position for
+  jitter under 6 mm sideways / 40 mm depth (rotation still via `monoRotation`).
+- Evidence: Lance's 0.100 rest recording replayed through
+  `solveStereoRigPose`: 0.5–3.4° per-frame rotation wobble, corners 0.3–0.9 px sd.
+- Checked: unit tests, tsc, check-tracking-motion. `check-stereo-motion`
+  still fails as since 0.98 (near step 0.86 vs >1 required).
+- Lance: is it steady at rest now? Does starting a move feel sticky?
+
 ### 2026-11-08 — Claude — Build 0.100: hold stereo rotation against mono noise
 
 - `src/input/StereoFallback.ts`: `monoRotation` ignores single-camera

@@ -3,6 +3,10 @@ export type FallbackPose={position:Vector3;quaternion:Quaternion;at:number};
 export type MonoView=FallbackPose&{camera:0|1;axis:Vector3};
 /** Single-marker rotation changes smaller than this are noise on small markers: hold rotation (radians). */
 export const MONO_ROTATION_DEADBAND_RADIANS=4*Math.PI/180;
+/** Single-camera sideways moves smaller than this (mm) are treated as noise at rest. */
+export const MONO_STILL_MM=6;
+/** Single-camera depth (marker-size) changes smaller than this (mm) are treated as noise at rest. */
+export const MONO_STILL_DEPTH_MM=40;
 /** Larger single-marker rotation changes are pose-ambiguity flips: hold rotation (radians). */
 export const MONO_MAX_TURN_RADIANS=30*Math.PI/180;
 /** Rotation from a single-camera view relative to its anchor. Small 12 mm
@@ -55,6 +59,13 @@ export class StereoFallback {
   }
   const anchor=this.anchors.get(view.camera)!;
   const delta=view.position.clone().sub(anchor.view.position),along=delta.dot(view.axis);
+  // Within single-marker noise of the last stereo pose: hold it exactly
+  // position (no sideways jitter, no drift toward marker-size depth).
+  const sideways=delta.clone().addScaledVector(view.axis,-along).length();
+  if(sideways<MONO_STILL_MM&&Math.abs(along)<MONO_STILL_DEPTH_MM){
+   this.output={position:anchor.pose.position.clone(),quaternion:monoRotation(view,anchor),at:view.at};
+   return {...this.clone(this.output),source:view.camera===0?'camera1' as const:'camera2' as const};
+  }
   // Hold the last stereo distance briefly; then ease in marker-size depth.
   const approximate=now-Math.max(this.lastStereo,this.switchedAt)>350;
   this.depth+=( (approximate?along:0)-this.depth)*(1-Math.exp(-dt/.3));
