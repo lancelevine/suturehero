@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.91 — jaw calibration measures the white balls itself
+
+Clicking the balls for Calibrate closed/open now searches a wide range of
+sizes and measures each ball's real diameter from the ring's distance, so the
+ball-size setting is only a starting guess (the field updates to the
+measured value). Lance's balls appear ~6–8 mm and were rejected as "not a
+10 mm ball". The synthetic check passes with the setting at 6, 10 or 16 mm.
+
 ## Build 0.90 — one corrected ring model for single-camera and stereo
 
 The mirror correction from 0.89 now lives in the shared ring model

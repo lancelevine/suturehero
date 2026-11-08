@@ -168,9 +168,13 @@ try {
     assert.doesNotMatch(text, /Lost|could not|inconsistent|did not/i, text);
     await page.evaluate(() => { window.__jawScene.turning = false; });
   };
+  // Start from a deliberately wrong size setting: the tracker must measure the balls itself.
+  await page.evaluate((size) => { if (size) document.querySelector('[data-jaw-diameter]').value = size; }, process.env.SUTURE_JAW_WRONG_SIZE ?? '');
   await calibrate('closed', 0);
   await calibrate('open', 1);
   assert.match(await status(), /calibrated/i);
+  const measuredSize = Number(await page.locator('[data-jaw-diameter]').inputValue());
+  assert(Math.abs(measuredSize - 10) < 1.5, `ball diameter should be measured as ~10 mm, got ${measuredSize}`);
 
   const readingAt = async (opening, euler, distractor = false) => {
     await page.evaluate(({opening, euler, distractor}) => Object.assign(window.__jawScene, {opening, euler, distractor}), {opening, euler, distractor});

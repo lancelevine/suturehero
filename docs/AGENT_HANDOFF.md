@@ -72,6 +72,16 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Jaw ball size measured at calibration (build 0.91)
+- Changed: `markerJawController` snapSeeds tries sizes 1/0.6/0.4/1.6× the
+  setting, measures diameter = setting × measured/expected radius, uses it
+  for capture and the saved model, and shows it in the diameter field.
+- Checked: tsc; `check-marker-jaws` with the setting at 10, 16 and 6 mm
+  (new `SUTURE_JAW_WRONG_SIZE` option asserts ~10 mm measured).
+- Lance to test: jaw calibration (closed, open).
+- Next (agreed): stereo workspace alignment, 100 mm/unit stereo scale,
+  steadier rotation at rest.
+
 ### 2026-11-08 — Claude Code — Shared ring model corrected; stereo checks fixed (build 0.90)
 - Changed: `faceGeometry` (prismPose.ts) reflects ring faces z → −z
   (rotation (−qx,−qy,qz,qw), centre z negated); `RING_LAYOUT_REVISION = 2`.

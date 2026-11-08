@@ -58,6 +58,8 @@ const MAX_CROP_PX = 256;
 /** Markers' white borders look like bright blobs; ignore a margin around them. */
 const MARKER_MASK_GROWTH = 1.25;
 const BALLS_PER_INSTRUMENT = 2;
+/** Ball sizes tried when snapping a click, relative to the diameter setting (each try accepts ~0.55–1.5×). */
+const SNAP_SIZE_GUESSES = [1, 0.6, 0.4, 1.6];
 
 type Mode =
   | { kind: 'idle' }
@@ -139,6 +141,8 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   const trackers = new Map<TrackedInstrument, JawTracker>();
   const poses = new Map<TrackedInstrument, PrismPose>();
   const readings = new Map<TrackedInstrument, JawReading>();
+  /** Ball diameters measured at the closed/open clicks, mm. */
+  const measuredDiameters = new Map<TrackedInstrument, Partial<Record<JawPose, number>>>();
   let lastVideoTime = -1;
   let lastImageId=-1;
   let lastReadAt=-Infinity;
@@ -249,7 +253,13 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   /** Snap clicks to the nearest bright ball, using the current frame. */
   /** Why the last snapSeeds returned null. */
   let snapFailure = '';
-  function snapSeeds(name: TrackedInstrument, seeds: Pixel[], now: number): Pixel[] | null {
+  /**
+   * Snap clicks to the nearest bright ball and measure the balls' real size.
+   * The size setting is only a starting guess: balls are searched over a wide
+   * range of sizes, and the measured diameter (from each ball's apparent
+   * radius and the ring's distance) is used from then on.
+   */
+  function snapSeeds(name: TrackedInstrument, seeds: Pixel[], now: number): { points: Pixel[]; diameterMm: number } | null {
     const frame = frameFor(name, now);
     if (!frame) {
       snapFailure = poseFailure || 'The ring markers are not visible.';
@@ -257,6 +267,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     }
     const radius = ballRadiusPx(diameter(), frame.pose.translation.z, frame.intrinsics);
     const snapped: Pixel[] = [];
+    const measured: number[] = [];
     for (const [index, seed] of seeds.entries()) {
       const half = radius * 3 + 12;
       const region = sample({ x: seed.x - half, y: seed.y - half, width: half * 2, height: half * 2 });
@@ -266,18 +277,25 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       }
       const { scale } = region;
       const ignore = frame.ignore;
-      const ball = findBrightBalls(region.image, radius * scale, {
-        ignore: ignore ? (x, y) => ignore(region.region.x + x / scale, region.region.y + y / scale) : undefined,
-      })
-        .map((b) => ({ x: region.region.x + b.x / scale, y: region.region.y + b.y / scale }))
-        .sort((a, b) => Math.hypot(a.x - seed.x, a.y - seed.y) - Math.hypot(b.x - seed.x, b.y - seed.y))[0];
-      if (!ball || Math.hypot(ball.x - seed.x, ball.y - seed.y) > radius * 2.5 + 10) {
-        snapFailure = `No white ball of about ${diameter()} mm found at click ${index + 1}. Click the ball's center, and check the ball diameter setting.`;
+      let ball: { x: number; y: number; radius: number } | undefined;
+      for (const sizeGuess of SNAP_SIZE_GUESSES) {
+        ball = findBrightBalls(region.image, radius * sizeGuess * scale, {
+          ignore: ignore ? (x, y) => ignore(region.region.x + x / scale, region.region.y + y / scale) : undefined,
+        })
+          .map((b) => ({ x: region.region.x + b.x / scale, y: region.region.y + b.y / scale, radius: b.radius / scale }))
+          .filter((b) => Math.hypot(b.x - seed.x, b.y - seed.y) <= b.radius * 2.5 + 10)
+          .sort((a, b) => Math.hypot(a.x - seed.x, a.y - seed.y) - Math.hypot(b.x - seed.x, b.y - seed.y))[0];
+        if (ball) break;
+      }
+      if (!ball) {
+        snapFailure = `No white ball found at click ${index + 1}. Click the center of the ball, against a darker background.`;
         return null;
       }
-      snapped.push(ball);
+      snapped.push({ x: ball.x, y: ball.y });
+      measured.push(diameter() * (ball.radius / radius));
     }
-    return snapped;
+    const diameterMm = Math.min(30, Math.max(3, measured.reduce((sum, d) => sum + d, 0) / measured.length));
+    return { points: snapped, diameterMm };
   }
 
   function finishCapture(name: TrackedInstrument, capture: JawCapture) {
@@ -293,7 +311,9 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     const closed = entry.closed;
     const open = entry.open;
     if (closed && open && 'points' in closed && 'points' in open) {
-      const model = buildJawModel(closed.points, open.points, diameter());
+      const captures = measuredDiameters.get(name) ?? {};
+      const sizes = [captures.closed, captures.open].filter((d): d is number => d !== undefined);
+      const model = buildJawModel(closed.points, open.points, sizes.length ? sizes.reduce((a, b) => a + b, 0) / sizes.length : diameter());
       if ('error' in model) {
         status.textContent = `${LABELS[name]}: ${model.error}`;
         return;
@@ -326,6 +346,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     const name = selected();
     trackers.delete(name);
     captured.delete(name);
+    measuredDiameters.delete(name);
     saveModel(name, null);
     cancel(`${LABELS[name]} jaw calibration removed.`);
   });
@@ -358,7 +379,9 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       return;
     }
     const instrument = mode.instrument;
-    mode = { kind: 'capturing', instrument, capture: new JawCapture(mode.jaw, seeds, diameter(), now) };
+    measuredDiameters.set(instrument, { ...measuredDiameters.get(instrument), [mode.jaw]: seeds.diameterMm });
+    diameterInput.value = seeds.diameterMm.toFixed(1);
+    mode = { kind: 'capturing', instrument, capture: new JawCapture(mode.jaw, seeds.points, seeds.diameterMm, now) };
     canvas.style.pointerEvents = 'none';
     status.textContent = 'Now turn the instrument slowly (or in small steps with pauses), keeping the jaws still…';
   });
