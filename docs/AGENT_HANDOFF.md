@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Codex — correcting ring black-square size to the measured 12 mm and validating recorded stereo geometry. Please avoid `src/input/prismPose.ts`, `src/input/stereoRigPose.ts`, `src/jaw/JawTracker.ts`, associated geometry tests, and `src/tracking.ts` until cleared.
 - **Needs Lance to test by hand:**
   - **Why stereo says "waiting" (build 0.84):** in 2-camera mode with the
     needle driver in view of both cameras, read the line under the stereo
