@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — OV9281 rehearsal, stereo prism test, capture-time pairing, frame-driven capture, scan spreading, flaky checks
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-08 — Claude — Handle-prism pose (−15, 300, 0): narrowed, not fixed
+
+- Fails in check-handle-jaws (0.17) and check-handle-jaws-stereo (0.89,
+  reported not asserted). Not the ring pose itself: solving the synthetic
+  ring at that pose from its truly visible side faces (0, 4, 5) gives 0.00°
+  error exactly and 0.30° with 0.8 px corner noise.
+- Clues: (1) prism face 30 faces camera 1 exactly head-on (0°) there, while
+  every passing pose uses a face 10–19° off-axis; (2) camera 1's decoder
+  lists ring ID 3 at 280° and 300°, but face 3 points away from the camera
+  and the synthetic renderer never draws it — a phantom detection that
+  would corrupt the ring pose if used. Next: log ID 3's corners at that
+  pose and find what is decoded as 3.
 
 ### 2026-11-08 — Claude — Fix flaky stereo depth checks (test realism)
 
