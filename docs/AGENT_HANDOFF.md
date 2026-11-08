@@ -69,6 +69,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.108: draw ring shaft axis
+
+- New `src/ui/ringAxisOverlay.ts` (+ test): projects ring local ±Y (60 mm)
+  with the mono ring solve; `drawRingAxes()` in `src/tracking.ts` draws a
+  black line per instrument on the Camera 1 overlay.
+- Checked: tsc, unit test, check-tracking-motion, screenshot of the
+  synthetic ring (line along the shaft).
+
 ### 2026-11-08 — Claude — Handle-prism jaw tracking: core module (not wired in)
 
 - Lance chose a triangular marker prism on the one moving handle (option A).

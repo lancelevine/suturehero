@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.108 — ring shaft axis drawn in the camera view
+
+Each visible ring tracker now has a black line along its shaft axis (60 mm
+each side of the ring centre) in the Camera 1 view. This is the reference
+the planned handle prism's rotation will be compared against. It uses the
+approximate single-camera ring pose.
+
 ## Build 0.107 — Jaw tracking switch in the calibration Jaws tab
 
 Instrument calibration → Jaws now starts with a "Jaw tracking" checkbox.
