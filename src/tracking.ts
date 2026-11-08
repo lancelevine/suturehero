@@ -25,6 +25,8 @@ import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
 import {drawRingAxis,ringAxisSegment} from './ui/ringAxisOverlay';
 import {HANDLE_PRISM_IDS} from './jaw/handleHinge';
+import {LiveProfiler} from './diagnostics/LiveProfiler';
+import {mountProfilerPanel} from './ui/ProfilerPanel';
 import {videoSnapshot} from './input/videoSnapshot';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {mountPerformancePanel} from './ui/PerformancePanel';
@@ -1734,9 +1736,12 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    let fallback:ReturnType<StereoFallback['update']>=null;
    if(metric){
     let controller=stereoFallbacks.get(name);if(!controller){controller=new StereoFallback();stereoFallbacks.set(name,controller);}
-    const views=stereoMonoViews(name,now);
-    const orientation=stereo?.quaternion;
-    fallback=controller.update(stereo&&orientation?{position:stereo.position.clone().multiply(new THREE.Vector3(200,-200,-200)),quaternion:orientation,at:stereo.lastSeen}:undefined,views,now);
+    const fusion=controller;
+    fallback=perf.measure('Stereo fusion (render loop)',()=>{
+     const views=stereoMonoViews(name,now);
+     const orientation=stereo?.quaternion;
+     return fusion.update(stereo&&orientation?{position:stereo.position.clone().multiply(new THREE.Vector3(200,-200,-200)),quaternion:orientation,at:stereo.lastSeen}:undefined,views,now);
+    });
     stereoFallbackStatus.set(name,fallback?.source??'lost');
    }
    if(metric?!!fallback:target&&now-target.lastSeen<trackingHoldMs){
@@ -1823,7 +1828,10 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 observeCameraFrames(video,count=>perf.tick('Camera 1 presented frames',count));observeCameraFrames(video2,count=>perf.tick('Camera 2 presented frames',count));
-mountPerformancePanel(diagnosticsHost,()=>({build:'0.109',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops}));
+const performanceContext=()=>({build:'0.110',revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+mountPerformancePanel(diagnosticsHost,performanceContext);
+// Live profiler (Diagnostics → Performance): off by default, measurement only.
+mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);
 
 /** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
 export const trackingLabBridge = {

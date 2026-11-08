@@ -69,6 +69,35 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-08 — Claude — Build 0.110: live performance profiler
+
+- Measurement only; no thresholds, algorithms, smoothing, calibration,
+  mappings, camera selection or rendering changed.
+- `src/diagnostics/profilerStats.ts` (+ tests): 120-sample rolling stats
+  (mean/median/p95/max/rate/busy ms per s), `classifyStage` (camera 1/2/
+  shared, category, main/worker/latency, nesting) for the existing
+  TrackingPerformance row names, `breakdown` (top-level main-thread shares;
+  nested rows, loop totals and latency excluded; workers separate).
+- `src/diagnostics/frameCadence.ts` (+ tests): per-camera delivered-frame
+  cadence, presentedFrames gaps, captureTime age.
+- `src/diagnostics/LiveProfiler.ts`: enables `TrackingPerformance.listener`
+  (new; null when off) and its own rVFC (or currentTime polling) loop per
+  camera only while enabled; sanitized track settings (no deviceId/label).
+- `src/ui/ProfilerPanel.ts`: Diagnostics → Performance, collapsed and off by
+  default, UI refresh ≤ 2 Hz, Copy/Download JSON.
+- New timing points: `Camera N jaw frame copy`, `Jaw ball detection`,
+  `Jaw stereo ball detection` (markerJawController), `Stereo fusion (render
+  loop)` (tracking.ts animate). `performanceContext` extracted in tracking.ts.
+- New `scripts/check-profiler.mjs`: off by default/no hook, single camera
+  (no Camera 2 rows), stereo mode with Camera 2 at 6 fps vs Camera 1 (not
+  mixed), stereo stages present, JSON export without device IDs/labels.
+- Checked: full unit suite (548 passed), tsc, vite build; check-profiler,
+  check-tracking-motion, check-marker-jaws, check-tracking-storage,
+  check-calibration-preview, check-ring-handoffs, check-stereo-motion pass;
+  check-handle-jaws still fails only its known pose (euler -15,300,0).
+- Lance: Diagnostics → Performance → Enable, run 10–20 s per mode (single,
+  stereo; current webcams, later OV9281s), Download JSON.
+
 ### 2026-11-08 — Claude — Build 0.109: handle prism jaw tracking
 
 - IDs per Lance: needle driver 8, 9, 30; forceps 18, 19, 31; scissors 28,

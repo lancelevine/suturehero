@@ -3,7 +3,9 @@ export interface TimingRow {name:string;count:number;rate:number;meanMs:number;p
 export class TrackingPerformance {
  private samples=new Map<string,{at:number;ms:number;weight:number}[]>();private counters=new Map<string,number>();private started:number;
  constructor(private clock=()=>performance.now(),private windowMs=5000){this.started=clock();}
- sample(name:string,ms:number,weight=1){if(!Number.isFinite(ms)||ms<0||!Number.isFinite(weight)||weight<=0)return;const at=this.clock(),values=this.samples.get(name)??[];values.push({at,ms,weight});while(values.length>2048||values[0]?.at<at-this.windowMs)values.shift();this.samples.set(name,values);}
+ /** Live profiler hook (src/diagnostics/LiveProfiler.ts); null while profiling is off, so it costs one check per sample. */
+ listener:((name:string,ms:number,weight:number,at:number)=>void)|null=null;
+ sample(name:string,ms:number,weight=1){if(!Number.isFinite(ms)||ms<0||!Number.isFinite(weight)||weight<=0)return;const at=this.clock(),values=this.samples.get(name)??[];this.listener?.(name,ms,weight,at);values.push({at,ms,weight});while(values.length>2048||values[0]?.at<at-this.windowMs)values.shift();this.samples.set(name,values);}
  tick(name:string,weight=1){this.sample(name,0,weight);}
  count(name:string,amount=1){this.counters.set(name,(this.counters.get(name)??0)+amount);}
  measure<T>(name:string,work:()=>T):T{const start=this.clock();try{return work();}finally{this.sample(name,this.clock()-start);}}

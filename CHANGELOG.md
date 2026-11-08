@@ -5,6 +5,20 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.110 — live performance profiler (measurement only)
+
+Diagnostics → Performance: tick "Enable live profiler" (off by default).
+Per camera: requested vs actual resolution/frame rate, delivered-frame
+cadence from requestVideoFrameCallback (currentTime fallback), missed
+presentations, capture→page time where the browser reports it, processed
+marker-decode and optical-flow rates, frame age at result, and skipped or
+discarded work. Per stage: rolling mean/median/p95 over ~120 samples, rate,
+and busy time, labelled by camera (1, 2 or shared) and thread (main or
+worker). A breakdown names the largest measured cost and shows main-thread
+shares without double counting nested stages; workers are shown separately
+because they run in parallel. Copy or download a JSON report (no images,
+camera labels or device IDs). No tracking, calibration or rendering changes.
+
 ## Build 0.109 — handle prism jaw tracking (new, synthetic tests only)
 
 New jaw tracker option, "Handle prism (new)", in the Jaws section: a

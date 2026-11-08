@@ -81,7 +81,8 @@ area they cover; they are not run by CI.
 - Useful set for tracking changes: `check-tracking-storage`,
   `check-camera-controls`, `check-tracking-motion`, `check-driver-depth`,
   `check-ring-handoffs`, `check-ball-pairs`, `check-striped-jaws`,
-  `check-striped-lifecycle`, `check-calibration-preview`, `check-marker-jaws`.
+  `check-striped-lifecycle`, `check-calibration-preview`, `check-marker-jaws`,
+  `check-handle-jaws`, `check-profiler`.
 - Known failing before 2026-11-07: `check-dual-camera-fit`; flaky:
   `check-depth-stability` (see handoff log).
 

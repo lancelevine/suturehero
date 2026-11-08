@@ -6,6 +6,7 @@ import type { TrackedInstrument } from '../input/trackingMessages';
 import type { StereoCalibration } from '../input/stereoGeometry';
 import { expectedSpacing, median, openingFromDistance, ringSpeedSidesPerSecond, stereoBallPair, MAX_JAW_MOTION_SIDES_PER_S, type RingSample } from './stereoBallDistance';
 import { mountHandlePrismJaws } from './handlePrismController';
+import { trackingPerformance as perf } from '../diagnostics/TrackingPerformance';
 import { findBrightBalls, grayFromRGBA, maskFromQuads, type GrayImage } from './brightBalls';
 import { defaultIntrinsics, projectBodyPoint, type Pixel } from './jawGeometry';
 import {
@@ -271,8 +272,11 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       crop.width = width;
       crop.height = height;
     }
-    cropContext.drawImage(cameraImage(video), 0, 0, width, height);
-    const image = grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
+    // Timed for the live profiler (Diagnostics → Performance); behaviour unchanged.
+    const image = perf.measure(`Camera ${video === host.video ? 1 : 2} jaw frame copy`, () => {
+      cropContext.drawImage(cameraImage(video), 0, 0, width, height);
+      return grayFromRGBA(cropContext.getImageData(0, 0, width, height).data, width, height);
+    });
     frameCache.set(video, { id, image });
     return image;
   }
@@ -306,7 +310,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       markers.map((m) => grownQuad(m.corners).map((p) => ({ x: (p.x - region.region.x) * scale, y: (p.y - region.region.y) * scale }))));
     // Ball radius from the marker's apparent size (12 mm square) and the ball diameter.
     const radius = (side * diameterMm) / 2 / trackerGeometryMarkerMm();
-    return findBrightBalls(region.image, radius * scale, { mask, sizeFactors: [1, 0.6, 1.6] })
+    return perf.measure('Jaw stereo ball detection', () => findBrightBalls(region.image, radius * scale, { mask, sizeFactors: [1, 0.6, 1.6] }))
       .slice(0, MAX_STEREO_CANDIDATES)
       .map((ball) => ({ x: region.region.x + ball.x / scale, y: region.region.y + ball.y / scale }));
   }
@@ -617,7 +621,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
         readings.delete(name);
         continue;
       }
-      const reading = tracker.update(frame);
+      const reading = perf.measure('Jaw ball detection', () => tracker.update(frame));
       readings.set(name, reading);
       if (!published && reading.opening !== null) host.publish(name, reading.opening);
     }
