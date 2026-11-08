@@ -67,6 +67,18 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Jaw setup with angled markers; specific click errors (build 0.86)
+- Changed: `markerJawController` uses side faces when visible, otherwise the
+  angled faces (previously side faces only, so "only marker 6 visible" gave
+  no ring pose and Lance's "Could not find a white ball…" error). On his
+  recorded frames, with the corrected geometry: marker 6 alone 0.0–0.5 px;
+  side faces ~0.1–1.1 px; mixing 6 with side faces sometimes ~5 px, hence
+  the preference. Click failures now state the reason. Build 0.86.
+- Files: `src/jaw/markerJawController.ts`, `src/main.ts`, `src/tracking.ts`
+  (build label), `CHANGELOG.md`.
+- Checked: tsc, `src/jaw` unit tests, `check-marker-jaws` browser check.
+- Lance to test: jaw calibration with the real instrument (both balls).
+
 ### YYYY-MM-DD — <Agent> — <short title>
 - Changed: <what and why>
 - Files: <main files touched>

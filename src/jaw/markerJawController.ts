@@ -49,7 +49,7 @@ export type JawEngine = 'marker' | 'classic';
 
 const INSTRUMENTS: TrackedInstrument[] = ['needleDriver', 'forceps', 'scissors'];
 const LABELS: Record<TrackedInstrument, string> = { needleDriver: 'Needle driver', forceps: 'Forceps', scissors: 'Scissors' };
-/** Ring side faces 0–5 give a consistent pose; the angled faces 6–7 do not on their own. */
+/** Ring side faces 0–5 give the most precise pose; the angled faces 6–7 are used when no side face is visible. */
 const RING_SIDE_FACES = 6;
 /** Skip frames whose tracker pose fits the markers worse than this, px. */
 const MAX_POSE_ERROR_PX = 4;
@@ -183,14 +183,33 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   }
 
   /** The tracker pose from this instrument's markers, solved independently of instrument tracking. */
+  /** Why the last solvePose returned null, shown to the user when a click fails. */
+  let poseFailure = '';
   function solvePose(name: TrackedInstrument, now: number): PrismPose | null {
     const type = host.trackerType();
     const first = host.firstMarkerId(name);
-    let markers = host.markers(name, now);
-    if (type === 'ring8') markers = markers.filter((m) => m.id - first < RING_SIDE_FACES);
-    if (!markers.length || !host.overlay.width) return null;
+    const visible = host.markers(name, now);
+    // Prefer side faces: on recorded frames they fit within ~1 px, while mixing
+    // in an angled face sometimes adds ~5 px. Angled faces alone fit well
+    // since the measured pad layout was corrected (build 0.85).
+    const side = type === 'ring8' ? visible.filter((m) => m.id - first < RING_SIDE_FACES) : visible;
+    const markers = side.length ? side : visible;
+    if (!host.overlay.width) {
+      poseFailure = 'Camera 1 is not running.';
+      return null;
+    }
+    if (!markers.length) {
+      poseFailure = `No ${LABELS[name].toLowerCase()} ring markers are visible to Camera 1.`;
+      return null;
+    }
     const pose = solvePrismPose(markers, first, host.overlay.width, host.overlay.height, poses.get(name), undefined, type);
-    if (!pose || pose.error > MAX_POSE_ERROR_PX) return null;
+    if (!pose || pose.error > MAX_POSE_ERROR_PX) {
+      poseFailure = pose
+        ? `The ring markers (IDs ${markers.map((m) => m.id).join(', ')}) don't fit the tracker model (${pose.error.toFixed(1)} px, limit ${MAX_POSE_ERROR_PX}). Try an angle showing one flat-side marker.`
+        : 'The ring position could not be solved from the visible markers.';
+      return null;
+    }
+    poseFailure = '';
     poses.set(name, pose);
     return pose;
   }
@@ -228,15 +247,23 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
   }
 
   /** Snap clicks to the nearest bright ball, using the current frame. */
+  /** Why the last snapSeeds returned null. */
+  let snapFailure = '';
   function snapSeeds(name: TrackedInstrument, seeds: Pixel[], now: number): Pixel[] | null {
     const frame = frameFor(name, now);
-    if (!frame) return null;
+    if (!frame) {
+      snapFailure = poseFailure || 'The ring markers are not visible.';
+      return null;
+    }
     const radius = ballRadiusPx(diameter(), frame.pose.translation.z, frame.intrinsics);
     const snapped: Pixel[] = [];
-    for (const seed of seeds) {
+    for (const [index, seed] of seeds.entries()) {
       const half = radius * 3 + 12;
       const region = sample({ x: seed.x - half, y: seed.y - half, width: half * 2, height: half * 2 });
-      if (!region) return null;
+      if (!region) {
+        snapFailure = `Click ${index + 1} is outside the camera image.`;
+        return null;
+      }
       const { scale } = region;
       const ignore = frame.ignore;
       const ball = findBrightBalls(region.image, radius * scale, {
@@ -244,7 +271,10 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
       })
         .map((b) => ({ x: region.region.x + b.x / scale, y: region.region.y + b.y / scale }))
         .sort((a, b) => Math.hypot(a.x - seed.x, a.y - seed.y) - Math.hypot(b.x - seed.x, b.y - seed.y))[0];
-      if (!ball || Math.hypot(ball.x - seed.x, ball.y - seed.y) > radius * 2.5 + 10) return null;
+      if (!ball || Math.hypot(ball.x - seed.x, ball.y - seed.y) > radius * 2.5 + 10) {
+        snapFailure = `No white ball of about ${diameter()} mm found at click ${index + 1}. Click the ball's center, and check the ball diameter setting.`;
+        return null;
+      }
       snapped.push(ball);
     }
     return snapped;
@@ -324,7 +354,7 @@ export function mountMarkerJaws(details: HTMLElement, host: MarkerJawHost) {
     if (!seeds) {
       const { instrument, jaw } = mode;
       mode = { kind: 'picking', instrument, jaw, seeds: [] };
-      status.textContent = 'Could not find a white ball at each click, or the ring markers are not visible. Click ball 1 again.';
+      status.textContent = `${snapFailure} Click ball 1 again.`;
       return;
     }
     const instrument = mode.instrument;

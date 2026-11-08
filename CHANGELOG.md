@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.86 — white-ball jaw setup works from the angled ring markers
+
+The new jaw tracker now uses the angled ring markers (6 and 7) when no
+flat-side marker is visible, now that their placement is modelled correctly.
+Flat-side markers are still preferred when visible. When a ball click fails,
+the message says why: no ring markers, a poor ring fit, a click outside the
+image, or no white ball of the set diameter at that click.
+
 ## Build 0.85 — measured 12 mm ring markers and stereo outlier recovery
 
 Ring poses now use the measured **12 mm black square**, rather than the 16 mm
