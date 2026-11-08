@@ -17,8 +17,9 @@ try{
  for(const predictive of process.env.SUTURE_NO_VIDEOFRAME?[true]:[false,true]){
   await page.locator('#roi-decode').evaluate((e,value)=>{e.checked=value;e.dispatchEvent(new Event('change'));},predictive);await page.waitForTimeout(1200);await page.locator('[data-perf-reset]').click();await page.waitForTimeout(6500);
   const r=await report(),row=name=>r.performance.rows.find(v=>v.name===name),decodes=row('Camera 1 decode worker');assert(decodes?.rate>0);assert.equal(r.context.camera1.width,1920);
-  if(predictive)assert(r.performance.counters['Camera 1 search predicted']>0&&r.performance.counters['Camera 1 search full']>0);
-  summaries.push({predictive,fps:decodes.rate,workerMs:decodes.meanMs,pixelsPerDecode:r.performance.counters['Camera 1 searched pixels']/['full','predicted','expanded'].reduce((sum,kind)=>sum+(r.performance.counters['Camera 1 search '+kind]??0),0),snapshot:r.context.snapshotBackend1});
+  // Periodic whole-frame coverage is either full scans or (since build 0.124) quarter-frame discovery tiles.
+  if(predictive)assert(r.performance.counters['Camera 1 search predicted']>0&&(r.performance.counters['Camera 1 search full']??0)+(r.performance.counters['Camera 1 search discovery']??0)>0);
+  summaries.push({predictive,fps:decodes.rate,workerMs:decodes.meanMs,pixelsPerDecode:r.performance.counters['Camera 1 searched pixels']/['full','predicted','expanded','discovery'].reduce((sum,kind)=>sum+(r.performance.counters['Camera 1 search '+kind]??0),0),snapshot:r.context.snapshotBackend1});
  }
  if(summaries.length===2){assert(summaries[1].pixelsPerDecode<summaries[0].pixelsPerDecode*.7,'focused decoding must materially reduce pixel work');assert(summaries[1].workerMs<summaries[0].workerMs*.85,'decode worker cost should drop');}
  // Global scans must find a newly visible ID well outside the existing ROI.

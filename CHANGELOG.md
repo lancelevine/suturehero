@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.127 — header buttons no longer hidden at mid widths
+
+Between about 760 and 1100 px wide the header's buttons wrap onto a second
+row, but the header stayed 64 px tall, so the second row (Reset practice,
+Tracking setup, Diagnostics) slid under the camera panel and calibration
+drawer and could not be clicked. The header now grows to fit.
+
 ## Build 0.126 — marker list shows only markers actually seen
 
 The tracking page's marker list included outlines that optical flow was
