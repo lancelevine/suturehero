@@ -44,3 +44,10 @@ it('reduces several-degree detection wobble without promoting it into the fast-m
  const rms=(a:number[])=>Math.sqrt(a.reduce((sum,v)=>sum+v*v,0)/a.length);
  expect(rms(angles)).toBeLessThan(.9);expect(rms(positions)).toBeLessThan(.005);
 });
+it('keeps up with a slow steady turn instead of trailing behind it',()=>{
+ const filter=new TrackedPoseFilter();filter.update(new Vector3(),q(0),0);
+ // 30 °/s for 2 s at 30 frames per second.
+ for(let frame=1;frame<=60;frame++)filter.update(new Vector3(),q(frame),frame*1000/30);
+ const lag=MathUtils.radToDeg(filter.quaternion.angleTo(q(60)));
+ expect(lag).toBeLessThan(1.6);
+});

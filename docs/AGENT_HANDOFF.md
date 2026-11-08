@@ -72,6 +72,14 @@ entry when finishing.
 Newest first. Template:
 
 ```
+### 2026-11-08 — Claude Code — Speed-adaptive rotation smoothing (build 0.94)
+- Changed: `TrackedPoseFilter` rotation time constant = min(previous
+  error-based value, 1/(2π(1 Hz + 0.1 Hz per °/s))), with angular velocity
+  smoothed as a vector (τ 0.5 s). Position unchanged.
+- Checked: filter tests incl. new steady-turn lag test; tracking-motion,
+  ring-handoffs, marker-rest, stereo-motion browser checks pass.
+- Lance to test: rotation responsiveness and stillness at rest.
+
 ### 2026-11-08 — Claude Code — Stereo jaw opening from 3D ball distance (build 0.93)
 - Changed: new `src/jaw/stereoBallDistance.ts` (triangulate candidate
   pairings, ray gap ≤ 3 mm, spacing range, median, opening from distance).

@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.94 — less rotation lag
+
+Rotation smoothing now adapts to turning speed (a "One Euro" style filter on
+a smoothed angular-velocity vector, so jitter averages out while real turns
+accumulate). Previously a slow steady turn always got the heaviest smoothing
+and trailed ~140 ms behind. Steady-turn lag: 30°/s 4.3° → 1.4°, 60°/s 7.0°
+→ 1.2°. At-rest jitter suppression is unchanged (existing tests pass).
+
 ## Build 0.93 — stereo jaw opening from the 3D ball-to-ball distance
 
 In stereo, the jaw opening now comes from the real 3D distance between the
