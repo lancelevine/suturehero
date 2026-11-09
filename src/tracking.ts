@@ -1,3 +1,4 @@
+import {flowFrameScale} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
@@ -506,10 +507,7 @@ async function detectSecondFrame(now:number){
  if(doSlow){if(video2.currentTime===lastCamera2DecodeTime)perf.count('Camera 2 duplicate decodes');lastCamera2DecodeTime=video2.currentTime;}
  const currentSession=session2;
  const nativeW=video2.videoWidth,nativeH=video2.videoHeight;
- const scale=Math.min(1,960/nativeW),w=Math.round(nativeW*scale),h=Math.round(nativeH*scale);
- const sx=nativeW/w,sy=nativeH/h;
- const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*sx,y:p.y*sy}))}));
- const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/sx,y:p.y/sy}))}));
+ const {width:w,height:h,toNative,toFlow}=flowFrameScale(nativeW,nativeH);
  if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
  const snapshot=doSlow?perf.measure('Camera 2 video snapshot',()=>videoSnapshot(video2,captureCanvas2,captureContext2)):null;
  if(snapshot){snapshotBackend2=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 2 snapshot fallback');}
@@ -1499,11 +1497,8 @@ async function detectFrame(now:number){
  perf.tick('Camera 1 capture attempts');if(video.currentTime===lastCamera1CaptureTime)perf.count('Camera 1 duplicate captures');lastCamera1CaptureTime=video.currentTime;
  if(doSlow){if(video.currentTime===lastCamera1DecodeTime)perf.count('Camera 1 duplicate decodes');lastCamera1DecodeTime=video.currentTime;}
  const session=cameraSession;
- const scale=Math.min(1,960/video.videoWidth),w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
  const nativeW=video.videoWidth,nativeH=video.videoHeight;
- const decodeScaleX=nativeW/w,decodeScaleY=nativeH/h;
- const toNative=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x*decodeScaleX,y:p.y*decodeScaleY}))}));
- const toFlow=(markers:MarkerObservation[]):MarkerObservation[]=>markers.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x/decodeScaleX,y:p.y/decodeScaleY}))}));
+ const {width:w,height:h,toNative,toFlow}=flowFrameScale(nativeW,nativeH);
  if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
  const snapshot=doSlow?perf.measure('Camera 1 video snapshot',()=>videoSnapshot(video,captureCanvas,captureContext)):null;
  if(snapshot){snapshotBackend1=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 1 snapshot fallback');}
