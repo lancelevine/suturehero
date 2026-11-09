@@ -1,3 +1,4 @@
+import {drawDetectedMarker} from './ui/markerOverlay';
 import {flowFrameScale} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
@@ -525,12 +526,7 @@ async function detectSecondFrame(now:number){
    // Same green-outline rule as Camera 1: require a recent decoded ID,
    // not merely an optical-flow prediction of an old marker.
    if(performance.now()-(decoded2.get(marker.id)??-Infinity)>650)continue;
-   const pts=marker.corners;
-   overlayContext2.beginPath();overlayContext2.moveTo(pts[0].x,pts[0].y);
-   for(let i=1;i<pts.length;i++)overlayContext2.lineTo(pts[i].x,pts[i].y);
-   overlayContext2.closePath();overlayContext2.strokeStyle='#18e89d';overlayContext2.lineWidth=3;overlayContext2.stroke();
-   overlayContext2.font='bold 20px sans-serif';overlayContext2.fillStyle='#18e89d';
-   overlayContext2.fillText('ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));
+   drawDetectedMarker(overlayContext2,marker);
   }
   drawBallOutlines(1);
   const stamp=performance.now();
