@@ -1,3 +1,5 @@
+import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
+import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
 import {SizeDepthEstimator} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
@@ -219,14 +221,8 @@ function renderCrop(frame:ImageData){
  cropOriginal.width=side;cropOriginal.height=side;cropAdaptive.width=side;cropAdaptive.height=side;
  const source=document.createElement('canvas');source.width=frame.width;source.height=frame.height;source.getContext('2d')!.putImageData(frame,0,0);
  original.drawImage(source,sx,sy,side,side,0,0,side,side);
- const data=original.getImageData(0,0,side,side),g=new Uint8Array(side*side),ii=new Float64Array((side+1)*(side+1));
- for(let y=0;y<side;y++){let row=0;for(let x=0;x<side;x++){const p=(y*side+x)*4,v=Math.round(.299*data.data[p]+.587*data.data[p+1]+.114*data.data[p+2]);g[y*side+x]=v;row+=v;ii[(y+1)*(side+1)+x+1]=ii[y*(side+1)+x+1]+row;}}
- for(let y=0;y<side;y++)for(let x=0;x<side;x++){
-  const x0=Math.max(0,x-12),x1=Math.min(side,x+13),y0=Math.max(0,y-12),y1=Math.min(side,y+13);
-  const sum=ii[y1*(side+1)+x1]-ii[y0*(side+1)+x1]-ii[y1*(side+1)+x0]+ii[y0*(side+1)+x0];
-  const v=g[y*side+x]>sum/((x1-x0)*(y1-y0))-7?255:0,p=(y*side+x)*4;
-  data.data[p]=v;data.data[p+1]=v;data.data[p+2]=v;data.data[p+3]=255;
- }
+ const data=original.getImageData(0,0,side,side);
+ adaptiveThresholdInPlace(data);
  adaptive.putImageData(data,0,0);
 }
 
@@ -236,11 +232,8 @@ function renderThreshold(frame:ImageData){
  thresholdPreview.width=w;thresholdPreview.height=h;
  const source=document.createElement('canvas');source.width=frame.width;source.height=frame.height;source.getContext('2d')!.putImageData(frame,0,0);
  thresholdContext.drawImage(source,0,0,w,h);
- const output=thresholdContext.getImageData(0,0,w,h),hist=new Uint32Array(256),gray=new Uint8Array(w*h);
- for(let i=0;i<gray.length;i++){const j=i*4;const v=Math.round(.299*output.data[j]+.587*output.data[j+1]+.114*output.data[j+2]);gray[i]=v;hist[v]++;}
- let sum=0;for(let i=0;i<256;i++)sum+=i*hist[i];let back=0,weightedBack=0,best=-1,threshold=127;
- for(let i=0;i<256;i++){back+=hist[i];if(!back)continue;const front=gray.length-back;if(!front)break;weightedBack+=i*hist[i];const delta=weightedBack/back-(sum-weightedBack)/front;const variance=back*front*delta*delta;if(variance>best){best=variance;threshold=i;}}
- for(let i=0;i<gray.length;i++){const v=gray[i]>threshold?255:0;const j=i*4;output.data[j]=v;output.data[j+1]=v;output.data[j+2]=v;output.data[j+3]=255;}
+ const output=thresholdContext.getImageData(0,0,w,h);
+ otsuThresholdInPlace(output);
  thresholdContext.putImageData(output,0,0);
 }
 
@@ -745,42 +738,12 @@ document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('clic
 scene.add(new THREE.HemisphereLight(0xffffff,0x63788a,2));
 const grid=new THREE.GridHelper(5,10,0x527d85,0x304852);scene.add(grid);
 const previewInstrumentModels=new Map<'left'|'right',Instrument>();
-function instrument(id:'left'|'right',color:number){
- const model=new Instrument(id,color);
- previewInstrumentModels.set(id,model);
- if(id==='right')model.setDriverStyle('castro');
- const group=new THREE.Group();
- // Instrument.reset() positions/rotates the model for the main game.
- // In tracking, the parent group's origin is the measured prism center/tip.
- model.root.position.set(0,0,0);
- // Shared mounting transform keeps the neutral handle up and tip down.
- model.root.quaternion.copy(trackedInstrumentRotation());
- model.root.scale.setScalar(.72);
- group.add(model.root);
- group.position.y=.25;
- scene.add(group);
- return group;
-}
-const driver=instrument('right',0xe3b47e),forceps=instrument('left',0x68d1bb);
+const driverModel=createTrackedInstrument(scene,'right',0xe3b47e),forcepsModel=createTrackedInstrument(scene,'left',0x68d1bb);
+previewInstrumentModels.set('right',driverModel.model);previewInstrumentModels.set('left',forcepsModel.model);
+const driver=driverModel.group,forceps=forcepsModel.group;
 
-// Scissors: two crossing blades and finger rings, sharing the same tracked rigid pose.
-function scissorsModel(){
- const group=new THREE.Group(),steel=new THREE.MeshStandardMaterial({color:0xc5d1d5,metalness:.85,roughness:.27});
- const rod=(a:THREE.Vector3,b:THREE.Vector3,r:number)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,a.distanceTo(b),12),steel);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());group.add(m);};
- for(const side of [-1,1]){rod(new THREE.Vector3(side*.11,0,1.4),new THREE.Vector3(side*.015,0,.7),.043);const blade=new THREE.Mesh(new THREE.BoxGeometry(.075,.035,.85),steel);blade.position.set(side*.055,0,.3);blade.rotation.y=side*.14;group.add(blade);const ring=new THREE.Mesh(new THREE.TorusGeometry(.18,.045,10,32),steel);ring.rotation.x=Math.PI/2;ring.position.set(side*.25,0,1.67);group.add(ring);}
- const pivot=new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),steel);pivot.position.z=.72;group.add(pivot);group.scale.setScalar(.8);// Scissors are also modeled along +Z; use the same shaft alignment.
- group.quaternion.copy(trackedInstrumentRotation());
- const tracked=new THREE.Group();tracked.add(group);tracked.position.y=.25;scene.add(tracked);return tracked;
-}
-const scissors=scissorsModel();
-function previewScissorOpening(value:number){
- const model=scissors.children[0] as THREE.Group;
- // The preview's blade and ring meshes are siblings; rotate each blade pair around its pivot.
- for(const side of [-1,1]){
-  const blade=model.children[side===-1?1:4] as THREE.Mesh;
-  if(blade instanceof THREE.Mesh)blade.rotation.y=side*(.03+value*.3);
- }
-}
+const scissors=createTrackedScissors(scene);
+const previewScissorOpening=(value:number)=>setScissorsOpening(scissors,value);
 driver.position.z=-.85;forceps.position.z=.15;scissors.position.z=1.05;
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>keys.clear());
