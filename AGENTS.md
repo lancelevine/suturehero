@@ -87,9 +87,12 @@ area they cover; they are not run by CI.
   (`scripts/synthetic-camera.mjs`) rehearse the OV9281s: 1280×800,
   monochrome, 120 fps, camera type set to match. Single-camera checks pass
   with it (2026-11-08). Two-camera checks rescale their calibration to the
-  preset (`presetCalibration`); with it `check-stereo-motion` passes,
-  `check-stereo-rig-faces` exceeds its 3 px fit limit (upscaled 2D scene) and
-  `check-handle-jaws-stereo` reads 0.61–0.74 at the −15,205,0 pose (see handoff).
+  preset (`presetCalibration`; `check-handle-jaws-stereo` renders natively at
+  the preset size); with it `check-stereo-motion` passes and
+  `check-stereo-rig-faces` exceeds its 3 px fit limit (upscaled 2D scene).
+  In this sandbox (software rendering) two 1280×800 synthetic cameras deliver
+  frames 150–240 ms apart, so stereo pairing (limit 120 ms) drops out and
+  `check-handle-jaws-stereo` fails there; a sandbox limit, not a tracking bug.
 - Flaky: `check-depth-stability` (marker-size depth drifts under ±1% size
   wobble, 2026-11-08 handoff), `check-handle-jaws` (single-camera prism: mirror
   flips at single-face poses, usually −15,60,0 or −15,300,0) (see handoff log).

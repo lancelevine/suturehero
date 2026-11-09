@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium} from 'playwright-core';
-import {cameraPreset, presetCalibration} from './synthetic-camera.mjs';
+import {cameraPreset} from './synthetic-camera.mjs';
 
 const base = process.env.SUTURE_TEST_URL ?? 'http://127.0.0.1:5173/';
 /** Allowed error in the reported opening (fraction of closed→open). */
@@ -44,7 +44,8 @@ async function installCamera(page) {
       const image = new Image();
       image.src = '/scripts/fixtures/aruco-4x4-50.png';
       await image.decode();
-      const W = 960, H = 540, k = defaultIntrinsics(W, H);
+      // SUTURE_CAMERA_PRESET renders natively at the preset size (same 70° lens model), monochrome.
+      const W = preset?.width ?? 960, H = preset?.height ?? 540, k = defaultIntrinsics(W, H);
       const canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
@@ -111,20 +112,8 @@ async function installCamera(page) {
         requestAnimationFrame(draw);
       };
       draw();
-      // SUTURE_CAMERA_PRESET: deliver the 960×540 scene at the preset size (scaled to the
-      // frame height and centred, monochrome), as scripts/synthetic-camera.mjs does.
-      let output = canvas;
-      if (preset) {
-        output = document.createElement('canvas');
-        output.width = preset.width;
-        output.height = preset.height;
-        const o = output.getContext('2d');
-        const scale = preset.height / H, offset = (preset.width - W * scale) / 2;
-        if (preset.monochrome) o.filter = 'grayscale(1)';
-        const copy = () => { o.drawImage(canvas, offset, 0, W * scale, H * scale); requestAnimationFrame(copy); };
-        copy();
-      }
-      const stream = output.captureStream(preset?.frameRate ?? 30);
+      if (preset?.monochrome) c.filter = 'grayscale(1)';
+      const stream = canvas.captureStream(preset?.frameRate ?? 30);
       const track = stream.getVideoTracks()[0], settings = track.getSettings.bind(track);
       track.getSettings = () => ({...settings(), deviceId: secondary ? 'ring2' : 'ring'});
       return stream;
@@ -153,11 +142,12 @@ try {
   await page.locator('#camera-select-2').selectOption('ring2', {force: true});
   await page.locator('#start-camera-2').evaluate((e) => e.click());
   await page.locator('#tracking-mode').selectOption('stereo', {force: true});
-  // Same lens model the synthetic renderer uses (defaultIntrinsics at 960×540).
-  const f = 960 / (2 * Math.tan((70 * Math.PI) / 360 / 2));
-  const lens = {cameraMatrix: [[f, 0, 480], [0, f, 270], [0, 0, 1]], distortionCoefficients: [0, 0, 0, 0, 0]};
-  const calibration = {format: 'suturehero-stereo-calibration-v1', imageSize: {width: 960, height: 540}, camera1: lens, camera2: lens, stereo: {rotation: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], translationMm: [-60, 0, 0], baselineMm: 60, rmsPx: 0}};
-  await page.locator('#stereo-import').setInputFiles({name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(presetCalibration(calibration)))});
+  // Same lens model the synthetic renderer uses (defaultIntrinsics at the rendered size).
+  const W = cameraPreset()?.width ?? 960, H = cameraPreset()?.height ?? 540;
+  const f = W / (2 * Math.tan((70 * Math.PI) / 360 / 2));
+  const lens = {cameraMatrix: [[f, 0, W / 2], [0, f, H / 2], [0, 0, 1]], distortionCoefficients: [0, 0, 0, 0, 0]};
+  const calibration = {format: 'suturehero-stereo-calibration-v1', imageSize: {width: W, height: H}, camera1: lens, camera2: lens, stereo: {rotation: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], translationMm: [-60, 0, 0], baselineMm: 60, rmsPx: 0}};
+  await page.locator('#stereo-import').setInputFiles({name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(calibration))});
   await page.waitForFunction(() => document.querySelector('#stereo-geometry-status').textContent.includes('Calibration loaded'));
   await page.locator('#stereo-enable').evaluate((e) => { e.checked = true; e.dispatchEvent(new Event('change', {bubbles: true})); });
   // This synthetic prism is the 3-face model with 12 mm faces (markers fill them); the setting must match the
