@@ -1,3 +1,4 @@
+import {captureDue} from './input/captureScheduling';
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
 import {flowFrameScale,mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
@@ -499,9 +500,9 @@ async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
  scanForcepsBalls(now,1);
  const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
- const clock=frameClock(video2),fastDue=!fastProcessing2&&now-lastFastFrame2>=(clock?flowBudget2.intervalMs(flowMinIntervalMs()):33);
- const doFast=fastDue&&(!clock||clock.fresh);if(fastDue&&!doFast)perf.count('Camera 2 duplicate flow requests skipped');
- const doSlow=!processing2&&now-lastSlowFrame2>=(recovering||roiDecodeToggle.checked?65:110);
+ const clock=frameClock(video2);
+ const {doFlow:doFast,doDecode:doSlow,skippedDuplicate}=captureDue({now,lastFlowAt:lastFastFrame2,lastDecodeAt:lastSlowFrame2,flowBusy:fastProcessing2,decodeBusy:processing2,clock,flowIntervalMs:flowBudget2.intervalMs(flowMinIntervalMs()),fastDecode:recovering||roiDecodeToggle.checked});
+ if(skippedDuplicate)perf.count('Camera 2 duplicate flow requests skipped');
  if(processing2)perf.count('Camera 2 decode busy checks');
  if(!doFast&&!doSlow)return;
  perf.tick('Camera 2 capture attempts');if(video2.currentTime===lastCamera2CaptureTime)perf.count('Camera 2 duplicate captures');lastCamera2CaptureTime=video2.currentTime;
@@ -1481,12 +1482,11 @@ async function detectFrame(now:number){
  scanForcepsBalls(now);
  // "Enable jaw tracking" off: skip jaw work entirely (frees time for instrument tracking).
  if(ballEnabled.checked)perf.measure('Jaw tracking',()=>markerJaws.update(now));
- const clock=frameClock(video),fastDue=!fastProcessing&&now-lastFastFrame>=(clock?flowBudget1.intervalMs(flowMinIntervalMs()):33);
- const doFast=fastDue&&(!clock||clock.fresh);if(fastDue&&!doFast)perf.count('Camera 1 duplicate flow requests skipped');
+ const clock=frameClock(video);
  // Run decode faster when flow has no usable marker; only one decode can be in flight.
  const recovering=idleNoMarkers||now-latestFlowAt>120;
- const decodeInterval=recovering||roiDecodeToggle.checked?65:110;
- const doSlow=!processing&&now-lastSlowFrame>=decodeInterval;
+ const {doFlow:doFast,doDecode:doSlow,skippedDuplicate}=captureDue({now,lastFlowAt:lastFastFrame,lastDecodeAt:lastSlowFrame,flowBusy:fastProcessing,decodeBusy:processing,clock,flowIntervalMs:flowBudget1.intervalMs(flowMinIntervalMs()),fastDecode:recovering||roiDecodeToggle.checked});
+ if(skippedDuplicate)perf.count('Camera 1 duplicate flow requests skipped');
  if(processing)perf.count('Camera 1 decode busy checks');
  if(!doFast&&!doSlow)return;
  perf.tick('Camera 1 capture attempts');if(video.currentTime===lastCamera1CaptureTime)perf.count('Camera 1 duplicate captures');lastCamera1CaptureTime=video.currentTime;

@@ -46,3 +46,34 @@ export function setFrameDriven(setting: FrameDrivenSetting) {
     // Storage blocked: applies until reload.
   }
 }
+
+/** Without camera frame callbacks, flow runs at most this often (ms). */
+export const TIMED_FLOW_INTERVAL_MS = 33;
+/** Marker decode interval (ms): faster while recovering or with focused (ROI) decoding. */
+export const DECODE_INTERVAL_MS = { fast: 65, normal: 110 } as const;
+
+export interface CaptureDueInput {
+  now: number;
+  lastFlowAt: number;
+  lastDecodeAt: number;
+  flowBusy: boolean;
+  decodeBusy: boolean;
+  /** Frame-callback clock for this camera: whether it exists and has an unprocessed frame. */
+  clock: { fresh: boolean } | null | undefined;
+  /** Flow interval when frame callbacks are available (ms), after back-off. */
+  flowIntervalMs: number;
+  /** Decode at the fast interval (recovering, or focused decoding on). */
+  fastDecode: boolean;
+}
+
+/**
+ * Which work is due for a camera this tick. `skippedDuplicate`: flow was due
+ * but the camera has not delivered a new frame since the last one.
+ */
+export function captureDue(input: CaptureDueInput) {
+  const flowDue = !input.flowBusy && input.now - input.lastFlowAt >= (input.clock ? input.flowIntervalMs : TIMED_FLOW_INTERVAL_MS);
+  const doFlow = flowDue && (!input.clock || input.clock.fresh);
+  const decodeIntervalMs = input.fastDecode ? DECODE_INTERVAL_MS.fast : DECODE_INTERVAL_MS.normal;
+  const doDecode = !input.decodeBusy && input.now - input.lastDecodeAt >= decodeIntervalMs;
+  return { doFlow, doDecode, skippedDuplicate: flowDue && !doFlow };
+}

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { captureSettings, FLOW_MIN_INTERVAL_MS, FRAME_DRIVEN_STORAGE_KEY, frameDrivenEnabled, parseFrameDrivenSetting, setFrameDriven } from './captureScheduling';
+import { captureDue, captureSettings, FLOW_MIN_INTERVAL_MS, FRAME_DRIVEN_STORAGE_KEY, frameDrivenEnabled, parseFrameDrivenSetting, setFrameDriven } from './captureScheduling';
 
 it('is frame-driven for OV9281 cameras by default, never without requestVideoFrameCallback', () => {
   expect(frameDrivenEnabled('auto', 'ov9281', true)).toBe(true);
@@ -29,4 +29,13 @@ it('lets flow run often enough for 120 fps only when frame-driven', () => {
   const frameMs = 1000 / 120;
   expect(FLOW_MIN_INTERVAL_MS.frameDriven).toBeLessThan(frameMs);
   expect(FLOW_MIN_INTERVAL_MS.display).toBeGreaterThan(frameMs);
+});
+
+it('decides when flow and decoding are due', () => {
+  const base = { now: 1000, lastFlowAt: 990, lastDecodeAt: 900, flowBusy: false, decodeBusy: false, clock: { fresh: true }, flowIntervalMs: 4, fastDecode: false };
+  expect(captureDue(base)).toEqual({ doFlow: true, doDecode: false, skippedDuplicate: false });
+  expect(captureDue({ ...base, clock: { fresh: false } })).toMatchObject({ doFlow: false, skippedDuplicate: true });
+  expect(captureDue({ ...base, clock: null })).toMatchObject({ doFlow: false, skippedDuplicate: false }); // 33 ms without callbacks
+  expect(captureDue({ ...base, fastDecode: true })).toMatchObject({ doDecode: true });
+  expect(captureDue({ ...base, flowBusy: true, decodeBusy: true, fastDecode: true })).toMatchObject({ doFlow: false, doDecode: false });
 });
