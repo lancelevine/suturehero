@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — extract size-depth module, fix size-depth drift
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,25 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — 0.132 sub-pixel corners fix depth drift; size-depth module
+
+- `src/input/sizeDepthEstimator.ts` (+test): the single-camera size-depth
+  logic moved out of `tracking.ts` (face choice, rest hold, median window).
+  No behaviour change (separate commit).
+- Drift root cause: `refineCorners` in `src/input/arucoWorker.ts` only
+  snapped corners to the best whole pixel (Harris argmax). Integer corners
+  made a 33 px marker read 33×34 at some sizes; `tiltCorrectedSize` takes
+  the larger principal scale, so it read ~3% large. Raw side lengths from
+  decode and flow were unbiased (traced). Fix: parabola peak fit
+  (`src/input/subpixelPeak.ts` + test; inline copy in the classic worker,
+  keep in sync).
+- check-depth-stability 6/6 (removed from flaky list). Pass: ring-markers
+  (local js-aruco2), tracking-motion, driver-depth, marker-rest,
+  ring-handoffs, calibration-preview, stereo-motion, stereo-rig-faces,
+  handle-jaws-stereo, predictive-decode, marker-jaws.
+- **Lance to test:** all marker tracking (the change affects every decoded
+  corner); single-camera depth while holding still.
 
 ### 2026-11-09 — Claude — 0.131 main-screen status strip
 

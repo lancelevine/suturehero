@@ -93,8 +93,7 @@ area they cover; they are not run by CI.
   In this sandbox (software rendering) two 1280×800 synthetic cameras deliver
   frames 150–240 ms apart, so stereo pairing (limit 120 ms) drops out and
   `check-handle-jaws-stereo` fails there; a sandbox limit, not a tracking bug.
-- Flaky: `check-depth-stability` (marker-size depth drifts under ±1% size
-  wobble, 2026-11-08 handoff), `check-handle-jaws` (single-camera prism: mirror
+- Flaky: `check-handle-jaws` (single-camera prism: mirror
   flips at single-face poses, usually −15,60,0 or −15,300,0) (see handoff log).
 
 Never weaken a test threshold just to make it pass. If a limit is genuinely

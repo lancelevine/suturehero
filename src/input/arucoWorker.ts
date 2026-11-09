@@ -157,8 +157,15 @@ function decodeRegions(frame:ImageData,padding=ROI_PADDING):{markers:MarkerObser
 }
 
 // Refine decoded corners against the actual black/white boundary. A small
-// Harris response search corrects pixel quantization without changing IDs or
+// Harris response search with a sub-pixel peak fit corrects pixel quantization without changing IDs or
 // allowing corners to jump to a different square.
+// Classic worker (no imports): keep in sync with quadraticPeakOffset in subpixelPeak.ts (unit-tested there).
+function quadraticPeakOffset(left:number,centre:number,right:number){
+ if(![left,centre,right].every(Number.isFinite))return 0;
+ const curvature=left-2*centre+right;
+ if(curvature>=0)return 0;
+ return Math.max(-.5,Math.min(.5,.5*(left-right)/curvature));
+}
 function refineCorners(frame:ImageData,markers:MarkerObservation[]):MarkerObservation[]{
  if(!markers.length)return markers;
  const w=frame.width,h=frame.height,data=frame.data;
@@ -187,8 +194,11 @@ function refineCorners(frame:ImageData,markers:MarkerObservation[]):MarkerObserv
   }
   // Weak or ambiguous responses should preserve the decoder's original corner.
   if(best<100000)return c;
-  const offsetX=Math.max(-2,Math.min(2,bx-c.x));
-  const offsetY=Math.max(-2,Math.min(2,by-c.y));
+  // Sub-pixel peak of the corner response around the best whole pixel (parabola fit per axis).
+  const subX=quadraticPeakOffset(score(bx-1,by),best,score(bx+1,by));
+  const subY=quadraticPeakOffset(score(bx,by-1),best,score(bx,by+1));
+  const offsetX=Math.max(-2,Math.min(2,bx+subX-c.x));
+  const offsetY=Math.max(-2,Math.min(2,by+subY-c.y));
   return {x:c.x+offsetX,y:c.y+offsetY};
  })}));
 }

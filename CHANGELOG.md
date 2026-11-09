@@ -5,6 +5,17 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.132 — sub-pixel marker corners; steadier single-camera depth
+
+The marker corner refinement only snapped corners to the nearest whole
+pixel. A 33 px marker could then read as 33×34 px; the tilt correction took
+that for a slight tilt and reported the marker ~3% larger, so single-camera
+depth drifted when the marker's apparent size changed slightly (e.g. hand
+tremor). Corners are now refined to sub-pixel precision (parabola fit of
+the corner response). The depth-stability check now passes 6/6 (was ~1/3).
+Synthetic test only; affects every decoded marker, so watch tracking
+generally on real hardware.
+
 ## Build 0.131 — status strip: setup checklist, camera-moved warning, holding reasons
 
 A strip under the header shows:
