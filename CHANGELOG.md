@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.129 — neutral pose remembered after reload
+
+"Set neutral" now saves the neutral pose in the browser
+(`suturehero.instrument-neutral.v1`), per instrument and separately for
+one-camera (marker-size depth) and two-camera (metric depth) tracking.
+After a reload the saved neutral is used instead of the first pose the
+camera sees. If the camera has moved, set neutral again.
+
 ## Build 0.128 — optical flow backs off automatically if it loads the page
 
 Each optical-flow update briefly uses the page's main thread to hand the

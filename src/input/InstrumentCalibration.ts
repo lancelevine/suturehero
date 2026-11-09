@@ -19,6 +19,16 @@ export function trackerToTipOffset(name:BallInstrumentName,profile:CalibrationPr
  return new THREE.Vector3(profile.tipOffset[0],profile.tipOffset[1]-trackerTipDistanceMm[name]/MM_PER_PRACTICE_UNIT,profile.tipOffset[2]);
 }
 const KEY='suturehero.instrument-calibration.v1';
+/** Saved neutral poses (raw tracker position + rotation), per instrument and per depth kind, so a reload keeps them. */
+export const NEUTRAL_KEY='suturehero.instrument-neutral.v1';
+type SavedNeutral={position:[number,number,number];quaternion:[number,number,number,number]};
+const neutralSlot=(metricDepth:boolean)=>metricDepth?'metric':'relative';
+function parseNeutral(value:unknown):SavedNeutral|null{
+ const v=value as Partial<SavedNeutral>|null;
+ if(!v||!Array.isArray(v.position)||v.position.length!==3||!Array.isArray(v.quaternion)||v.quaternion.length!==4)return null;
+ if(![...v.position,...v.quaternion].every(Number.isFinite))return null;
+ return {position:[...v.position] as SavedNeutral['position'],quaternion:[...v.quaternion] as SavedNeutral['quaternion']};
+}
 type StorageLike=Pick<Storage,'getItem'|'setItem'>;
 type Pose={position:THREE.Vector3;quaternion:THREE.Quaternion};
 type Session={metricDepth:boolean;neutralPosition:THREE.Vector3;output?:Pose;previewOrigin?:THREE.Vector3;origin:THREE.Vector3;anchor:THREE.Vector3;last:Pose;base:THREE.Vector3;rotation:THREE.Quaternion;unwrappedRotation:THREE.Vector3;neutralQuaternion:THREE.Quaternion;seenAt:number};
@@ -57,12 +67,34 @@ export class InstrumentCalibration {
   const tip=this.tipOffset(name);
   s.base.add(tip.clone().applyQuaternion(s.rotation).sub(tip));
   s.neutralPosition.copy(s.last.position);s.previewOrigin=s.base.clone().add(tip);
-  s.origin.copy(s.last.position);s.anchor.copy(s.base);s.neutralQuaternion.copy(s.last.quaternion);s.unwrappedRotation.set(0,0,0);s.rotation.identity();this.notify(name,'neutral');return true;
+  s.origin.copy(s.last.position);s.anchor.copy(s.base);s.neutralQuaternion.copy(s.last.quaternion);s.unwrappedRotation.set(0,0,0);s.rotation.identity();
+  this.saveNeutral(name,s.metricDepth,{position:s.last.position.toArray() as SavedNeutral['position'],quaternion:s.last.quaternion.toArray() as SavedNeutral['quaternion']});
+  this.notify(name,'neutral');return true;
+ }
+ private readNeutrals():Record<string,Record<string,unknown>>{
+  try{const raw=JSON.parse(this.storage?.getItem(NEUTRAL_KEY)??'{}');return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};}catch{return {};}
+ }
+ private saveNeutral(name:BallInstrumentName,metricDepth:boolean,neutral:SavedNeutral){
+  if(!this.storage)return;
+  const all=this.readNeutrals();
+  all[name]={...(all[name]??{}),[neutralSlot(metricDepth)]:neutral};
+  try{this.storage.setItem(NEUTRAL_KEY,JSON.stringify(all));}catch{/* Blocked storage: neutral lasts until reload. */}
+ }
+ /** The saved neutral pose for this instrument and depth kind, if any. */
+ savedNeutral(name:BallInstrumentName,metricDepth:boolean):SavedNeutral|null{
+  return parseNeutral(this.readNeutrals()[name]?.[neutralSlot(metricDepth)]);
  }
  clearSessions(){for(const n of BALL_INSTRUMENTS){this.sessions.delete(n);this.notify(n,'reset');}}
  transform(name:BallInstrumentName,position:THREE.Vector3,quaternion:THREE.Quaternion,now=performance.now(),metricDepth=false):Pose{
   const p=this.profiles.get(name)!;let s=this.sessions.get(name);
-  if(!s){s={metricDepth,neutralPosition:position.clone(),origin:position.clone(),anchor:position.clone(),last:{position:position.clone(),quaternion:quaternion.clone()},base:position.clone(),rotation:new THREE.Quaternion(),unwrappedRotation:new THREE.Vector3(),neutralQuaternion:quaternion.clone(),seenAt:now};this.sessions.set(name,s);}
+  if(!s){
+   // Start from the saved neutral (as if it were the first pose seen), else from this first pose.
+   const saved=this.savedNeutral(name,metricDepth);
+   const startPosition=saved?new THREE.Vector3(...saved.position):position.clone();
+   const startQuaternion=saved?new THREE.Quaternion(...saved.quaternion).normalize():quaternion.clone();
+   s={metricDepth,neutralPosition:startPosition.clone(),origin:startPosition.clone(),anchor:startPosition.clone(),last:{position:startPosition.clone(),quaternion:startQuaternion.clone()},base:startPosition.clone(),rotation:new THREE.Quaternion(),unwrappedRotation:new THREE.Vector3(),neutralQuaternion:startQuaternion.clone(),seenAt:now};
+   this.sessions.set(name,s);
+  }
   // Derive rotation from the neutral pose rather than integrating frame errors.
   // Select the equivalent axis-angle branch nearest the previous unwrapped
   // measurement, preserving continuous turns at fractional rotation gains.

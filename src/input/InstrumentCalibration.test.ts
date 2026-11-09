@@ -113,3 +113,20 @@ it('keeps the tracker 55 mm behind the tip toward the handle through pitch and r
   expect(output.position.clone().add(towardHandle.multiplyScalar(.55)).length()).toBeLessThan(1e-9);
  }
 });
+it('remembers the neutral pose across a reload, separately for metric and relative depth',()=>{
+ const store=new Map<string,string>();const storage={getItem:(k:string)=>store.get(k)??null,setItem:(k:string,v:string)=>{store.set(k,v);}};
+ const first=new InstrumentCalibration(storage);first.update('forceps',{depthLock:false});
+ first.transform('forceps',v(),q(),0);first.transform('forceps',v(1,2,3),q(.7),10);expect(first.captureNeutral('forceps',11)).toBe(true);
+ const expected=first.transform('forceps',v(1.5,2,3),q(.9),20);
+ // Reload: the first pose seen is not neutral; the saved one is used.
+ const reloaded=new InstrumentCalibration(storage);reloaded.update('forceps',{depthLock:false});
+ const restored=reloaded.transform('forceps',v(1.5,2,3),q(.9),0);
+ expect(restored.position.distanceTo(expected.position)).toBeLessThan(1e-9);
+ expect(restored.quaternion.angleTo(expected.quaternion)).toBeLessThan(1e-9);
+ expect(reloaded.savedNeutral('forceps',true)).toBeNull();
+ expect(reloaded.savedNeutral('needleDriver',false)).toBeNull();
+});
+it('ignores a corrupt saved neutral',()=>{
+ const storage={getItem:()=>'{"forceps":{"relative":{"position":[1,"x",3],"quaternion":[0,0,0,1]}}}',setItem:()=>{}};
+ expect(new InstrumentCalibration(storage).savedNeutral('forceps',false)).toBeNull();
+});

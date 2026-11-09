@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — remember neutral pose across reloads
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — 0.129 neutral pose survives reload
+
+- `src/input/InstrumentCalibration.ts`: `captureNeutral` saves the raw
+  neutral position + rotation under `suturehero.instrument-neutral.v1`
+  (per instrument; slots `relative` / `metric` by depth kind). A new session
+  (after reload or camera restart) starts from the saved neutral, as if it
+  were the first pose seen. Unit tests: reload round-trip, slot separation,
+  corrupt data. check-calibration-ui, check-calibration-preview,
+  check-tracking-storage, check-tracking-motion pass.
+- **Lance to test:** set neutral, reload, check the instrument sits where it
+  did. The saved neutral is in camera coordinates, so moving the camera
+  needs a new Set neutral.
 
 ### 2026-11-09 — Claude — 0.128 flow back-off; investigations
 
