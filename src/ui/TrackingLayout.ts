@@ -53,6 +53,18 @@ export function mountTrackingLayout(root:HTMLElement){
  model.append(mode,root.querySelector('#tracking-mode-info')!);
  const depth=section(setup,'Working depth');depth.append(group('working-depth-mm','section'),group('depth-sensitivity','label'));
  const stereo=section(setup,'Stereo calibration');stereo.append(group('start-stereo-all','.tracking-actions'),group('capture-stereo-pair','section'),group('stereo-import','section'));
+ // Shortcut on the main bar: start both cameras + metric 3D without opening Tracking setup.
+ // Its messages (e.g. "select a second camera") are mirrored under the camera views.
+ const stereoStart=root.querySelector<HTMLButtonElement>('#start-stereo-all'),stereoStartStatus=root.querySelector<HTMLElement>('#stereo-quick-status');
+ if(stereoStart&&stereoStartStatus){
+  const shortcut=document.createElement('button');shortcut.type='button';shortcut.id='start-stereo-shortcut';shortcut.textContent='Start 2 cameras + metric 3D';
+  shortcut.onclick=()=>stereoStart.click();
+  const shortcutStatus=document.createElement('p');shortcutStatus.id='start-stereo-shortcut-status';shortcutStatus.className='tracking-message';shortcutStatus.setAttribute('role','status');shortcutStatus.hidden=true;
+  const mirror=()=>{shortcut.disabled=stereoStart.disabled;shortcutStatus.textContent=stereoStartStatus.textContent??'';shortcutStatus.hidden=!shortcutStatus.textContent;};
+  new MutationObserver(mirror).observe(stereoStartStatus,{childList:true,characterData:true,subtree:true});
+  new MutationObserver(mirror).observe(stereoStart,{attributes:true,attributeFilter:['disabled']});
+  navigation.append(shortcut);stage.append(shortcutStatus);
+ }
  const cameraSettings=section(stage,'Camera controls · focus & exposure');cameraSettings.parentElement!.setAttribute('open','');cameraSettings.classList.add('tracking-camera-settings');
  cameraSettings.append(root.querySelector('#camera-settings-controls')!,group('camera-select-2','.tracking-actions'));
  const disable=document.querySelector('#disable-camera-tracking');if(embedded&&disable)cameraSettings.append(disable);

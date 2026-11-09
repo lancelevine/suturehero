@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.130 — "Start 2 cameras + metric 3D" on the main bar
+
+The stereo start button was only inside Tracking setup → Stereo
+calibration. A shortcut now sits on the main bar next to Diagnostics; its
+messages (for example "select a second camera") appear under the camera
+views. The original button is unchanged.
+
 ## Build 0.129 — neutral pose remembered after reload
 
 "Set neutral" now saves the neutral pose in the browser

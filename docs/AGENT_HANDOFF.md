@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — stereo start button in main header
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,15 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — 0.130 stereo start shortcut on the main bar
+
+- `src/ui/TrackingLayout.ts`: `#start-stereo-shortcut` in the header clicks
+  `#start-stereo-all`; `#stereo-quick-status` and the disabled state are
+  mirrored (MutationObserver) to `#start-stereo-shortcut-status` under the
+  camera views.
+- New `scripts/check-stereo-shortcut.mjs` passes; check-tracking-panels,
+  check-dual-camera-fit, check-camera-controls pass.
 
 ### 2026-11-09 — Claude — 0.129 neutral pose survives reload
 
