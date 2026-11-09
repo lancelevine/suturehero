@@ -25,7 +25,7 @@ import {stereoPracticePosition} from './input/stereoTrackingPose';
 import {parseWorkspace,serializeWorkspace,workspacePracticePosition,type StereoWorkspace} from './input/stereoWorkspace';
 import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
-import {mapMonocularDepth} from './input/monocularDepthMapping';
+import {cameraPlaneXY,desiredDepthZ,LOCKED_DEPTH_Z,smoothDepthZ} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
 import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
@@ -822,17 +822,16 @@ function updateLiveTargets(){
 
   const previousZ=depthStates.get(name);
   const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
-  const baseline=name==='needleDriver'?-.65:name==='forceps'?.15:1.05;
+  const baseline=LOCKED_DEPTH_Z[name];
   const fraction=sizeDepthCalibration.fraction(depthDistance/(focalPx/overlay.width),binding);
-  const desiredZ=fraction===null?mapMonocularDepth(depthDistance,near,range,Number(depthSensitivity.value)):(-2.3+fraction*4.6)*Number(depthSensitivity.value);
+  const desiredZ=desiredDepthZ(depthDistance,near,range,Number(depthSensitivity.value),fraction);
   let filter=monoDepthFilters.get(name);if(!filter){filter=new MonocularDepthFilter();monoDepthFilters.set(name,filter);}
   let z:number;
   if(trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth))z=filter.update(desiredZ,now,lockedDepth,baseline,depthInputValid);
-  else {const delta=previousZ===undefined?0:desiredZ-previousZ;z=previousZ===undefined?desiredZ:previousZ+delta*(Math.abs(delta)>.12?.65:.25);}
+  else z=smoothDepthZ(previousZ,desiredZ);
   depthStates.set(name,z);filterMeasurements.set(name,{rawZ:depthDistance,filteredZ:z,angle:filterMeasurements.get(name)?.angle??0,locked:lockedDepth,source:depthSource,valid:depthInputValid});
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
-  const x=THREE.MathUtils.clamp(-((markerCenter.x-overlay.width/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*7,-2.6,2.6);
-  const y=THREE.MathUtils.clamp(-((markerCenter.y-overlay.height/2)*measuredDistance/focalPx)/Math.max(near+range*.5,1)*4+.55,.15,2.8);
+  const {x,y}=cameraPlaneXY(markerCenter,overlay.width,overlay.height,measuredDistance,focalPx,near,range);
   // Match simulator world axes: camera horizontal -> scene X, camera vertical
   // -> scene Y, and camera depth -> scene Z. Do not swap horizontal and depth:
   // doing so makes a left/right physical movement appear forward/back.
