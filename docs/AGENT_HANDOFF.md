@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — depth drift, flow back-off, 1280×800 stereo test, mono prism flips, tracking.ts split
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,31 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — 0.128 flow back-off; investigations
+
+- **0.128:** `src/input/flowBudget.ts` (+test): per-camera optical-flow
+  back-off. Measures the main-thread cost of each flow request and spaces
+  requests to use ≤ 15% of the main thread, never below ~30 Hz. Profile
+  exports gain `flowBackoff` and the correct `build` (was stuck at 0.124;
+  AGENTS.md now says to bump it). check-profiler, check-tracking-motion
+  (also at ov9281 preset), check-stereo-motion pass.
+- `markerReadoutText` moved from `tracking.ts` to `src/input/markerReadout.ts`
+  (+test). No behaviour change.
+- `check-handle-jaws-stereo` renders natively at the preset size. At 1280×800
+  in this sandbox, frames arrive 150–240 ms apart (software rendering), over
+  the 120 ms stereo pairing limit, so stereo drops out: sandbox limit.
+- Depth drift (`check-depth-stability`), not fixed. Findings: at exactly
+  scale 1.0 the synthetic marker is drawn pixel-aligned and reads ~3% smaller
+  than at any resampled scale; during the wobble the instrument is not
+  "stationary", so the rest-freeze is not involved; raw size readings are
+  biased by sub-pixel corner noise. Tried median-at-rest variants and a
+  1.0005 rest scale: no improvement; reverted.
+- Single-camera prism flips, not fixed. Tried rejecting readings that are not
+  a pure hinge turn (`offHingeAngle`): the bad readings are on-hinge, ±10°
+  rotation error of one 12 mm face from one camera, against a 20° full
+  range. A physical limit; stereo is the answer. Reverted.
+- **Lance to test:** OV9281 profile → check `flowBackoff` in the export.
 
 ### 2026-11-08 — Claude — 0.127 header fix; check fixes; depth drift traced
 
