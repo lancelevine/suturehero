@@ -5,6 +5,18 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.131 — status strip: setup checklist, camera-moved warning, holding reasons
+
+A strip under the header shows:
+- a setup checklist (camera(s), stereo calibration in stereo mode, neutral,
+  jaws when jaw tracking is on). Green = ready, amber = needs attention;
+  hover for what is missing, click to open the step that fixes it;
+- an orange warning when the stereo fit stays above 3 px for most of 4 s
+  (usually a camera moved since calibration);
+- short reasons when an instrument is holding instead of updating (markers
+  not visible, depth held, one camera only, cameras out of step).
+Synthetic tests only; not yet tried with real cameras.
+
 ## Build 0.130 — "Start 2 cameras + metric 3D" on the main bar
 
 The stereo start button was only inside Tracking setup → Stereo

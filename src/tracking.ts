@@ -1,3 +1,5 @@
+import {mountStatusStrip} from './ui/StatusStrip';
+import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
 import {FlowBudget} from './input/flowBudget';
 import {ReplayWorkQueue} from './trackingLab/ReplayWorkQueue';
@@ -321,6 +323,9 @@ const STEREO_CONTINUITY_MS=500;
 // Fit all known face corners jointly in the calibrated camera frames.
 /** Why stereo was not used for each instrument on the latest frame (diagnostics only). */
 const stereoRejections=new Map<InstrumentName,string>();
+/** Why the latest stereo frame pairing failed (null when paired), for the status strip. */
+let latestPairingFailure:string|null=null;
+const cameraMovedMonitor=new CameraMovedMonitor();
 function noteStereoRejection(name:InstrumentName,reason:string){
  if(stereoRejections.get(name)!==reason)perf.count('Stereo not used: '+reason.replace(/·.*$/,'').replace(/-?\d+(\.\d+)?/g,'#').trim());
  stereoRejections.set(name,reason);
@@ -1883,6 +1888,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    else{
     const synchronized=stereoFrames.pair(now),notes:string[]=[];
     if(!synchronized)notes.push('No time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));
+    latestPairingFailure=synchronized?null:stereoFrames.lastFailure??'unknown';
     for(const name of ['needleDriver','forceps','scissors'] as const){
      const rigid=stereoPrismRotation(name,now);
      if(!rigid&&synchronized){
@@ -1891,8 +1897,10 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
       const seen=[...synchronized.first,...synchronized.second].some(m=>ids.includes(m.id));
       const reason=stereoRejections.get(name);
       if(seen&&reason)notes.push(name+' · stereo not used: '+reason);
+      const rejectedFit=seen&&reason?fitErrorFromReason(reason):null;if(rejectedFit!==null)cameraMovedMonitor.feed(now,rejectedFit);
      }
      if(!rigid||!synchronized)continue;
+     cameraMovedMonitor.feed(now,rigid.errorPx);
      notes.push(name+' · Camera 1 IDs '+rigid.firstIds.join(',')+' / Camera 2 IDs '+rigid.secondIds.join(',')+' · joint error '+rigid.errorPx.toFixed(2)+' px');
      const previous=stereoPositions.get(name),sampleAt=synchronized.at;
      if(previous?.lastSample===sampleAt)continue;
@@ -1927,10 +1935,50 @@ const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
 observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());});
 observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());});
-const performanceContext=()=>({build:'0.130',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.131',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);
+// Main-screen status strip: setup checklist, camera-moved warning, holding reasons (src/ui/trackingHealth.ts).
+{
+ const workspaceStage=document.querySelector('.workspace-stage');
+ const stripParent=(workspaceStage?.parentElement??document.querySelector<HTMLElement>('#tracking-app'))!;
+ const openCalibration=(pane:'pose'|'jaws')=>{
+  const toggle=document.querySelector<HTMLButtonElement>('#workspace-calibrate-toggle');
+  if(toggle&&toggle.getAttribute('aria-expanded')!=='true')toggle.click();
+  document.querySelector<HTMLButtonElement>(`[data-calibration-pane="${pane}"]`)?.click();
+ };
+ const strip=mountStatusStrip(stripParent,workspaceStage??stripParent.firstElementChild,{
+  cameras:()=>(trackingMode.value==='stereo'?document.querySelector<HTMLButtonElement>('#start-stereo-all'):document.querySelector<HTMLButtonElement>('#start-camera'))?.click(),
+  stereo:()=>document.querySelector<HTMLButtonElement>('#tracking-setup-panel-toggle')?.click(),
+  neutral:()=>openCalibration('pose'),
+  jaws:()=>openCalibration('jaws'),
+ });
+ const labels={needleDriver:'Needle driver',forceps:'Forceps',scissors:'Scissors'} as const;
+ const STATUS_STRIP_INTERVAL_MS=500;
+ setInterval(()=>{
+  const now=performance.now(),stereoMode=trackingMode.value==='stereo';
+  const camera1Running=!!stream&&video.videoWidth>0,camera2Running=!!stream2&&video2.videoWidth>0;
+  const stereoCalibrationProblem=!stereoCalibration?'No stereo calibration loaded':calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)||null;
+  const metric=stereoMode&&!!stereoCalibration;
+  const health:HealthInput={
+   stereoMode,camera1Running,camera2Running,stereoCalibrationProblem,
+   pairingFailure:stereoMode?latestPairingFailure:null,
+   instruments:(['needleDriver','forceps','scissors'] as const).map(name=>{
+    const target=liveTargets.get(name);
+    return {
+     label:labels[name],
+     lastSeenAgoMs:target&&camera1Running?Math.max(0,now-target.lastSeen):null,
+     neutralSaved:!!instrumentCalibration.savedNeutral(name,metric),
+     jawsCalibrated:ballEnabled.checked?markerJaws.calibrated(name):null,
+     depthHeld:!stereoMode&&/depth held/.test(filterMeasurements.get(name)?.source??''),
+     stereoRejection:stereoMode?stereoRejections.get(name)??null:null,
+    };
+   }),
+  };
+  strip.update({checklist:setupChecklist(health),warning:stereoMode&&camera1Running&&camera2Running?cameraMovedMonitor.check(now):null,holding:camera1Running?holdingReasons(health):[]});
+ },STATUS_STRIP_INTERVAL_MS);
+}
 
 /** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
 export const trackingLabBridge = {

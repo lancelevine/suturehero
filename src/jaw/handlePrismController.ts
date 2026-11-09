@@ -508,6 +508,8 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   describe();
   return {
     panel,
+    /** Whether this instrument's handle prism has a closed/open calibration (one or two cameras). */
+    calibrated: (name: TrackedInstrument) => models.has(name) || stereoModels.has(name),
     /** Latest handle-prism body pose seen by Camera 1 or 2 (within maxAgeMs), for drawing. */
     handlePose(name: TrackedInstrument, camera: 1 | 2, now: number, maxAgeMs = 250): PrismPose | null {
       const entry = handlePoses.get(`${name}:${camera}`);

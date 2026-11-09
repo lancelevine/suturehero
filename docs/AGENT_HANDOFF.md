@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — camera-moved warning, setup checklist, holding reason on main screen
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,24 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — 0.131 main-screen status strip
+
+- New `src/ui/trackingHealth.ts` (+test): `setupChecklist`,
+  `holdingReasons`, `CameraMovedMonitor` (stereo fit > 3 px for ≥ 75% of
+  ≥ 12 fits in 4 s → warning; clears below 40%), `fitErrorFromReason`.
+- New `src/ui/StatusStrip.ts` + `statusStrip.css`: renders it above the
+  practice view (or top of tracking.html). Items open: start camera(s),
+  Tracking setup, Calibrate → Pose / Jaws.
+- `src/tracking.ts`: feeds fits (accepted `rigid.errorPx`, rejected "fit
+  error X px") and `latestPairingFailure`; updates the strip every 500 ms.
+  Jaw controllers gain `calibrated(name)`.
+- New `scripts/check-status-strip.mjs` passes; check-tracking-panels,
+  check-dual-camera-fit, check-stereo-shortcut, check-calibration-ui,
+  check-tracking-motion, check-stereo-motion, check-handle-jaws-stereo pass.
+  (A stale dev server made check-stereo-motion fail until restarted.)
+- **Lance to test:** the strip with real cameras; nudge a camera after
+  stereo calibration and see whether the warning appears within ~4 s.
 
 ### 2026-11-09 — Claude — 0.130 stereo start shortcut on the main bar
 
