@@ -22,3 +22,8 @@ export function flowFrameScale(nativeWidth: number, nativeHeight: number) {
     toFlow: (markers: MarkerObservation[]): MarkerObservation[] => markers.map((m) => ({ id: m.id, corners: m.corners.map((p) => ({ x: p.x / scaleX, y: p.y / scaleY })) })),
   };
 }
+
+/** Decoded corners from a search region (offset left, top) → full-frame native pixels. */
+export function offsetMarkers(markers: MarkerObservation[], left: number, top: number): MarkerObservation[] {
+  return markers.map((m) => ({ id: m.id, corners: m.corners.map((p) => ({ x: p.x + left, y: p.y + top })) }));
+}

@@ -1,5 +1,5 @@
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
-import {flowFrameScale} from './input/flowScale';
+import {flowFrameScale,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
@@ -575,7 +575,7 @@ async function detectSecondFrame(now:number){
   void decodeRequest2.then(nativeFound=>{
    if(currentSession!==session2)return;
    perf.sample('Camera 2 decode frame age',performance.now()-secondaryCaptureAt);decodedFrames2++;
-   const nativeMarkers=nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))}));secondarySearch.result(nativeMarkers);perf.sample('Camera 2 '+region.kind+' decode worker',detector2.diagnostics.durationMs);
+   const nativeMarkers=offsetMarkers(nativeFound,left,top);secondarySearch.result(nativeMarkers);perf.sample('Camera 2 '+region.kind+' decode worker',detector2.diagnostics.durationMs);
    const found=toFlow(nativeMarkers),stamp=performance.now();
    if(found.length&&stamp-secondaryCaptureAt<180)stereoFrames.push(1,secondaryPairAt,found);
    if(found.length){
@@ -1565,7 +1565,7 @@ async function detectFrame(now:number){
      return detector.detect(frame,{x:left,y:top});
     })();
   void decodeRequest.then(nativeFound=>{
-   const nativeMarkers=nativeFound.map(m=>({id:m.id,corners:m.corners.map(p=>({x:p.x+left,y:p.y+top}))}));
+   const nativeMarkers=offsetMarkers(nativeFound,left,top);
    const found=toFlow(nativeMarkers);
    if(session!==cameraSession)return;primarySearch.result(nativeMarkers);perf.sample('Camera 1 '+region.kind+' decode worker',detector.diagnostics.durationMs);
    if(cornerDebug.checked)for(const marker of found)rawDecodedCorners.set(marker.id,{marker,capturedAt,receivedAt:performance.now()});

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { flowFrameScale } from './flowScale';
+import { flowFrameScale, offsetMarkers } from './flowScale';
 
 it('shrinks wide frames to 960 px and converts corners both ways', () => {
   const s = flowFrameScale(1920, 1080);
@@ -12,4 +12,8 @@ it('shrinks wide frames to 960 px and converts corners both ways', () => {
 it('keeps frames up to 960 px wide and handles the OV9281 size', () => {
   expect(flowFrameScale(640, 480)).toMatchObject({ width: 640, height: 480 });
   expect(flowFrameScale(1280, 800)).toMatchObject({ width: 960, height: 600 });
+});
+
+it('moves region corners to full-frame coordinates', () => {
+  expect(offsetMarkers([{ id: 2, corners: [{ x: 1, y: 2 }] }], 100, 50)).toEqual([{ id: 2, corners: [{ x: 101, y: 52 }] }]);
 });
