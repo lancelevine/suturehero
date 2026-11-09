@@ -1,5 +1,5 @@
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
-import {flowFrameScale,offsetMarkers} from './input/flowScale';
+import {flowFrameScale,mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
@@ -581,8 +581,8 @@ async function detectSecondFrame(now:number){
    if(found.length){
     for(const marker of found)decoded2.set(marker.id,stamp);
     fastTracker2.seed(found,flowSeedFrame);
-    const merged=liveSecondMarkers();
-    for(const marker of found)if(!merged.some(m=>m.id===marker.id)){merged.push(marker);confirmed2.set(marker.id,stamp);}
+    const {merged,added}=mergeNewMarkers(liveSecondMarkers(),found);
+    for(const marker of added)confirmed2.set(marker.id,stamp);
     secondaryObservations=merged;secondaryObservationsAt=stamp;
    }
    render();

@@ -27,3 +27,15 @@ export function flowFrameScale(nativeWidth: number, nativeHeight: number) {
 export function offsetMarkers(markers: MarkerObservation[], left: number, top: number): MarkerObservation[] {
   return markers.map((m) => ({ id: m.id, corners: m.corners.map((p) => ({ x: p.x + left, y: p.y + top })) }));
 }
+
+/** Tracked markers plus any newly decoded IDs not already tracked; `added` lists the new ones. */
+export function mergeNewMarkers(tracked: MarkerObservation[], decoded: readonly MarkerObservation[]) {
+  const merged = [...tracked];
+  const added: MarkerObservation[] = [];
+  for (const marker of decoded) {
+    if (merged.some((m) => m.id === marker.id)) continue;
+    merged.push(marker);
+    added.push(marker);
+  }
+  return { merged, added };
+}
