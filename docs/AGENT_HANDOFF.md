@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — updateLiveTargets split (rest hold, depth filter)
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,25 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — tracking.ts split continued (timed session)
+
+- Moved out with unit tests, no behaviour change (one commit each):
+  `chooseFace`, `rotationFaceMarkers`, `combineRotation`, `restRigidBody`,
+  `faceCandidates` (rotationTracking.ts); `depthRange`, `filteredDepthZ`
+  (monocularDepthMapping.ts); `flowFrameScale`, `offsetMarkers`,
+  `mergeNewMarkers` (new flowScale.ts; the first two were duplicated per
+  camera); `captureDue` (captureScheduling.ts; duplicated per camera);
+  `drawDetectedMarker`, `cameraStatusText` (new src/ui/markerOverlay.ts).
+  In tracking.ts: `recentlyDecodedMarkers` and `ringPoseTracker` helpers.
+- Sizes: updateLiveTargets 252 → 138 lines, detectSecondFrame 113 → 95,
+  tracking.ts 2069 → 1898.
+- Checks after each step (all pass): tracking-motion (also ov9281),
+  driver-depth, marker-rest, ring-handoffs, ring-markers, calibration-preview,
+  predictive-decode, stereo-motion, stereo-rig-faces, handle-jaws-stereo,
+  dual-camera-fit, stereo-shortcut, profiler.
+- Next: Camera 1's `detectFrame` mirrors detectSecondFrame; the flow and
+  decode result handlers could share one per-camera module.
 
 ### 2026-11-09 — Claude — per-instrument distance state grouped; dead maps removed
 
