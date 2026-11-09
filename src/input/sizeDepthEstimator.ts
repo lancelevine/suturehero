@@ -74,3 +74,24 @@ export class SizeDepthEstimator {
     return this.recorded;
   }
 }
+
+/** Frames newer than this (ms) count towards a Near/Far capture. */
+export const CAPTURE_WINDOW_MS = 500;
+/** A capture needs at least this many recent frames. */
+export const CAPTURE_MIN_FRAMES = 4;
+/** Recent frames may differ by at most this fraction of the median (else "hold steady"). */
+export const CAPTURE_MAX_SPREAD = 0.12;
+
+/**
+ * The frame to record for a Near/Far depth capture: the median of the recent
+ * frames from this binding, or why there is none ('too-few' frames, or
+ * 'unsteady' when they spread more than CAPTURE_MAX_SPREAD).
+ */
+export function steadyCaptureFrame(frames: readonly SizeDepthFrame[], now: number, binding: string): SizeDepthFrame | 'too-few' | 'unsteady' {
+  const recent = frames.filter((f) => now - f.at < CAPTURE_WINDOW_MS && f.binding === binding);
+  if (recent.length < CAPTURE_MIN_FRAMES) return 'too-few';
+  const sorted = [...recent].sort((a, b) => a.proxy - b.proxy);
+  const middle = sorted[Math.floor(sorted.length / 2)];
+  if ((sorted.at(-1)!.proxy - sorted[0].proxy) / middle.proxy > CAPTURE_MAX_SPREAD) return 'unsteady';
+  return middle;
+}

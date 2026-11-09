@@ -1,6 +1,6 @@
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
-import {SizeDepthEstimator} from './input/sizeDepthEstimator';
+import {SizeDepthEstimator,steadyCaptureFrame} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
@@ -689,11 +689,10 @@ function depthRangeLabel(){
 function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();depthHistory.clear();depthHistoryStamps.clear();}
 function captureSizeDepth(){
  const name=(document.querySelector<HTMLElement>('[data-calibration-tool][aria-pressed="true"]')?.dataset.calibrationTool??'needleDriver') as InstrumentName;
- const frames=sizeDepthEstimator(name).frames().filter(s=>performance.now()-s.at<500&&s.binding===depthBinding());
- if(trackingMode.value!=='mono'||!filterMeasurements.get(name)?.valid||frames.length<4){depthRangeStatus.textContent=`Show a face-on ${name} marker in camera 1 and hold still before capturing.`;return null;}
- const sorted=[...frames].sort((a,b)=>a.proxy-b.proxy),middle=sorted[Math.floor(sorted.length/2)];
- if((sorted.at(-1)!.proxy-sorted[0].proxy)/middle.proxy>.12){depthRangeStatus.textContent='Hold the instrument steady at this distance, then retry.';return null;}
- return middle;
+ const frame=steadyCaptureFrame(sizeDepthEstimator(name).frames(),performance.now(),depthBinding());
+ if(trackingMode.value!=='mono'||!filterMeasurements.get(name)?.valid||frame==='too-few'){depthRangeStatus.textContent=`Show a face-on ${name} marker in camera 1 and hold still before capturing.`;return null;}
+ if(frame==='unsteady'){depthRangeStatus.textContent='Hold the instrument steady at this distance, then retry.';return null;}
+ return frame;
 }
 workingDepthInput.addEventListener('change',()=>{sizeDepthCalibration.far=null;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
 document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const sample=captureSizeDepth();if(!sample)return;sizeDepthCalibration.setNear(sample);depthNearMm=sample.distanceMm;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});

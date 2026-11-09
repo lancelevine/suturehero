@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — camera label blur, tracking.ts extraction
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,22 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — 0.134 camera labels; more out of tracking.ts
+
+- 0.134: camera view labels (`.tracking-video:after` in workspace.css) on a
+  solid background; the blurred-shadow text looked like a glitch.
+- Moved out of `src/tracking.ts`, no behaviour change (2069 → ~2030 lines):
+  `src/ui/frameDiagnostics.ts` (adaptive/Otsu preview filters; tests prove
+  identical output to the old inline code), `src/scene/
+  trackingInstrumentModels.ts` (virtual-view instruments + scissors
+  opening), `steadyCaptureFrame` in `src/input/sizeDepthEstimator.ts`
+  (Near/Far capture choice). All with unit tests.
+- Pass: tracking-panels, tracking-motion, marker-jaws, calibration-preview,
+  driver-depth, depth-stability, dual-camera-fit; previews probed (binary).
+- Next candidates: the big `updateLiveTargets` (≈260 lines) and
+  `detectSecondFrame` (≈110) need their shared state grouped into objects
+  first; worth doing in small steps.
 
 ### 2026-11-09 — Claude — 0.133 layout tidy-up
 

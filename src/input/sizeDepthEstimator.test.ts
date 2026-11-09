@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SizeDepthEstimator, type SizeDepthCandidate, type SizeDepthUpdate } from './sizeDepthEstimator';
+import { SizeDepthEstimator, steadyCaptureFrame, type SizeDepthCandidate, type SizeDepthUpdate } from './sizeDepthEstimator';
 
 const face = (id: number, proxy: number, cosine = 1): SizeDepthCandidate => ({ id, proxy, cosine, normalizedSide: 1 / proxy });
 const step = (estimator: SizeDepthEstimator, candidates: SizeDepthCandidate[], now: number, change: Partial<SizeDepthUpdate> = {}) =>
@@ -41,5 +41,17 @@ describe('size depth estimator', () => {
     expect(estimator.frames()).toHaveLength(1);
     expect(step(estimator, [face(1, -1)], 2030)).toBeNull();
     expect(step(estimator, [], 2060)).toBeNull();
+  });
+});
+
+describe('Near/Far capture frame', () => {
+  const frame = (proxy: number, at: number, binding = 'cam') => ({ proxy, at, binding, normalizedSide: 1, instrument: 'forceps', distanceMm: proxy * 2 });
+  it('returns the median of recent steady frames from the same binding', () => {
+    const frames = [frame(100, 900), frame(102, 950), frame(101, 960), frame(103, 980), frame(500, 990, 'other'), frame(300, 100)];
+    expect(steadyCaptureFrame(frames, 1000, 'cam')).toMatchObject({ proxy: 102 });
+  });
+  it('explains too few or unsteady frames', () => {
+    expect(steadyCaptureFrame([frame(100, 990)], 1000, 'cam')).toBe('too-few');
+    expect(steadyCaptureFrame([frame(100, 960), frame(100, 970), frame(130, 980), frame(100, 990)], 1000, 'cam')).toBe('unsteady');
   });
 });
