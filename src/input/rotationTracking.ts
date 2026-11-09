@@ -182,3 +182,32 @@ export function restRigidBody(state: RigidBodyState, now: number) {
   state.angularVelocity.set(0, 0, 0);
   state.stallSince = null;
 }
+
+/** A stereo ring rotation: fit error and number of faces used. */
+export interface StereoRingRotation {
+  quaternion: THREE.Quaternion;
+  errorPx: number;
+  faces: number;
+}
+
+/**
+ * The rotation reading for this frame: the stereo one when available (it
+ * counts as at least two faces and keeps the one-camera translation), else
+ * the one-camera solve.
+ */
+export function combineRotation(mono: PrismPose | null | undefined, stereo: StereoRingRotation | null | undefined): { rigid: PrismPose | null; source: 'stereo' | 'mono' } {
+  if (stereo) {
+    const rigid = { quaternion: stereo.quaternion, translation: mono?.translation ?? new THREE.Vector3(), error: stereo.errorPx, faces: Math.max(2, stereo.faces) } as PrismPose;
+    return { rigid, source: 'stereo' };
+  }
+  return { rigid: mono ?? null, source: 'mono' };
+}
+
+/** Ring side faces per tracker (IDs firstId … firstId+5); the angled faces come after. */
+const RING_SIDE_FACE_COUNT = 6;
+
+/** On the 8-face ring, follow the side faces when any are visible (they give the most precise pose). */
+export function rotationFaceMarkers<T extends { id: number }>(markers: readonly T[], firstId: number, ring8: boolean): readonly T[] {
+  const side = markers.filter((m) => m.id < firstId + RING_SIDE_FACE_COUNT);
+  return ring8 && side.length ? side : markers;
+}

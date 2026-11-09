@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { PrismPose } from './prismPose';
-import { acceptRotation, chooseFace, largestFaceId, predictRotation, restRigidBody, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
+import { acceptRotation, chooseFace, combineRotation, largestFaceId, rotationFaceMarkers, predictRotation, restRigidBody, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
 
 const pose = (angle: number, axis = new THREE.Vector3(0, 1, 0)): PrismPose => ({ quaternion: new THREE.Quaternion().setFromAxisAngle(axis, angle), translation: new THREE.Vector3(), error: 1, faces: 1 } as PrismPose);
 const gate = (change: Partial<RotationGateInput> = {}): RotationGateInput => ({
@@ -82,5 +82,24 @@ describe('rest', () => {
     restRigidBody(state, 40);
     expect(state).toMatchObject({ lastAt: 40, stallSince: null });
     expect(state.angularVelocity.length()).toBe(0);
+  });
+});
+
+describe('rotation source', () => {
+  it('prefers stereo, counting it as two faces and keeping the mono translation', () => {
+    const mono = { ...pose(0.1), translation: new THREE.Vector3(1, 2, 3) } as PrismPose;
+    const stereo = { quaternion: pose(0.2).quaternion, errorPx: 1.5, faces: 1 };
+    const both = combineRotation(mono, stereo);
+    expect(both.source).toBe('stereo');
+    expect(both.rigid).toMatchObject({ error: 1.5, faces: 2 });
+    expect(both.rigid!.translation.toArray()).toEqual([1, 2, 3]);
+    expect(combineRotation(mono, null)).toEqual({ rigid: mono, source: 'mono' });
+    expect(combineRotation(undefined, null)).toEqual({ rigid: null, source: 'mono' });
+  });
+  it('follows ring side faces when any are visible', () => {
+    const m = (id: number) => ({ id });
+    expect(rotationFaceMarkers([m(10), m(16)], 10, true).map((x) => x.id)).toEqual([10]);
+    expect(rotationFaceMarkers([m(16), m(17)], 10, true).map((x) => x.id)).toEqual([16, 17]);
+    expect(rotationFaceMarkers([m(10), m(16)], 10, false).map((x) => x.id)).toEqual([10, 16]);
   });
 });

@@ -1,5 +1,5 @@
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
-import {acceptRotation,chooseFace,gateElapsedSeconds,largestFaceId,restRigidBody,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
+import {acceptRotation,chooseFace,combineRotation,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
@@ -816,9 +816,7 @@ function updateLiveTargets(){
   const rotationMarkers=recentlyDecodedMarkers(ids,continuousFlowRotation?650:350);
   let state=rigidBodyStates.get(name);
   const faceTransitionEnabled=document.querySelector<HTMLInputElement>('#face-transition')!.checked&&trackingMode.value==='mono';
-  const sideRotationMarkers=rotationMarkers.filter(m=>m.id<ids[0]+6);
-  const selectedRotationMarkers=trackerType==='ring8'&&sideRotationMarkers.length?sideRotationMarkers:rotationMarkers;
-  const currentFace=largestFaceId(selectedRotationMarkers);
+  const currentFace=largestFaceId(rotationFaceMarkers(rotationMarkers,ids[0],trackerType==='ring8'));
   // Solve all simultaneously visible prism faces as one rigid object.
   // Retain the last accepted pose as a solver seed, but never discard real
   // rotation by resetting the output anchor when the visible face changes.
@@ -832,12 +830,8 @@ function updateLiveTargets(){
   // Stereo pose has a distinct camera-calibrated frame. Preserve the mono
   // solver's orientation state separately so switching modes cannot cause
   // an arbitrary camera-frame jump.
-  const stereoUsable=!!stereoRigid;
-  const rigid=stereoUsable?{
-   quaternion:stereoRigid.quaternion,translation:monoRigid?.translation??new THREE.Vector3(),
-   error:stereoRigid.errorPx,faces:Math.max(2,stereoRigid.faces)
-  } as PrismPose:monoRigid;
-  const rotationSource=stereoUsable?'stereo':'mono';
+  const {rigid,source:rotationSource}=combineRotation(monoRigid,stereoRigid);
+  const stereoUsable=rotationSource==='stereo';
   const lastSource=rotationSources.get(name);
   if(rigid&&lastSource&&lastSource!==rotationSource){
    rigidBodyStates.delete(name);
