@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — grouping per-instrument tracking state (tracking.ts)
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,23 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — per-instrument distance state grouped; dead maps removed
+
+- Removed five dead maps from `src/tracking.ts` (only ever cleared):
+  rotationStates, rotationFaceStates, rotationGeometryStates,
+  rotationFilterStates, poseHistory.
+- New `src/input/trackerDistance.ts` (+test): `DistanceTracks` (per
+  instrument: DistanceHistory, SizeDepthEstimator, last depth; resets match
+  the old maps: pose reset → histories + size estimators, depth-filter reset
+  → histories only, last depth never cleared) and `measureTrackerDistance`
+  (pose vs size distance, one-camera size depth / hold). Replaces
+  distanceHistories, sizeDepthEstimators, depthSamples.
+- No behaviour change. Pass: tracking-motion, driver-depth, marker-rest,
+  calibration-preview, ring-handoffs, stereo-motion, status-strip;
+  depth-stability 2/5 (same as before).
+- `updateLiveTargets`: 252 → 154 lines. Remaining: face choice + rest latch,
+  rest hold (DOM status), stereo/mono rotation source switch, depth filter.
 
 ### 2026-11-09 — Claude — updateLiveTargets split, steps 3–4
 

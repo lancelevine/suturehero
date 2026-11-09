@@ -1,8 +1,8 @@
+import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,gateElapsedSeconds,largestFaceId,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
-import {DistanceHistory} from './input/distanceHistory';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
-import {SizeDepthEstimator,sizeDepthCandidate,steadyCaptureFrame} from './input/sizeDepthEstimator';
+import {steadyCaptureFrame} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
@@ -44,7 +44,7 @@ import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {mountPerformancePanel} from './ui/PerformancePanel';
 import {loadJawTracking,saveJawTracking,type SavedJawTracking} from './input/jawTrackingStorage';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
-import {tiltCorrectedSize,SizeDepthCalibration,type SizeDepthAnchor} from './input/tiltSizeDepth';
+import {SizeDepthCalibration} from './input/tiltSizeDepth';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
 import {JawCalibration,type JawDistance,type JawEndpoint} from './input/JawCalibration';
 import {TrackedPoseFilter} from './input/TrackedPoseFilter';
@@ -286,11 +286,11 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();sizeDepthEstimators.clear();primarySearch.reset();secondarySearch.reset();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();distanceTracks.resetSizeEstimators();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  liveTargets.clear();stereoPositions.clear();stereoPoseFilters.clear();
  
- distanceHistories.clear();
+ distanceTracks.resetHistories();
 }
 trackerTypeSelect.addEventListener('change',()=>{
  trackerType=parseTrackerType(trackerTypeSelect.value);
@@ -652,9 +652,6 @@ const rigidBodyStates=new Map<InstrumentName,RigidBodyState>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
 const sizeDepthCalibration=new SizeDepthCalibration();
-/** Single-camera depth from marker size, per instrument (src/input/sizeDepthEstimator.ts). */
-const sizeDepthEstimators=new Map<InstrumentName,SizeDepthEstimator>();
-const sizeDepthEstimator=(name:InstrumentName)=>{let e=sizeDepthEstimators.get(name);if(!e){e=new SizeDepthEstimator();sizeDepthEstimators.set(name,e);}return e;};
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
 stableDepth.addEventListener('change',()=>{monoDepthFilters.clear();depthStates.clear();});
 const DEPTH_STORAGE_KEY=TRACKING_STORAGE_KEYS.depthCalibration;
@@ -674,17 +671,16 @@ function restoreDepthCalibration(){
  if(value.far!==undefined)depthFarMm=value.far;
 }
 restoreDepthCalibration();
-/** Recent tracker distances per instrument (src/input/distanceHistory.ts). */
-const distanceHistories=new Map<InstrumentName,DistanceHistory>();
-const depthSamples=new Map<'needleDriver'|'forceps'|'scissors',number>();
+/** Distance state per instrument: recent distances, size-depth frames, last depth (src/input/trackerDistance.ts). */
+const distanceTracks=new DistanceTracks<InstrumentName>();
 function depthRangeLabel(){
  const ready=sizeDepthCalibration.near?.binding===depthBinding();
  depthRangeStatus.textContent=!sizeDepthCalibration.near?'Hold the selected instrument still at Near, then Far. A reasonably face-on marker is required.':!ready?'Start the same camera and tracker geometry, or capture Near/Far again.':!sizeDepthCalibration.far?'Near size captured. Move the same instrument farther away and capture Far.':'Near/Far tilt-corrected marker sizes calibrated. Edge-on markers hold the last depth.';
 }
-function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();distanceHistories.clear();}
+function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();distanceTracks.resetHistories();}
 function captureSizeDepth(){
  const name=(document.querySelector<HTMLElement>('[data-calibration-tool][aria-pressed="true"]')?.dataset.calibrationTool??'needleDriver') as InstrumentName;
- const frame=steadyCaptureFrame(sizeDepthEstimator(name).frames(),performance.now(),depthBinding());
+ const frame=steadyCaptureFrame(distanceTracks.get(name).sizeEstimator.frames(),performance.now(),depthBinding());
  if(trackingMode.value!=='mono'||!filterMeasurements.get(name)?.valid||frame==='too-few'){depthRangeStatus.textContent=`Show a face-on ${name} marker in camera 1 and hold still before capturing.`;return null;}
  if(frame==='unsteady'){depthRangeStatus.textContent='Hold the instrument steady at this distance, then retry.';return null;}
  return frame;
@@ -766,45 +762,12 @@ function updateLiveTargets(){
   // Translation comes directly from the displayed marker quadrilateral, not PnP pose.
   // The size-derived distance is approximate until camera intrinsics are calibrated.
   const markerCenter={x:chosen.marker.corners.reduce((sum,p)=>sum+p.x,0)/4,y:chosen.marker.corners.reduce((sum,p)=>sum+p.y,0)/4};
-  const sideLengths=chosen.marker.corners.map((p,i)=>Math.hypot(p.x-chosen.marker.corners[(i+1)%4].x,p.y-chosen.marker.corners[(i+1)%4].y));
-  const markerSidePx=sideLengths.reduce((sum,n)=>sum+n,0)/4;
-  if(markerSidePx<2)continue;
   const focalPx=overlay.width/(2*Math.tan(70*Math.PI/360/2));
-  const sizeDistance=trackerGeometry(trackerType).markerSizeMm*focalPx/markerSidePx;
-  // First step toward rigid-body pose: estimate orientation and distance
-  // together from the same four corners. A tilted face looks smaller even
-  // when its actual depth is unchanged, so side length alone is misleading.
-  // Only trust perspective-corrected depth when the planar fit is good.
-  // Translation on screen still follows the observed marker center.
-  const bodyPose=bodyPoseFromMarker(pose,ids.indexOf(pose.id),trackerType);
-  const poseDepthValid=Number.isFinite(bodyPose.translation.z)&&bodyPose.translation.z>20&&pose.reprojectionError<2.5;
-  // Use the tracker center, not whichever radial face happens to be visible.
-  // The planar fit accounts for foreshortening; the downstream filter handles noise.
-  const estimatedDistance=poseDepthValid?bodyPose.translation.z:sizeDistance;
-  // A poor planar fit does not invalidate the recognized square's size.
-  // Keep approximate depth usable; the temporal filter still rejects spikes.
-  let depthInputValid=Number.isFinite(estimatedDistance)&&estimatedDistance>20;
-  let depthSource=poseDepthValid?'3D pose':'marker size';
-  // Camera-relative X/Y continue to follow the green-square center.
-  // Depth is corrected for face orientation when the fit supports it.
-  let history=distanceHistories.get(name);if(!history){history=new DistanceHistory();distanceHistories.set(name,history);}
-  const measuredDistance=history.update(estimatedDistance,now,stationary);
-  let depthDistance=measuredDistance;
   const binding=depthBinding();
-  if(trackingMode.value==='mono'){
-   const sizeCandidates=candidates.flatMap(c=>{
-    const body=bodyPoseFromMarker(c.pose,ids.indexOf(c.pose.id),trackerType);
-    const candidate=sizeDepthCandidate(c.marker.id,tiltCorrectedSize(c.marker,overlay.width,overlay.height,focalPx),trackerGeometry(trackerType).markerSizeMm,c.pose.position.z-body.translation.z,focalPx/overlay.width);
-    return candidate?[candidate]:[];
-   });
-   const median=sizeDepthEstimator(name).update({candidates:sizeCandidates,now,stationary,binding,instrument:name,focalPerWidth:focalPx/overlay.width});
-   depthInputValid=!!median;
-   if(median){
-    depthDistance=median.distanceMm;
-    depthSource='tilt-corrected marker size';
-   }else{depthDistance=depthSamples.get(name)??measuredDistance;depthSource='depth held · marker too tilted or small';}
-  }
-  depthSamples.set(name,depthDistance);
+  // Tracker-centre distance (3D pose or marker size) and, with one camera, tilt-corrected size depth.
+  const distance=measureTrackerDistance(distanceTracks.get(name),{chosen,candidates,faceIndex:id=>ids.indexOf(id),trackerType,width:overlay.width,height:overlay.height,focalPx,now,stationary,singleCamera:trackingMode.value==='mono',binding,instrument:name});
+  if(!distance)continue;
+  const {measuredDistance,depthDistance,source:depthSource,valid:depthInputValid}=distance;
   const matches=sizeDepthCalibration.near?.binding===binding;
   const near=matches?(depthNearMm??100):100;
   const range=matches&&depthFarMm!==null&&depthNearMm!==null?depthFarMm-depthNearMm:Math.max(50,Number(workingDepthInput.value)||400);
