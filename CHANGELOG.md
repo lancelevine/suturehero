@@ -5,6 +5,17 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.128 — optical flow backs off automatically if it loads the page
+
+Each optical-flow update briefly uses the page's main thread to hand the
+camera frame to the flow worker. With two 120 fps cameras that could add up
+to more time than the page has. Flow now measures that cost per camera and
+spaces its updates so it uses at most about 15% of the main thread, never
+dropping below about 30 updates per second. Where the cost is small (most
+real GPUs), flow still runs at the full camera rate. Exported profiles now
+include the measured cost and chosen interval (`flowBackoff`) and show the
+correct build number (they had said 0.124 since build 0.125).
+
 ## Build 0.127 — header buttons no longer hidden at mid widths
 
 Between about 760 and 1100 px wide the header's buttons wrap onto a second
