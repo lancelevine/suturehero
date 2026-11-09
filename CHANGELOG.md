@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.134 — readable camera labels
+
+The "Camera 1" / "Camera 2" labels on the camera views were pale text with a
+soft shadow on a light background, which looked blurred. They now sit on a
+small solid label.
+
 ## Build 0.133 — layout tidy-up
 
 - Practice view: when it is narrow (e.g. laptop width with camera and
