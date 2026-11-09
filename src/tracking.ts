@@ -1,3 +1,4 @@
+import {DistanceHistory} from './input/distanceHistory';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
 import {SizeDepthEstimator,steadyCaptureFrame} from './input/sizeDepthEstimator';
@@ -288,7 +289,7 @@ function resetTrackerPose(){
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();stereoPoseFilters.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
- poseHistory.clear();depthHistory.clear();depthHistoryStamps.clear();
+ poseHistory.clear();distanceHistories.clear();
 }
 trackerTypeSelect.addEventListener('change',()=>{
  trackerType=parseTrackerType(trackerTypeSelect.value);
@@ -676,8 +677,8 @@ function restoreDepthCalibration(){
  if(value.far!==undefined)depthFarMm=value.far;
 }
 restoreDepthCalibration();
-const depthHistory=new Map<'needleDriver'|'forceps'|'scissors',number[]>();
-const depthHistoryStamps=new Map<InstrumentName,number>();
+/** Recent tracker distances per instrument (src/input/distanceHistory.ts). */
+const distanceHistories=new Map<InstrumentName,DistanceHistory>();
 const poseHistory=new Map<'needleDriver'|'forceps'|'scissors',THREE.Quaternion[]>();
 type RotationGeometryState={face:number;reference:{x:number;y:number}[];last:{x:number;y:number}[];moving:boolean;pending:number;still:number};
 const rotationGeometryStates=new Map<'needleDriver'|'forceps'|'scissors',RotationGeometryState>();
@@ -686,7 +687,7 @@ function depthRangeLabel(){
  const ready=sizeDepthCalibration.near?.binding===depthBinding();
  depthRangeStatus.textContent=!sizeDepthCalibration.near?'Hold the selected instrument still at Near, then Far. A reasonably face-on marker is required.':!ready?'Start the same camera and tracker geometry, or capture Near/Far again.':!sizeDepthCalibration.far?'Near size captured. Move the same instrument farther away and capture Far.':'Near/Far tilt-corrected marker sizes calibrated. Edge-on markers hold the last depth.';
 }
-function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();depthHistory.clear();depthHistoryStamps.clear();}
+function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();distanceHistories.clear();}
 function captureSizeDepth(){
  const name=(document.querySelector<HTMLElement>('[data-calibration-tool][aria-pressed="true"]')?.dataset.calibrationTool??'needleDriver') as InstrumentName;
  const frame=steadyCaptureFrame(sizeDepthEstimator(name).frames(),performance.now(),depthBinding());
@@ -791,13 +792,10 @@ function updateLiveTargets(){
   // Keep approximate depth usable; the temporal filter still rejects spikes.
   let depthInputValid=Number.isFinite(estimatedDistance)&&estimatedDistance>20;
   let depthSource=poseDepthValid?'3D pose':'marker size';
-  const rawDistance=stationary?(depthHistory.get(name)?.at(-1)??estimatedDistance):estimatedDistance;
   // Camera-relative X/Y continue to follow the green-square center.
   // Depth is corrected for face orientation when the fit supports it.
-  const samples=depthHistory.get(name)??[];
-  if(depthHistoryStamps.get(name)!==now){samples.push(rawDistance);if(samples.length>5)samples.shift();depthHistory.set(name,samples);depthHistoryStamps.set(name,now);}
-  const sorted=[...samples].sort((a,b)=>a-b);
-  const measuredDistance=sorted[Math.floor(sorted.length/2)];
+  let history=distanceHistories.get(name);if(!history){history=new DistanceHistory();distanceHistories.set(name,history);}
+  const measuredDistance=history.update(estimatedDistance,now,stationary);
   let depthDistance=measuredDistance;
   const binding=depthBinding();
   if(trackingMode.value==='mono'){
