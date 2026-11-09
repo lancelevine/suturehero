@@ -1,3 +1,4 @@
+import {SizeDepthEstimator} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
@@ -290,7 +291,7 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();sizeDepthFrames.clear();sizeDepthFaces.clear();primarySearch.reset();secondarySearch.reset();
+ instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();sizeDepthEstimators.clear();primarySearch.reset();secondarySearch.reset();
  rigidBodyStates.clear();rotationSources.clear();
  rotationFaceStates.clear();liveTargets.clear();stereoPositions.clear();stereoPoseFilters.clear();
  rotationStates.clear();rotationGeometryStates.clear();rotationFilterStates.clear();
@@ -660,8 +661,9 @@ const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
 const sizeDepthCalibration=new SizeDepthCalibration();
-const sizeDepthFrames=new Map<InstrumentName,(SizeDepthAnchor&{at:number;distanceMm:number})[]>();
-const sizeDepthFaces=new Map<InstrumentName,number>();
+/** Single-camera depth from marker size, per instrument (src/input/sizeDepthEstimator.ts). */
+const sizeDepthEstimators=new Map<InstrumentName,SizeDepthEstimator>();
+const sizeDepthEstimator=(name:InstrumentName)=>{let e=sizeDepthEstimators.get(name);if(!e){e=new SizeDepthEstimator();sizeDepthEstimators.set(name,e);}return e;};
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
 stableDepth.addEventListener('change',()=>{monoDepthFilters.clear();depthStates.clear();});
 const DEPTH_STORAGE_KEY=TRACKING_STORAGE_KEYS.depthCalibration;
@@ -694,7 +696,7 @@ function depthRangeLabel(){
 function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();depthHistory.clear();depthHistoryStamps.clear();}
 function captureSizeDepth(){
  const name=(document.querySelector<HTMLElement>('[data-calibration-tool][aria-pressed="true"]')?.dataset.calibrationTool??'needleDriver') as InstrumentName;
- const frames=(sizeDepthFrames.get(name)??[]).filter(s=>performance.now()-s.at<500&&s.binding===depthBinding());
+ const frames=sizeDepthEstimator(name).frames().filter(s=>performance.now()-s.at<500&&s.binding===depthBinding());
  if(trackingMode.value!=='mono'||!filterMeasurements.get(name)?.valid||frames.length<4){depthRangeStatus.textContent=`Show a face-on ${name} marker in camera 1 and hold still before capturing.`;return null;}
  const sorted=[...frames].sort((a,b)=>a.proxy-b.proxy),middle=sorted[Math.floor(sorted.length/2)];
  if((sorted.at(-1)!.proxy-sorted[0].proxy)/middle.proxy>.12){depthRangeStatus.textContent='Hold the instrument steady at this distance, then retry.';return null;}
@@ -837,23 +839,16 @@ function updateLiveTargets(){
   let depthDistance=measuredDistance;
   const binding=depthBinding();
   if(trackingMode.value==='mono'){
-   const options=candidates.flatMap(c=>{
+   const sizeCandidates=candidates.flatMap(c=>{
     const measured=tiltCorrectedSize(c.marker,overlay.width,overlay.height,focalPx);if(!measured)return [];
     const body=bodyPoseFromMarker(c.pose,ids.indexOf(c.pose.id),trackerType);
     const offset=c.pose.position.z-body.translation.z;
     const proxy=trackerGeometry(trackerType).markerSizeMm/measured.normalizedSide-offset/(focalPx/overlay.width);
-    return Number.isFinite(proxy)&&proxy>0?[{...measured,proxy,id:c.marker.id}]:[];
-   }).sort((a,b)=>b.cosine-a.cosine);
-   const best=options[0],old=options.find(c=>c.id===sizeDepthFaces.get(name));
-   const selected=old&&best&&old.cosine>=best.cosine-.12?old:best;
-   depthInputValid=!!selected;
-   if(selected){
-    sizeDepthFaces.set(name,selected.id);
-    const frames=sizeDepthFrames.get(name)??[];
-    const proxy=stationary&&frames.at(-1)?.binding===binding?frames.at(-1)!.proxy:selected.proxy;
-    if(frames.at(-1)?.at!==now){frames.push({proxy,normalizedSide:selected.normalizedSide,binding,instrument:name,at:now,distanceMm:proxy*focalPx/overlay.width});}
-    while(frames.length>8||frames.length&&now-frames[0].at>500)frames.shift();sizeDepthFrames.set(name,frames);
-    const median=[...frames].sort((a,b)=>a.proxy-b.proxy)[Math.floor(frames.length/2)];
+    return [{id:c.marker.id,normalizedSide:measured.normalizedSide,cosine:measured.cosine,proxy}];
+   });
+   const median=sizeDepthEstimator(name).update({candidates:sizeCandidates,now,stationary,binding,instrument:name,focalPerWidth:focalPx/overlay.width});
+   depthInputValid=!!median;
+   if(median){
     depthDistance=median.distanceMm;
     depthSource='tilt-corrected marker size';
    }else{depthDistance=depthSamples.get(name)??measuredDistance;depthSource='depth held · marker too tilted or small';}
