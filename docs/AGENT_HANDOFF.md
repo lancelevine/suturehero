@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — splitting updateLiveTargets out of tracking.ts
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,21 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — updateLiveTargets split (2 steps); depth-drift claim corrected
+
+- Moved out of `updateLiveTargets`, no behaviour change:
+  `desiredDepthZ` / `smoothDepthZ` / `cameraPlaneXY` / `LOCKED_DEPTH_Z`
+  (`src/input/monocularDepthMapping.ts`) and `DistanceHistory`
+  (`src/input/distanceHistory.ts`), with unit tests. tracking-motion,
+  driver-depth, marker-rest, calibration-preview pass.
+- **Correction:** `check-depth-stability` passes only ~40–60% in this
+  sandbox, including on build 0.132 itself (5 runs: 2 pass). The 6/6 right
+  after the sub-pixel corner fix did not hold up, so 0.132 did not
+  demonstrably fix the drift. The sub-pixel fix itself is correct (whole-pixel
+  corners were a real bug) and stays. Back on the flaky list in AGENTS.md.
+- Next steps for the split: rest hold, then the rotation solve; group the
+  per-instrument maps into one state object first.
 
 ### 2026-11-09 — Claude — 0.134 camera labels; more out of tracking.ts
 
