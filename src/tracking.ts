@@ -641,6 +641,10 @@ const verifiedMarkers=()=>{
 const MARKER_LIVE_MS=140;
 const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
 const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
+/** Live markers of these IDs whose identity was decoded within `maxAgeMs` (flow-only outlines excluded). */
+const recentlyDecodedMarkers=(ids:readonly number[],maxAgeMs:number)=>liveMarkers().filter(m=>ids.includes(m.id)&&performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<maxAgeMs);
+/** This instrument's ring pose tracker, created on first use. */
+const ringPoseTracker=(name:InstrumentName)=>{let tracker=ringPoseTrackers.get(name);if(!tracker){tracker=new RingPoseTracker();ringPoseTrackers.set(name,tracker);}return tracker;};
 function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);}
 
 let observationsAt=0;
@@ -789,8 +793,8 @@ function updateLiveTargets(){
    // The rest latch must not skip those calibration observations.
    let alignedStatus='';
    if(trackerType==='ring8'&&trackingMode.value==='mono'){
-    let tracker=ringPoseTrackers.get(name);if(!tracker){tracker=new RingPoseTracker();ringPoseTrackers.set(name,tracker);}
-    tracker.solve(liveMarkers().filter(m=>ids.includes(m.id)&&performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<350),ids[0],overlay.width,overlay.height,now,rigidBodyStates.get(name)?.pose);
+    const tracker=ringPoseTracker(name);
+    tracker.solve(recentlyDecodedMarkers(ids,350),ids[0],overlay.width,overlay.height,now,rigidBodyStates.get(name)?.pose);
     alignedStatus=' · '+tracker.status;
    }
    // Recognition and overlap indicators keep updating; an unchanged shared
@@ -809,8 +813,7 @@ function updateLiveTargets(){
   const continuousFlowRotation=document.querySelector<HTMLInputElement>('#flow-rotation')!.checked&&trackingMode.value==='mono';
   // Baseline requires a recent decode. Experimental mode additionally uses
   // flow-confirmed corners while their identity remains recently decoded.
-  const rotationMarkers=liveMarkers().filter(m=>ids.includes(m.id)&&
-   performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<(continuousFlowRotation?650:350));
+  const rotationMarkers=recentlyDecodedMarkers(ids,continuousFlowRotation?650:350);
   let state=rigidBodyStates.get(name);
   const faceTransitionEnabled=document.querySelector<HTMLInputElement>('#face-transition')!.checked&&trackingMode.value==='mono';
   const sideRotationMarkers=rotationMarkers.filter(m=>m.id<ids[0]+6);
@@ -820,8 +823,7 @@ function updateLiveTargets(){
   // Retain the last accepted pose as a solver seed, but never discard real
   // rotation by resetting the output anchor when the visible face changes.
   const predicted:PrismPose|undefined=state?predictRotation(state,now):undefined;
-  let ringTracker=ringPoseTrackers.get(name);
-  if(trackerType==='ring8'&&!ringTracker){ringTracker=new RingPoseTracker();ringPoseTrackers.set(name,ringTracker);}
+  const ringTracker=trackerType==='ring8'?ringPoseTracker(name):ringPoseTrackers.get(name);
   const useAlignedRing=trackerType==='ring8'&&trackingMode.value==='mono';
   const monoRigid=perf.measure('Rigid pose solve',()=>useAlignedRing
    ?ringTracker!.solve(rotationMarkers,ids[0],overlay.width,overlay.height,now,state?.pose,predicted)
