@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {cameraPlaneXY,depthRange,desiredDepthZ,mapMonocularDepth,smoothDepthZ} from './monocularDepthMapping';
+import {cameraPlaneXY,depthRange,desiredDepthZ,filteredDepthZ,mapMonocularDepth,smoothDepthZ} from './monocularDepthMapping';
 import {MonocularDepthFilter} from './MonocularDepthFilter';
 it('continues responding outside the default 100–500 mm range instead of saturating',()=>{
  const a=mapMonocularDepth(600,100,400,1.5),b=mapMonocularDepth(650,100,400,1.5);
@@ -39,5 +39,15 @@ describe('depth range', () => {
     expect(depthRange(false, 200, 600, 300)).toEqual({ near: 100, span: 300 });
     expect(depthRange(false, null, null, 0)).toEqual({ near: 100, span: 400 });
     expect(depthRange(false, null, null, 20)).toEqual({ near: 100, span: 50 });
+  });
+});
+
+describe('filtered depth', () => {
+  it('uses the stable filter when asked, else the simple smoothing', () => {
+    const calls: unknown[][] = [];
+    const filter = { update: (...args: unknown[]) => { calls.push(args); return 7; } };
+    expect(filteredDepthZ(filter, true, 0, 1, 5, true, 0.15, false)).toBe(7);
+    expect(calls).toEqual([[1, 5, true, 0.15, false]]);
+    expect(filteredDepthZ(filter, false, 0, 1, 5, false, 0.15, true)).toBeCloseTo(0.65);
   });
 });

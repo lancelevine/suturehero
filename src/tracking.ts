@@ -1,5 +1,5 @@
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
-import {acceptRotation,chooseFace,gateElapsedSeconds,largestFaceId,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
+import {acceptRotation,chooseFace,gateElapsedSeconds,largestFaceId,restRigidBody,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
@@ -27,7 +27,7 @@ import {stereoPracticePosition} from './input/stereoTrackingPose';
 import {parseWorkspace,serializeWorkspace,workspacePracticePosition,type StereoWorkspace} from './input/stereoWorkspace';
 import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
-import {cameraPlaneXY,depthRange,desiredDepthZ,LOCKED_DEPTH_Z,smoothDepthZ} from './input/monocularDepthMapping';
+import {cameraPlaneXY,depthRange,desiredDepthZ,filteredDepthZ,LOCKED_DEPTH_Z} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
 import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
@@ -776,9 +776,7 @@ function updateLiveTargets(){
   const fraction=sizeDepthCalibration.fraction(depthDistance/(focalPx/overlay.width),binding);
   const desiredZ=desiredDepthZ(depthDistance,near,range,Number(depthSensitivity.value),fraction);
   let filter=monoDepthFilters.get(name);if(!filter){filter=new MonocularDepthFilter();monoDepthFilters.set(name,filter);}
-  let z:number;
-  if(trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth))z=filter.update(desiredZ,now,lockedDepth,baseline,depthInputValid);
-  else z=smoothDepthZ(previousZ,desiredZ);
+  const z=filteredDepthZ(filter,trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth),previousZ,desiredZ,now,lockedDepth,baseline,depthInputValid);
   depthStates.set(name,z);filterMeasurements.set(name,{rawZ:depthDistance,filteredZ:z,angle:filterMeasurements.get(name)?.angle??0,locked:lockedDepth,source:depthSource,valid:depthInputValid});
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
   const {x,y}=cameraPlaneXY(markerCenter,overlay.width,overlay.height,measuredDistance,focalPx,near,range);
@@ -797,7 +795,7 @@ function updateLiveTargets(){
    }
    // Recognition and overlap indicators keep updating; an unchanged shared
    // face is evidence that a different face count is not physical movement.
-   const state=rigidBodyStates.get(name);if(state){state.lastAt=now;state.angularVelocity.set(0,0,0);state.stallSince=null;}
+   const state=rigidBodyStates.get(name);if(state)restRigidBody(state,now);
    // Let a real depth move finish filtering after the instrument stops. The
    // held raw distance above prevents face-count changes from creating new depth.
    position.x=previous.position.x;position.y=previous.position.y;

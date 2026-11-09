@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { PrismPose } from './prismPose';
-import { acceptRotation, chooseFace, largestFaceId, predictRotation, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
+import { acceptRotation, chooseFace, largestFaceId, predictRotation, restRigidBody, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
 
 const pose = (angle: number, axis = new THREE.Vector3(0, 1, 0)): PrismPose => ({ quaternion: new THREE.Quaternion().setFromAxisAngle(axis, angle), translation: new THREE.Vector3(), error: 1, faces: 1 } as PrismPose);
 const gate = (change: Partial<RotationGateInput> = {}): RotationGateInput => ({
@@ -71,5 +71,16 @@ describe('face choice', () => {
     expect(chooseFace(sorted, 7)!.pose.id).toBe(2);
     expect(chooseFace(sorted, undefined)!.pose.id).toBe(2);
     expect(chooseFace([], 5)).toBeUndefined();
+  });
+});
+
+describe('rest', () => {
+  it('clears motion and stalls while keeping the state current', () => {
+    const state = startRigidBody(pose(0), new THREE.Quaternion(), 0);
+    state.angularVelocity.set(1, 2, 3);
+    state.stallSince = 5;
+    restRigidBody(state, 40);
+    expect(state).toMatchObject({ lastAt: 40, stallSince: null });
+    expect(state.angularVelocity.length()).toBe(0);
   });
 });

@@ -175,3 +175,10 @@ export function chooseFace<T extends { pose: { id: number; reprojectionError: nu
   const kept = previousId === undefined ? undefined : sortedCandidates.find((c) => c.pose.id === previousId && c.pose.reprojectionError < KEEP_FACE_MAX_ERROR_PX);
   return kept ?? sortedCandidates[0];
 }
+
+/** Instrument held still: keep the rotation state current without motion. */
+export function restRigidBody(state: RigidBodyState, now: number) {
+  state.lastAt = now;
+  state.angularVelocity.set(0, 0, 0);
+  state.stallSince = null;
+}

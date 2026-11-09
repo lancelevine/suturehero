@@ -61,3 +61,14 @@ export function depthRange(calibrationMatches:boolean,nearMm:number|null,farMm:n
  const span=calibrationMatches&&farMm!==null&&nearMm!==null?farMm-nearMm:Math.max(MIN_SPAN_MM,workingDepthMm||FALLBACK_SPAN_MM);
  return {near,span};
 }
+
+/** The depth filter interface used by filteredDepthZ (MonocularDepthFilter). */
+interface DepthFilter{update(desired:number,stamp:number,locked:boolean,baseline:number,reliable?:boolean):number}
+
+/**
+ * This frame's virtual Z: the stable one-camera filter when it is on (or the
+ * depth is locked, which it handles), else the simple smoothing.
+ */
+export function filteredDepthZ(filter:DepthFilter,useStableFilter:boolean,previousZ:number|undefined,desiredZ:number,now:number,locked:boolean,lockedZ:number,valid:boolean){
+ return useStableFilter?filter.update(desiredZ,now,locked,lockedZ,valid):smoothDepthZ(previousZ,desiredZ);
+}
