@@ -43,3 +43,21 @@ export function cameraPlaneXY(center:{x:number;y:number},width:number,height:num
  const y=Math.min(2.8,Math.max(.15,-((center.y-height/2)*distanceMm/focalPx)/reference*4+.55));
  return {x,y};
 }
+
+/** Default near distance (mm) when no Near/Far calibration applies. */
+export const DEFAULT_NEAR_MM=100;
+/** Smallest working span (mm). */
+const MIN_SPAN_MM=50;
+/** Fallback working span (mm) when the input is empty or zero. */
+const FALLBACK_SPAN_MM=400;
+
+/**
+ * Near distance and working span (mm) for depth mapping: from the Near/Far
+ * calibration when it matches this camera setup and both ends exist, else
+ * DEFAULT_NEAR_MM and the working-depth input.
+ */
+export function depthRange(calibrationMatches:boolean,nearMm:number|null,farMm:number|null,workingDepthMm:number){
+ const near=calibrationMatches?(nearMm??DEFAULT_NEAR_MM):DEFAULT_NEAR_MM;
+ const span=calibrationMatches&&farMm!==null&&nearMm!==null?farMm-nearMm:Math.max(MIN_SPAN_MM,workingDepthMm||FALLBACK_SPAN_MM);
+ return {near,span};
+}

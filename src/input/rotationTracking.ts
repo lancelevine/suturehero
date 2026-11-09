@@ -163,3 +163,15 @@ export function largestFaceId(markers: ReadonlyArray<{ id: number; corners: Read
     }, 0));
   return markers.reduce((a, b) => (area(a.corners) >= area(b.corners) ? a : b)).id;
 }
+
+/** Keep following the previous face while its planar fit stays under this (px). */
+export const KEEP_FACE_MAX_ERROR_PX = 4;
+
+/**
+ * The face to follow: the previous one while it still fits well, else the
+ * best-fitting candidate (candidates sorted by fit error, best first).
+ */
+export function chooseFace<T extends { pose: { id: number; reprojectionError: number } }>(sortedCandidates: readonly T[], previousId: number | undefined): T | undefined {
+  const kept = previousId === undefined ? undefined : sortedCandidates.find((c) => c.pose.id === previousId && c.pose.reprojectionError < KEEP_FACE_MAX_ERROR_PX);
+  return kept ?? sortedCandidates[0];
+}

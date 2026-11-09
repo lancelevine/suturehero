@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { PrismPose } from './prismPose';
-import { acceptRotation, largestFaceId, predictRotation, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
+import { acceptRotation, chooseFace, largestFaceId, predictRotation, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
 
 const pose = (angle: number, axis = new THREE.Vector3(0, 1, 0)): PrismPose => ({ quaternion: new THREE.Quaternion().setFromAxisAngle(axis, angle), translation: new THREE.Vector3(), error: 1, faces: 1 } as PrismPose);
 const gate = (change: Partial<RotationGateInput> = {}): RotationGateInput => ({
@@ -60,5 +60,16 @@ describe('largest face', () => {
     expect(largestFaceId([square(1, 10), square(2, 20), square(3, 5)])).toBe(2);
     expect(largestFaceId([square(4, 10), square(5, 10)])).toBe(4);
     expect(largestFaceId([])).toBeNull();
+  });
+});
+
+describe('face choice', () => {
+  const c = (id: number, error: number) => ({ pose: { id, reprojectionError: error } });
+  it('keeps the previous face while it fits, else takes the best fit', () => {
+    const sorted = [c(2, 1), c(5, 3), c(7, 6)];
+    expect(chooseFace(sorted, 5)!.pose.id).toBe(5);
+    expect(chooseFace(sorted, 7)!.pose.id).toBe(2);
+    expect(chooseFace(sorted, undefined)!.pose.id).toBe(2);
+    expect(chooseFace([], 5)).toBeUndefined();
   });
 });

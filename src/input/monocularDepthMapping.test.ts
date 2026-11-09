@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {cameraPlaneXY,desiredDepthZ,mapMonocularDepth,smoothDepthZ} from './monocularDepthMapping';
+import {cameraPlaneXY,depthRange,desiredDepthZ,mapMonocularDepth,smoothDepthZ} from './monocularDepthMapping';
 import {MonocularDepthFilter} from './MonocularDepthFilter';
 it('continues responding outside the default 100–500 mm range instead of saturating',()=>{
  const a=mapMonocularDepth(600,100,400,1.5),b=mapMonocularDepth(650,100,400,1.5);
@@ -29,5 +29,15 @@ describe('virtual placement helpers (moved from tracking.ts)', () => {
     const far = cameraPlaneXY({ x: 0, y: 540 }, 960, 540, 4000, 700, 100, 400);
     expect(far.x).toBe(2.6);
     expect(far.y).toBe(0.15);
+  });
+});
+
+describe('depth range', () => {
+  it('uses Near/Far only when the calibration matches and both ends exist', () => {
+    expect(depthRange(true, 200, 600, 400)).toEqual({ near: 200, span: 400 });
+    expect(depthRange(true, 200, null, 300)).toEqual({ near: 200, span: 300 });
+    expect(depthRange(false, 200, 600, 300)).toEqual({ near: 100, span: 300 });
+    expect(depthRange(false, null, null, 0)).toEqual({ near: 100, span: 400 });
+    expect(depthRange(false, null, null, 20)).toEqual({ near: 100, span: 50 });
   });
 });

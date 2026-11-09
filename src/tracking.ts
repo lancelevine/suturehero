@@ -1,5 +1,5 @@
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
-import {acceptRotation,gateElapsedSeconds,largestFaceId,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
+import {acceptRotation,chooseFace,gateElapsedSeconds,largestFaceId,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
@@ -27,7 +27,7 @@ import {stereoPracticePosition} from './input/stereoTrackingPose';
 import {parseWorkspace,serializeWorkspace,workspacePracticePosition,type StereoWorkspace} from './input/stereoWorkspace';
 import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
 import {findColorBalls,partnerSearchCenter} from './input/colorBallSearch';
-import {cameraPlaneXY,desiredDepthZ,LOCKED_DEPTH_Z,smoothDepthZ} from './input/monocularDepthMapping';
+import {cameraPlaneXY,depthRange,desiredDepthZ,LOCKED_DEPTH_Z,smoothDepthZ} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
 import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
@@ -751,7 +751,7 @@ function updateLiveTargets(){
   const previous=liveTargets.get(name);
   // PR #67 face selection: prefer a stable, well-fitting face instead of
   // switching IDs based on marker area on every frame.
-  const chosen=(previous&&candidates.find(c=>c.pose.id===previous.id&&c.pose.reprojectionError<4))||candidates[0];
+  const chosen=chooseFace(candidates,previous?.id);
   if(!chosen)continue;
   let rest=stationaryStates.get(name);if(!rest){rest=new MarkerRestLatch();stationaryStates.set(name,rest);}
   const stationary=rest.observe(candidates.map(c=>c.marker),now);
@@ -768,9 +768,7 @@ function updateLiveTargets(){
   const distance=measureTrackerDistance(distanceTracks.get(name),{chosen,candidates,faceIndex:id=>ids.indexOf(id),trackerType,width:overlay.width,height:overlay.height,focalPx,now,stationary,singleCamera:trackingMode.value==='mono',binding,instrument:name});
   if(!distance)continue;
   const {measuredDistance,depthDistance,source:depthSource,valid:depthInputValid}=distance;
-  const matches=sizeDepthCalibration.near?.binding===binding;
-  const near=matches?(depthNearMm??100):100;
-  const range=matches&&depthFarMm!==null&&depthNearMm!==null?depthFarMm-depthNearMm:Math.max(50,Number(workingDepthInput.value)||400);
+  const {near,span:range}=depthRange(sizeDepthCalibration.near?.binding===binding,depthNearMm,depthFarMm,Number(workingDepthInput.value));
 
   const previousZ=depthStates.get(name);
   const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
