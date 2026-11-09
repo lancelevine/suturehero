@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SizeDepthEstimator, steadyCaptureFrame, type SizeDepthCandidate, type SizeDepthUpdate } from './sizeDepthEstimator';
+import { SizeDepthEstimator, sizeDepthCandidate, steadyCaptureFrame, type SizeDepthCandidate, type SizeDepthUpdate } from './sizeDepthEstimator';
 
 const face = (id: number, proxy: number, cosine = 1): SizeDepthCandidate => ({ id, proxy, cosine, normalizedSide: 1 / proxy });
 const step = (estimator: SizeDepthEstimator, candidates: SizeDepthCandidate[], now: number, change: Partial<SizeDepthUpdate> = {}) =>
@@ -53,5 +53,12 @@ describe('Near/Far capture frame', () => {
   it('explains too few or unsteady frames', () => {
     expect(steadyCaptureFrame([frame(100, 990)], 1000, 'cam')).toBe('too-few');
     expect(steadyCaptureFrame([frame(100, 960), frame(100, 970), frame(130, 980), frame(100, 990)], 1000, 'cam')).toBe('unsteady');
+  });
+});
+
+describe('size depth candidate', () => {
+  it('converts a face size to a tracker-centre proxy', () => {
+    expect(sizeDepthCandidate(3, { normalizedSide: 0.02, cosine: 0.9 }, 12, 4, 2)).toEqual({ id: 3, normalizedSide: 0.02, cosine: 0.9, proxy: 600 - 2 });
+    expect(sizeDepthCandidate(3, null, 12, 4, 2)).toBeNull();
   });
 });

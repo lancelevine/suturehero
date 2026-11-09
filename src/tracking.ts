@@ -1,8 +1,8 @@
-import {acceptRotation,gateElapsedSeconds,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
+import {acceptRotation,gateElapsedSeconds,largestFaceId,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {DistanceHistory} from './input/distanceHistory';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
-import {SizeDepthEstimator,steadyCaptureFrame} from './input/sizeDepthEstimator';
+import {SizeDepthEstimator,sizeDepthCandidate,steadyCaptureFrame} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
@@ -799,11 +799,9 @@ function updateLiveTargets(){
   const binding=depthBinding();
   if(trackingMode.value==='mono'){
    const sizeCandidates=candidates.flatMap(c=>{
-    const measured=tiltCorrectedSize(c.marker,overlay.width,overlay.height,focalPx);if(!measured)return [];
     const body=bodyPoseFromMarker(c.pose,ids.indexOf(c.pose.id),trackerType);
-    const offset=c.pose.position.z-body.translation.z;
-    const proxy=trackerGeometry(trackerType).markerSizeMm/measured.normalizedSide-offset/(focalPx/overlay.width);
-    return [{id:c.marker.id,normalizedSide:measured.normalizedSide,cosine:measured.cosine,proxy}];
+    const candidate=sizeDepthCandidate(c.marker.id,tiltCorrectedSize(c.marker,overlay.width,overlay.height,focalPx),trackerGeometry(trackerType).markerSizeMm,c.pose.position.z-body.translation.z,focalPx/overlay.width);
+    return candidate?[candidate]:[];
    });
    const median=sizeDepthEstimator(name).update({candidates:sizeCandidates,now,stationary,binding,instrument:name,focalPerWidth:focalPx/overlay.width});
    depthInputValid=!!median;
@@ -864,10 +862,7 @@ function updateLiveTargets(){
   const faceTransitionEnabled=document.querySelector<HTMLInputElement>('#face-transition')!.checked&&trackingMode.value==='mono';
   const sideRotationMarkers=rotationMarkers.filter(m=>m.id<ids[0]+6);
   const selectedRotationMarkers=trackerType==='ring8'&&sideRotationMarkers.length?sideRotationMarkers:rotationMarkers;
-  const currentFace=selectedRotationMarkers.length?selectedRotationMarkers.reduce((a,b)=>{
-   const area=(m:MarkerObservation)=>Math.abs(m.corners.reduce((sum,p,i)=>{const next=m.corners[(i+1)%4];return sum+p.x*next.y-next.x*p.y;},0));
-   return area(a)>=area(b)?a:b;
-  }).id:null;
+  const currentFace=largestFaceId(selectedRotationMarkers);
   // Solve all simultaneously visible prism faces as one rigid object.
   // Retain the last accepted pose as a solver seed, but never discard real
   // rotation by resetting the output anchor when the visible face changes.

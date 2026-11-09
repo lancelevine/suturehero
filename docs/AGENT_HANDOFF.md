@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — splitting updateLiveTargets (rest hold, rotation)
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,21 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — updateLiveTargets split, steps 3–4
+
+- New `src/input/rotationTracking.ts` (+test): `predictRotation`,
+  `startRigidBody`, `rotationVerdict` (the single-face credibility gate and
+  its special cases; same thresholds and status labels), `acceptRotation`,
+  `stallRotation`, `updateFaceTransition`, `largestFaceId`; shared
+  `RigidBodyState` / `FaceTransitionState` types.
+- `sizeDepthCandidate` in `src/input/sizeDepthEstimator.ts` (+test).
+- No behaviour change. Pass: tracking-motion, ring-handoffs, marker-rest,
+  stereo-motion, stereo-rig-faces, calibration-preview, handle-jaws-stereo,
+  marker-jaws, driver-depth.
+- `updateLiveTargets`: 252 → 187 lines. Remaining inside: face choice + rest
+  latch, distance source choice, rest hold (DOM status writes), stereo/mono
+  source switch. Next: group the per-instrument maps into one state object.
 
 ### 2026-11-09 — Claude — updateLiveTargets split (2 steps); depth-drift claim corrected
 

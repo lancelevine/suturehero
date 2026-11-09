@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { PrismPose } from './prismPose';
-import { acceptRotation, predictRotation, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
+import { acceptRotation, largestFaceId, predictRotation, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
 
 const pose = (angle: number, axis = new THREE.Vector3(0, 1, 0)): PrismPose => ({ quaternion: new THREE.Quaternion().setFromAxisAngle(axis, angle), translation: new THREE.Vector3(), error: 1, faces: 1 } as PrismPose);
 const gate = (change: Partial<RotationGateInput> = {}): RotationGateInput => ({
@@ -51,5 +51,14 @@ describe('rotation state', () => {
     expect(transition.candidateCount).toBe(2);
     updateFaceTransition(transition, 1, false);
     expect(transition).toMatchObject({ candidateId: null, candidateCount: 0 });
+  });
+});
+
+describe('largest face', () => {
+  const square = (id: number, side: number) => ({ id, corners: [{ x: 0, y: 0 }, { x: side, y: 0 }, { x: side, y: side }, { x: 0, y: side }] });
+  it('picks the largest marker, keeping the first on a tie', () => {
+    expect(largestFaceId([square(1, 10), square(2, 20), square(3, 5)])).toBe(2);
+    expect(largestFaceId([square(4, 10), square(5, 10)])).toBe(4);
+    expect(largestFaceId([])).toBeNull();
   });
 });

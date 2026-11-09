@@ -95,3 +95,20 @@ export function steadyCaptureFrame(frames: readonly SizeDepthFrame[], now: numbe
   if ((sorted.at(-1)!.proxy - sorted[0].proxy) / middle.proxy > CAPTURE_MAX_SPREAD) return 'unsteady';
   return middle;
 }
+
+/**
+ * A size-depth candidate from one visible face: its tilt-corrected size, and
+ * the size-derived distance proxy moved from the face to the tracker centre
+ * (`faceOffsetMm` = face depth − tracker-centre depth). Null when the face is
+ * too tilted or small to measure (see tiltCorrectedSize).
+ */
+export function sizeDepthCandidate(
+  id: number,
+  measured: { normalizedSide: number; cosine: number } | null,
+  markerSizeMm: number,
+  faceOffsetMm: number,
+  focalPerWidth: number,
+): SizeDepthCandidate | null {
+  if (!measured) return null;
+  return { id, normalizedSide: measured.normalizedSide, cosine: measured.cosine, proxy: markerSizeMm / measured.normalizedSide - faceOffsetMm / focalPerWidth };
+}

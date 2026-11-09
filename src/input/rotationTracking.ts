@@ -152,3 +152,14 @@ export function stallRotation(state: RigidBodyState, now: number) {
   state.status = 'stalled';
   state.angularVelocity.multiplyScalar(0.85);
 }
+
+/** ID of the marker with the largest image area (the face rotation follows), or null if none. Ties keep the earlier marker. */
+export function largestFaceId(markers: ReadonlyArray<{ id: number; corners: ReadonlyArray<{ x: number; y: number }> }>): number | null {
+  if (!markers.length) return null;
+  const area = (corners: ReadonlyArray<{ x: number; y: number }>) =>
+    Math.abs(corners.reduce((sum, p, i) => {
+      const next = corners[(i + 1) % corners.length];
+      return sum + p.x * next.y - next.x * p.y;
+    }, 0));
+  return markers.reduce((a, b) => (area(a.corners) >= area(b.corners) ? a : b)).id;
+}
