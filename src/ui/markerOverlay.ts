@@ -17,3 +17,9 @@ export function drawDetectedMarker(context: CanvasRenderingContext2D, marker: Ma
   context.fillStyle = DETECTED_MARKER_COLOUR;
   context.fillText('ID ' + marker.id, corners[0].x, Math.max(22, corners[0].y - 8));
 }
+
+/** Camera status line: frame size, tracked marker IDs, and decode / flow rates over the last `seconds`. */
+export function cameraStatusText(label: string, width: number, height: number, trackedIds: readonly number[], decodes: number, flows: number, seconds: number) {
+  const ids = trackedIds.join(', ') || 'none';
+  return `${label}: ${width} × ${height} · ${trackedIds.length} tracked · IDs ${ids} · ${(decodes / seconds).toFixed(1)} decode FPS · ${(flows / seconds).toFixed(1)} flow FPS`;
+}

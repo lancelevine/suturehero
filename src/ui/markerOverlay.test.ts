@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { drawDetectedMarker } from './markerOverlay';
+import { cameraStatusText, drawDetectedMarker } from './markerOverlay';
 
 it('outlines the marker and labels its ID above the first corner', () => {
   const calls: string[] = [];
@@ -10,4 +10,9 @@ it('outlines the marker and labels its ID above the first corner', () => {
   drawDetectedMarker(context, { id: 7, corners: [{ x: 10, y: 40 }, { x: 30, y: 40 }, { x: 30, y: 60 }, { x: 10, y: 60 }] });
   expect(calls).toEqual(['beginPath()', 'moveTo(10,40)', 'lineTo(30,40)', 'lineTo(30,60)', 'lineTo(10,60)', 'closePath()', 'stroke()', 'fillText(ID 7,10,32)']);
   expect(context.strokeStyle).toBe('#18e89d');
+});
+
+it('formats the camera status line', () => {
+  expect(cameraStatusText('Camera 2', 960, 540, [3, 4], 12, 30, 1.2)).toBe('Camera 2: 960 × 540 · 2 tracked · IDs 3, 4 · 10.0 decode FPS · 25.0 flow FPS');
+  expect(cameraStatusText('Camera 2', 960, 540, [], 0, 0, 1)).toBe('Camera 2: 960 × 540 · 0 tracked · IDs none · 0.0 decode FPS · 0.0 flow FPS');
 });

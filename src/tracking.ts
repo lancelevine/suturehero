@@ -1,4 +1,4 @@
-import {drawDetectedMarker} from './ui/markerOverlay';
+import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
 import {flowFrameScale} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
@@ -532,8 +532,7 @@ async function detectSecondFrame(now:number){
   const stamp=performance.now();
   if(stamp-statsAt2>=1000){
    const seconds=(stamp-statsAt2)/1000;
-   status2.textContent='Camera 2: '+w+' × '+h+' · '+fresh.length+' tracked · IDs '+(fresh.map(m=>m.id).join(', ')||'none')+
-    ' · '+(decodedFrames2/seconds).toFixed(1)+' decode FPS · '+(flowFrames2/seconds).toFixed(1)+' flow FPS';
+   status2.textContent=cameraStatusText('Camera 2',w,h,fresh.map(m=>m.id),decodedFrames2,flowFrames2,seconds);
    statsAt2=stamp;decodedFrames2=0;flowFrames2=0;
   }
   updateStereoMatches();
