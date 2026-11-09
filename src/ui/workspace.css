@@ -81,3 +81,14 @@
 .tracking-panels .tracking-camera-feeds.two-cameras{justify-items:center;gap:3px}
 .tracking-panels .tracking-camera-feeds.two-cameras .tracking-video,.tracking-panels .tracking-camera-feeds.two-cameras #primary-camera-preview{width:var(--dual-feed-width,100%);max-width:100%}
 .practice-tracking-status{position:absolute;top:69px;left:18px;z-index:4;display:flex;align-items:center;gap:7px;max-width:calc(100% - 36px);box-sizing:border-box;padding:6px 9px;border:1px solid #68827b;border-radius:5px;background:#102b30e8;color:#b5c6c2;font-size:10px;line-height:1.4;pointer-events:none}.practice-tracking-status i{flex:0 0 7px;background:#89939e}.practice-tracking-status[data-state=active]{color:#b8f4cf;border-color:#4b9b73}.practice-tracking-status[data-state=active] i{background:#46d588}.practice-tracking-status[data-state=fallback],.practice-tracking-status[data-state=waiting],.practice-tracking-status[data-state=mismatch]{color:#ffe0a1;border-color:#a78445}.practice-tracking-status[data-state=fallback] i,.practice-tracking-status[data-state=waiting] i,.practice-tracking-status[data-state=mismatch] i{background:#edb64e}@media(max-width:760px){.practice-tracking-status{top:67px;left:10px;font-size:9px;max-width:calc(100% - 20px)}}
+/* Practice view narrower than ~560 px (e.g. laptop width with camera + calibration open): keep the
+   title clear of the view buttons and drop the orbit hint that collided with the legend (build 0.133). */
+.workspace-first #viewport{container-type:inline-size}
+@container (max-width:560px){.workspace-first .workspace-scene-title h2{max-width:calc(100cqw - 210px);line-height:1.35}.workspace-first .workspace-scene-title .scene-tag{display:none}.workspace-first .camera-hint{display:none}.workspace-first .scene-label{display:none}}
+/* Calibration drawer: the bar already names it, so drop the panel's own heading there (standalone tracking page keeps it). */
+.workspace-calibration-drawer .calibration-heading{display:none}
+.calibration-neutral-action{margin:10px 0 6px}
+.calibration-neutral-action .primary-action{width:100%}
+.calibration-neutral-action [data-pose-status]{margin:6px 0 0}
+/* Camera controls: match the surrounding text size. */
+.tracking-camera-settings select{font-size:12px;padding:4px 6px}

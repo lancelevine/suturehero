@@ -23,7 +23,7 @@ function modeLabel(mode: string) {
 }
 
 /**
- * The "Camera controls · focus & exposure" panel: per camera, the exposure,
+ * The "Camera controls · type, focus & exposure" panel: per camera, the exposure,
  * gain and focus controls the browser exposes for that webcam. Many UVC
  * drivers expose fewer controls to browsers than to tools such as OBS.
  *

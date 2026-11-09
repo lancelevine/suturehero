@@ -17,7 +17,7 @@ export function mountWorkspaceLayout(app:HTMLElement){
  const stage=document.createElement('div');stage.className='workspace-stage';
  const visual=document.createElement('div');visual.className='workspace-visuals';visual.append(viewport,cameraPanel);
  const calibration=document.createElement('aside');calibration.id='workspace-calibration-drawer';calibration.className='workspace-calibration-drawer';calibration.hidden=true;
- calibration.innerHTML='<div class="workspace-drawer-bar"><span>INSTRUMENT SETUP</span><button type="button" id="close-calibration" aria-label="Close calibration">✕</button></div><div id="instrument-calibration"></div>';
+ calibration.innerHTML='<div class="workspace-drawer-bar"><span title="Separate settings for each instrument">INSTRUMENT CALIBRATION</span><button type="button" id="close-calibration" aria-label="Close calibration">✕</button></div><div id="instrument-calibration"></div>';
  stage.append(visual,calibration);
  const viewTools=document.createElement('div');viewTools.className='workspace-view-tools';viewTools.append(workspace.querySelector('#close-up')!,workspace.querySelector('#camera')!);viewport.append(viewTools);
  const heading=workspace.querySelector<HTMLElement>('.scene-heading')!;heading.classList.add('workspace-scene-title');viewport.append(heading);

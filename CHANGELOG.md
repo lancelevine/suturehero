@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.133 — layout tidy-up
+
+- Practice view: when it is narrow (e.g. laptop width with camera and
+  calibration open), the title wraps clear of the view buttons and the
+  orbit hint / live-view line are hidden instead of overlapping.
+- Calibration: "Set neutral pose" is now at the top, under the instrument
+  buttons, visible on every tab; the Pose / Jaws / Axis mapping tabs sit
+  above the live preview. The drawer has one heading ("Instrument
+  calibration") instead of three.
+- Camera panel: "Camera controls · type, focus & exposure" starts
+  collapsed; the second camera's chooser and start/stop moved out of it to
+  sit under camera 1's row. The camera-type dropdown matches the text size.
+
 ## Build 0.132 — sub-pixel marker corners; steadier single-camera depth
 
 The marker corner refinement only snapped corners to the nearest whole

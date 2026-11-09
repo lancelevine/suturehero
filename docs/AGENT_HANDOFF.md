@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — layout fixes (view overlap, calibration order, camera controls, headings)
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
@@ -68,6 +68,20 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-09 — Claude — 0.133 layout tidy-up
+
+- `src/ui/workspace.css`: container query on `#viewport` (≤ 560 px) wraps
+  the title, hides `.camera-hint` / `.scene-label`; drawer hides the panel's
+  `.calibration-heading`; neutral action and select sizing.
+- `src/ui/InstrumentCalibrationPanel.ts`: Set neutral + status moved to
+  `.calibration-neutral-action` under the instrument buttons; tabs before
+  the live preview. `WorkspaceLayout.ts`: drawer bar "INSTRUMENT
+  CALIBRATION". `TrackingLayout.ts`: camera controls collapsed by default;
+  second-camera row moved under camera 1's row.
+- `scripts/check-camera-controls.mjs` opens the (now collapsed) controls
+  first. Pass: tracking-panels, dual-camera-fit, calibration-ui,
+  calibration-preview, camera-controls, status-strip, stereo-shortcut.
 
 ### 2026-11-09 — Claude — 0.132 sub-pixel corners fix depth drift; size-depth module
 

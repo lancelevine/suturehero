@@ -65,8 +65,11 @@ export function mountTrackingLayout(root:HTMLElement){
   new MutationObserver(mirror).observe(stereoStart,{attributes:true,attributeFilter:['disabled']});
   navigation.append(shortcut);stage.append(shortcutStatus);
  }
- const cameraSettings=section(stage,'Camera controls · focus & exposure');cameraSettings.parentElement!.setAttribute('open','');cameraSettings.classList.add('tracking-camera-settings');
- cameraSettings.append(root.querySelector('#camera-settings-controls')!,group('camera-select-2','.tracking-actions'));
+ // Collapsed by default: camera type, focus and exposure are rarely changed, and the open section took half the camera panel.
+ const cameraSettings=section(stage,'Camera controls · type, focus & exposure');cameraSettings.classList.add('tracking-camera-settings');
+ cameraSettings.append(root.querySelector('#camera-settings-controls')!);
+ // Second camera's chooser and start/stop sit under camera 1's row, outside the collapsed controls.
+ cameraRow.after(group('camera-select-2','.tracking-actions'));
  const disable=document.querySelector('#disable-camera-tracking');if(embedded&&disable)cameraSettings.append(disable);
  const recognition=section(diagnostics,'Recognition & image diagnostics');recognition.parentElement!.setAttribute('open','');
  recognition.append(root.querySelector('[aria-label="Live camera diagnostics"]')!);

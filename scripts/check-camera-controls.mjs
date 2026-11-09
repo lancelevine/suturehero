@@ -21,6 +21,8 @@ try{
  await page.route('**/src/input/arucoWorker.ts?*',r=>r.abort());
  await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  await page.locator('#start-camera').click();
+ // Camera controls are collapsed by default since build 0.133; open them as a user would.
+ await page.locator('.tracking-camera-settings').locator('xpath=..').locator('summary').first().click();
  await page.getByLabel('Exposure mode').waitFor({state:'visible'});
  assert.deepEqual(await page.getByLabel('Exposure mode').locator('option').allTextContents(),['auto','Manual']);
  await page.getByLabel('Exposure mode').selectOption('manual');
