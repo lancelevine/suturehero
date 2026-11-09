@@ -1,5 +1,5 @@
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
-import {acceptRotation,chooseFace,combineRotation,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
+import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
@@ -747,11 +747,7 @@ function updateLiveTargets(){
  const now=observationsAt||performance.now();
  for(const name of ['needleDriver','forceps','scissors'] as const){
   const ids:readonly number[]=markerGroups()[name];
-  const candidates=liveMarkers().filter(m=>ids.includes(m.id)).map(marker=>{
-   const pose=estimateMarkerPose(marker,overlay.width,overlay.height,trackerGeometry(trackerType).markerSizeMm);
-   return pose?{marker,pose}:null;
-  }).filter((item):item is {marker:MarkerObservation;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}=>item!==null);
-  candidates.sort((a,b)=>a.pose.reprojectionError-b.pose.reprojectionError);
+  const candidates=faceCandidates(liveMarkers(),ids,marker=>estimateMarkerPose(marker,overlay.width,overlay.height,trackerGeometry(trackerType).markerSizeMm));
   const previous=liveTargets.get(name);
   // PR #67 face selection: prefer a stable, well-fitting face instead of
   // switching IDs based on marker area on every frame.

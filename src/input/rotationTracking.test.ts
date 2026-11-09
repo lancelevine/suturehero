@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { PrismPose } from './prismPose';
-import { acceptRotation, chooseFace, combineRotation, largestFaceId, rotationFaceMarkers, predictRotation, restRigidBody, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
+import { acceptRotation, chooseFace, combineRotation, faceCandidates, largestFaceId, rotationFaceMarkers, predictRotation, restRigidBody, rotationVerdict, stallRotation, startRigidBody, updateFaceTransition, type RotationGateInput } from './rotationTracking';
 
 const pose = (angle: number, axis = new THREE.Vector3(0, 1, 0)): PrismPose => ({ quaternion: new THREE.Quaternion().setFromAxisAngle(axis, angle), translation: new THREE.Vector3(), error: 1, faces: 1 } as PrismPose);
 const gate = (change: Partial<RotationGateInput> = {}): RotationGateInput => ({
@@ -101,5 +101,13 @@ describe('rotation source', () => {
     expect(rotationFaceMarkers([m(10), m(16)], 10, true).map((x) => x.id)).toEqual([10]);
     expect(rotationFaceMarkers([m(16), m(17)], 10, true).map((x) => x.id)).toEqual([16, 17]);
     expect(rotationFaceMarkers([m(10), m(16)], 10, false).map((x) => x.id)).toEqual([10, 16]);
+  });
+});
+
+describe('face candidates', () => {
+  it('keeps this instrument\'s estimable faces, best fit first', () => {
+    const errors: Record<number, number | null> = { 1: 3, 2: 1, 3: null, 9: 0 };
+    const result = faceCandidates([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 9 }], [1, 2, 3], (m) => (errors[m.id] === null ? null : { reprojectionError: errors[m.id]! }));
+    expect(result.map((c) => c.marker.id)).toEqual([2, 1]);
   });
 });

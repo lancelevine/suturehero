@@ -211,3 +211,21 @@ export function rotationFaceMarkers<T extends { id: number }>(markers: readonly 
   const side = markers.filter((m) => m.id < firstId + RING_SIDE_FACE_COUNT);
   return ring8 && side.length ? side : markers;
 }
+
+/**
+ * Each visible face of one instrument with its planar pose, best fit first
+ * (faces whose pose cannot be estimated are left out).
+ */
+export function faceCandidates<M extends { id: number }, P extends { reprojectionError: number }>(
+  markers: readonly M[],
+  ids: readonly number[],
+  estimate: (marker: M) => P | null,
+): Array<{ marker: M; pose: P }> {
+  const candidates: Array<{ marker: M; pose: P }> = [];
+  for (const marker of markers) {
+    if (!ids.includes(marker.id)) continue;
+    const pose = estimate(marker);
+    if (pose) candidates.push({ marker, pose });
+  }
+  return candidates.sort((a, b) => a.pose.reprojectionError - b.pose.reprojectionError);
+}
