@@ -1,3 +1,4 @@
+import {acceptRotation,gateElapsedSeconds,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {DistanceHistory} from './input/distanceHistory';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
@@ -648,10 +649,8 @@ const trackingHoldMs=650;
 const rotationStates=new Map<'needleDriver'|'forceps'|'scissors',{face:number;rawAnchor:THREE.Quaternion;outputAnchor:THREE.Quaternion;accumulatedRoll:number;faceRoll:number}>();
 // Rotation-only rigid-body state. Never used to accept/reject translation.
 const rotationSources=new Map<InstrumentName,'mono'|'stereo'>();
-const faceTransitionStates=new Map<InstrumentName,{faceId:number;candidateId:number|null;candidateCount:number}>();
-const rigidBodyStates=new Map<'needleDriver'|'forceps'|'scissors',{
- anchorRaw:THREE.Quaternion;anchorOutput:THREE.Quaternion;lastRaw:THREE.Quaternion;lastAt:number;pose:PrismPose;stallSince:number|null;status:'tracking'|'stalled'|'reacquiring';angularVelocity:THREE.Vector3
-}>();
+const faceTransitionStates=new Map<InstrumentName,FaceTransitionState>();
+const rigidBodyStates=new Map<InstrumentName,RigidBodyState>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
 const sizeDepthCalibration=new SizeDepthCalibration();
@@ -872,15 +871,7 @@ function updateLiveTargets(){
   // Solve all simultaneously visible prism faces as one rigid object.
   // Retain the last accepted pose as a solver seed, but never discard real
   // rotation by resetting the output anchor when the visible face changes.
-  let predicted:PrismPose|undefined;
-  if(state){
-   const dt=Math.min(.09,Math.max(0,(now-state.lastAt)/1000));
-   const step=state.angularVelocity.clone().multiplyScalar(dt);
-   const angle=step.length();
-   const q=state.lastRaw.clone();
-   if(angle>1e-5)q.multiply(new THREE.Quaternion().setFromAxisAngle(step.normalize(),Math.min(angle,.45)));
-   predicted={...state.pose,quaternion:q};
-  }
+  const predicted:PrismPose|undefined=state?predictRotation(state,now):undefined;
   let ringTracker=ringPoseTrackers.get(name);
   if(trackerType==='ring8'&&!ringTracker){ringTracker=new RingPoseTracker();ringPoseTrackers.set(name,ringTracker);}
   const useAlignedRing=trackerType==='ring8'&&trackingMode.value==='mono';
@@ -911,36 +902,14 @@ function updateLiveTargets(){
   let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
   if(rigid){
    if(!state){
-    rigidBodyStates.set(name,{anchorRaw:rigid.quaternion.clone(),anchorOutput:quaternion.clone(),lastRaw:rigid.quaternion.clone(),lastAt:now,pose:rigid,stallSince:null,status:'tracking',angularVelocity:new THREE.Vector3()});
+    rigidBodyStates.set(name,startRigidBody(rigid,quaternion,now));
     if(currentFace!==null)faceTransitionStates.set(name,{faceId:currentFace,candidateId:null,candidateCount:0});
    }else{
-    const elapsed=Math.max(.016,Math.min(.15,(now-state.lastAt)/1000));
+    const elapsed=gateElapsedSeconds(state,now);
     const angularDifference=rigid.quaternion.angleTo(state.lastRaw);
     const depthMeasurement=filterMeasurements.get(name);if(depthMeasurement)depthMeasurement.angle=THREE.MathUtils.radToDeg(angularDifference);
-    // A lone planar face can briefly return a mirrored solution. Prefer
-    // continuity, but do not impose a hard angular ceiling on real motion.
-    const staleMs=now-state.lastAt;
-    const singleFaceLimit=Math.max(.35,elapsed*10);
-    // Reacquire after a sufficiently large real rotation between observations. Do not freeze indefinitely because
-    // the single-face angular gate was exceeded.
-    const reacquire=staleMs>220&&rigid.error<(stereoUsable?4:5);
-    // Fast face-to-face rolls can exceed the single-face velocity gate while
-    // translation continues updating. Accept a well-fitted, freshly decoded
-    // face immediately instead of holding rotation until the 220 ms timeout.
-    // Keep the normal continuity gate for noisier optical-flow estimates.
     const freshDecodedFace=rotationMarkers.some(m=>performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<110);
-    const fastFaceTransition=!stereoUsable&&rigid.faces===1&&freshDecodedFace&&
-     rigid.error<2.0&&angularDifference<Math.PI*.85;
-    // Flow corner geometry can update between decodes. Accept only small,
-    // well-fitted incremental rotations without waiting for the next ID decode.
-    // Large single-face jumps still use the baseline face-transition gate.
-    const flowIncrement=continuousFlowRotation&&!stereoUsable&&rigid.faces===1&&
-     rigid.error<3&&angularDifference<Math.max(.55,elapsed*14)&&
-     rotationMarkers.some(m=>markerAge(m.id)<100);
-    // An ID-confirmed face switch can represent a genuine large prism roll.
-    // Confirm the new face across two consecutive fresh observations and
-    // require its fitted orientation to agree with predicted angular motion.
-    // This path never bypasses the single-face error / mirror safeguards.
+    const flowRotationRecent=continuousFlowRotation&&rotationMarkers.some(m=>markerAge(m.id)<100);
     let transition=faceTransitionStates.get(name);
     if(!transition&&currentFace!==null){
      transition={faceId:currentFace,candidateId:null,candidateCount:0};
@@ -949,22 +918,14 @@ function updateLiveTargets(){
     const changedFace=!!transition&&currentFace!==null&&currentFace!==transition.faceId;
     const newFaceFresh=changedFace&&rotationMarkers.some(m=>m.id===currentFace&&
      performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<180);
-    if(transition){
-     if(newFaceFresh){
-      transition.candidateCount=transition.candidateId===currentFace?transition.candidateCount+1:1;
-      transition.candidateId=currentFace;
-     }else if(!changedFace){
-      transition.candidateId=null;transition.candidateCount=0;
-     }
-    }
+    if(transition)updateFaceTransition(transition,currentFace,newFaceFresh);
     const predictedDifference=predicted?rigid.quaternion.angleTo(predicted.quaternion):Infinity;
-    const faceTransitionAccepted=faceTransitionEnabled&&!stereoUsable&&
-     !!newFaceFresh&&!!transition&&transition.candidateCount>=2&&
-     rigid.error<2.5&&predictedDifference<.85&&angularDifference<2.5;
-    const credible=rigid.error<(stereoUsable?5:10)&&(stereoUsable||rigid.faces>=2||angularDifference<singleFaceLimit||fastFaceTransition||flowIncrement||faceTransitionAccepted||reacquire);
+    const verdict=rotationVerdict({error:rigid.error,faces:rigid.faces,stereo:stereoUsable,angularDifference,predictedDifference,elapsedSeconds:elapsed,
+     staleMs:now-state.lastAt,freshDecodedFace,flowRotationRecent,faceTransitionEnabled,newFaceFresh:!!newFaceFresh,candidateCount:transition?.candidateCount??0});
+    const credible=verdict!=='rejected';
     document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=
      name+' · '+rotationSource+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
-     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?(faceTransitionAccepted?'face transition accepted':fastFaceTransition?'fast face accepted':flowIncrement?'flow accepted':reacquire?'reacquired':'accepted'):(changedFace?'face transition pending':'angular gate rejected'))+(useAlignedRing?' · '+ringTracker!.status:'');
+     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?verdict:(changedFace?'face transition pending':'angular gate rejected'))+(useAlignedRing?' · '+ringTracker!.status:'');
     rotationStageStatus.set(name,credible?'accepted':'rejected ('+rigid.faces+' faces, '+rigid.error.toFixed(1)+' error)');
     if(credible){
      if(transition&&currentFace!==null){transition.faceId=currentFace;transition.candidateId=null;transition.candidateCount=0;}
@@ -973,31 +934,10 @@ function updateLiveTargets(){
      // Postmultiplying the body-local delta makes prism roll rotate the
      // instrument about its shaft, regardless of how the prism is tilted.
      // Keep the instrument's existing tip pivot and stereo translation.
-     const motion=state.lastRaw.clone().invert().multiply(rigid.quaternion).normalize();
-     // Derive orientation from the absolute ring pose to avoid accumulated face-switch errors.
-     quaternion.copy(state.anchorOutput).multiply(state.anchorRaw.clone().invert().multiply(rigid.quaternion)).normalize();
-     const axis=new THREE.Vector3(motion.x,motion.y,motion.z);
-     if(axis.lengthSq()>1e-9&&angularDifference<1.2){
-      axis.normalize().multiplyScalar(angularDifference/elapsed*(motion.w<0?-1:1));
-      state.angularVelocity.lerp(axis,.25);
-      if(state.angularVelocity.length()>12)state.angularVelocity.setLength(12);
-     }
-     state.lastRaw.copy(rigid.quaternion);
-     state.lastAt=now;
-     state.pose=rigid;
-     state.stallSince=null;
-     state.status='tracking';
-    }else{
-     state.stallSince??=now;
-     state.status='stalled';
-     state.angularVelocity.multiplyScalar(.85);
-    }
+     quaternion.copy(acceptRotation(state,rigid,now,elapsed,angularDifference));
+    }else stallRotation(state,now);
    }
-  }else if(state){
-   state.stallSince??=now;
-   state.status='stalled';
-   state.angularVelocity.multiplyScalar(.85);
-  }
+  }else if(state)stallRotation(state,now);
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
