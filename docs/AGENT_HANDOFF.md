@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — handle-prism jaws: reject off-hinge (mirrored face) readings when turning.
 - **Needs Lance to test by hand:**
   - **Camera-track frames (build 0.135):** with Camera type OV9281, export
     a profile: `frameSource` should be "camera track", and "Camera 1
