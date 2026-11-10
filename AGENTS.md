@@ -95,8 +95,9 @@ area they cover; they are not run by CI.
   `check-handle-jaws-stereo` fails there; a sandbox limit, not a tracking bug.
 - Flaky: `check-depth-stability` (~40–60% pass in this sandbox, also on
   build 0.132; the 6/6 after the sub-pixel corner fix did not hold up),
-  `check-handle-jaws` (single-camera prism: mirror
-  flips at single-face poses, usually −15,60,0 or −15,300,0) (see handoff log).
+  `check-handle-jaws` (single-camera prism; since 0.136 mirror flips are
+  rejected, and it fails at −15,300,0 on an oblique face's ~5° pose error)
+  (see handoff log).
 
 Never weaken a test threshold just to make it pass. If a limit is genuinely
 wrong, say why in the commit message and the handoff entry.

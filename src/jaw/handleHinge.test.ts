@@ -1,6 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { averageRotation, handleRelativeToRing, hingeOpening, parseHinge, serializeHinge, solveHinge } from './handleHinge';
+import { averageRotation, bestHingeReading, handleRelativeToRing, hingeOpening, hingeSwing, MAX_HINGE_SWING_RADIANS, parseHinge, serializeHinge, solveHinge } from './handleHinge';
 
 const deg = (d: number) => (d * Math.PI) / 180;
 const turn = (axis: Vector3, d: number) => new Quaternion().setFromAxisAngle(axis.clone().normalize(), deg(d));
@@ -119,5 +119,26 @@ describe('face correction snapping', () => {
     // Something no real layout explains is kept as measured.
     const odd = turn(new Vector3(1, 1, 0), 45);
     expect(snapFaceCorrection(odd, 1, 0).angleTo(odd)).toBeLessThan(1e-6);
+  });
+});
+
+describe('hinge swing check', () => {
+  const closed = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), 0.4);
+  const axis = new Vector3(0, 0, 1);
+  const turn = (v: Vector3, angle: number) => new Quaternion().setFromAxisAngle(v.clone().normalize(), angle);
+  const model = { closed, axis, openAngle: 0.5 };
+  it('is near zero for a turn about the hinge, and the off-axis angle otherwise', () => {
+    expect(hingeSwing(model, closed.clone().multiply(turn(axis, 0.3)))).toBeLessThan(1e-6);
+    const tilted = closed.clone().multiply(turn(axis, 0.3)).multiply(turn(new Vector3(1, 0, 0), 0.6));
+    expect(hingeSwing(model, tilted)).toBeCloseTo(0.6, 5);
+  });
+  it('picks the reading that fits the hinge and rejects all-off-axis ones', () => {
+    const good = closed.clone().multiply(turn(axis, 0.25));
+    const mirrored = good.clone().multiply(turn(new Vector3(0, 1, 0), 1.2));
+    expect(bestHingeReading(model, [mirrored, good], (q) => q)!.candidate).toBe(good);
+    expect(hingeOpening(model, good)).toBeCloseTo(0.5, 5);
+    expect(bestHingeReading(model, [mirrored], (q) => q)).toBeNull();
+    const noisy = good.clone().multiply(turn(new Vector3(1, 1, 0), MAX_HINGE_SWING_RADIANS * 0.5));
+    expect(bestHingeReading(model, [noisy], (q) => q)).not.toBeNull();
   });
 });

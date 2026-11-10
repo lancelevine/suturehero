@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.136 — handle-prism jaws ignore mirrored faces
+
+With one camera, a single handle-prism face can be solved as its mirror
+image, which made the jaws open or close by themselves while the instrument
+was turned. Once the jaws are calibrated, each face is now solved several
+ways and the solution that fits a turn about the calibrated hinge is used.
+A reading more than 15° off the hinge axis is skipped and the last opening
+is held; the status then says "does not fit the hinge (likely a mirrored
+face)".
+
 ## Build 0.135 — camera frames read straight from the camera
 
 With the OV9281 camera type, camera frames are now read straight from the

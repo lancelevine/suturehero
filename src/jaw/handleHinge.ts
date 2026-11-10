@@ -74,6 +74,34 @@ export function hingeOpening(model: HingeModel, relative: Quaternion): number {
   return Math.min(1.2, Math.max(0, opening));
 }
 
+/**
+ * Largest rotation off the hinge axis a reading may have (radians). The
+ * handle can only turn about its hinge, so a real reading differs from
+ * closed by a twist about `axis` plus pose noise (1–3° per frame on 12 mm
+ * markers). A lone face solved as its mirror image tilts the reading well
+ * off the axis (tens of degrees) and is rejected instead of moving the jaws.
+ */
+export const MAX_HINGE_SWING_RADIANS = (15 * Math.PI) / 180;
+
+/** How far `relative` is rotated off the hinge axis (radians): the swing part of closed⁻¹ · relative. */
+export function hingeSwing(model: HingeModel, relative: Quaternion): number {
+  const fromClosed = model.closed.clone().invert().multiply(relative).normalize();
+  const twist = twistAngle(fromClosed, model.axis);
+  const twistOnly = new Quaternion().setFromAxisAngle(model.axis, twist);
+  const swing = fromClosed.multiply(twistOnly.invert()).normalize();
+  return 2 * Math.acos(Math.min(1, Math.abs(swing.w)));
+}
+
+/** The candidate reading that best fits a turn about the hinge, or null if none is within MAX_HINGE_SWING_RADIANS. */
+export function bestHingeReading<T>(model: HingeModel, candidates: readonly T[], relative: (candidate: T) => Quaternion): { candidate: T; swing: number } | null {
+  let best: { candidate: T; swing: number } | null = null;
+  for (const candidate of candidates) {
+    const swing = hingeSwing(model, relative(candidate));
+    if (!best || swing < best.swing) best = { candidate, swing };
+  }
+  return best && best.swing <= MAX_HINGE_SWING_RADIANS ? best : null;
+}
+
 export interface SavedHinge {
   version: 1;
   closed: number[];

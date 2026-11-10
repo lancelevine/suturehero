@@ -6,8 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — handle-prism jaws: reject off-hinge (mirrored face) readings when turning.
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Handle-prism jaws while turning (build 0.136):** one camera, jaws
+    held still, roll the instrument through every prism face. The opening
+    should stay put (or say "Holding last reading · … does not fit the
+    hinge"). Steeply angled faces can still be off by several percent.
   - **Camera-track frames (build 0.135):** with Camera type OV9281, export
     a profile: `frameSource` should be "camera track", and "Camera 1
     capture attempts" / "flow round trip" rates should rise above 30/s.
@@ -74,6 +78,25 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-10 — Claude — handle-prism jaws: hinge-consistency check (build 0.136)
+
+- Lance: jaws read well on one face but open/close when the instrument is
+  turned (handle prism, faces aligned, one camera).
+- `handleHinge.ts`: `hingeSwing` (rotation off the hinge axis) and
+  `bestHingeReading` (pick the candidate closest to a pure hinge turn; none
+  if all exceed `MAX_HINGE_SWING_RADIANS` = 15°), with tests.
+- `handlePrismController.ts` `cameraRelative`, calibrated + corrected mode
+  only: each face is solved seeded from the last reading, seeded from the
+  closed pose, and unseeded; fits within 1 px of the best are compared by
+  hinge swing. Off-hinge faces are skipped (next face tried; else hold).
+- check-handle-jaws, single camera: before, failed at −15,60,0 on 3/3 runs
+  (reads 0 or 0.25 vs 0.5: mirror flip). After, that pose reads 0.58 and the
+  mirrored solution at −15,280,0 (34° off-hinge, 0.72) is rejected; it now
+  fails at −15,300,0 on 4/4 (0.23 vs 0.5). Traced: all three handle
+  solutions agree there and the ring (3 faces, unseeded = seeded) is fine;
+  face 30 seen obliquely is ~5° off, i.e. precision, not a flip. Threshold
+  unchanged. check-handle-jaws-stereo passes.
 
 ### 2026-11-10 — Claude — camera frames from the track (build 0.135)
 

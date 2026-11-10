@@ -29,6 +29,7 @@ import {
   type FaceLayout,
   CAPTURE_INLIER_RADIANS,
   handleRelativeToRing,
+  bestHingeReading,
   hingeOpening,
   HANDLE_PRISM_IDS,
   parseHinge,
@@ -272,6 +273,7 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     const layout = layouts.get(name);
     const readings: FaceReading[] = [];
     let unaligned: number[] = [];
+    const offHinge: number[] = [];
     for (const marker of faces) {
       // One face at a time through the iterative prism solver (3-face layout,
       // 12 mm markers): its rotation is exact for any prism width, which is
@@ -289,21 +291,41 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
       // rotation (or the closed calibration), expressed in this face's own
       // (uncorrected) frame, and keep that solution unless it fits clearly worse.
       const free = solvePrismPose([{ ...marker, id: face }], 0, width, height, undefined, undefined, 'prism');
-      const expectedCorrected = lastRelative.get(name) ?? models.get(name)?.closed ?? closedCaptures.get(name);
-      const expected = expectedCorrected && correction ? expectedCorrected.clone().multiply(correction.clone().invert()) : expectedCorrected;
-      const seeded = expected && free
-        ? solvePrismPose([{ ...marker, id: face }], 0, width, height, { ...free, quaternion: ring.quaternion.clone().multiply(expected) }, undefined, 'prism')
-        : null;
-      const body = seeded && free && seeded.error <= free.error + SEED_ERROR_MARGIN_PX ? seeded : free;
+      const toFaceFrame = (q: Quaternion) => (correction ? q.clone().multiply(correction.clone().invert()) : q);
+      const seedWith = (expectedCorrected: Quaternion | undefined) => (expectedCorrected && free
+        ? solvePrismPose([{ ...marker, id: face }], 0, width, height, { ...free, quaternion: ring.quaternion.clone().multiply(toFaceFrame(expectedCorrected)) }, undefined, 'prism')
+        : null);
+      const model = models.get(name);
+      const relativeOf = (pose: PrismPose) => {
+        const raw = handleRelativeToRing(ring.quaternion, pose.quaternion);
+        return mode === 'raw' || !layout ? raw : correctedRelative(layout, face, raw)!;
+      };
+      let body: PrismPose | null;
+      if (mode === 'corrected' && model && free) {
+        // Calibrated: solve from the last reading and from the closed pose (either may
+        // be a mirror image), keep fits within the margin of the best, and use the one
+        // that best matches a turn about the hinge (handleHinge.ts bestHingeReading).
+        const fits = [seedWith(lastRelative.get(name)), seedWith(model.closed), free].filter((p): p is PrismPose => !!p && p.error <= MAX_HANDLE_ERROR_PX);
+        const bestError = Math.min(...fits.map((p) => p.error));
+        const pick = bestHingeReading(model, fits.filter((p) => p.error <= bestError + SEED_ERROR_MARGIN_PX), relativeOf);
+        if (!pick) {
+          if (fits.length) offHinge.push(marker.id);
+          continue;
+        }
+        body = pick.candidate;
+      } else {
+        const seeded = seedWith(lastRelative.get(name) ?? model?.closed ?? closedCaptures.get(name));
+        body = seeded && free && seeded.error <= free.error + SEED_ERROR_MARGIN_PX ? seeded : free;
+      }
       if (!body || body.error > MAX_HANDLE_ERROR_PX) continue;
-      const raw = handleRelativeToRing(ring.quaternion, body.quaternion);
-      const relative = mode === 'raw' || !layout ? raw : correctedRelative(layout, face, raw)!;
+      const relative = relativeOf(body);
       if (!readings.length) handlePoses.set(`${name}:${camera.index}`, { pose: body, at: now });
       readings.push({ face, relative });
       // The corrected reading needs only the clearest usable face; alignment wants every face.
       if (mode === 'corrected') break;
     }
     if (readings.length) return readings;
+    if (offHinge.length) return `prism face ${offHinge.join(', ')} reading does not fit the hinge in Camera ${camera.index} (likely a mirrored face)`;
     if (unaligned.length && !faces.some((m) => !unaligned.includes(m.id))) return `prism face ${unaligned.join(', ')} not aligned yet (Align prism faces)`;
     return faces.length ? `prism seen by Camera ${camera.index} but its pose is not reliable` : `prism not visible to Camera ${camera.index}`;
   }
