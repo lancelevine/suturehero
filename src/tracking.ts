@@ -35,6 +35,7 @@ import {copyFlowSeed} from './input/flowSeed';
 import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
 import {captureSettings,FLOW_MIN_INTERVAL_MS,frameDrivenEnabled} from './input/captureScheduling';
+import {trackProcessor} from './input/trackFrames';
 import {cameraMode} from './input/cameraDevices';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
@@ -511,7 +512,8 @@ async function detectSecondFrame(now:number){
  const nativeW=video2.videoWidth,nativeH=video2.videoHeight;
  const {width:w,height:h,toNative,toFlow}=flowFrameScale(nativeW,nativeH);
  if(frame2.width!==w||frame2.height!==h){frame2.width=w;frame2.height=h;overlay2.width=w;overlay2.height=h;}
- const snapshot=doSlow?perf.measure('Camera 2 video snapshot',()=>videoSnapshot(video2,captureCanvas2,captureContext2)):null;
+ // Frames read from the camera track exist only as the snapshot, so flow takes one too (src/input/trackFrames.ts).
+ const snapshot=doSlow||trackFramesActive()?perf.measure('Camera 2 video snapshot',()=>videoSnapshot(video2,captureCanvas2,captureContext2)):null;
  if(snapshot){snapshotBackend2=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 2 snapshot fallback');}
  try{
  const bitmapFlow=useBitmapFlow();
@@ -1440,6 +1442,8 @@ const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
 /** Whether camera frames are processed as they arrive (requestVideoFrameCallback) rather than at display refresh. */
 const frameDriven=()=>!recordedInput()&&typeof video.requestVideoFrameCallback==='function'&&frameDrivenEnabled(captureSettings.frameDriven,cameraMode(),true);
+/** Whether camera frames come from the camera track rather than the <video> element (frame-driven and supported). */
+const trackFramesActive=()=>frameDriven()&&trackProcessor()!==null;
 /** Per-camera back-off: flow requests use at most ~15% of the main thread each (src/input/flowBudget.ts). */
 const flowBudget1=new FlowBudget(),flowBudget2=new FlowBudget();
 const flowMinIntervalMs=()=>frameDriven()?FLOW_MIN_INTERVAL_MS.frameDriven:FLOW_MIN_INTERVAL_MS.display;
@@ -1495,7 +1499,8 @@ async function detectFrame(now:number){
  const nativeW=video.videoWidth,nativeH=video.videoHeight;
  const {width:w,height:h,toNative,toFlow}=flowFrameScale(nativeW,nativeH);
  if(frameCanvas.width!==w||frameCanvas.height!==h){frameCanvas.width=w;frameCanvas.height=h;overlay.width=w;overlay.height=h;}
- const snapshot=doSlow?perf.measure('Camera 1 video snapshot',()=>videoSnapshot(video,captureCanvas,captureContext)):null;
+ // Frames read from the camera track exist only as the snapshot, so flow takes one too (src/input/trackFrames.ts).
+ const snapshot=doSlow||trackFramesActive()?perf.measure('Camera 1 video snapshot',()=>videoSnapshot(video,captureCanvas,captureContext)):null;
  if(snapshot){snapshotBackend1=snapshot.direct?'VideoFrame':'canvas fallback';if(!snapshot.direct)perf.count('Camera 1 snapshot fallback');}
  try{
  const bitmapFlow=useBitmapFlow();
@@ -1757,9 +1762,9 @@ window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();v
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
-observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());});
-observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());});
-const performanceContext=()=>({build:'0.134',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());},frameDriven);
+observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());},frameDriven);
+const performanceContext=()=>({build:'0.135',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);

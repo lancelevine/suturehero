@@ -6,8 +6,14 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — read camera frames from the track (MediaStreamTrackProcessor) so 120 fps cameras are not limited by the display rate.
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Camera-track frames (build 0.135):** with Camera type OV9281, export
+    a profile: `frameSource` should be "camera track", and "Camera 1
+    capture attempts" / "flow round trip" rates should rise above 30/s.
+    Check tracking still feels right; if worse, set Diagnostics →
+    Performance → "Camera frames processed" to "At display refresh" and
+    send both profiles.
   - **Stereo stabilization (build 0.88):** reload, hold the needle driver
     still, and confirm that the virtual instrument no longer jumps. Then move
     it deliberately and check that response remains usable. The supplied
@@ -68,6 +74,28 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-10 — Claude — camera frames from the track (build 0.135)
+
+- Why: Lance's 0.134 profile with the OV9281s: cameras presented 119.6
+  fps but capture attempts were 30/s, because the browser renders at 30 Hz
+  and requestVideoFrameCallback / drawing the <video> only see rendered
+  frames.
+- New `src/input/trackFrames.ts` (+ test): reads a clone of each camera
+  track with MediaStreamTrackProcessor, keeps the newest VideoFrame.
+  `observeCameraFrames` (CameraFrameClock.ts) starts it when frame-driven
+  capture is on (default for OV9281) and calls back per arriving frame;
+  `videoSnapshot` uses that frame; tracking.ts takes a snapshot for flow
+  too while it is active. Profile context gets `frameSource`.
+- Pairing time with track frames is the read time (no camera capture
+  time from this API); frames are read on arrival, so the gap is small.
+- Checks: tsc, src/input unit tests; tracking-motion (default and
+  ov9281), ring-handoffs, driver-depth (ov9281), profiler pass. Profile
+  confirms frameSource "camera track" in ov9281 mode and "display" with
+  the setting off. The sandbox camera only delivers ~15 fps, so the 120
+  fps gain is untested here. check-stereo-motion with
+  SUTURE_CAMERA_PRESET=ov9281 is flaky both before (3/5) and after
+  (3/8), with the same failure kinds; not conclusive either way.
 
 ### 2026-11-09 — Claude — tracking.ts split continued (timed session)
 

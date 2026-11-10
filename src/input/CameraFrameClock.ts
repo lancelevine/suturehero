@@ -1,4 +1,5 @@
 import {recordedInput} from '../trackingLab/runtime';
+import {openVideoTrack,trackProcessor,TrackFrames} from './trackFrames';
 /** Track newly presented camera frames, rather than the continuously advancing
  * HTMLVideoElement.currentTime playback clock. A consumer always takes latest. */
 export class CameraFrameClock {
@@ -15,12 +16,30 @@ export class CameraFrameClock {
 }
 const clocks=new WeakMap<HTMLVideoElement,CameraFrameClock>();
 export const frameClock=(video:HTMLVideoElement)=>{if(recordedInput()){let clock=clocks.get(video);if(!clock){clock=new CameraFrameClock();clocks.set(video,clock);}if(clock.frameId!==recordedInput()!.frameId(video)){clock.presented(performance.now(),recordedInput()!.frameId(video));}return clock;}const clock=clocks.get(video);return clock?.recent(performance.now())?clock:undefined;};
-export function observeCameraFrames(video:HTMLVideoElement,onFrames:(count:number)=>void){
+const trackFrames=new WeakMap<HTMLVideoElement,TrackFrames<VideoFrame>>();
+/** How often to check whether the track reader should start or stop (camera changed, setting changed), ms. */
+const TRACK_WATCH_INTERVAL_MS=250;
+/** A clone of the newest frame read from this video's camera track (caller closes it), or null when frames come from the <video> element. */
+export function liveCameraFrame(video:HTMLVideoElement):VideoFrame|null{return trackFrames.get(video)?.takeLatest()??null;}
+/**
+ * Calls onFrames for each new camera frame. With `useTrack()` true and Chrome's
+ * MediaStreamTrackProcessor available, frames are read from the camera track as
+ * they arrive (src/input/trackFrames.ts), so they are not limited to the page's
+ * render rate; otherwise requestVideoFrameCallback is used as before.
+ */
+export function observeCameraFrames(video:HTMLVideoElement,onFrames:(count:number)=>void,useTrack:()=>boolean=()=>false){
  if(recordedInput()||!video.requestVideoFrameCallback)return;
  const clock=new CameraFrameClock();clocks.set(video,clock);
+ const live=new TrackFrames<VideoFrame>();trackFrames.set(video,live);
+ let liveSource:MediaProvider|null=null;
+ const watch=window.setInterval(()=>{
+  const wanted=useTrack()&&trackProcessor()!==null&&video.srcObject instanceof MediaStream;
+  if(live.active&&(!wanted||video.srcObject!==liveSource)){live.stop();liveSource=null;}
+  if(wanted&&!live.active&&live.start(openVideoTrack(video),()=>{clock.presented(performance.now());onFrames(1);}))liveSource=video.srcObject;
+ },TRACK_WATCH_INTERVAL_MS);
  let stopped=false,lastFrames=0,id=0,lastSource:MediaProvider|null=null;
- const frame:VideoFrameRequestCallback=(_now,metadata)=>{if(stopped)return;if(video.srcObject!==lastSource){lastSource=video.srcObject;lastFrames=0;}const count=lastFrames?Math.max(1,metadata.presentedFrames-lastFrames):1;lastFrames=metadata.presentedFrames;clock.presented(_now,undefined,(metadata as {captureTime?:number}).captureTime);onFrames(count);id=video.requestVideoFrameCallback(frame);};
- id=video.requestVideoFrameCallback(frame);window.addEventListener('pagehide',()=>{stopped=true;video.cancelVideoFrameCallback(id);clocks.delete(video);},{once:true});
+ const frame:VideoFrameRequestCallback=(_now,metadata)=>{if(stopped)return;if(video.srcObject!==lastSource){lastSource=video.srcObject;lastFrames=0;}const count=lastFrames?Math.max(1,metadata.presentedFrames-lastFrames):1;lastFrames=metadata.presentedFrames;if(!live.active){clock.presented(_now,undefined,(metadata as {captureTime?:number}).captureTime);onFrames(count);}id=video.requestVideoFrameCallback(frame);};
+ id=video.requestVideoFrameCallback(frame);window.addEventListener('pagehide',()=>{stopped=true;window.clearInterval(watch);live.stop();video.cancelVideoFrameCallback(id);clocks.delete(video);},{once:true});
 }
 
 /** Longest plausible delay between a frame's camera capture and the app reading it (ms); beyond this the capture time is ignored. */

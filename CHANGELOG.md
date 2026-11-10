@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.135 — camera frames read straight from the camera
+
+With the OV9281 camera type, camera frames are now read straight from the
+camera stream as they arrive, not through the on-screen video. Before this,
+the app could only use as many frames as the browser drew the page (30 a
+second on Lance's PC), so a 120 fps camera gave 30 usable frames. The
+exported profile now shows `frameSource` ("camera track" when this is on).
+Diagnostics → Performance → "Camera frames processed" → "At display refresh" goes back to the
+previous behaviour.
+
 ## Build 0.134 — readable camera labels
 
 The "Camera 1" / "Camera 2" labels on the camera views were pale text with a
