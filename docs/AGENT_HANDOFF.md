@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — handle-prism jaws: use ring and prism corners from the same camera image.
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws while turning (build 0.136):** one camera, jaws
     held still, roll the instrument through every prism face. The opening
