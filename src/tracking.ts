@@ -1098,6 +1098,7 @@ const markerJaws=mountMarkerJaws(document.querySelector<HTMLElement>('#ball-enab
  // Handle-prism stereo jaws: last good stereo ring pose. At rest an unchanged image is not re-solved, so allow up to 2 s.
  stereoRingPose:(name,now)=>{const cached=stereoPoseCache.get(name);return cached?.lastGood&&cached.lastGoodAt!==undefined&&now-cached.lastGoodAt<2000?cached.lastGood:null;},
  handleMarkers:(name,now)=>{const ids:readonly number[]=HANDLE_PRISM_IDS[name];return observations.filter(m=>ids.includes(m.id)&&now-(markerLastConfirmed.get(m.id)??-Infinity)<250&&now-(markerLastDecoded.get(m.id)??-Infinity)<650);},
+ markerImageAt:id=>markerImageAt.get(id),
 });
 const needlePattern=document.querySelector<HTMLSelectElement>('#needle-ball-pattern')!;needlePattern.value=needleBallMode;
 needlePattern.addEventListener('change',()=>{
@@ -1437,6 +1438,8 @@ const captureCanvas=document.createElement('canvas');
 const captureContext=captureCanvas.getContext('2d',{willReadFrequently:true})!;
 let lastCamera1CaptureTime=-1,lastCamera1DecodeTime=-1,lastCamera2CaptureTime=-1,lastCamera2DecodeTime=-1;
 let primaryCaptureAt=0;
+/** Camera 1: capture time of the image each live marker's corners came from (flow or decode), for same-image handle-prism readings (src/jaw/sameImage.ts). */
+const markerImageAt=new Map<number,number>();
 function readFrame(context:CanvasRenderingContext2D,name:string,x:number,y:number,w:number,h:number){return perf.measure(name,()=>context.getImageData(x,y,w,h));}
 const decodeCanvas=document.createElement('canvas');
 const decodeContext=decodeCanvas.getContext('2d',{willReadFrequently:true})!;
@@ -1534,6 +1537,7 @@ async function detectFrame(now:number){
      const displacement=prev?m.corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-prev.corners[i].x,p.y-prev.corners[i].y),0)/4:0;
      const speed=prev?displacement/Math.max(1,stamp-prev.at):Infinity;
      flowMotion.set(m.id,{corners:m.corners.map(p=>({...p})),at:stamp,speed});
+     markerImageAt.set(m.id,capturedAt);
      markerLastConfirmed.set(m.id,stamp);
     }
     observations=found;observationsAt=stamp;latestFlowAt=stamp;stereoFrames.push(0,framePairAt,found);idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
@@ -1618,14 +1622,14 @@ async function detectFrame(now:number){
      const ids=new Set(corrected.map(m=>m.id));
      observations=[...observations.filter(m=>!ids.has(m.id)),...corrected];
      detector.seed(toNative(corrected));
-     for(const marker of corrected)markerLastConfirmed.set(marker.id,decodeStamp);
+     for(const marker of corrected){markerLastConfirmed.set(marker.id,decodeStamp);markerImageAt.set(marker.id,capturedAt);}
      observationsAt=decodeStamp;
      drawDetections();
     };
     if(stale){
      staleDecodeDrops++;perf.count('Camera 1 stale decode results');
      if(missing.length&&recoveryFresh){
-      for(const marker of missing)markerLastConfirmed.set(marker.id,decodeStamp);
+      for(const marker of missing){markerLastConfirmed.set(marker.id,decodeStamp);markerImageAt.set(marker.id,capturedAt);}
       observations=[...active,...missing];
       observationsAt=decodeStamp;
       idleNoMarkers=false;
@@ -1637,7 +1641,7 @@ async function detectFrame(now:number){
      lastAppliedFrameAt=capturedAt;
      // Do not reset good flow positions with delayed decoder coordinates.
      if(missing.length&&!recoveryFresh)fastTracker.seed(missing,flowSeedFrame);
-     for(const marker of missing)markerLastConfirmed.set(marker.id,decodeStamp);
+     for(const marker of missing){markerLastConfirmed.set(marker.id,decodeStamp);markerImageAt.set(marker.id,capturedAt);}
      observations=[...active,...missing];
      observationsAt=decodeStamp;
      idleNoMarkers=observations.length===0;
@@ -1764,7 +1768,7 @@ const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
 observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());},frameDriven);
 observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());},frameDriven);
-const performanceContext=()=>({build:'0.136',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.137',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);

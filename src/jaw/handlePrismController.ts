@@ -15,6 +15,7 @@ import {
   MIN_STEREO_TRAVEL_MM,
   type StereoHandleModel,
 } from './stereoHandle';
+import { sameImageMarkers } from './sameImage';
 import { solvePrismPose, type PrismPose, type TrackerType } from '../input/prismPose';
 import type { TrackedInstrument } from '../input/trackingMessages';
 import { readStoredJson, writeStored } from '../input/trackingStorage';
@@ -72,6 +73,8 @@ export interface HandlePrismHost {
   markers(instrument: TrackedInstrument, now: number): MarkerObservation[];
   /** Fresh camera-1 handle prism markers of one instrument, overlay pixels. */
   handleMarkers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+  /** When the camera-1 image a marker's corners came from was captured (ms), if known (src/jaw/sameImage.ts). */
+  markerImageAt?(id: number): number | undefined;
   firstMarkerId(instrument: TrackedInstrument): number;
   publish(instrument: TrackedInstrument, opening: number): void;
   /** False while the Jaws tab's "Jaw tracking" switch is off (no updates run). */
@@ -100,6 +103,7 @@ interface HandleCamera {
   overlay: HTMLCanvasElement;
   markers(instrument: TrackedInstrument, now: number): MarkerObservation[];
   handleMarkers(instrument: TrackedInstrument, now: number): MarkerObservation[];
+  imageAt?(id: number): number | undefined;
 }
 
 /** Two cameras' relative rotations within this angle are averaged (radians). */
@@ -144,7 +148,7 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
   const sources = new Map<TrackedInstrument, string>();
   const handlePoses = new Map<string, { pose: PrismPose; at: number }>();
   const cameras: HandleCamera[] = [
-    { index: 1, overlay: host.overlay, markers: host.markers, handleMarkers: host.handleMarkers },
+    { index: 1, overlay: host.overlay, markers: host.markers, handleMarkers: host.handleMarkers, imageAt: host.markerImageAt },
     ...(host.second ? [{ index: 2 as const, ...host.second }] : []),
   ];
   const lastRelative = new Map<TrackedInstrument, Quaternion>();
@@ -261,15 +265,20 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     const candidates = side.length ? side : visible;
     // Faces seen nearly edge-on have unreliable corners and skew the ring rotation.
     const largest = Math.max(0, ...candidates.map(area));
-    const ringMarkers = candidates.filter((m) => area(m) >= largest * MIN_RING_FACE_AREA_RATIO);
-    if (!ringMarkers.length) return `ring not visible to Camera ${camera.index}`;
+    const ringFaces = candidates.filter((m) => area(m) >= largest * MIN_RING_FACE_AREA_RATIO);
+    if (!ringFaces.length) return `ring not visible to Camera ${camera.index}`;
+    const ids: readonly number[] = HANDLE_PRISM_IDS[name];
+    // Largest visible face: most pixels, most precise single-marker pose.
+    const seenFaces = camera.handleMarkers(name, now).filter((m) => ids.includes(m.id)).sort((a, b) => area(b) - area(a));
+    // Ring and prism corners must come from the same camera image (src/jaw/sameImage.ts).
+    const matched = camera.imageAt ? sameImageMarkers(ringFaces, seenFaces, camera.imageAt) : { ring: ringFaces, faces: seenFaces };
+    if (!matched) return seenFaces.length ? `prism and ring not in the same Camera ${camera.index} image yet (moving)` : `prism not visible to Camera ${camera.index}`;
+    const ringMarkers = matched.ring;
     const ringKey = `${name}:${camera.index}`;
     const ring = solvePrismPose(ringMarkers, first, width, height, ringPoses.get(ringKey), undefined, type);
     if (!ring || ring.error > MAX_RING_ERROR_PX) return `ring pose not reliable in Camera ${camera.index}`;
     ringPoses.set(ringKey, ring);
-    const ids: readonly number[] = HANDLE_PRISM_IDS[name];
-    // Largest visible face: most pixels, most precise single-marker pose.
-    const faces = camera.handleMarkers(name, now).filter((m) => ids.includes(m.id)).sort((a, b) => area(b) - area(a));
+    const faces = matched.faces;
     const layout = layouts.get(name);
     const readings: FaceReading[] = [];
     let unaligned: number[] = [];

@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.137 — handle-prism jaws use one camera image
+
+Camera 1's markers come partly from optical flow (newest image) and partly
+from the marker decoder (an image 50–80 ms older). The handle-prism jaws
+combined a fresh ring with an older prism face, so moving the instrument
+looked like the handle turning: Lance saw 0 → 100% → 0 while wiggling with
+only face 9 visible. The ring and the prism face now have to come from the
+same camera image; until they do, the last opening is held and the status
+says "prism and ring not in the same Camera 1 image yet (moving)".
+
 ## Build 0.136 — handle-prism jaws ignore mirrored faces
 
 With one camera, a single handle-prism face can be solved as its mirror

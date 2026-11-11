@@ -6,8 +6,13 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — handle-prism jaws: use ring and prism corners from the same camera image.
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Handle-prism wiggle (build 0.137):** one camera, jaws closed, only
+    face 9 + ring visible, wiggle: the % should stay near 0 (or show
+    "Holding last reading · prism and ring not in the same Camera 1
+    image"). If it holds most of the time, flow is not following the
+    prism face; send a profile.
   - **Handle-prism jaws while turning (build 0.136):** one camera, jaws
     held still, roll the instrument through every prism face. The opening
     should stay put (or say "Holding last reading · … does not fit the
@@ -78,6 +83,27 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-11 — Claude — handle-prism jaws: same-image ring and prism (build 0.137)
+
+- Lance (0.136): with only face 9 + ring visible, a small wiggle swings the
+  opening 0 → 100% → 0. Cause: camera 1 `observations` mixes flow corners
+  (newest image) with decoder corners for markers flow is not following
+  (image 50–80 ms older; tracking.ts decode `missing` merge), and the
+  prism controller combined them.
+- tracking.ts keeps `markerImageAt` (capture time of each marker's corner
+  image, set on flow results, decode `missing` and drift corrections) and
+  passes it as `markerImageAt` to the jaw host. New `src/jaw/sameImage.ts`
+  (+ test): ring markers and prism faces from the newest ring image only.
+  `handlePrismController.ts` uses it for camera 1 (camera 2 unchanged).
+- Also tried and reverted (not shipped): face-correction snap 25° → 4°
+  (synthetic −15,60,0 went 0.58 → 0.72; measured corrections carry ~5°
+  single-face error). Patch kept in the session scratchpad only.
+- Checks: unit tests, tsc; check-handle-jaws same as 0.136 (fails only at
+  −15,300,0, 0.23); check-handle-jaws-stereo and check-tracking-motion
+  pass. A temporary wiggle test (jaws closed, ±6–8° rocking) read ≤ 9%
+  both before and after: the sandbox camera (~15 fps, slow motion) does
+  not reproduce the mix, so the fix is untested against the real symptom.
 
 ### 2026-11-10 — Claude — handle-prism jaws: hinge-consistency check (build 0.136)
 
