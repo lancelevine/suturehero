@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — handle-prism jaws: twist angle wraps to 345° (0↔100% swings).
 - **Needs Lance to test by hand:**
   - **Handle-prism wiggle (build 0.137):** one camera, jaws closed, only
     face 9 + ring visible, wiggle: the % should stay near 0 (or show
