@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Tracking Lab: show the live virtual instruments while recording.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
@@ -86,6 +86,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-11 — Claude — Tracking Lab live virtual view (build 0.139)
+
+- Lance: in Tracking Lab he can't see the virtual instruments, so it is
+  hard to know what he is recording.
+- New `src/trackingLab/liveView.ts`: while the Lab is open, the simulator's
+  `#viewport` is moved into a "Virtual instruments (live)" panel and put
+  back in place on close; `main.ts` keeps rendering while the view is in the
+  Lab (it previously paused whenever the Lab was open). Live only: replay
+  runs in the hidden engine iframe and does not drive this view.
+- Checks: tsc; check-tracking-lab-layout (extended: view moves in, sizes,
+  renders, returns) and check-tracking-lab pass; screenshot checked.
+- Follow-up idea: show the replayed instrument pose/jaw % during replay.
 
 ### 2026-11-11 — Claude — handle-prism jaws: twist wrap bug; face snap 4° (build 0.138)
 

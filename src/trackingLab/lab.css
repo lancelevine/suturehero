@@ -3,3 +3,6 @@
 
 /* The page body does not scroll, so the Lab scrolls within its own area: controls below the cameras (Import, library, Export) stay reachable on short screens. */
 .tracking-lab{overflow-y:auto;min-height:0;overscroll-behavior:contain}
+
+/* Live virtual instruments (src/trackingLab/liveView.ts): the simulator's #viewport, moved here while the Lab is open. */
+.lab-live-view{margin-top:16px;background:#0d171d;border:1px solid #34454d;border-radius:10px;overflow:hidden}.lab-live-view h2{font-size:15px;margin:10px 14px 0;color:#dfe8e9}.lab-live-view .lab-note{margin:4px 14px 8px;color:#9fb2bc}.lab-viewport-slot{position:relative;height:min(420px,50vh)}.lab-viewport-slot #viewport{height:100%}

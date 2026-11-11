@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.139 — virtual instruments in Tracking Lab
+
+Tracking Lab now shows the simulator's 3D view ("Virtual instruments
+(live)") under the camera views, so you can see what tracking makes of the
+cameras while recording. It is the live view: during replay it still
+follows the live cameras, not the recording.
+
 ## Build 0.138 — handle-prism jaws: 0 ↔ 100% swing fixed
 
 - The hinge angle could come out as +346° instead of −14° (the same
