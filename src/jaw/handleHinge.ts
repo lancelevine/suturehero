@@ -49,10 +49,16 @@ export interface HingeModel {
   openAngle: number;
 }
 
-/** Signed twist angle of `q` about unit `axis` (swing-twist decomposition). */
+/**
+ * Signed twist angle of `q` about unit `axis` (swing-twist decomposition),
+ * in −π…π. q and −q are the same rotation; without taking w ≥ 0 a −14° turn
+ * came out as +346° about half the time, which clamped the opening to 100%
+ * (Lance's 0.137 recording: 0 ↔ 100% while wiggling with the jaws closed).
+ */
 export function twistAngle(q: Quaternion, axis: Vector3): number {
-  const projection = q.x * axis.x + q.y * axis.y + q.z * axis.z;
-  return 2 * Math.atan2(projection, q.w);
+  const sign = q.w < 0 ? -1 : 1;
+  const projection = sign * (q.x * axis.x + q.y * axis.y + q.z * axis.z);
+  return 2 * Math.atan2(projection, sign * q.w);
 }
 
 /** Hinge model from closed and open captures (relative rotations), or why it cannot be built. */
@@ -264,8 +270,16 @@ export function parseFaceLayout(value: unknown): FaceLayout | null {
   return { reference: saved.reference, corrections };
 }
 
-/** A measured face correction within this angle of a physically possible sticker layout is snapped to it (radians). */
-export const FACE_SNAP_RADIANS = (25 * Math.PI) / 180;
+/**
+ * A measured face correction within this angle of a physically possible
+ * sticker layout is snapped to it (radians); anything further is kept as
+ * measured. Was 25° (build 0.118): on Lance's hand-made prism (faces not
+ * exactly 120° apart, stickers not exactly square) that replaced real
+ * differences of up to 25° with the ideal layout, so each new face came in
+ * at a different offset and the jaws opened/closed as he turned it (0.136).
+ * 4° only removes averaging noise (12 readings, 1–3° each).
+ */
+export const FACE_SNAP_RADIANS = (4 * Math.PI) / 180;
 
 /**
  * How a face's marker sits on the body, for a sticker that belongs on face k

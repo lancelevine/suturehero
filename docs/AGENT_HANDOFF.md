@@ -6,8 +6,11 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — handle-prism jaws: twist angle wraps to 345° (0↔100% swings).
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
+    closed → Align prism faces → Calibrate open (alignment must be redone).
+    Then wiggle and roll with the jaws still; open/close on each face.
   - **Handle-prism wiggle (build 0.137):** one camera, jaws closed, only
     face 9 + ring visible, wiggle: the % should stay near 0 (or show
     "Holding last reading · prism and ring not in the same Camera 1
@@ -83,6 +86,26 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-11 — Claude — handle-prism jaws: twist wrap bug; face snap 4° (build 0.138)
+
+- Replayed Lance's Tracking Lab recording (0.137, 139 frames, faces 1, 2
+  ring + 9 prism, jaws closed, wiggling) offline through solvePrismPose and
+  handleHinge with his saved hinge/layout. Ring solve was stable (seeded =
+  unseeded). `twistAngle` returned ~346° instead of ~−14° whenever
+  closed⁻¹·relative had w < 0 → opening clamped to 1.2 on ~half the frames:
+  the 0 ↔ 100% swing. Bug present since 0.109.
+- `handleHinge.ts`: `twistAngle` takes w ≥ 0 (range −π…π) + test. Same
+  replay: 0% on every frame. Mirrored solutions (41–49° off-hinge) seen in
+  the data and rejected by the 0.136 swing check.
+- Face 9 (corrected) read −15° ± 5° with jaws closed; the hinge range is
+  15.5°. Its correction was snapped exactly to 120°. `FACE_SNAP_RADIANS`
+  25° → 4° (the change reverted on 2026-11-11 on synthetic evidence only;
+  real data outweighs it). Needs re-alignment to take effect.
+- Checks: jaw unit tests, tsc; check-handle-jaws-stereo passes;
+  check-handle-jaws now fails at −15,60,0 (0.72 vs 0.5; synthetic alignment
+  noise ~5° no longer snapped away) instead of −15,300,0.
+- The 0.137 same-image change did not cause or fix this; kept (harmless).
 
 ### 2026-11-11 — Claude — handle-prism jaws: same-image ring and prism (build 0.137)
 

@@ -5,6 +5,18 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.138 — handle-prism jaws: 0 ↔ 100% swing fixed
+
+- The hinge angle could come out as +346° instead of −14° (the same
+  rotation written the other way round), which pushed the opening to 100%.
+  Found by replaying Lance's Tracking Lab recording: with the jaws closed
+  and only face 9 + ring visible, the reading jumped to 100% on about half
+  the frames. Fixed; the same recording now reads 0% throughout.
+- "Align prism faces" no longer rounds a face's offset to the ideal prism
+  layout unless it is within 4° (was 25°). In the recording, face 9's
+  rounded offset left it reading about 15° past closed, as much as the whole
+  closed → open range. **Redo the calibration** for it to take effect.
+
 ## Build 0.137 — handle-prism jaws use one camera image
 
 Camera 1's markers come partly from optical flow (newest image) and partly

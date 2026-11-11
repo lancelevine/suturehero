@@ -112,10 +112,13 @@ describe('face correction snapping', () => {
     const E1 = F(2).clone().multiply(Rz(1)).multiply(F(1).clone().invert());
     const truth = turn(new Vector3(0.3, 1, 0.2), 25);
     const exact = faceCorrection(truth.clone().multiply(E1), truth);
-    const noisy = faceCorrection(truth.clone().multiply(E1).multiply(turn(new Vector3(1, 0.5, 0), 6)), truth);
+    const noisy = faceCorrection(truth.clone().multiply(E1).multiply(turn(new Vector3(1, 0.5, 0), 3)), truth);
     expect(snapFaceCorrection(noisy, 1, 0).angleTo(exact)).toBeLessThan(1e-6);
     // Consistent faces: the noisy correction snaps to identity.
-    expect(snapFaceCorrection(turn(new Vector3(0, 1, 1), 7), 2, 0).angleTo(new Quaternion())).toBeLessThan(1e-6);
+    expect(snapFaceCorrection(turn(new Vector3(0, 1, 1), 3), 2, 0).angleTo(new Quaternion())).toBeLessThan(1e-6);
+    // A real prism that is 10° off the ideal layout keeps its measured correction.
+    const handMade = turn(new Vector3(0, 1, 1), 10);
+    expect(snapFaceCorrection(handMade, 2, 0).angleTo(handMade)).toBeLessThan(1e-6);
     // Something no real layout explains is kept as measured.
     const odd = turn(new Vector3(1, 1, 0), 45);
     expect(snapFaceCorrection(odd, 1, 0).angleTo(odd)).toBeLessThan(1e-6);
@@ -140,5 +143,16 @@ describe('hinge swing check', () => {
     expect(bestHingeReading(model, [mirrored], (q) => q)).toBeNull();
     const noisy = good.clone().multiply(turn(new Vector3(1, 1, 0), MAX_HINGE_SWING_RADIANS * 0.5));
     expect(bestHingeReading(model, [noisy], (q) => q)).not.toBeNull();
+  });
+});
+
+describe('twist angle', () => {
+  it('gives the same angle for q and −q (both describe the same rotation)', async () => {
+    const { twistAngle } = await import('./handleHinge');
+    const axis = new Vector3(0, 0, 1);
+    const q = new Quaternion().setFromAxisAngle(axis, (-14 * Math.PI) / 180);
+    const negated = new Quaternion(-q.x, -q.y, -q.z, -q.w);
+    expect(twistAngle(q, axis)).toBeCloseTo((-14 * Math.PI) / 180, 6);
+    expect(twistAngle(negated, axis)).toBeCloseTo((-14 * Math.PI) / 180, 6);
   });
 });
