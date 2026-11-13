@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Production mode (polished full-screen presentation view).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
@@ -86,6 +86,24 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-13 — Claude — Production mode (build 0.140)
+
+- Lance asked for a polished, presentable mode next to Tracking Lab, for
+  demos/presenting, named "Production".
+- New `src/ui/productionMode.ts` + `production.css`: a "Production" tab;
+  the simulator's `#viewport` moves into a full-screen overlay (reusing
+  `movableView` from `src/trackingLab/liveView.ts`) with brand, procedure
+  and step (mirrored from `.scene-heading h2`, `#exercise-title`,
+  `#progress-label`), Full screen and Exit; Esc (capture phase) exits.
+  Simulator buttons, scene label/title and camera hint are hidden inside.
+  Opening from Tracking Lab returns to the simulator first.
+- New `scripts/check-production-mode.mjs` (desktop + phone: view moves in,
+  fills, renders, controls hidden, no horizontal scroll, Esc/Exit return):
+  passes. check-tracking-lab-layout passes. Screenshots checked.
+- Not done: keyboard instrument controls in Production are as in the
+  simulator; no start/stop guided-pass buttons (hidden). Follow-up if Lance
+  wants a presenter control strip.
 
 ### 2026-11-11 — Claude — Tracking Lab live virtual view (build 0.139)
 

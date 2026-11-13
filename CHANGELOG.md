@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.140 — Production mode
+
+New **Production** tab next to Simulator / Tracking Lab: a polished
+full-screen presentation of the live 3D scene for demos. Shows the
+SutureHero name, the procedure and current step, the tracking badge and
+the instrument legend; hides setup, calibration, diagnostics and the
+simulator's buttons. "Full screen" fills the monitor; Esc or "Exit" returns.
+Instruments follow camera tracking exactly as in the simulator.
+
 ## Build 0.139 — virtual instruments in Tracking Lab
 
 Tracking Lab now shows the simulator's 3D view ("Virtual instruments

@@ -1,0 +1,33 @@
+/* Production mode (src/ui/productionMode.ts): full-screen presentation of the live 3D scene. */
+.production-mode[hidden]{display:none!important}
+.production-mode{
+  --production-bg:#0b1418;--production-ink:#eef4f3;--production-muted:#9fb3b6;--production-accent:#7fd8c3;--production-line:rgba(255,255,255,.08);
+  position:fixed;inset:0;z-index:2000;display:grid;grid-template-rows:auto 1fr auto;
+  background:radial-gradient(120% 90% at 50% 0%,#17303a 0%,var(--production-bg) 70%);color:var(--production-ink);
+  font-family:'DM Sans',system-ui,sans-serif;
+}
+.production-bar{display:flex;align-items:center;gap:24px;padding:18px 28px;border-bottom:1px solid var(--production-line)}
+.production-brand{display:flex;align-items:center;gap:10px;font-size:20px;letter-spacing:.01em;white-space:nowrap}
+.production-brand img{width:30px;height:30px}
+.production-brand b{color:var(--production-accent);font-weight:700}
+.production-title{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center}
+.production-title strong{font-size:22px;font-weight:600;letter-spacing:.01em}
+.production-title span{font-size:14px;color:var(--production-muted);margin-top:2px;min-height:1.2em}
+.production-actions{display:flex;gap:8px}
+.production-actions button{font:inherit;font-size:13px;color:var(--production-ink);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:7px 14px;cursor:pointer}
+.production-actions button:hover{background:rgba(255,255,255,.12)}
+.production-stage{position:relative;min-height:0;margin:16px 28px;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 1px var(--production-line)}
+.production-stage #viewport{position:absolute;inset:0;width:100%;height:100%}
+/* Hide the simulator's working labels and controls; keep the instrument legend and tracking badge. */
+.production-stage .scene-label,.production-stage .camera-hint,.production-stage .workspace-scene-title,.production-stage button{display:none!important}
+.production-mode .production-footer{display:flex;justify-content:center;padding:0 28px 18px;min-height:28px;border:0;background:none}
+.production-footer span{font-size:14px;color:var(--production-muted);letter-spacing:.04em;text-transform:uppercase}
+.production-footer span:empty{display:none}
+.production-tab[aria-selected=true]{background:#23514e;color:#8de3ce}
+@media (max-width:650px){
+  .production-bar{flex-wrap:wrap;gap:10px;padding:12px 16px}
+  .production-title{order:3;flex-basis:100%}
+  .production-actions{margin-left:auto}
+  .production-stage{margin:10px 16px;border-radius:12px}
+  .production-mode .production-footer{padding:0 16px 12px}
+}
