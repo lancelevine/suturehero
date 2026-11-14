@@ -8,10 +8,6 @@ entry when finishing.
 
 - **In progress:** none
 - **Needs Lance to test by hand:**
-  - **Stereo tips (build 0.144):** with stereo active, Calibrate → each
-    instrument → Calibrate tip (tip on one spot, rock 8 s; should report
-    ±1–2 mm). Then touch the real tips: "Tips apart" should read a few mm
-    and the virtual tips should meet. Synthetic test only so far.
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
     Then wiggle and roll with the jaws still; open/close on each face.
@@ -90,6 +86,12 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Lance (via Claude) — stereo tips confirmed on real hardware
+
+- Build 0.144 shared-frame stereo tips with pivot calibration: Lance
+  reports "it works pretty well" with the real instruments and cameras.
+  Removed from *Needs Lance to test by hand*.
 
 ### 2026-11-14 — Claude — shared-frame stereo tips, pivot calibration, binary jaws (build 0.144)
 
