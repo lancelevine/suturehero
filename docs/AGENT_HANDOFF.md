@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — stereo pose filter: speed-adaptive smoothing (slow-motion lag).
 - **Needs Lance to test by hand:**
   - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
     with keyboard jaws (Z / comma) using the measured-tip dots; record 3
