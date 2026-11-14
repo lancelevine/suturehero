@@ -99,3 +99,6 @@
 .calibration-tip-row strong{font-size:12px;margin-right:auto}
 .calibration-tip-row button{font-size:11px;padding:5px 9px}
 .calibration-tip .calibration-hint{margin:6px 0 0}
+
+/* Motion metrics table (src/ui/MotionMetricsPanel.ts). */
+.motion-metrics-table{border-collapse:collapse;font-size:12px;margin:6px 0;width:100%}.motion-metrics-table th,.motion-metrics-table td{padding:4px 8px;border-bottom:1px solid #dce6d9;text-align:left}

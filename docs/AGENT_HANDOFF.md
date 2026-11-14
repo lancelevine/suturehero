@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — true 1:1 scale, smoother slow movement (rest lock), motion metrics (3 commits).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
     with keyboard jaws (Z / comma) using the measured-tip dots; record 3
@@ -90,6 +90,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — motion metrics (build 0.153; 3 of 3)
+
+- New `src/gameplay/motionMetrics.ts` (+ tests): MotionRecorder, per
+  instrument tracked time, path length, mean speed, idle time (< 5 mm/s),
+  movements (speed > 20 mm/s, ends < 5), bimanual fraction; gaps > 250 ms
+  excluded; speed over a 100 ms window. `src/ui/MotionMetricsPanel.ts` in
+  Diagnostics: Start/Stop, live table, Export JSON
+  (`suturehero-motion-metrics-v1`, summary + thresholds + samples).
+  tracking.ts feeds each shared-frame tip (mm) to the recorder.
+- Synthetic stereo run: depth ramp 600 → ~860 mm recorded 279 mm path;
+  export round-trips. Thresholds are first guesses; real-hardware check
+  needed.
 
 ### 2026-11-14 — Claude — rest lock follows slow drift (build 0.152; 2 of 3)
 

@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.153 — motion metrics (research)
+
+Diagnostics → "Motion metrics (research)": Start / Stop recording the
+calibrated stereo tips, a live summary per instrument (tracked time, path
+length, mean speed, idle time, number of movements) and how much of the
+time both hands moved at once, and "Export JSON" with the summary,
+thresholds and every sample. Approximate, not validated: for comparing
+attempts, not for assessment.
+
 ## Build 0.152 — smooth slow movement (no stair steps)
 
 The stereo "rest lock" held an instrument still until a pose was 2.5 mm
