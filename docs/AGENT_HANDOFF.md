@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — stereo calibration: drop outlier board views (Camera 1 RMS 3.54 px).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
