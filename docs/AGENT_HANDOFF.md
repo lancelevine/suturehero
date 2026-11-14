@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — stereo pose filter: speed-adaptive smoothing (slow-motion lag).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
     with keyboard jaws (Z / comma) using the measured-tip dots; record 3
@@ -90,6 +90,24 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — speed-adaptive stereo smoothing (build 0.149)
+
+- Lance: things move in slow motion (Lab recording, old webcams, stereo).
+  The recording's poses are single-camera marker poses (no lag vs image);
+  the lag is after them: `StereoPoseFilter` fixed τ 0.28 s position /
+  0.24 s rotation, then RestLock and TrackedPoseFilter.
+- `StereoPoseFilter.ts`: τ blends from still (0.12 s position, 0.24 s
+  rotation) to 0.02 s with a velocity averaged over 0.15 s (jitter
+  cancels), 16–60 mm/s and 20–45°/s. New test (100 mm/s ramp, < 4 mm
+  behind); existing jitter / outlier / discontinuity tests unchanged and
+  passing. Whole chain at 30 fps: 50 mm/s 18.4 → 6.2 mm, 100 mm/s
+  30.8 → 5.2 mm, 200 mm/s 158 → 5.2 mm (old filter tripped its
+  discontinuity guard), 20 mm/s 9.3 → 6.0 mm.
+- Follow-up: at slow speed most of the rest is RestLock's 2.5 mm band
+  (stair-steps slow moves); tuned on the 11/8 jitter, left as is.
+- check-stereo-motion (2/2), check-stereo-rig-faces,
+  check-handle-jaws-stereo pass.
 
 ### 2026-11-14 — Claude — guided stereo setup steps (build 0.148; 4 of 4)
 

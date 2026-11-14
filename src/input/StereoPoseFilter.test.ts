@@ -26,3 +26,14 @@ it('follows continuous movement and reacquires a sustained discontinuity',()=>{
  expect(filter.update(new Vector3(2.02,0,0),rotation(82),1234)).toBe(true);
  expect(filter.position.x).toBeGreaterThan(before.x);
 });
+
+it('keeps up with steady movement instead of trailing (speed-adaptive smoothing)',()=>{
+ // 100 mm/s (0.5 units/s at 200 mm per unit) for 1 s at 30 frames/s.
+ const filter=new StereoPoseFilter();filter.update(new Vector3(),rotation(0),0);
+ let x=0;
+ for(let frame=1;frame<=30;frame++){x=.5*frame/30;filter.update(new Vector3(x,0,0),rotation(frame),frame*1000/30);}
+ // The old fixed 0.28 s smoothing trailed by about 0.14 units (28 mm) here.
+ expect(x-filter.position.x).toBeLessThan(.02);
+ // 30°/s rotation: well past half of the still smoothing.
+ expect(MathUtils.radToDeg(filter.quaternion.angleTo(rotation(30)))).toBeLessThan(6);
+});

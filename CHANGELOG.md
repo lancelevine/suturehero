@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.149 — stereo instruments no longer move in slow motion
+
+The stereo pose filter smoothed every movement with a fixed 0.28 s time
+constant, so the virtual instruments trailed by about a third of a second.
+It now smooths heavily only when nearly still and lightly while moving.
+Steady movement through the whole filter chain (simulated):
+50 mm/s 18 → 6 mm behind; 100 mm/s 31 → 5 mm; 200 mm/s 158 → 5 mm.
+
 ## Build 0.148 — guided stereo setup in the status strip
 
 In stereo mode the checklist above the practice view now walks through the
