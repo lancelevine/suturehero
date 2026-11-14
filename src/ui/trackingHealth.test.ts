@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CameraMovedMonitor, fitErrorFromReason, type HealthInput, holdingReasons, type InstrumentHealth, setupChecklist } from './trackingHealth';
+import { CameraMovedMonitor, fitErrorFromReason, type HealthInput, holdingReasons, type InstrumentHealth, nextStep, setupChecklist } from './trackingHealth';
 
 const instrument = (change: Partial<InstrumentHealth> = {}): InstrumentHealth => ({
   label: 'Needle driver',
@@ -79,5 +79,19 @@ describe('camera moved monitor', () => {
   it('reads the fit error from a rejection reason', () => {
     expect(fitErrorFromReason('fit error 3.9 px (limit 3), worst corner 5.5 px (limit 6)')).toBe(3.9);
     expect(fitErrorFromReason('no shared faces')).toBeNull();
+  });
+});
+
+describe('guided stereo setup steps', () => {
+  it('orders the stereo steps and points at the first unfinished one', () => {
+    const items = setupChecklist(input({ stereoMode: true, camera2Running: true, workspaceSet: true, tableSet: false, instruments: [instrument({ tipCalibrated: false }), instrument({ label: 'Forceps', tipCalibrated: true })] }));
+    expect(items.map((i) => i.key)).toEqual(['cameras', 'stereo', 'workspace', 'tips', 'table', 'neutral', 'jaws']);
+    expect(items.find((i) => i.key === 'tips')!.detail).toMatch(/^Calibrate tip: Needle driver/);
+    expect(nextStep(items)).toBe('tips');
+  });
+  it('leaves the stereo steps out in single-camera mode and when not reported', () => {
+    expect(setupChecklist(input({ workspaceSet: false, tableSet: false })).map((i) => i.key)).toEqual(['cameras', 'neutral', 'jaws']);
+    expect(setupChecklist(input({ stereoMode: true, camera2Running: true })).map((i) => i.key)).toEqual(['cameras', 'stereo', 'neutral', 'jaws']);
+    expect(nextStep(setupChecklist(input()))).toBeNull();
   });
 });

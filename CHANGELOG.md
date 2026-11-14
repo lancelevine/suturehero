@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.148 — guided stereo setup in the status strip
+
+In stereo mode the checklist above the practice view now walks through the
+whole setup in order: 2 cameras → Stereo calibration → Workspace → Tips →
+Table → Neutral → Jaws. The first unfinished step is highlighted as
+"Next: …"; each button opens the place that does it (hover for details).
+
 ## Build 0.147 — the table as the skin surface
 
 Calibrate → tip section → "Record table touch": rest a calibrated tip on

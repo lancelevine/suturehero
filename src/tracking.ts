@@ -39,7 +39,7 @@ import {trackProcessor} from './input/trackFrames';
 import {latestStereoTips,stereoTipCalibration} from './input/stereoTipCalibration';
 import {tipPosition} from './input/pivotCalibration';
 import {alignShaft} from './input/sharedTipFrame';
-import {tableHeight,tableOffsetUnits} from './input/tableHeight';
+import {TABLE_POINTS,tableHeight,tableOffsetUnits} from './input/tableHeight';
 import {cameraMode} from './input/cameraDevices';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
@@ -1788,7 +1788,7 @@ const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
 observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());},frameDriven);
 observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());},frameDriven);
-const performanceContext=()=>({build:'0.147',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.148',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);
@@ -1806,6 +1806,10 @@ mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index
   stereo:()=>document.querySelector<HTMLButtonElement>('#tracking-setup-panel-toggle')?.click(),
   neutral:()=>openCalibration('pose'),
   jaws:()=>openCalibration('jaws'),
+  // Guided stereo steps (trackingHealth.ts): workspace in Tracking setup; tips and table in Calibrate's tip section.
+  workspace:()=>document.querySelector<HTMLButtonElement>('#tracking-setup-panel-toggle')?.click(),
+  tips:()=>openCalibration('pose'),
+  table:()=>openCalibration('pose'),
  });
  const labels={needleDriver:'Needle driver',forceps:'Forceps',scissors:'Scissors'} as const;
  const STATUS_STRIP_INTERVAL_MS=500;
@@ -1817,6 +1821,8 @@ mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index
   const health:HealthInput={
    stereoMode,camera1Running,camera2Running,stereoCalibrationProblem,
    pairingFailure:stereoMode?latestPairingFailure:null,
+   workspaceSet:stereoMode&&!!stereoCalibration?!!stereoWorkspace:undefined,
+   tableSet:stereoMode&&!!stereoCalibration?tableHeight.points().length>=TABLE_POINTS:undefined,
    instruments:(['needleDriver','forceps','scissors'] as const).map(name=>{
     const target=liveTargets.get(name);
     return {
@@ -1826,6 +1832,7 @@ mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index
      jawsCalibrated:ballEnabled.checked?markerJaws.calibrated(name):null,
      depthHeld:!stereoMode&&/depth held/.test(filterMeasurements.get(name)?.source??''),
      stereoRejection:stereoMode?stereoRejections.get(name)??null:null,
+     tipCalibrated:stereoMode&&name!=='scissors'?!!stereoTipCalibration.saved(name,trackerType):undefined,
     };
    }),
   };

@@ -12,3 +12,4 @@
 .tracking-status-holding:empty{display:none}
 .tracking-status-holding li:first-child::before{content:'⏸ ';opacity:.7}
 @media(max-width:760px){.tracking-status-strip{font-size:11px}.tracking-status-checklist{overflow-x:auto;flex:0 1 auto;min-width:0}}
+.tracking-status-checklist button[data-next=true]{background:#fff0cc;border-color:#d99a1e;color:#6b4705;font-weight:600;box-shadow:0 0 0 2px rgba(217,154,30,.25)}

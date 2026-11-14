@@ -18,6 +18,8 @@ export interface InstrumentHealth {
   depthHeld: boolean;
   /** Why stereo was not used for it, when stereo is on. */
   stereoRejection: string | null;
+  /** Stereo tip calibrated (src/input/stereoTipCalibration.ts); undefined = not reported. */
+  tipCalibrated?: boolean;
 }
 
 export interface HealthInput {
@@ -29,9 +31,17 @@ export interface HealthInput {
   /** Why the two cameras' frames could not be paired, when stereo is on. */
   pairingFailure: string | null;
   instruments: InstrumentHealth[];
+  /** Stereo setup steps (2026-11-14); undefined = not reported (no checklist items for them). */
+  workspaceSet?: boolean;
+  tableSet?: boolean;
 }
 
-export type ChecklistKey = 'cameras' | 'stereo' | 'neutral' | 'jaws';
+/**
+ * Checklist keys. In stereo mode the order is the guided setup order:
+ * cameras → stereo calibration → workspace → tips → table → neutral → jaws;
+ * the first item that is not ok is the next step.
+ */
+export type ChecklistKey = 'cameras' | 'stereo' | 'workspace' | 'tips' | 'table' | 'neutral' | 'jaws';
 
 export interface ChecklistItem {
   key: ChecklistKey;
@@ -62,6 +72,32 @@ export function setupChecklist(input: HealthInput): ChecklistItem[] {
       ok: input.stereoCalibrationProblem === null,
       detail: input.stereoCalibrationProblem ?? 'Loaded and matches the cameras',
     });
+    if (input.workspaceSet !== undefined) {
+      items.push({
+        key: 'workspace',
+        label: 'Workspace',
+        ok: input.workspaceSet,
+        detail: input.workspaceSet ? 'Right / forward / up axes and scale set' : 'Set the workspace axes and sweep (Tracking setup → Stereo calibration)',
+      });
+    }
+    const reported = inUse(input).filter((i) => i.tipCalibrated !== undefined);
+    if (reported.length) {
+      const needTips = reported.filter((i) => !i.tipCalibrated).map((i) => i.label);
+      items.push({
+        key: 'tips',
+        label: 'Tips',
+        ok: needTips.length === 0,
+        detail: needTips.length ? `Calibrate tip: ${needTips.join(', ')} (rest the tip on one spot, rock 8 s)` : 'Calibrated for every instrument in view',
+      });
+    }
+    if (input.tableSet !== undefined) {
+      items.push({
+        key: 'table',
+        label: 'Table',
+        ok: input.tableSet,
+        detail: input.tableSet ? 'The table is the skin surface' : 'Record 3 table touches with a calibrated tip (Calibrate → tip section)',
+      });
+    }
   }
   const seen = inUse(input);
   const needNeutral = seen.filter((i) => !i.neutralSaved).map((i) => i.label);
@@ -82,6 +118,11 @@ export function setupChecklist(input: HealthInput): ChecklistItem[] {
     });
   }
   return items;
+}
+
+/** The next setup step: the first checklist item that is not ok, or null when all are. */
+export function nextStep(items: readonly ChecklistItem[]): ChecklistKey | null {
+  return items.find((item) => !item.ok)?.key ?? null;
 }
 
 /** Short reasons, one per line, when an instrument is holding instead of updating. */

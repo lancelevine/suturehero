@@ -6,8 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — grasp reach in mm, tip markers, table height, guided stereo setup (4 commits).
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
+    with keyboard jaws (Z / comma) using the measured-tip dots; record 3
+    table touches and check tips rest on the skin; follow the "Next:" step
+    in the status strip from a fresh setup.
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
     Then wiggle and roll with the jaws still; open/close on each face.
@@ -86,6 +90,15 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — guided stereo setup steps (build 0.148; 4 of 4)
+
+- `trackingHealth.ts`: checklist keys workspace / tips / table (stereo mode
+  only, when reported) in setup order, `nextStep`; tests. StatusStrip marks
+  the next item ("→ Next: …", amber). tracking.ts reports workspaceSet,
+  tableSet, per-instrument tipCalibrated; actions open Tracking setup or
+  Calibrate. check-status-strip, check-stereo-shortcut pass; screenshot of
+  a synthetic stereo run shows "Next: Workspace".
 
 ### 2026-11-14 — Claude — table height as skin surface (build 0.147; 3 of 4)
 

@@ -1,5 +1,5 @@
 import './statusStrip.css';
-import type { ChecklistItem, ChecklistKey } from './trackingHealth';
+import { nextStep, type ChecklistItem, type ChecklistKey } from './trackingHealth';
 
 /**
  * Main-screen status strip: the setup checklist (each item opens the step it
@@ -47,12 +47,15 @@ export function mountStatusStrip(parent: HTMLElement, before: Element | null, ac
       const checklistKey = JSON.stringify(state.checklist);
       if (checklistKey !== lastChecklist) {
         lastChecklist = checklistKey;
+        // The first unfinished item is the next setup step (guided order, trackingHealth.ts).
+        const next = nextStep(state.checklist);
         checklist.replaceChildren(...state.checklist.map((item) => {
           const button = document.createElement('button');
           button.type = 'button';
           button.dataset.statusItem = item.key;
           button.dataset.ok = String(item.ok);
-          button.textContent = `${item.ok ? '✓' : '○'} ${item.label}`;
+          if (item.key === next) button.dataset.next = 'true';
+          button.textContent = `${item.ok ? '✓' : item.key === next ? '→' : '○'} ${item.key === next ? 'Next: ' : ''}${item.label}`;
           button.title = item.detail;
           button.setAttribute('aria-label', `${item.label}: ${item.ok ? 'ready' : 'needs attention'} · ${item.detail}`);
           button.onclick = () => actions[item.key]();
