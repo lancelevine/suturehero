@@ -91,6 +91,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-14 — Claude — true 1:1 scale (build 0.151; 1 of 3)
+
+- `stereoWorkspace.ts`: TRUE_MM_PER_UNIT 27 (from needle sizes: PS-2 radius
+  0.30 = 8.1 mm, CT-1 0.43 = 11.5 mm; pad ≈ 70 × 90 mm).
+  `workspacePracticePosition` and `practiceUnitsPerMm` use it with or
+  without a workspace; saved sweep unitsPerMm is ignored. Workspace panel
+  text updated, sweep button hidden. Two workspace tests updated on
+  purpose (they asserted the swept / 200 mm-per-unit scale).
+- Affects every stereo position (shared and relative). Checks:
+  stereo-motion, stereo-rig-faces, stereo-shortcut, driver-depth pass.
+- Lance: re-record the table touches (the table shift depends on scale).
+
 ### 2026-11-14 — Claude — Lab three-panel row (build 0.150)
 
 - Lance: in the Lab the two cameras filled the screen; the virtual view

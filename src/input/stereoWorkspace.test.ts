@@ -1,6 +1,6 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { parseWorkspace, serializeWorkspace, solveWorkspaceAxes, sweepScale, workspacePracticePosition } from './stereoWorkspace';
+import { parseWorkspace, serializeWorkspace, solveWorkspaceAxes, sweepScale, TRUE_UNITS_PER_MM, workspacePracticePosition } from './stereoWorkspace';
 
 // Camera looking down at the desk at 40°: desk "forward" is a mix of camera +y and +z.
 const t = (40 * Math.PI) / 180;
@@ -30,11 +30,12 @@ describe('stereo workspace', () => {
     if (typeof scale !== 'number') throw new Error(scale.error);
     expect(scale).toBeCloseTo(4 / 200, 6);
     const w = { ...axes, unitsPerMm: scale };
+    // True 1:1 scale since 2026-11-14: the swept scale is saved but not used for positions.
     const p = workspacePracticePosition(at(0, 0, 100), w);
     expect(p.x).toBeCloseTo(0, 6);
     expect(p.y).toBeCloseTo(0, 6);
-    expect(p.z).toBeCloseTo(-2, 6);
-    expect(workspacePracticePosition(at(0, 50, 0), w).y).toBeCloseTo(1, 6);
+    expect(p.z).toBeCloseTo(-100 * TRUE_UNITS_PER_MM, 6);
+    expect(workspacePracticePosition(at(0, 50, 0), w).y).toBeCloseTo(50 * TRUE_UNITS_PER_MM, 6);
   });
 
   it('rejects too-small moves, a wrong up move, and too-small sweeps', () => {
@@ -45,12 +46,13 @@ describe('stereo workspace', () => {
     expect(sweepScale(axes, Array.from({ length: 20 }, (_, i) => at(i, 0, 0)))).toHaveProperty('error');
   });
 
-  it('saves per stereo calibration and keeps the old mapping without a workspace', () => {
+  it('saves per stereo calibration and uses camera axes at true scale without a workspace', () => {
     const axes = solveWorkspaceAxes(guides);
     if ('error' in axes) throw new Error(axes.error);
     const saved = JSON.parse(JSON.stringify(serializeWorkspace({ ...axes, unitsPerMm: 0.02 }, 'cal-A')));
     expect(parseWorkspace(saved, 'cal-A')?.unitsPerMm).toBe(0.02);
     expect(parseWorkspace(saved, 'cal-B')).toBeNull();
-    expect(workspacePracticePosition(new Vector3(200, 200, 200), null).toArray()).toEqual([1, -1, -1]);
+    const fallback = workspacePracticePosition(new Vector3(270, 270, 270), null).toArray();
+    [10, -10, -10].forEach((value, i) => expect(fallback[i]).toBeCloseTo(value, 9));
   });
 });

@@ -14,6 +14,16 @@ import { stereoPracticePosition } from './stereoTrackingPose';
 
 /** Practice units per mm before a sweep sets the scale (100 mm per unit). */
 export const DEFAULT_UNITS_PER_MM = 0.01;
+/**
+ * True 1:1 scale of the practice scene (2026-11-14): scene units per real mm.
+ * The scene is modelled at about 27 mm per unit: the PS-2 needle (3/8 circle,
+ * 19 mm long, radius 8.1 mm) has radius 0.30, the CT-1 (1/2 circle, 36 mm)
+ * 0.43, and the pad is about 70 × 90 mm. Tracked stereo positions use this
+ * scale, so real and virtual distances match; the workspace sweep no longer
+ * sets the scale (its saved unitsPerMm is ignored).
+ */
+export const TRUE_MM_PER_UNIT = 27;
+export const TRUE_UNITS_PER_MM = 1 / TRUE_MM_PER_UNIT;
 /** The sweep's larger horizontal extent maps to this many practice units (the pad spans about ±2). */
 export const SWEEP_TARGET_UNITS = 4;
 /** Guided moves shorter than this are too small to define an axis. */
@@ -77,16 +87,16 @@ export function sweepScale(w: Omit<StereoWorkspace, 'unitsPerMm'>, points: reado
   return SWEEP_TARGET_UNITS / horizontal;
 }
 
-/** Practice-scene position for a camera-1 mm point (falls back to the old camera-axis mapping). */
+/** Practice-scene position for a camera-1 mm point, at true scale (camera axes when no workspace is set). */
 export function workspacePracticePosition(mm: Vector3, w: StereoWorkspace | null): Vector3 {
-  if (!w) return stereoPracticePosition(mm);
+  if (!w) return stereoPracticePosition(mm).multiplyScalar(200 * TRUE_UNITS_PER_MM);
   const local = workspaceCoordinates(w, mm);
-  return new Vector3(local.x, local.y, -local.z).multiplyScalar(w.unitsPerMm);
+  return new Vector3(local.x, local.y, -local.z).multiplyScalar(TRUE_UNITS_PER_MM);
 }
 
-/** Practice-scene units per real millimetre for workspacePracticePosition (camera-axis fallback: 200 mm per unit). */
-export function practiceUnitsPerMm(w: StereoWorkspace | null): number {
-  return w ? w.unitsPerMm : 1 / 200;
+/** Practice-scene units per real millimetre for workspacePracticePosition (true scale, with or without a workspace). */
+export function practiceUnitsPerMm(_w: StereoWorkspace | null): number {
+  return TRUE_UNITS_PER_MM;
 }
 
 export interface SavedStereoWorkspace {

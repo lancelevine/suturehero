@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.151 — true 1:1 scale for stereo
+
+Stereo-tracked instruments are now placed at the scene's real scale, 27 mm
+per scene unit (the scene's needles and pad are modelled at that size: the
+PS-2 is 19 mm long, the pad about 70 × 90 mm). Real and virtual distances
+match: a 5 mm hand movement is a 5 mm movement against the needle and skin.
+The workspace axes still set directions; the sweep no longer sets the scale
+and its button is hidden.
+
 ## Build 0.150 — Tracking Lab: both cameras and the virtual view in one row
 
 Camera 1, Camera 2 and the live virtual instruments now sit side by side at

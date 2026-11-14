@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { solveWorkspaceAxes, sweepScale, DEFAULT_UNITS_PER_MM, type GuideCaptures, type StereoWorkspace } from '../input/stereoWorkspace';
+import { solveWorkspaceAxes, sweepScale, DEFAULT_UNITS_PER_MM, TRUE_MM_PER_UNIT, type GuideCaptures, type StereoWorkspace } from '../input/stereoWorkspace';
 
 /** Stereo positions averaged per guided capture, once the instrument is still. */
 const CAPTURE_SAMPLES = 15;
@@ -40,6 +40,8 @@ export function mountStereoWorkspacePanel(
   container.append(section);
   const status = section.querySelector<HTMLElement>('[data-workspace-status]')!;
   const sweepButton = section.querySelector<HTMLButtonElement>('[data-workspace-sweep]')!;
+  // True 1:1 scale (stereoWorkspace.ts TRUE_UNITS_PER_MM): the sweep no longer sets the scale.
+  sweepButton.hidden = true;
 
   const captures: Partial<GuideCaptures> = {};
   let collecting: { step: Step; samples: Vector3[] } | null = null;
@@ -49,7 +51,7 @@ export function mountStereoWorkspacePanel(
   const describe = () => {
     const w = current();
     status.textContent = w
-      ? `Workspace set · ${(1 / w.unitsPerMm).toFixed(0)} mm per scene unit.`
+      ? `Workspace set · true size (${TRUE_MM_PER_UNIT} mm per scene unit).`
       : `Not set (using camera axes). Captured: ${STEPS.filter((s) => captures[s.step]).map((s) => s.step).join(', ') || 'none'}.`;
   };
 
@@ -148,7 +150,7 @@ export function mountStereoWorkspacePanel(
         if ('error' in axes) status.textContent = axes.error;
         else {
           onChange({ ...axes, unitsPerMm: DEFAULT_UNITS_PER_MM });
-          status.textContent = 'Axes set. Now press 5. Start sweep to fit your working space to the pad.';
+          status.textContent = 'Axes set. The scene is at true size, so no sweep is needed.';
         }
       }
     },
