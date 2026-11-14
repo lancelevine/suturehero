@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.143 — panels no longer jump when status messages appear
+
+The tracking status strip (checklist, camera-moved warning, "holding"
+reasons) is now a single row of fixed height. Messages appearing or
+clearing no longer push the panels below up and down; long messages end
+with "…" and show in full on hover.
+
 ## Build 0.142 — more accurate checkerboard corners for stereo calibration
 
 Stereo calibration now finds the board's corners with OpenCV's newer

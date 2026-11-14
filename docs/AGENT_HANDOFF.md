@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — status strip: fixed height so panels below do not move.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
@@ -86,6 +86,16 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — fixed-height status strip (build 0.143)
+
+- Lance: text under the checklist chips moved the windows; hard to look at.
+- `statusStrip.css`: strip is one 28 px row (nowrap, overflow hidden);
+  warning and holding reasons inline with ellipsis; `StatusStrip.ts` puts
+  the full text in `title`. Phone width: chips scroll sideways.
+- `check-status-strip`: asserts the 3D view's top stays put while a
+  holding reason and a long warning appear and clear. Fails on the old CSS,
+  passes now.
 
 ### 2026-11-14 — Claude — stereo calibration corners with findChessboardCornersSB (build 0.142)
 

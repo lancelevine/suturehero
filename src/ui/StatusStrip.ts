@@ -61,9 +61,12 @@ export function mountStatusStrip(parent: HTMLElement, before: Element | null, ac
       }
       warning.hidden = !state.warning;
       warning.textContent = state.warning ?? '';
+      // The strip is one fixed-height row (statusStrip.css); long text is cut with "…", full text on hover.
+      warning.title = state.warning ?? '';
       const lines = state.holding.slice(0, MAX_HOLDING_LINES);
       if (holding.dataset.lines !== JSON.stringify(lines)) {
         holding.dataset.lines = JSON.stringify(lines);
+        holding.title = lines.join('\n');
         holding.replaceChildren(...lines.map((text) => {
           const item = document.createElement('li');
           item.textContent = text;

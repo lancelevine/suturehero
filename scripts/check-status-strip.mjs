@@ -30,16 +30,23 @@ try {
   await item('neutral').click();
   assert(await page.locator('#workspace-calibration-drawer').isVisible(), 'neutral item opens calibration');
   // Hide the marker: the strip explains why the instrument is holding.
+  // The panels below the strip must not move when holding reasons or warnings appear (fixed-height strip, 2026-11-14).
+  const panelTop = () => page.evaluate(() => Math.round(document.querySelector('#viewport').getBoundingClientRect().top));
+  const topBefore = await panelTop();
   await page.evaluate(() => { window.__ballScene.marker = false; });
   await page.waitForFunction(() => /Forceps: holding · markers not visible/.test(document.querySelector('#tracking-status-strip')?.textContent ?? ''), {}, {timeout: 5000});
+  assert.equal(await panelTop(), topBefore, 'holding reason must not push the panels down');
+  await page.evaluate(() => { const w = document.querySelector('.tracking-status-warning'); w.hidden = false; w.textContent = 'Camera 1 may have moved since calibration — a long warning that would previously wrap onto its own row and push everything below it down the page'; });
+  assert.equal(await panelTop(), topBefore, 'a warning must not push the panels down');
   await page.evaluate(() => { window.__ballScene.marker = true; });
   await page.waitForFunction(() => !/holding · markers not visible/.test(document.querySelector('#tracking-status-strip')?.textContent ?? ''), {}, {timeout: 8000});
+  assert.equal(await panelTop(), topBefore, 'clearing messages must not move the panels');
   // Stereo mode without a calibration: the stereo item needs attention.
   await page.locator('#tracking-mode').selectOption('stereo', {force: true});
   await page.waitForFunction(() => document.querySelector('[data-status-item="stereo"]')?.dataset.ok === 'false', {}, {timeout: 5000});
   assert.match(await item('stereo').getAttribute('title'), /No stereo calibration loaded/);
   assert.deepEqual(errors, []);
-  console.log('Passed: status strip checklist, item actions, holding reason and stereo item.');
+  console.log('Passed: status strip checklist, item actions, holding reason, stereo item, and panels that stay put as messages come and go.');
 } finally {
   await browser.close();
 }
