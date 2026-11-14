@@ -12,7 +12,10 @@ try{
  assert((await page.locator('#tracking-lab').boundingBox()).width>1200);assert(!(await page.locator('.suturing-app').isVisible()));
  // Live virtual instruments (src/trackingLab/liveView.ts): the simulator view moves into the Lab and keeps rendering.
  const live=await page.evaluate(()=>{const v=document.querySelector('#viewport');const r=v.getBoundingClientRect();return {inLab:!!v.closest('#tracking-lab'),width:r.width,height:r.height,canvas:!!v.querySelector('canvas')};});
- assert(live.inLab&&live.canvas&&live.width>600&&live.height>200,JSON.stringify(live));
+ assert(live.inLab&&live.canvas&&live.width>350&&live.height>180,JSON.stringify(live));
+ // Camera 1 | Camera 2 | virtual view in one row, all visible without scrolling (2026-11-14).
+ const row=await page.evaluate(()=>{const lab=document.querySelector('#tracking-lab');lab.scrollTop=0;const boxes=[...document.querySelectorAll('.lab-camera'),document.querySelector('.lab-live-view')].map(e=>e.getBoundingClientRect());return {tops:boxes.map(b=>Math.round(b.top)),bottoms:boxes.map(b=>Math.round(b.bottom)),height:innerHeight};});
+ assert(new Set(row.tops).size===1&&Math.max(...row.bottoms)<=row.height,JSON.stringify(row));
  const frames=async()=>page.evaluate(()=>new Promise(resolve=>{const c=document.querySelector('#viewport canvas');let n=0;const start=performance.now();requestAnimationFrame(function tick(){n++;if(performance.now()-start<500)requestAnimationFrame(tick);else resolve({n,state:c.dataset.renderState});});}));
  assert.equal((await frames()).state,'ready');
  await page.locator('#lab-duration').focus();await page.keyboard.press('ArrowUp');assert.equal(await page.locator('#lab-duration').inputValue(),'5000');assert.equal(await page.evaluate(()=>window.__labKeys),0);

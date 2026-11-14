@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Tracking Lab: cameras and virtual view side by side.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
     with keyboard jaws (Z / comma) using the measured-tip dots; record 3
@@ -90,6 +90,15 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — Lab three-panel row (build 0.150)
+
+- Lance: in the Lab the two cameras filled the screen; the virtual view
+  needed scrolling. `trackingLab/ui.ts`: live view moved into the
+  `.lab-cameras` grid; `lab.css`: 3 columns (1 below 900 px), live view
+  16:9 like the cameras. check-tracking-lab-layout now also asserts one
+  row fully in view (passes); check-tracking-lab passes; screenshots at
+  1440×900 and 1280×720.
 
 ### 2026-11-14 — Claude — speed-adaptive stereo smoothing (build 0.149)
 
