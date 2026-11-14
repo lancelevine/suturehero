@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.142 — more accurate checkerboard corners for stereo calibration
+
+Stereo calibration now finds the board's corners with OpenCV's newer
+checkerboard detector on the full-size image. Lance's 2026-11-14 captures
+failed with "Camera 1 intrinsics are unreliable (RMS 3.54 px)": the old
+detector placed corners along the board's outer edge up to 28 px off. With
+the new detector the same captures fit to 0.84 / 0.55 px (12 usable pairs,
+the minimum). Falls back to the old detector if the new one is unavailable
+or finds nothing. A white border around the printed pattern also helps.
+
 ## Build 0.141 — larger camera views
 
 - New **Full-window cameras** button next to "Enlarge camera preview": both

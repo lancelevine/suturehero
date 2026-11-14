@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none (detector change parked on branch claude/checkerboard-sb, awaiting Lance)
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
@@ -86,6 +86,24 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — stereo calibration corners with findChessboardCornersSB (build 0.142)
+
+- Lance (old webcams, 1920×1080): "Camera 1 intrinsics are unreliable
+  (RMS 3.54 px)". Replayed his exported captures offline with OpenCV
+  (Python): reproduced 3.54 / 3.23 px exactly. Good views fit 0.4–1 px;
+  bad views had a few corners 15–28 px off, along the board's outer edge
+  (no white border; dark table behind). Not refinement (no subpix: same
+  RMS) and not the lens model (synthetic wide lens fits 0.14 px with
+  k3 = 0). Board is 3D printed and flat.
+- `checkerboardWorker.ts` `refineCheckerboardCapture`: findChessboardCornersSB
+  (NORMALIZE | EXHAUSTIVE | ACCURACY) on the full image first, classic path
+  as fallback. Offline on his captures: 12 pairs with both cameras (the
+  minimum), RMS 0.84 / 0.55 px. ~0.6 s per image natively.
+- Not tested in the browser: the CI-built vendor/opencv.js is not
+  available locally (its whitelist includes findChessboardCornersSB).
+- Lance: retry Solve on the same captures; reprint the board with a white
+  border (≥ 16 mm, 20–25 mm better) for more usable pairs.
 
 ### 2026-11-14 — Claude — larger camera views (build 0.141)
 

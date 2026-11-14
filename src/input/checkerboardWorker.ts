@@ -39,6 +39,8 @@ function detectCheckerboard(cv:any,image:{width:number;height:number;data:Uint8C
   return {width:image.width,height:image.height,corners:points,contrast,focus};
  }finally{corners?.delete();gray?.delete();src?.delete();}
 }
+/** findChessboardCornersSB flags: normalise, search exhaustively, accurate (sub-pixel) corners. */
+const SB_FLAGS=(cv:any)=>cv.CALIB_CB_NORMALIZE_IMAGE|cv.CALIB_CB_EXHAUSTIVE|cv.CALIB_CB_ACCURACY;
 /** Width at which full-size captures are searched for the board before sub-pixel refinement (as the Python solver). */
 const REFINE_SEARCH_WIDTH=960;
 /**
@@ -57,6 +59,17 @@ async function refineCheckerboardCapture(cv:any,dataUrl:string){
   const scale=Math.min(1,REFINE_SEARCH_WIDTH/image.width);small=new cv.Mat();
   if(scale<1)cv.resize(gray,small,new cv.Size(Math.round(image.width*scale),Math.round(image.height*scale)),0,0,cv.INTER_AREA);else gray.copyTo(small);
   corners=new cv.Mat();
+  // Prefer the sector-based detector on the full-size image (as scripts/validate_stereo_calibration.py).
+  // Lance's 2026-11-14 captures: the classic detector on the ≤960 px copy misplaced corners along the
+  // board's outer edge by up to 28 px (Camera 1 RMS 3.54 px); findChessboardCornersSB fit the same
+  // images to 0.73 / 0.56 px. Falls back to the classic path if this OpenCV build lacks it or it fails.
+  if(typeof cv.findChessboardCornersSB==='function'){
+   const sbFound=cv.findChessboardCornersSB(gray,new cv.Size(8,6),corners,SB_FLAGS(cv));
+   if(sbFound&&corners.rows*corners.cols===48){
+    const points=Array.from({length:48},(_,i)=>({x:corners.data32F[i*2],y:corners.data32F[i*2+1]}));
+    return {width:image.width,height:image.height,corners:points};
+   }
+  }
   const found=cv.findChessboardCorners(small,new cv.Size(8,6),corners,cv.CALIB_CB_ADAPTIVE_THRESH|cv.CALIB_CB_NORMALIZE_IMAGE);
   if(!found||corners.rows*corners.cols!==48)return {width:image.width,height:image.height,corners:null};
   for(let i=0;i<96;i++)corners.data32F[i]/=scale;
