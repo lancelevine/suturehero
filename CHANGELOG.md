@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.155 — tip accuracy check
+
+Calibrate → tip section → "Accuracy check": touch the two real tips
+together at 6 spots around the workspace, pressing "Record touch" each
+time. It reports how far apart the measured tips were (average and worst)
+and where the worst touch was (left/right, near/far from Camera 1), and
+keeps the last result with its date. Re-run it whenever a camera may have
+moved.
+
 ## Build 0.154 — jaw orientation (roll) for calibrated instruments
 
 Calibrate → tip section → "Set jaw orientation": hold the instrument with

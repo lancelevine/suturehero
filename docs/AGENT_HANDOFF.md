@@ -91,6 +91,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-14 — Claude — tip accuracy check (build 0.155; 2 of 3)
+
+- New `src/input/tipAccuracy.ts` (+ tests): 6 touches (distance between
+  measured tips + midpoint, camera-1 mm), mean / worst / worst index,
+  last result saved in `suturehero.tipAccuracy.v1`. Calibrate tip
+  section: Record touch / Cancel and a status line (worst location from
+  the touches' mean, camera-1 x and z, > 20 mm).
+- Not exercised in a browser with two tips (the synthetic stereo scene
+  has one instrument); unit tests + check-calibration-preview pass.
+
 ### 2026-11-14 — Claude — jaw roll calibration (build 0.154; 1 of 3)
 
 - New `src/input/jawRoll.ts` (+ tests): cameraToScene (workspace right /
