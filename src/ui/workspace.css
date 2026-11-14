@@ -92,3 +92,10 @@
 .calibration-neutral-action [data-pose-status]{margin:6px 0 0}
 /* Camera controls: match the surrounding text size. */
 .tracking-camera-settings select{font-size:12px;padding:4px 6px}
+
+/* Stereo tip calibration (InstrumentCalibrationPanel, src/input/stereoTipCalibration.ts). */
+.calibration-tip{margin:8px 0;padding:8px 10px;border:1px solid #d7e1d7;border-radius:8px;background:#f8fbf7}
+.calibration-tip-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.calibration-tip-row strong{font-size:12px;margin-right:auto}
+.calibration-tip-row button{font-size:11px;padding:5px 9px}
+.calibration-tip .calibration-hint{margin:6px 0 0}

@@ -6,8 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — stereo tips in one shared frame: pivot tip calibration + absolute placement.
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Stereo tips (build 0.144):** with stereo active, Calibrate → each
+    instrument → Calibrate tip (tip on one spot, rock 8 s; should report
+    ±1–2 mm). Then touch the real tips: "Tips apart" should read a few mm
+    and the virtual tips should meet. Synthetic test only so far.
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
     Then wiggle and roll with the jaws still; open/close on each face.
@@ -86,6 +90,34 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — shared-frame stereo tips, pivot calibration, binary jaws (build 0.144)
+
+- Lance: good stereo tracking, but touching the real tips leaves the
+  virtual tips apart; asked for basic mechanics first, binary jaws OK.
+- Causes: main.ts `TrackedPositionBridge` keeps each instrument where it
+  was at first acquisition (per-instrument offset), and tips use fixed
+  guesses (`trackerTipDistanceMm` 55 / 110 mm) applied in the scene frame
+  at neutral rather than in the tracker body frame.
+- New `src/input/pivotCalibration.ts` (solvePivot, tipPosition),
+  `stereoTipCalibration.ts` (capture sessions, `suturehero.stereoTips.v1`
+  per tracker type, latest tips, tipsApartMm), `sharedTipFrame.ts`
+  (alignShaft), all with tests. tracking.ts render loop: stereo poses feed
+  a capture; with a calibrated tip the pose is the tip in the stereo
+  workspace and is published with `shared: true`; main.ts places shared
+  poses directly (no bridge). Calibrate panel: "Tip · 2 cameras" section
+  with Calibrate tip / Remove, status, and "Tips apart".
+- handleHinge `binaryOpening` (65% / 35% hysteresis) + test; handle-prism
+  publishes 0/1 by default ("Open/closed only" checkbox). check-handle-jaws
+  and -stereo untick it (they measure the continuous opening).
+- Checks: unit tests (56 jaw/tip); tsc; build; check-tracking-motion,
+  -calibration-preview, -stereo-motion, -stereo-shortcut, -status-strip
+  pass; check-handle-jaws-stereo passes; check-handle-jaws fails at the
+  known −15,60,0. Ad-hoc stereo run with a saved tip: 292/311 needle
+  driver poses published shared. Pivot capture not exercised in a browser
+  (synthetic scene cannot rock in 3D).
+- Next: mono path still uses the bridge and fixed tips; scene y clamp at
+  0.15 may flatten tips below the workspace origin.
 
 ### 2026-11-14 — Claude — fixed-height status strip (build 0.143)
 

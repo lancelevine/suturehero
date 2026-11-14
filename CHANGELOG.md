@@ -5,6 +5,22 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.144 — stereo tips in one shared space; open/closed jaws
+
+- **Tip calibration (2 cameras).** Calibrate → "Tip · 2 cameras" →
+  Calibrate tip: rest the instrument tip on one spot and rock it for 8 s.
+  The app solves where the tip is relative to that instrument's ring
+  (pivot calibration), replacing the fixed 55 / 110 mm guesses.
+- **Shared space.** With stereo active and a calibrated tip, the
+  instrument is placed at its real tip position in the stereo workspace,
+  with no per-instrument offset, and its shaft points from the tip toward
+  the ring. Real tips touching should now mean virtual tips touching.
+  Instruments without a calibrated tip behave as before.
+- **"Tips apart" readout** under the tip section: the forceps–needle
+  driver tip distance in mm, to check by touching the real tips.
+- **Handle-prism jaws: open/closed only** (on by default): open above
+  65%, closed below 35%. Untick "Open/closed only" for the percentage.
+
 ## Build 0.143 — panels no longer jump when status messages appear
 
 The tracking status strip (checklist, camera-moved warning, "holding"

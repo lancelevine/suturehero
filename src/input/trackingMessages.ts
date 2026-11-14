@@ -29,6 +29,12 @@ export interface TrackingPoseMessage {
   quaternion: [number, number, number, number];
   /** Date.now() when sent. */
   seenAt: number;
+  /**
+   * Position is the instrument's real tip in the shared stereo workspace
+   * (calibrated tip, src/input/sharedTipFrame.ts): place it as is, with no
+   * per-instrument offset, so instruments whose tips touch also touch in the scene.
+   */
+  shared?: boolean;
 }
 
 /** Jaw opening from 0 (closed) to 1 (open). */

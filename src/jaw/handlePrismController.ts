@@ -31,6 +31,7 @@ import {
   CAPTURE_INLIER_RADIANS,
   handleRelativeToRing,
   bestHingeReading,
+  binaryOpening,
   hingeOpening,
   HANDLE_PRISM_IDS,
   parseHinge,
@@ -122,6 +123,7 @@ With both cameras running and stereo active, the jaw reading uses the prism's 3D
  <button type="button" data-handle-align>Align prism faces</button>
  <button type="button" data-handle-capture="open">Calibrate open</button>
  <button type="button" data-handle-reset>Remove calibration</button>
+ <label title="Report the jaws only as fully open or closed (switches at 65% / 35%), steadier than the percentage."><input type="checkbox" data-handle-binary checked> Open/closed only</label>
  <label title="Width of each prism face (the 12 mm square plus its white border). Used with both cameras to find the prism's centre line.">Prism face width (mm) <input data-handle-face-width type="number" min="12" max="40" step="0.5" value="${DEFAULT_PRISM_FACE_WIDTH_MM}" style="width:5em"></label>
 </div>
 <p class="tracking-message" role="status" data-handle-status></p>
@@ -151,6 +153,9 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     { index: 1, overlay: host.overlay, markers: host.markers, handleMarkers: host.handleMarkers, imageAt: host.markerImageAt },
     ...(host.second ? [{ index: 2 as const, ...host.second }] : []),
   ];
+  const binaryCheckbox = panel.querySelector<HTMLInputElement>('[data-handle-binary]');
+  const binaryOnly = () => binaryCheckbox?.checked ?? true;
+  const binaryOpen = new Map<TrackedInstrument, boolean>();
   const lastRelative = new Map<TrackedInstrument, Quaternion>();
   const openings = new Map<TrackedInstrument, number>();
   const filters = new Map<TrackedInstrument, OpeningFilter>();
@@ -586,13 +591,18 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         if (raw === null) continue;
         const opening = filter.update(raw);
         openings.set(name, opening);
-        host.publish(name, Math.min(1, opening));
+        // Open/closed only (handleHinge.ts binaryOpening), on by default.
+        if (binaryOnly()) {
+          const open = binaryOpening(binaryOpen.get(name) ?? false, opening);
+          binaryOpen.set(name, open);
+          host.publish(name, open ? 1 : 0);
+        } else host.publish(name, Math.min(1, opening));
       }
       const name = selected();
       const opening = openings.get(name);
       const failure = failures.get(name) ?? '';
       readout.textContent = models.has(name) || stereoModels.has(name)
-        ? failure ? `Holding last reading · ${failure}` : `${Math.round(Math.min(1, opening ?? 0) * 100)}% open · ${sources.get(name) ?? ''}`
+        ? failure ? `Holding last reading · ${failure}` : `${binaryOnly() ? (binaryOpen.get(name) ? 'OPEN' : 'CLOSED') + ` (${Math.round(Math.min(1, opening ?? 0) * 100)}%)` : `${Math.round(Math.min(1, opening ?? 0) * 100)}% open`} · ${sources.get(name) ?? ''}`
         : failure;
     },
   };

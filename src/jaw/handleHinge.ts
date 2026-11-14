@@ -195,6 +195,18 @@ export const OPENING_SMOOTHING = 0.35;
  * median rejects isolated outliers, a large jump must be seen twice in a row,
  * and light exponential smoothing removes the remaining jitter.
  */
+/**
+ * Open/closed-only jaw reading (Lance, 2026-11-14: "if you need to make the
+ * jaw opening just open/close for now and that will be accurate"). Switches
+ * to open above OPEN_ABOVE and back to closed below CLOSED_BELOW, so readings
+ * near the middle cannot flicker between the two.
+ */
+export const OPEN_ABOVE = 0.65;
+export const CLOSED_BELOW = 0.35;
+export function binaryOpening(wasOpen: boolean, opening: number): boolean {
+  return wasOpen ? opening > CLOSED_BELOW : opening > OPEN_ABOVE;
+}
+
 export class OpeningFilter {
   private recent: number[] = [];
   private output: number | null = null;

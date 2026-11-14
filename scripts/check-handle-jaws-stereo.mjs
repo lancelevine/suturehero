@@ -164,6 +164,8 @@ try {
       await page.waitForTimeout(60);
     }
   };
+  // These checks measure the continuous opening; the open/closed-only default (build 0.144) is switched off.
+  await page.locator('[data-handle-binary]').evaluate((box) => { box.checked = false; });
   const capture = async (jaw, done) => {
     await page.locator(`[data-handle-capture="${jaw}"]`).evaluate((b) => b.click());
     const end = Date.now() + 25000;

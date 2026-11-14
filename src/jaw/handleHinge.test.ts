@@ -156,3 +156,13 @@ describe('twist angle', () => {
     expect(twistAngle(negated, axis)).toBeCloseTo((-14 * Math.PI) / 180, 6);
   });
 });
+
+describe('open/closed-only jaws', () => {
+  it('switches with a margin so it does not flicker', async () => {
+    const { binaryOpening } = await import('./handleHinge');
+    expect(binaryOpening(false, 0.6)).toBe(false);
+    expect(binaryOpening(false, 0.7)).toBe(true);
+    expect(binaryOpening(true, 0.4)).toBe(true);
+    expect(binaryOpening(true, 0.3)).toBe(false);
+  });
+});
