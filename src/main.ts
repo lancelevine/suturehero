@@ -41,7 +41,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.144 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.145 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -179,7 +179,7 @@ try {
   // Camera mode embeds the existing diagnostic lab; both pages share its
   // proven solver and camera controls rather than creating a second tracker.
   type CameraInstrument=TrackedInstrument;
-  type CameraPose={position:THREE.Vector3;quaternion:THREE.Quaternion;seenAt:number;shared?:boolean};
+  type CameraPose={position:THREE.Vector3;quaternion:THREE.Quaternion;seenAt:number;shared?:boolean;unitsPerMm?:number};
   const cameraPoses=new Map<CameraInstrument,CameraPose>();
   const cameraOrigins=new Map<CameraInstrument,TrackedPositionBridge>();
   const cameraToggle=document.querySelector<HTMLButtonElement>('#camera-tracking-toggle')!;
@@ -219,7 +219,7 @@ try {
    if(fps!==null){trackingLoopFps=fps;return;}
    const pose=parseTrackingPose(data);if(!pose)return;
    cameraStatus.textContent='Tracking '+pose.instrument;
-   cameraPoses.set(pose.instrument,{shared:pose.shared===true,
+   cameraPoses.set(pose.instrument,{shared:pose.shared===true,unitsPerMm:pose.unitsPerMm,
     position:new THREE.Vector3().fromArray(pose.position),
     quaternion:new THREE.Quaternion().fromArray(pose.quaternion).normalize(),seenAt:performance.now()
    });
@@ -272,6 +272,8 @@ try {
      applyCameraPose('forceps',tools[0].root);
      applyCameraPose('needleDriver',tools[1].root);
     }
+    // Measured stereo tips: grasp reach in real millimetres (NeedleGrasp.setMetricReach).
+    {const shared=cameraEnabled?[cameraPoses.get('forceps'),cameraPoses.get('needleDriver')].find(p=>p?.shared&&p.unitsPerMm&&performance.now()-p.seenAt<=350):undefined;grasp.setMetricReach(shared?.unitsPerMm??null);}
     if(!canUseScissors())input.scissorsActive=false;
     scissors.update(input.sampleScissors(),dt);
     const scissorsJaw=jawTracking.get('scissors');

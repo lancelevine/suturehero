@@ -35,6 +35,8 @@ export interface TrackingPoseMessage {
    * per-instrument offset, so instruments whose tips touch also touch in the scene.
    */
   shared?: boolean;
+  /** With `shared`: practice-scene units per real millimetre, so the simulator can use real distances (grasp reach). */
+  unitsPerMm?: number;
 }
 
 /** Jaw opening from 0 (closed) to 1 (open). */

@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import type { Instrument } from '../instruments/Instrument';
 import type { SutureModel } from './SutureModel';
+/** Real reach for picking up the needle with measured stereo tips (mm from the jaw point). */
+export const GRASP_REACH_MM = 4;
+/** The grasping point between the jaws: this far up the shaft from the measured tip (mm). */
+export const JAW_POINT_MM = 3;
+/** Real reach for a forceps hand-off from the needle driver (mm from the jaw point). */
+export const HANDOFF_REACH_MM = 6;
+
 /** Assisted body grasps retain their local attachment point throughout motion. */
 export class NeedleGrasp {
   holder: Instrument | null=null;
@@ -11,10 +18,26 @@ export class NeedleGrasp {
   receiverPoint: THREE.Vector3 | null=null;
   private relative=new THREE.Matrix4();
   private previous=new Map<Instrument,number>();
+  /** Scene units per real mm when instruments come from measured stereo tips, else null (scene-unit reach). */
+  private unitsPerMm: number | null = null;
   constructor(readonly needle: SutureModel) {}
+  /**
+   * With measured stereo tips (2026-11-14) the reach is a fixed real distance
+   * (GRASP_REACH_MM / HANDOFF_REACH_MM) instead of a box in scene units, whose
+   * real size depended on the workspace scale. Null restores the box.
+   */
+  setMetricReach(unitsPerMm: number | null) {
+    this.unitsPerMm = unitsPerMm && Number.isFinite(unitsPerMm) && unitsPerMm > 0 ? unitsPerMm : null;
+  }
+  /** World point between the jaws: JAW_POINT_MM up the shaft from the measured tip, or the model's jaw point. */
+  private jawPoint(tool: Instrument): THREE.Vector3 {
+    if (this.unitsPerMm === null) return tool.root.localToWorld(new THREE.Vector3(0,0,0.05));
+    const shaft = new THREE.Vector3(0,0,1).applyQuaternion(tool.root.getWorldQuaternion(new THREE.Quaternion()));
+    return tool.root.getWorldPosition(new THREE.Vector3()).addScaledVector(shaft, JAW_POINT_MM*this.unitsPerMm);
+  }
   findGrip(tool: Instrument, exposedOnly=false): THREE.Vector3 | null {
     tool.root.updateWorldMatrix(true,false); this.needle.root.updateWorldMatrix(true,false);
-    const jaw=tool.root.localToWorld(new THREE.Vector3(0,0,0.05));
+    const jaw=this.jawPoint(tool);
     const inverse=this.needle.root.matrixWorld.clone().invert();
     const toTool=tool.root.matrixWorld.clone().invert();
     let closest: THREE.Vector3 | null=null, distance=Infinity;
@@ -29,7 +52,9 @@ export class NeedleGrasp {
       }
       const nearest=new THREE.Line3(a,b).closestPointToPoint(jaw,true,new THREE.Vector3());
       const local=nearest.clone().applyMatrix4(toTool);
-      const eligible=exposedOnly?nearest.distanceTo(jaw)<=0.24:Math.abs(local.x)<0.12 && Math.abs(local.y)<0.085 && Math.abs(local.z-0.05)<0.14;
+      const eligible=this.unitsPerMm!==null
+        ? nearest.distanceTo(jaw)<=(exposedOnly?HANDOFF_REACH_MM:GRASP_REACH_MM)*this.unitsPerMm
+        : exposedOnly?nearest.distanceTo(jaw)<=0.24:Math.abs(local.x)<0.12 && Math.abs(local.y)<0.085 && Math.abs(local.z-0.05)<0.14;
       const d=nearest.distanceToSquared(jaw);
       if(eligible && d<distance) { closest=nearest.clone().applyMatrix4(inverse); distance=d; }
     }
@@ -38,7 +63,7 @@ export class NeedleGrasp {
   private alignJaws(tool: Instrument, point: THREE.Vector3) {
     this.needle.root.updateWorldMatrix(true,false); tool.root.updateWorldMatrix(true,false);
     const destination=point.clone().applyMatrix4(this.needle.root.matrixWorld);
-    const jaw=tool.root.localToWorld(new THREE.Vector3(0,0,0.05));
+    const jaw=this.jawPoint(tool);
     const rootWorld=tool.root.getWorldPosition(new THREE.Vector3()).add(destination.sub(jaw));
     if(tool.root.parent) tool.root.parent.worldToLocal(rootWorld);
     tool.root.position.copy(rootWorld);

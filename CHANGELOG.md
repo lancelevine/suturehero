@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.145 — grasp reach in real millimetres
+
+With stereo-measured tips, the needle can be picked up when it is within
+4 mm of the jaw point (3 mm up the shaft from the tip), and handed to the
+forceps within 6 mm, whatever the workspace scale. Before, the reach was a
+box in scene units whose real size changed with the scale. Keyboard jaws
+(Z / comma) work for testing until the jaw prisms are printed.
+
 ## Build 0.144 — stereo tips in one shared space; open/closed jaws
 
 - **Tip calibration (2 cameras).** Calibrate → "Tip · 2 cameras" →

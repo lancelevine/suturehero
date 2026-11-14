@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { Instrument } from '../instruments/Instrument';
 import { SutureModel } from './SutureModel';
-import { NeedleGrasp } from './NeedleGrasp';
+import { GRASP_REACH_MM, JAW_POINT_MM, NeedleGrasp } from './NeedleGrasp';
 function setup() {
   const needle=new SutureModel(); const left=new Instrument('left',0); const right=new Instrument('right',0);
   const scene=new THREE.Scene(); scene.add(needle.root,left.root,right.root);
@@ -94,4 +94,27 @@ it('keeps repeated absolute guided poses stable even below the free-motion floor
  needle.root.updateWorldMatrix(true,false);right.root.updateWorldMatrix(true,false);
  for(let i=0;i<16;i++){expect(needle.root.matrixWorld.elements[i]).toBeCloseTo(pose.elements[i],10);expect(right.root.matrixWorld.elements[i]).toBeCloseTo(root.elements[i],10);}
  expect(right.root.scale.distanceTo(new THREE.Vector3(1,1,1))).toBeLessThan(1e-10);
+});
+describe('metric reach with measured stereo tips',()=>{
+  const UNITS_PER_MM=0.02;
+  /** Places the left tool so its jaw point (3 mm up the +Z shaft from the tip) is `offsetMm` from the needle's first point along x. */
+  function place(offsetMm:number){
+    const {needle,left,right,grasp}=setup();grasp.setMetricReach(UNITS_PER_MM);
+    needle.root.updateWorldMatrix(true,false);
+    const target=needle.points[0].clone().applyMatrix4(needle.root.matrixWorld);
+    left.root.position.copy(target).add(new THREE.Vector3(offsetMm*UNITS_PER_MM,0,-JAW_POINT_MM*UNITS_PER_MM));
+    return {left,right,grasp};
+  }
+  it('picks up within GRASP_REACH_MM of the jaw point and not beyond',()=>{
+    const near=place(GRASP_REACH_MM-1);near.grasp.update([near.left,near.right]);
+    expect(near.grasp.candidate).toBe(near.left);
+    near.left.openness=0.1;near.grasp.update([near.left,near.right]);expect(near.grasp.holder).toBe(near.left);
+    const far=place(GRASP_REACH_MM+1);far.grasp.update([far.left,far.right]);
+    expect(far.grasp.candidate).toBeNull();
+    far.left.openness=0.1;far.grasp.update([far.left,far.right]);expect(far.grasp.holder).toBeNull();
+  });
+  it('restores the scene-unit reach when metric reach is cleared',()=>{
+    const {left,right,grasp}=setup();grasp.setMetricReach(UNITS_PER_MM);grasp.setMetricReach(null);
+    grasp.update([left,right]);expect(grasp.candidate).toBe(left);
+  });
 });

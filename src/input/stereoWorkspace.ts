@@ -84,6 +84,11 @@ export function workspacePracticePosition(mm: Vector3, w: StereoWorkspace | null
   return new Vector3(local.x, local.y, -local.z).multiplyScalar(w.unitsPerMm);
 }
 
+/** Practice-scene units per real millimetre for workspacePracticePosition (camera-axis fallback: 200 mm per unit). */
+export function practiceUnitsPerMm(w: StereoWorkspace | null): number {
+  return w ? w.unitsPerMm : 1 / 200;
+}
+
 export interface SavedStereoWorkspace {
   version: 1;
   /** Stereo calibration this was measured with (camera ids + baseline). */

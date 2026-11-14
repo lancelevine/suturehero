@@ -87,6 +87,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-14 — Claude — grasp reach in mm (build 0.145; 1 of 4)
+
+- `NeedleGrasp.setMetricReach(unitsPerMm)`: sphere reach GRASP_REACH_MM 4
+  / HANDOFF_REACH_MM 6 around a jaw point JAW_POINT_MM 3 up the shaft from
+  the tip; null keeps the old scene-unit box. Shared poses carry
+  `unitsPerMm` (`practiceUnitsPerMm` in stereoWorkspace.ts); main.ts sets
+  the metric reach while a shared pose is fresh. Tests added (66 grasp +
+  gameplay tests pass); tsc clean.
+
 ### 2026-11-14 — Lance (via Claude) — stereo tips confirmed on real hardware
 
 - Build 0.144 shared-frame stereo tips with pivot calibration: Lance
