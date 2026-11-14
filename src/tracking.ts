@@ -36,7 +36,8 @@ import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,re
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
 import {captureSettings,FLOW_MIN_INTERVAL_MS,frameDrivenEnabled} from './input/captureScheduling';
 import {trackProcessor} from './input/trackFrames';
-import {latestStereoTips,stereoTipCalibration} from './input/stereoTipCalibration';
+import {latestStereoTips,stereoTipCalibration,TIP_READOUT_MAX_AGE_MS} from './input/stereoTipCalibration';
+import {projectToCamera} from './input/stereoProjection';
 import {tipPosition} from './input/pivotCalibration';
 import {alignShaft} from './input/sharedTipFrame';
 import {bodyToModel,levelJawPose,modelPose} from './input/jawRoll';
@@ -46,7 +47,7 @@ import {mountMotionMetricsPanel} from './ui/MotionMetricsPanel';
 import {cameraMode} from './input/cameraDevices';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
-import {drawHandleAxis,drawRingAxis,handleAxisSegment,ringAxisSegment} from './ui/ringAxisOverlay';
+import {drawHandleAxis,drawRingAxis,handleAxisSegment,ringAxisSegment,drawTipDot,TIP_DOT_COLORS} from './ui/ringAxisOverlay';
 import {HANDLE_PRISM_IDS} from './jaw/handleHinge';
 import {LiveProfiler} from './diagnostics/LiveProfiler';
 import {mountProfilerPanel} from './ui/ProfilerPanel';
@@ -539,6 +540,7 @@ async function detectSecondFrame(now:number){
    drawDetectedMarker(overlayContext2,marker);
   }
   drawBallOutlines(1);
+  drawTipDots(overlayContext2,2,w,h);
   const stamp=performance.now();
   if(stamp-statsAt2>=1000){
    const seconds=(stamp-statsAt2)/1000;
@@ -1409,6 +1411,17 @@ function drawRingAxes(){
   const handleSegment=handlePose?handleAxisSegment(handlePose,overlay.width,overlay.height):null;
   if(handleSegment)drawHandleAxis(overlayContext,handleSegment,segment);
  }
+ drawTipDots(overlayContext,1,overlay.width,overlay.height);
+}
+/** Calibrated stereo tips as dots in a camera view (src/input/stereoProjection.ts). */
+function drawTipDots(context:CanvasRenderingContext2D,camera:1|2,width:number,height:number){
+ if(!stereoCalibration||!width||!height)return;
+ const now=performance.now();
+ for(const [name,tip] of latestStereoTips){
+  if(now-tip.at>TIP_READOUT_MAX_AGE_MS)continue;
+  const pixel=projectToCamera(stereoCalibration,tip.mm.toArray() as [number,number,number],camera,{width,height});
+  if(pixel)drawTipDot(context,pixel,TIP_DOT_COLORS[name]??'#fff');
+ }
 }
 function drawDetections(){
  const overlayStarted=performance.now();
@@ -1797,7 +1810,7 @@ const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
 observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());},frameDriven);
 observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());},frameDriven);
-const performanceContext=()=>({build:'0.156',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.157',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 mountMotionMetricsPanel(diagnosticsHost,()=>performanceContext().build);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.

@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — tip dots in camera views, white axis line.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,16 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — camera tip dots, white axis (build 0.157)
+
+- New `src/input/stereoProjection.ts` (+ test: projection into both
+  cameras with distortion triangulates back to the point; principal point;
+  behind camera). `ringAxisOverlay.ts`: AXIS_COLOR white, `drawTipDot`,
+  TIP_DOT_COLORS. tracking.ts `drawTipDots` for camera 1 (drawRingAxes) and
+  camera 2 (render) from `latestStereoTips` (fresh ≤ 500 ms).
+- Synthetic stereo screenshot: dot at the same marker-relative spot in
+  both views. check-stereo-motion passes.
 
 ### 2026-11-14 — Claude — stitch feedback in mm (build 0.156; 3 of 3)
 

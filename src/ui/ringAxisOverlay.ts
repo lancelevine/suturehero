@@ -8,7 +8,8 @@ export const RING_AXIS_HALF_LENGTH_MM = 60;
 /** Ring fits worse than this are not drawn (px). */
 const MAX_AXIS_POSE_ERROR_PX = 4;
 const AXIS_LINE_WIDTH_PX = 3;
-const AXIS_COLOR = '#000';
+/** White since 2026-11-14 (black was hard to see on the dark instruments). */
+const AXIS_COLOR = '#fff';
 
 /**
  * End points (overlay px) of the ring tracker's shaft axis (local Y): the
@@ -33,6 +34,25 @@ export function drawRingAxis(context: CanvasRenderingContext2D, segment: { a: Pi
   context.beginPath();
   context.moveTo(segment.a.x, segment.a.y);
   context.lineTo(segment.b.x, segment.b.y);
+  context.stroke();
+  context.restore();
+}
+
+/** Calibrated-tip dot in the camera views: radius (px) and outline. */
+const TIP_DOT_RADIUS_PX = 5;
+/** Instrument colours, as in the 3D view. */
+export const TIP_DOT_COLORS: Record<string, string> = { forceps: '#65d8c1', needleDriver: '#e65353', scissors: '#8d9cf2' };
+
+/** A filled dot with a white outline at a calibrated tip (src/input/stereoProjection.ts gives the pixel). */
+export function drawTipDot(context: CanvasRenderingContext2D, at: Pixel, color: string) {
+  context.save();
+  context.setLineDash([]);
+  context.beginPath();
+  context.arc(at.x, at.y, TIP_DOT_RADIUS_PX, 0, Math.PI * 2);
+  context.fillStyle = color;
+  context.fill();
+  context.lineWidth = 2;
+  context.strokeStyle = '#fff';
   context.stroke();
   context.restore();
 }

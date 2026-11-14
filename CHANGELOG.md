@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.157 — tip dots in the camera views; white axis line
+
+- Each calibrated stereo tip is drawn as a dot (instrument colour, white
+  outline) in both camera views, projected with the stereo calibration
+  including lens distortion. If the dot sits on the real tip in both
+  views, the tip calibration and stereo calibration agree.
+- The ring's axis line in Camera 1 is white instead of black.
+
 ## Build 0.156 — stitch feedback in millimetres
 
 Stitch feedback now reports real distances (the scene is at 27 mm per
