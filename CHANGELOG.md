@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.141 — larger camera views
+
+- New **Full-window cameras** button next to "Enlarge camera preview": both
+  live camera views fill the browser window (about 2.5× the area at
+  1440×900), with their tracking overlays. Close or Esc returns.
+- With two cameras the views are placed side by side or stacked, whichever
+  shows them larger, both in the camera panel and in the full-window view.
+
 ## Build 0.140 — Production mode
 
 New **Production** tab next to Simulator / Tracking Lab: a polished

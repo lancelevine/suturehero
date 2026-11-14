@@ -18,9 +18,17 @@ try{
   const result=await page.evaluate(()=>{
    const stage=document.querySelector('.tracking-camera-stage');stage.scrollTop=0;
    const bounds=stage.getBoundingClientRect(),a=document.querySelector('#primary-camera-preview').getBoundingClientRect(),b=document.querySelector('#camera-video-2').closest('.tracking-video').getBoundingClientRect();
-   return {inside:a.top>=bounds.top-1&&b.bottom<=bounds.bottom+1,stacked:b.top>=a.bottom-1,positive:a.height>0&&b.height>0,proportions:Math.abs(a.width/a.height-16/9)<.02&&Math.abs(b.width/b.height-16/9)<.02};
+   // Stacked or side by side, whichever is larger (src/ui/dualFeedLayout.ts, 2026-11-14): no overlap either way.
+   const separate=b.top>=a.bottom-1||b.left>=a.right-1;
+   return {inside:a.top>=bounds.top-1&&b.bottom<=bounds.bottom+1&&a.left>=bounds.left-1&&b.right<=bounds.right+1,separate,positive:a.height>0&&b.height>0,proportions:Math.abs(a.width/a.height-16/9)<.02&&Math.abs(b.width/b.height-16/9)<.02};
   });
-  assert(result.inside&&result.stacked&&result.positive&&result.proportions,JSON.stringify({width,height,result}));
+  assert(result.inside&&result.separate&&result.positive&&result.proportions,JSON.stringify({width,height,result}));
  }
- assert.deepEqual(errors,[]);console.log('Passed: both live stacked cameras fit completely at scroll-top across desktop, laptop and mobile sizes without cropping.');
+ // Full-window camera view: both views fill the window side by side at desktop size, and return to the panel on Esc.
+ await page.setViewportSize({width:1440,height:900});await page.locator('#camera-fullview-open').click();await page.waitForTimeout(300);
+ const full=await page.evaluate(()=>{const a=document.querySelector('#primary-camera-preview').getBoundingClientRect(),b=document.querySelector('#camera-video-2').closest('.tracking-video').getBoundingClientRect();return {inOverlay:!!document.querySelector('.camera-fullview #primary-camera-preview'),aw:a.width,bw:b.width,sideBySide:Math.abs(a.top-b.top)<1&&b.left>=a.right-1,bottom:Math.max(a.bottom,b.bottom),ih:innerHeight,iw:innerWidth,right:b.right};});
+ assert(full.inOverlay&&full.sideBySide&&full.aw>650&&full.bw>650&&full.bottom<=full.ih&&full.right<=full.iw,JSON.stringify(full));
+ await page.keyboard.press('Escape');
+ assert(await page.evaluate(()=>!!document.querySelector('.tracking-camera-stage #primary-camera-preview')&&document.querySelector('.camera-fullview').hidden),'Esc returns the views to the camera panel');
+ assert.deepEqual(errors,[]);console.log('Passed: both live cameras fit completely (stacked or side by side, whichever is larger) across desktop, laptop and mobile sizes, and the full-window view shows both large and returns on Esc.');
 }finally{await browser.close();}

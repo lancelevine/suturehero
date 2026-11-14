@@ -1,5 +1,8 @@
 import {mountCalibrationPanel} from './InstrumentCalibrationPanel';
 import {mountCameraPicker} from './CameraPicker';
+import {dualFeedLayout} from './dualFeedLayout';
+import {movableView} from '../trackingLab/liveView';
+import './cameraFullView.css';
 /** Move existing controls so camera streams and their handlers stay attached. */
 export function mountTrackingLayout(root:HTMLElement){
  root.classList.add('tracking-clean','tracking-panels');const embedded=root.dataset.embedded==='true';
@@ -12,14 +15,41 @@ export function mountTrackingLayout(root:HTMLElement){
  const feeds=document.createElement('div');feeds.className='tracking-camera-feeds';
  const secondVideo=root.querySelector<HTMLVideoElement>('#camera-video-2')!,secondPreview=secondVideo.closest<HTMLElement>('.tracking-video')!;
  preview.dataset.cameraLabel='Camera 1';secondPreview.dataset.cameraLabel='Camera 2';feeds.append(preview,secondPreview);
+ // Full-window camera view (src/ui/dualFeedLayout.ts): both live views moved into an overlay, as large as the window allows.
+ const fullView=document.createElement('section');fullView.className='camera-fullview';fullView.hidden=true;fullView.setAttribute('aria-label','Camera views');
+ fullView.innerHTML='<header><strong>Camera views</strong><span>Side by side or stacked, whichever is larger · Esc to close</span><button type="button" data-camera-fullview-close>Close</button></header><div class="camera-fullview-body"></div>';
+ document.body.append(fullView);
+ const fullViewBody=fullView.querySelector<HTMLElement>('.camera-fullview-body')!;
+ // Created on first open: the feeds are only placed in the camera panel further down.
+ let fullViewMove:ReturnType<typeof movableView>|null=null;
  const fitFeeds=()=>{
-  if(secondPreview.hidden)return;
+  const inFullView=!fullView.hidden;
   const first=preview.querySelector<HTMLVideoElement>('video')!;
   const ratio=(v:HTMLVideoElement)=>v.videoWidth&&v.videoHeight?v.videoWidth/v.videoHeight:16/9;
-  const height=Math.max(0,stage.clientHeight-head.offsetHeight-3);
-  const width=Math.min(stage.clientWidth,height/(1/ratio(first)+1/ratio(secondVideo)));
-  feeds.style.setProperty('--dual-feed-width',`${width}px`);
+  const width=inFullView?fullViewBody.clientWidth:stage.clientWidth;
+  const height=inFullView?fullViewBody.clientHeight:Math.max(0,stage.clientHeight-head.offsetHeight-3);
+  if(secondPreview.hidden){
+   feeds.classList.remove('side-by-side');
+   feeds.style.setProperty('--dual-feed-width',inFullView?`${Math.min(width,height*ratio(first))}px`:'100%');
+   return;
+  }
+  const layout=dualFeedLayout(width,height,ratio(first),ratio(secondVideo));
+  feeds.classList.toggle('side-by-side',layout.arrangement==='side-by-side');
+  feeds.style.setProperty('--dual-feed-width',`${layout.feedWidth}px`);
  };
+ const setFullView=(open:boolean)=>{
+  if(open===!fullView.hidden)return;
+  fullView.hidden=!open;
+  document.body.classList.toggle('camera-fullview-active',open);
+  fullViewMove??=movableView(feeds,fullViewBody);
+  fullViewMove.show(open);
+  fitFeeds();
+ };
+ fullView.querySelector('[data-camera-fullview-close]')!.addEventListener('click',()=>setFullView(false));
+ // Capture phase so the practice page's keyboard handlers do not swallow Esc.
+ window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!fullView.hidden){event.stopPropagation();setFullView(false);}},true);
+ const fullViewButton=document.createElement('button');fullViewButton.type='button';fullViewButton.id='camera-fullview-open';fullViewButton.textContent='Full-window cameras';
+ fullViewButton.addEventListener('click',()=>setFullView(true));
  const updateFeeds=()=>{const active=!!secondVideo.srcObject;secondPreview.hidden=!active;feeds.classList.toggle('two-cameras',active);fitFeeds();};
  secondVideo.addEventListener('loadedmetadata',updateFeeds);secondVideo.addEventListener('emptied',updateFeeds);secondVideo.addEventListener('playing',updateFeeds);updateFeeds();
  for(const [video,frame] of [[preview.querySelector<HTMLVideoElement>('video')!,preview],[secondVideo,secondPreview]] as const){
@@ -27,7 +57,7 @@ export function mountTrackingLayout(root:HTMLElement){
   video.addEventListener('loadedmetadata',size);video.addEventListener('resize',size);video.addEventListener('emptied',size);size();
  }
  stage.append(head,feeds,cameraRow,status);
- const feedResize=new ResizeObserver(fitFeeds);feedResize.observe(stage);feedResize.observe(head);
+ const feedResize=new ResizeObserver(fitFeeds);feedResize.observe(stage);feedResize.observe(head);feedResize.observe(fullViewBody);
  window.addEventListener('pagehide',()=>feedResize.disconnect(),{once:true});
  const navigation=embedded?document.querySelector('.workspace-header-actions')!:root.querySelector('header')!;
  const panel=(id:string,title:string,description:string)=>{
@@ -79,6 +109,7 @@ export function mountTrackingLayout(root:HTMLElement){
  const motion=section(diagnostics,'Instrument motion');motion.append(virtual.querySelector(':scope > .tracking-details')!,root.querySelector('#stereo-view-indicator')!);
  const simulation=section(diagnostics,'Simulated input');simulation.append(group('simulation','.tracking-actions'));
  const expand=root.querySelector('#camera-expand');if(expand)head.append(expand);
+ head.append(fullViewButton);
  const jaws=group('ball-enable','details');
  let host=document.querySelector<HTMLElement>('#instrument-calibration');
  if(!host){host=document.createElement('aside');host.className='tracking-calibration-card';layout.append(host);}

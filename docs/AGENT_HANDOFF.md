@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — larger camera views: side by side or stacked, whichever is bigger.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
@@ -86,6 +86,21 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — larger camera views (build 0.141)
+
+- Lance: camera views too small; wants them as large as possible with both
+  visible. In the panel they were always stacked (≈ 443×249 each at
+  1440×900); "Enlarge" barely helped because height is the limit.
+- New `src/ui/dualFeedLayout.ts` (+ test): stacked vs side by side,
+  whichever gives the larger views. `TrackingLayout.ts` uses it for the
+  panel and adds a "Full-window cameras" overlay (feeds moved with
+  `movableView`, `cameraFullView.css`; Esc in capture phase).
+- `check-dual-camera-fit`: the "stacked" requirement became "stacked or
+  side by side, no overlap" (the spec changed per Lance; inside/proportion
+  checks unchanged); full-window assertions added. Passes; also
+  check-camera-controls and check-stereo-shortcut. Screenshot: ≈ 703×395
+  per view at 1440×900.
 
 ### 2026-11-13 — Claude — Production mode (build 0.140)
 
