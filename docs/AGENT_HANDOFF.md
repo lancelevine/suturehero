@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none
+- **In progress:** Claude Code — grasp reach in mm, tip markers, table height, guided stereo setup (4 commits).
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
