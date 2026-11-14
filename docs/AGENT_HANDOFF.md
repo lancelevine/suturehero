@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — stereo calibration: refine captures with findChessboardCornersSB.
+- **In progress:** none (detector change parked on branch claude/checkerboard-sb, awaiting Lance)
 - **Needs Lance to test by hand:**
   - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
     closed → Align prism faces → Calibrate open (alignment must be redone).
