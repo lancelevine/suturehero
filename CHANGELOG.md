@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.146 — measured tips shown in the 3D view
+
+With stereo-measured tips, each instrument shows a dot at its measured tip
+(in its own colour) and a small white dot at the grasp point 3 mm up the
+shaft, drawn on top of everything. Only instruments with a measured tip
+get dots; they are hidden in Production mode.
+
 ## Build 0.145 — grasp reach in real millimetres
 
 With stereo-measured tips, the needle can be picked up when it is within

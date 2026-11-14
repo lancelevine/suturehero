@@ -87,6 +87,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-14 — Claude — measured-tip dots (build 0.146; 2 of 4)
+
+- New `src/scene/tipMarkers.ts` (+ test): tip dot (tool colour) and grasp
+  point dot (JAW_POINT_MM up the shaft), depthTest off, min radius 0.035
+  units so they stay visible at 200 mm/unit. main.ts shows them per tool
+  while that tool's shared pose is fresh; hidden in Production.
+- Checked with a synthetic stereo run + screenshot (dot at the needle
+  driver tip); check-production-mode and check-calibration-preview pass.
+
 ### 2026-11-14 — Claude — grasp reach in mm (build 0.145; 1 of 4)
 
 - `NeedleGrasp.setMetricReach(unitsPerMm)`: sphere reach GRASP_REACH_MM 4

@@ -1,5 +1,6 @@
 import {mountTrackingLab} from './trackingLab/ui';
 import {mountProductionMode} from './ui/productionMode';
+import {TipMarkers} from './scene/tipMarkers';
 import {viewInLab} from './trackingLab/liveView';
 import {mountTrackingStatusBadge} from './ui/TrackingStatusBadge';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
@@ -41,7 +42,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.145 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.146 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -55,6 +56,7 @@ mountProductionMode(app);
 try {
   const view=createScene(document.querySelector('#viewport')!);
   const tools=[new Instrument('left',0x65d8c1),new Instrument('right',0xe65353)];
+  const tipMarkers=new TipMarkers([{root:tools[0].root,color:0x65d8c1},{root:tools[1].root,color:0xe65353}]);view.scene.add(tipMarkers.root);
   const needle=new SutureModel(); const grasp=new NeedleGrasp(needle);
   const tissue=new TissuePatch();const artery=new ArteryTissue();artery.root.visible=false;
   view.scene.add(tissue.root,artery.root,needle.root,...tools.map(tool=>tool.root));
@@ -273,7 +275,8 @@ try {
      applyCameraPose('needleDriver',tools[1].root);
     }
     // Measured stereo tips: grasp reach in real millimetres (NeedleGrasp.setMetricReach).
-    {const shared=cameraEnabled?[cameraPoses.get('forceps'),cameraPoses.get('needleDriver')].find(p=>p?.shared&&p.unitsPerMm&&performance.now()-p.seenAt<=350):undefined;grasp.setMetricReach(shared?.unitsPerMm??null);}
+    // Measured-tip dots in the scene (src/scene/tipMarkers.ts); hidden in Production mode.
+    {const shared=cameraEnabled?[cameraPoses.get('forceps'),cameraPoses.get('needleDriver')].find(p=>p?.shared&&p.unitsPerMm&&performance.now()-p.seenAt<=350):undefined;grasp.setMetricReach(shared?.unitsPerMm??null);const fresh=(name:CameraInstrument)=>{const p=cameraPoses.get(name);return !!p?.shared&&performance.now()-p.seenAt<=350;};tipMarkers.update(shared?.unitsPerMm??null,!document.body.classList.contains('production-active'),root=>root===tools[0].root?fresh('forceps'):fresh('needleDriver'));}
     if(!canUseScissors())input.scissorsActive=false;
     scissors.update(input.sampleScissors(),dt);
     const scissorsJaw=jawTracking.get('scissors');
