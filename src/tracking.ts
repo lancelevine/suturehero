@@ -39,6 +39,7 @@ import {trackProcessor} from './input/trackFrames';
 import {latestStereoTips,stereoTipCalibration} from './input/stereoTipCalibration';
 import {tipPosition} from './input/pivotCalibration';
 import {alignShaft} from './input/sharedTipFrame';
+import {bodyToModel,levelJawPose,modelPose} from './input/jawRoll';
 import {TABLE_POINTS,tableHeight,tableOffsetUnits} from './input/tableHeight';
 import {motionRecorder} from './gameplay/motionMetrics';
 import {mountMotionMetricsPanel} from './ui/MotionMetricsPanel';
@@ -1704,7 +1705,12 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      const tipScene=workspacePracticePosition(tipMm,stereoWorkspace).add(tableShift);
      const ringScene=workspacePracticePosition(stereoPose.position,stereoWorkspace).add(tableShift);
      calibrated.position.copy(tipScene);
-     calibrated.quaternion.copy(alignShaft(calibrated.quaternion,ringScene.sub(tipScene)));
+     // Jaw orientation (src/input/jawRoll.ts): capture on request, then follow the ring's rotation, roll included.
+     const shaftScene=ringScene.clone().sub(tipScene);
+     const jawRequest=stereoTipCalibration.takeJawRequest(name);
+     if(jawRequest){const level=levelJawPose(shaftScene);stereoTipCalibration.saveJawOrientation(name,jawRequest,level?bodyToModel(stereoPose.quaternion,stereoWorkspace,level):null);}
+     const jawOrientation=stereoTipCalibration.jawOrientation(name,trackerType);
+     calibrated.quaternion.copy(jawOrientation?modelPose(stereoPose.quaternion,stereoWorkspace,jawOrientation):alignShaft(calibrated.quaternion,shaftScene));
      latestStereoTips.set(name,{mm:tipMm.clone(),at:now});
      motionRecorder.add(name,tipMm,now);
      sharedFrame=true;
@@ -1791,7 +1797,7 @@ const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
 observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());},frameDriven);
 observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());},frameDriven);
-const performanceContext=()=>({build:'0.153',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.154',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 mountMotionMetricsPanel(diagnosticsHost,()=>performanceContext().build);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.

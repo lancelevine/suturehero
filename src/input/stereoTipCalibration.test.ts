@@ -36,3 +36,24 @@ describe('stereo tip calibration sessions', () => {
     expect(calibration.tip('forceps', 'ring8')).toBeNull();
   });
 });
+
+describe('jaw orientation capture requests', () => {
+  it('needs a calibrated tip, is taken once, and is saved with the tip', async () => {
+    const { Quaternion } = await import('three');
+    const calibration = new StereoTipCalibration(memory());
+    calibration.requestJawOrientation('forceps', 'ring8');
+    expect(calibration.takeJawRequest('forceps')).toBeNull();
+    expect(calibration.status()).toMatch(/Calibrate the tip first/);
+    const tip = new Vector3(0, -100, 0), pivot = new Vector3(0, 0, 400);
+    calibration.start('forceps', 'ring8', 0);
+    for (let i = 0; i <= 100; i++) calibration.feed('forceps', pose(i, tip, pivot), (i * CAPTURE_MS) / 100);
+    calibration.requestJawOrientation('forceps', 'ring8');
+    expect(calibration.takeJawRequest('needleDriver')).toBeNull();
+    expect(calibration.takeJawRequest('forceps')).toBe('ring8');
+    expect(calibration.takeJawRequest('forceps')).toBeNull();
+    const q = new Quaternion(0.1, 0.2, 0.3, 0.9).normalize();
+    calibration.saveJawOrientation('forceps', 'ring8', q);
+    expect(calibration.jawOrientation('forceps', 'ring8')!.angleTo(q)).toBeLessThan(1e-9);
+    expect(calibration.tip('forceps', 'ring8')!.distanceTo(tip)).toBeLessThan(0.01);
+  });
+});

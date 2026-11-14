@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three';
 import { solvePivot, type PivotSample } from './pivotCalibration';
 
 /**
@@ -18,6 +18,8 @@ export interface SavedTip {
   tip: [number, number, number];
   rmsMm: number;
   at: string;
+  /** Tracker body → model rotation from "Set jaw orientation" (src/input/jawRoll.ts), [x, y, z, w]. */
+  bodyToModel?: [number, number, number, number];
 }
 type SavedTips = Record<string, Record<string, SavedTip>>;
 
@@ -29,6 +31,7 @@ interface StorageLike {
 export class StereoTipCalibration {
   private capture: { instrument: string; trackerType: string; startedAt: number; samples: PivotSample[] } | null = null;
   private message = '';
+  private jawRequest: { instrument: string; trackerType: string } | null = null;
 
   constructor(private readonly storage: StorageLike | null) {}
 
@@ -50,6 +53,43 @@ export class StereoTipCalibration {
 
   saved(instrument: string, trackerType: string): SavedTip | null {
     return this.read()[trackerType]?.[instrument] ?? null;
+  }
+
+  /** Saved jaw orientation (body → model), or null. */
+  jawOrientation(instrument: string, trackerType: string): Quaternion | null {
+    const q = this.saved(instrument, trackerType)?.bodyToModel;
+    return Array.isArray(q) && q.length === 4 && q.every(Number.isFinite) ? new Quaternion(...q).normalize() : null;
+  }
+
+  /** Asks tracking to capture the jaw orientation from the next stereo pose of `instrument`. */
+  requestJawOrientation(instrument: string, trackerType: string) {
+    if (!this.saved(instrument, trackerType)) {
+      this.message = 'Calibrate the tip first; the jaw orientation is stored with it.';
+      return;
+    }
+    this.jawRequest = { instrument, trackerType };
+    this.message = 'Hold the jaws opening sideways (finger rings level)…';
+  }
+
+  /** Whether a jaw orientation capture is waiting for `instrument` (taken once by tracking). */
+  takeJawRequest(instrument: string): string | null {
+    if (this.jawRequest?.instrument !== instrument) return null;
+    const trackerType = this.jawRequest.trackerType;
+    this.jawRequest = null;
+    return trackerType;
+  }
+
+  /** Saves a captured jaw orientation (or reports why there is none). */
+  saveJawOrientation(instrument: string, trackerType: string, bodyToModel: Quaternion | null) {
+    const all = this.read();
+    const entry = all[trackerType]?.[instrument];
+    if (!entry || !bodyToModel) {
+      this.message = 'Jaw orientation not set: point the shaft less steeply (not straight up or down) and try again.';
+      return;
+    }
+    entry.bodyToModel = bodyToModel.toArray() as [number, number, number, number];
+    this.write(all);
+    this.message = 'Jaw orientation set: the model now rolls with the real instrument.';
   }
 
   remove(instrument: string, trackerType: string) {

@@ -91,6 +91,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-14 — Claude — jaw roll calibration (build 0.154; 1 of 3)
+
+- New `src/input/jawRoll.ts` (+ tests): cameraToScene (workspace right /
+  up / −forward, or x −y −z), levelJawPose (shaft tip→ring, jaw axis +X
+  level), bodyToModel, modelPose. `stereoTipCalibration.ts`: optional
+  `bodyToModel` in the saved tip, request/take/save capture (+ test).
+  tracking.ts: captures on request in the shared block; with a saved
+  orientation the model pose is cameraToScene · ring · bodyToModel, else
+  the 0.144 alignShaft. Panel button "Set jaw orientation".
+- Synthetic stereo run: after capture the model jaw axis is level
+  (y ≈ 6e-17). check-calibration-preview passes.
+
 ### 2026-11-14 — Claude — motion metrics (build 0.153; 3 of 3)
 
 - New `src/gameplay/motionMetrics.ts` (+ tests): MotionRecorder, per

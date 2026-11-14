@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.154 — jaw orientation (roll) for calibrated instruments
+
+Calibrate → tip section → "Set jaw orientation": hold the instrument with
+the jaws opening sideways (finger rings level, side by side) and press it.
+From then on the virtual instrument's whole orientation, including its roll
+about the shaft, follows the ring's measured rotation, so the plane the
+jaws open in matches the real one. Saved with the tip calibration.
+
 ## Build 0.153 — motion metrics (research)
 
 Diagnostics → "Motion metrics (research)": Start / Stop recording the
