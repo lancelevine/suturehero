@@ -1,5 +1,6 @@
 import { Matrix3, Vector3 } from 'three';
 import { stereoPracticePosition } from './stereoTrackingPose';
+import { SCENE_MM_PER_UNIT } from '../setup/sceneScale';
 
 /**
  * Stereo workspace calibration: maps camera-1 millimetres to practice-scene
@@ -22,7 +23,7 @@ export const DEFAULT_UNITS_PER_MM = 0.01;
  * scale, so real and virtual distances match; the workspace sweep no longer
  * sets the scale (its saved unitsPerMm is ignored).
  */
-export const TRUE_MM_PER_UNIT = 27;
+export const TRUE_MM_PER_UNIT = SCENE_MM_PER_UNIT;
 export const TRUE_UNITS_PER_MM = 1 / TRUE_MM_PER_UNIT;
 /** The sweep's larger horizontal extent maps to this many practice units (the pad spans about ±2). */
 export const SWEEP_TARGET_UNITS = 4;

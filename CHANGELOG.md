@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.156 — stitch feedback in millimetres
+
+Stitch feedback now reports real distances (the scene is at 27 mm per
+unit): bite distance from the wound edge for each side ("4.1 mm / 4.3 mm
+from the edge"), how far uneven bites are offset along the wound and in
+height, stitch spacing, the largest gap between stitches, and the surface
+and deep dermal gaps in the cross-section view. Before, these said
+"practice units" or only "symmetric / uneven".
+
 ## Build 0.155 — tip accuracy check
 
 Calibrate → tip section → "Accuracy check": touch the two real tips

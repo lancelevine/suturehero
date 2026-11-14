@@ -1,3 +1,4 @@
+import {formatMm} from '../setup/sceneScale';
 import * as THREE from 'three';
 import {TISSUE_LAYERS} from '../tissue/anatomy';
 import {fieldShift,fieldLift,DEEP_DERMIS_Y,type TissueSite} from '../tissue/StitchField';
@@ -35,6 +36,6 @@ export class CrossSectionView {
   }
   ctx.stroke();ctx.setLineDash([]);
   const surface=.1-2*fieldShift(.05,siteZ,sites),deep=.1-2*fieldShift(.05,siteZ,sites,DEEP_DERMIS_Y);
-  this.readout.textContent=`Surface gap ${surface.toFixed(3)} · Deep dermal gap ${deep.toFixed(3)} practice units. ${deep-surface>.01?'Surface closure can hide a deeper opening.':'Compare the dermal edges beneath the surface.'}`;
+  this.readout.textContent=`Surface gap ${formatMm(surface,2)} · Deep dermal gap ${formatMm(deep,2)}. ${deep-surface>.01?'Surface closure can hide a deeper opening.':'Compare the dermal edges beneath the surface.'}`;
  }
 }

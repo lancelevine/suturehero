@@ -6,8 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — jaw roll calibration, tip accuracy check, stitch feedback in mm (3 commits).
+- **In progress:** none
 - **Needs Lance to test by hand:**
+  - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
+    per instrument and check the virtual jaw plane matches while rolling;
+    run the 6-touch accuracy check and note the average/worst; read the
+    bite feedback in mm after a guided pass (keyboard jaws).
   - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
     with keyboard jaws (Z / comma) using the measured-tip dots; record 3
     table touches and check tips rest on the skin; follow the "Next:" step
@@ -90,6 +94,17 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-14 — Claude — stitch feedback in mm (build 0.156; 3 of 3)
+
+- New `src/setup/sceneScale.ts` (+ test): SCENE_MM_PER_UNIT 27 (now the
+  source for stereoWorkspace TRUE_MM_PER_UNIT) and `formatMm`; the test
+  checks the PS-2 arc is ≈ 19 mm. StitchAssessment: bite distances from
+  the edge and alignment offsets in mm (+ test). StitchCourse spacing and
+  midpoint gap, CrossSectionView gaps: mm instead of practice units.
+- Checks: src/gameplay, src/tissue, src/scene tests (117) pass; tsc;
+  check-production-mode passes.
+- Not done: bite depth in mm (the frame has entry/exit points only).
 
 ### 2026-11-14 — Claude — tip accuracy check (build 0.155; 2 of 3)
 

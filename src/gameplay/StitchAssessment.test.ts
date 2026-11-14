@@ -24,3 +24,11 @@ it('distinguishes surface closure from residual deep opening and unequal dermal 
  expect(assessStitch(f).complete).toBe(true);
  expect(assessStitch({...f,skin:false}).feedback.join(' ')).not.toContain('Deep dermal');
 });
+it('reports bite distances and edge offsets in real millimetres (27 mm per scene unit)',()=>{
+ const f=frame();
+ expect(assessStitch(f).feedback[0]).toContain('7.3 mm / 7.3 mm from the edge');
+ f.bites=[new THREE.Vector3(.15,.31,0),new THREE.Vector3(-.4,.31,.15)];
+ const feedback=assessStitch(f).feedback.join(' ');
+ expect(feedback).toContain('4.0 mm / 10.8 mm from the edge');
+ expect(feedback).toContain('4.0 mm along the wound');
+});
