@@ -87,6 +87,17 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-14 — Claude — table height as skin surface (build 0.147; 3 of 4)
+
+- New `src/input/tableHeight.ts` (+ test): 3 table touches (calibrated tip,
+  camera-1 mm) saved per stereo calibration key
+  (`suturehero.tableHeight.v1`); `tableOffsetUnits` shifts the mean height
+  (along the workspace up, or camera −y) to `SKIN_SURFACE_Y` (epidermis
+  top, 0.41). tracking.ts adds the shift to shared tip/ring positions.
+  Calibrate tip section: Record table touch / Clear + status.
+- Synthetic stereo run: after 3 touches the still needle driver tip moved
+  from y 0.329 to exactly 0.41. check-calibration-preview passes.
+
 ### 2026-11-14 — Claude — measured-tip dots (build 0.146; 2 of 4)
 
 - New `src/scene/tipMarkers.ts` (+ test): tip dot (tool colour) and grasp

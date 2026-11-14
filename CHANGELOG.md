@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.147 — the table as the skin surface
+
+Calibrate → tip section → "Record table touch": rest a calibrated tip on
+the table and press it at 3 spots. The shared stereo space is shifted so
+the table sits exactly at the virtual skin surface: instruments resting on
+the table rest on the skin, and nothing gets pinned at the scene floor.
+Saved for the current stereo calibration; "Clear" removes it.
+
 ## Build 0.146 — measured tips shown in the 3D view
 
 With stereo-measured tips, each instrument shows a dot at its measured tip

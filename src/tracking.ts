@@ -39,6 +39,7 @@ import {trackProcessor} from './input/trackFrames';
 import {latestStereoTips,stereoTipCalibration} from './input/stereoTipCalibration';
 import {tipPosition} from './input/pivotCalibration';
 import {alignShaft} from './input/sharedTipFrame';
+import {tableHeight,tableOffsetUnits} from './input/tableHeight';
 import {cameraMode} from './input/cameraDevices';
 import {PredictiveDecodeSearch} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
@@ -266,7 +267,7 @@ let stereoCalibration:StereoCalibration|null=null;
 // Stereo workspace: user-defined right/up/forward axes and scale (stereoWorkspace.ts).
 let stereoWorkspace:StereoWorkspace|null=null;
 const stereoCalibrationKey=()=>stereoCalibration?`${stereoCalibration.cameraIds?.first??''}|${stereoCalibration.cameraIds?.second??''}|${Math.hypot(...stereoCalibration.stereo.translationMm).toFixed(1)}`:'';
-const loadStereoWorkspace=()=>{stereoWorkspace=stereoCalibration?parseWorkspace(readStoredJson(TRACKING_STORAGE_KEYS.stereoWorkspace),stereoCalibrationKey()):null;};
+const loadStereoWorkspace=()=>{stereoWorkspace=stereoCalibration?parseWorkspace(readStoredJson(TRACKING_STORAGE_KEYS.stereoWorkspace),stereoCalibrationKey()):null;tableHeight.setCalibrationKey(stereoCalibration?stereoCalibrationKey():null);};
 const workspacePanel=mountStereoWorkspacePanel(stereoPanel,workspace=>{
  stereoWorkspace=workspace;
  if(workspace)writeStored(TRACKING_STORAGE_KEYS.stereoWorkspace,JSON.stringify(serializeWorkspace(workspace,stereoCalibrationKey())));
@@ -1696,8 +1697,10 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     let sharedFrame=false;
     if(stereoPose&&tipInBody){
      const tipMm=tipPosition(stereoPose,tipInBody);
-     const tipScene=workspacePracticePosition(tipMm,stereoWorkspace);
-     const ringScene=workspacePracticePosition(stereoPose.position,stereoWorkspace);
+     // Table height as the skin surface (src/input/tableHeight.ts): one vertical shift for the shared space.
+     const tableShift=new THREE.Vector3(0,tableOffsetUnits(tableHeight.points(),stereoWorkspace),0);
+     const tipScene=workspacePracticePosition(tipMm,stereoWorkspace).add(tableShift);
+     const ringScene=workspacePracticePosition(stereoPose.position,stereoWorkspace).add(tableShift);
      calibrated.position.copy(tipScene);
      calibrated.quaternion.copy(alignShaft(calibrated.quaternion,ringScene.sub(tipScene)));
      latestStereoTips.set(name,{mm:tipMm.clone(),at:now});
@@ -1785,7 +1788,7 @@ const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
 observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());},frameDriven);
 observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());},frameDriven);
-const performanceContext=()=>({build:'0.146',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.147',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:1000,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,jawTracking:ballEnabled.checked,needleJawPattern:needleBallMode,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);
