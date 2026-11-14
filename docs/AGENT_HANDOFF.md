@@ -91,6 +91,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-14 — Claude — rest lock follows slow drift (build 0.152; 2 of 3)
+
+- `RestLock.ts`: running average of positions (blend 0.2 per update);
+  if it is > REST_DRIFT_MM 0.8 from the held pose, the lock releases. New
+  test (10 mm/s ramp < 1.5 mm behind; ±1 mm jitter held < 0.3 mm) fails on
+  the old lock (2.34 mm) and passes; original test unchanged. Whole chain:
+  largest frame step at 10 / 20 / 50 mm/s 1.30 / 2.02 / 2.94 → 0.34 /
+  0.67 / 1.67 mm. check-stereo-motion passes.
+
 ### 2026-11-14 — Claude — true 1:1 scale (build 0.151; 1 of 3)
 
 - `stereoWorkspace.ts`: TRUE_MM_PER_UNIT 27 (from needle sizes: PS-2 radius
@@ -101,7 +110,8 @@ entry when finishing.
   purpose (they asserted the swept / 200 mm-per-unit scale).
 - Affects every stereo position (shared and relative). Checks:
   stereo-motion, stereo-rig-faces, stereo-shortcut, driver-depth pass.
-- Lance: re-record the table touches (the table shift depends on scale).
+- Table touches need no re-recording: points are in mm and the shift is
+  recomputed at the new scale.
 
 ### 2026-11-14 — Claude — Lab three-panel row (build 0.150)
 

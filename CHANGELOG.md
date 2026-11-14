@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.152 — smooth slow movement (no stair steps)
+
+The stereo "rest lock" held an instrument still until a pose was 2.5 mm
+away, so slow needle-driving moved in jumps of up to 2–3 mm. It now also
+watches a short running average of positions: jitter averages out, steady
+drift does not, so slow intentional movement is followed smoothly. At
+10 mm/s the largest frame-to-frame jump went from 1.3 mm to 0.34 mm (the
+movement itself). A still instrument is still held steady.
+
 ## Build 0.151 — true 1:1 scale for stereo
 
 Stereo-tracked instruments are now placed at the scene's real scale, 27 mm
