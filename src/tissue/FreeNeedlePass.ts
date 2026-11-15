@@ -174,6 +174,13 @@ export class FreeNeedlePass {
     this.previousTip = null;
   }
 
+  /** Cancels the pass in progress (e.g. the needle was reset), keeping completed ones. */
+  abortCurrent() {
+    this.engagement = null;
+    this.previousTip = null;
+    this.forcing = { degrees: 0, units: 0 };
+  }
+
   /** Ends any pass in progress and forgets completed ones. */
   reset() {
     this.engagement = null;

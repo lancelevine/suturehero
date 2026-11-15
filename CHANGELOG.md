@@ -5,6 +5,18 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.163 — glide back, Reset needle, shorter Sandbox needle
+
+- When the needle leaves the skin, the instrument glides from the needle
+  back to your hand (about a quarter of a second) instead of jumping.
+- "Reset needle" button in the 3D view (Sandbox): puts the needle back at
+  its starting point and cancels a pass in progress; completed passes stay.
+- The Sandbox now starts with a shorter trainer needle (PS-2 radius,
+  108° arc instead of 135°, about 15 mm), so a free pass needs less
+  rotation to complete. It is too short for the guided exercise's standard
+  bite, so "Start guided exercise" switches to the PS-2. The trainer can
+  be chosen again in Practice setup; microsurgery keeps the PS-2.
+
 ## Build 0.162 — the instrument stays on the needle while it is in the skin
 
 In the Sandbox, while the needle is in the skin the instrument holding it is

@@ -58,6 +58,9 @@ describe('free needle pass', () => {
     pass.update(pose(centre, engagedAt - 0.2), true, true);
     expect(pass.inTissue).toBe(false);
     expect(pass.passes).toHaveLength(0);
+    while (!pass.inTissue) pass.update(pose(centre, (turn += 0.01)), true, true);
+    pass.abortCurrent();
+    expect(pass.inTissue).toBe(false);
   });
 
   it('only starts a pass from the needle driver, over the pad', () => {

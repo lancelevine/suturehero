@@ -19,7 +19,7 @@ export function mountWorkspaceLayout(app:HTMLElement){
  const calibration=document.createElement('aside');calibration.id='workspace-calibration-drawer';calibration.className='workspace-calibration-drawer';calibration.hidden=true;
  calibration.innerHTML='<div class="workspace-drawer-bar"><span title="Separate settings for each instrument">INSTRUMENT CALIBRATION</span><button type="button" id="close-calibration" aria-label="Close calibration">✕</button></div><div id="instrument-calibration"></div>';
  stage.append(visual,calibration);
- const viewTools=document.createElement('div');viewTools.className='workspace-view-tools';viewTools.append(workspace.querySelector('#close-up')!,workspace.querySelector('#camera')!);viewport.append(viewTools);
+ const viewTools=document.createElement('div');viewTools.className='workspace-view-tools';const resetNeedle=document.createElement('button');resetNeedle.id='reset-needle';resetNeedle.type='button';resetNeedle.textContent='Reset needle';resetNeedle.title='Put the needle back at its starting point (Sandbox)';viewTools.append(workspace.querySelector('#close-up')!,workspace.querySelector('#camera')!,resetNeedle);viewport.append(viewTools);
  const heading=workspace.querySelector<HTMLElement>('.scene-heading')!;heading.classList.add('workspace-scene-title');viewport.append(heading);
  const setup=workspace.querySelector<HTMLElement>('.practice-setup')!;
  const advanced=document.createElement('div');advanced.className='workspace-controls';

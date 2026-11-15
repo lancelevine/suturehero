@@ -95,6 +95,24 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — glide back, Reset needle, trainer needle (build 0.163)
+
+- `heldInstrumentDisplay.ts`: `glideBack(dt)` blends the drawn pose from
+  the needle back to the real pose (τ 0.08 s), real pose restored before
+  each step (+ test). main.ts calls it when not locked.
+- "Reset needle" (`#reset-needle`, WorkspaceLayout view tools; Sandbox
+  only): `freePass.abortCurrent()` + `grasp.reset()`.
+- PracticeSetup: `trainer` needle (radius 0.3, arc 0.6π) appended;
+  `resolveSetup(search, {trainerDefault})` falls back to it in the browser
+  on the skin pad only (tests and microsurgery keep NEEDLES[0] = PS-2).
+  The guided bite needs ≈ 133° of arc, so `GUIDED_NEEDLES` excludes the
+  trainer in the needle-clearance test, and Start guided exercise with the
+  trainer reloads with needle=ps2&start=guided. Sandbox session test now
+  uses a 96° tissue span (the 108° needle cannot complete 120°).
+- Checks: gameplay/suture/tissue/setup/scene tests (264) pass; tsc;
+  browser: trainer default, Reset needle, guided reload with PS-2;
+  check-production-mode passes.
+
 ### 2026-11-15 — Claude — holder drawn on the needle in the skin (build 0.162)
 
 - Lance: the needle driver kept moving without the needle while the needle

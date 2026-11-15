@@ -231,8 +231,8 @@ it('makes a free needle pass in the sandbox when the driver turns the needle int
  const scene=new THREE.Scene();scene.add(needle.root,left.root,right.root);
  left.root.position.set(3,3,3);
  const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(needle));
- // Needle circle vertical across the wound, centre 0.15 above the skin; the driver holds it.
- const centre=new THREE.Vector3(0,.41+.15,.2);
+ // Needle circle vertical across the wound, centre 0.2 above the skin (a 96° tissue span, which the 108° trainer needle can complete); the driver holds it.
+ const centre=new THREE.Vector3(0,.41+.2,.2);
  needle.root.position.copy(centre);needle.root.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);needle.root.updateWorldMatrix(true,false);
  right.root.position.set(.5,1,.2);right.root.updateWorldMatrix(true,false);right.openness=.1;
  session.grasp!.attach(right);

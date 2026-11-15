@@ -45,7 +45,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.162 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.163 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -165,7 +165,15 @@ try {
     if(session.positionForceps() && session.positioningSkin){closeUp=true;closeUpButton.setAttribute('aria-pressed','true');closeUpButton.textContent='Wide view';view.edgeCloseUp(session.eversion.target);}
   });
   const passGuide=new PassGuide(session.pass); view.scene.add(passGuide.root);
-  document.querySelector('#begin-pass')!.addEventListener('click',()=>session.beginPass());
+  // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
+  document.querySelector('#reset-needle')?.addEventListener('click',()=>{if(!session.sandbox)return;session.freePass.abortCurrent();grasp.reset();});
+  document.querySelector('#begin-pass')!.addEventListener('click',()=>{
+   // The Sandbox trainer needle is too short for the guided bite: reload the guided exercise with the standard PS-2.
+   if(session.sandbox&&PRACTICE_SETUP.needle.id==='trainer'){const url=new URL(window.location.href);url.searchParams.set('needle','ps2');url.searchParams.set('start','guided');window.location.assign(url.href);return;}
+   session.beginPass();
+  });
+  // After that reload, start the guided exercise straight away.
+  if(new URLSearchParams(window.location.search).get('start')==='guided'){const url=new URL(window.location.href);url.searchParams.delete('start');window.history.replaceState(null,'',url.href);queueMicrotask(()=>session.beginPass());}
   document.querySelector('#reset')!.addEventListener('click',()=>{input.scissorsActive=false;scissors.reset();cutFeedback='';session.reset();});
   document.querySelector('#camera')!.addEventListener('click',()=>{closeUp=false; closeUpButton.setAttribute('aria-pressed','false'); closeUpButton.textContent='Close-up view'; view.resetCamera();});
   const canUseScissors=()=>!session.course.finished&&(session.freeKnot.active||session.knot.phase==='complete'&&session.releaseCheck.state==='passed'&&(!session.loadTest.active||session.loadTest.stage==='passed'));
@@ -283,6 +291,7 @@ try {
     passMarks.update(session.sandbox?[...session.freePass.passes,...(session.freePass.current?[session.freePass.current]:[])]:[]);
     // Sandbox: while the needle is in the skin, draw its holder (camera- or keyboard-driven) gripping it (src/scene/heldInstrumentDisplay.ts).
     if(session.sandbox&&session.freePass.inTissue&&grasp.holder)heldDisplay.lockToNeedle(grasp.holder.root,()=>{needle.root.updateWorldMatrix(true,false);grasp.placeHeldNeedle(needle.root.matrixWorld.clone());});
+    else heldDisplay.glideBack(dt);
     // Measured-tip dots in the scene (src/scene/tipMarkers.ts); hidden in Production mode.
     {const shared=cameraEnabled?[cameraPoses.get('forceps'),cameraPoses.get('needleDriver')].find(p=>p?.shared&&p.unitsPerMm&&performance.now()-p.seenAt<=350):undefined;grasp.setMetricReach(shared?.unitsPerMm??null);const fresh=(name:CameraInstrument)=>{const p=cameraPoses.get(name);return !!p?.shared&&performance.now()-p.seenAt<=350;};tipMarkers.update(shared?.unitsPerMm??null,!document.body.classList.contains('production-active'),root=>root===tools[0].root?fresh('forceps'):fresh('needleDriver'));}
     if(!canUseScissors())input.scissorsActive=false;
@@ -386,6 +395,7 @@ try {
     const title=document.querySelector('#exercise-title')!;
     const pass=session.pass; passGuide.update(pass); if(session.canPlanBites)passGuide.root.visible=true; if(session.sandbox)passGuide.root.visible=false; if(!showNeedleGuide.checked || knot.active || session.freeKnot.active) passGuide.root.visible=false;
     (document.querySelector('#begin-pass') as HTMLButtonElement).disabled=!session.canBeginPass;
+    {const resetNeedle=document.querySelector<HTMLButtonElement>('#reset-needle');if(resetNeedle)resetNeedle.disabled=!session.sandbox;}
     document.querySelector('#begin-pass')!.textContent=session.sandbox?'Start guided exercise':session.preparingEdge?'Begin needle pass':'Start guided pass';
     {const heading=document.querySelector('.scene-heading h2');const headingText=session.sandbox?'Sandbox':'Simple interrupted suture';if(heading&&heading.textContent!==headingText)heading.textContent=headingText;}
     {const label=Array.from(document.querySelector('.toolbar > span')?.childNodes??[]).find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent!.trim());const labelText=session.sandbox?' Sandbox ':' Guided stitch ';if(label&&label.textContent!==labelText)label.textContent=labelText;}
