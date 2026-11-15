@@ -112,6 +112,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Faster knot physics, same result (build 0.192)
+
+- Behaviour-identical knot physics speed-up (part 1 of Lance's 'fix the lag'):
+  `InstrumentThreadContact.ts` box tests without allocating (spanOverlapsBox)
+  and whole-thread culling per instrument part; `StrandContact.ts` numeric grid
+  keys and a marker table instead of Set + sort. (Reusing the grid map between
+  steps was slower; not kept.)
+- Measured on a surgeon's double + opposing throw: 36.2 s → 19.6 s; final
+  thread checksum identical; gameplay/suture/demo/knot/tissue tests 315 pass.
+- Profile now: self-contact candidates ~19%, instrument contact ~30% (runs on
+  all 24 solver iterations per step), skin support ~9%.
+
 ### 2026-11-15 — Codex — Bind workspace alignment to complete stereo geometry (build 0.192)
 
 - Replaced the camera-ID/baseline workspace key with a stable identity covering

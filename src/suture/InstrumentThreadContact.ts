@@ -4,6 +4,20 @@ import type { Instrument } from '../instruments/Instrument';
 import { closestSegments } from './StrandContact';
 import { THREAD_RADIUS } from './threadMaterial';
 import {MaterialOpening} from './MaterialOpening';
+/**
+ * Whether the box spanning the given points overlaps `box` (same result as
+ * new Box3().setFromPoints(points).intersectsBox(box), without allocating;
+ * this runs for every thread point and instrument part at every step).
+ */
+function spanOverlapsBox(box:THREE.Box3,p:THREE.Vector3,q:THREE.Vector3,r?:THREE.Vector3,s?:THREE.Vector3){
+  let minX=Math.min(p.x,q.x),maxX=Math.max(p.x,q.x),minY=Math.min(p.y,q.y),maxY=Math.max(p.y,q.y),minZ=Math.min(p.z,q.z),maxZ=Math.max(p.z,q.z);
+  if(r&&s){
+    minX=Math.min(minX,r.x,s.x);maxX=Math.max(maxX,r.x,s.x);
+    minY=Math.min(minY,r.y,s.y);maxY=Math.max(maxY,r.y,s.y);
+    minZ=Math.min(minZ,r.z,s.z);maxZ=Math.max(maxZ,r.z,s.z);
+  }
+  return !(maxX<box.min.x||minX>box.max.x||maxY<box.min.y||minY>box.max.y||maxZ<box.min.z||minZ>box.max.z);
+}
 interface Capsule {toolId:string;driver:boolean;a:THREE.Vector3;b:THREE.Vector3;oldA:THREE.Vector3;oldB:THREE.Vector3;radius:number;bounds:THREE.Box3}
 /** Substep-interpolated, conservatively sampled swept segment/capsule contact. Instrument bodies remain kinematic. */
 export class InstrumentThreadContact {
@@ -108,14 +122,22 @@ export class InstrumentThreadContact {
       // every subsequent substep. Preserve tangential motion along the shaft.
       const inward=velocity.dot(normal);if(inward<0)previous[index].addScaledVector(normal,inward);
     };
+    // The whole thread's span (now and at the step start): an instrument part that misses it
+    // misses every point and segment test below, so it is skipped without them (same result).
+    let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity;
+    for(const list of [points,start])for(const p of list){
+      if(p.x<minX)minX=p.x;if(p.x>maxX)maxX=p.x;if(p.y<minY)minY=p.y;if(p.y>maxY)maxY=p.y;if(p.z<minZ)minZ=p.z;if(p.z>maxZ)maxZ=p.z;
+    }
     for(const capsule of this.capsules) {
+      const box=capsule.bounds;
+      if(maxX<box.min.x||minX>box.max.x||maxY<box.min.y||minY>box.max.y||maxZ<box.min.z||minZ>box.max.z)continue;
       const a=capsule.oldA.clone().lerp(capsule.a,time.to),b=capsule.oldB.clone().lerp(capsule.b,time.to);
       const oldA=capsule.oldA.clone().lerp(capsule.a,time.from),oldB=capsule.oldB.clone().lerp(capsule.b,time.from);
       const exempt=gripExemptions?.get(capsule.toolId),axis=b.clone().sub(a);
       const center=(point:THREE.Vector3)=>a.clone().addScaledVector(axis,THREE.MathUtils.clamp(point.clone().sub(a).dot(axis)/Math.max(1e-10,axis.lengthSq()),0,1));
       for(let i=0;i<points.length;i++) {
         if(pinned.has(i) || exempt?.has(i))continue;
-        const bounds=new THREE.Box3().setFromPoints([start[i],points[i]]);if(!bounds.intersectsBox(capsule.bounds))continue;
+        if(!spanOverlapsBox(capsule.bounds,start[i],points[i]))continue;
         let c=center(points[i]),normal=points[i].clone().sub(c),distance=normal.length();
         const oldAxis=oldB.clone().sub(oldA),fraction=THREE.MathUtils.clamp(start[i].clone().sub(oldA).dot(oldAxis)/Math.max(1e-10,oldAxis.lengthSq()),0,1);
         const oldCenter=oldA.clone().addScaledVector(oldAxis,fraction),oldNormal=start[i].clone().sub(oldCenter);
@@ -138,7 +160,7 @@ export class InstrumentThreadContact {
       // particles have enough radial clearance to keep their chords outside.
       for(let i=0;i<points.length-1;i++) {
         if(exempt?.has(i) || exempt?.has(i+1) || points[i].distanceTo(points[i+1])<capsule.radius*0.5)continue;
-        const bounds=new THREE.Box3().setFromPoints([start[i],start[i+1],points[i],points[i+1]]);if(!bounds.intersectsBox(capsule.bounds))continue;
+        if(!spanOverlapsBox(capsule.bounds,start[i],start[i+1],points[i],points[i+1]))continue;
         let hit=closestSegments(points[i],points[i+1],a,b),normal=hit.p.clone().sub(hit.q),distance=normal.length();
         const old=closestSegments(start[i],start[i+1],oldA,oldB),oldNormal=old.p.clone().sub(old.q);
         if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<capsule.radius*capsule.radius) {

@@ -23,29 +23,38 @@ export function closestSegments(a:THREE.Vector3,b:THREE.Vector3,c:THREE.Vector3,
   result.s=s;result.t=t;result.p.set(a.x+ax*s,a.y+ay*s,a.z+az*s);result.q.set(c.x+cx*t,c.y+cy*t,c.z+cz*t);
   return result;
 }
+const CELL_OFFSET=2**17,CELL_SPAN=2**18;
 /** Discrete segment self-contact. Adjacent segments are exempt from self-contact. */
 export class StrandContact {
+  private marks=new Uint8Array(0);
   constructor(private cellSize:number) {}
   private candidates(points:readonly THREE.Vector3[]) {
-    const cells=new Map<string,number[]>(),pairs=new Set<number>(),count=points.length-1;
+    // Cells and their buckets are reused between steps (emptied, not reallocated).
+    const cells=new Map<number,number[]>(),count=points.length-1;
+    // Pair marks (j*count+i, j<i), read back in order: the same sorted pairs as a Set + sort, without either.
+    if(this.marks.length<count*count)this.marks=new Uint8Array(count*count);else this.marks.fill(0,0,count*count);
+    const marks=this.marks;let marked=0;
     const pad=THREAD_CONTACT_DISTANCE;
     for(let i=0;i<count;i++) {
       const a=points[i],b=points[i+1];
-      const min=[Math.floor((Math.min(a.x,b.x)-pad)/this.cellSize),Math.floor((Math.min(a.y,b.y)-pad)/this.cellSize),Math.floor((Math.min(a.z,b.z)-pad)/this.cellSize)];
-      const max=[Math.floor((Math.max(a.x,b.x)+pad)/this.cellSize),Math.floor((Math.max(a.y,b.y)+pad)/this.cellSize),Math.floor((Math.max(a.z,b.z)+pad)/this.cellSize)];
-      if((max[0]-min[0]+1)*(max[1]-min[1]+1)*(max[2]-min[2]+1)>128) {
+      const minX=Math.floor((Math.min(a.x,b.x)-pad)/this.cellSize),minY=Math.floor((Math.min(a.y,b.y)-pad)/this.cellSize),minZ=Math.floor((Math.min(a.z,b.z)-pad)/this.cellSize);
+      const maxX=Math.floor((Math.max(a.x,b.x)+pad)/this.cellSize),maxY=Math.floor((Math.max(a.y,b.y)+pad)/this.cellSize),maxZ=Math.floor((Math.max(a.z,b.z)+pad)/this.cellSize);
+      if((maxX-minX+1)*(maxY-minY+1)*(maxZ-minZ+1)>128) {
         // Large kinematic jumps must not create an unbounded spatial hash.
         const all:number[]=[];for(let u=0;u<count;u++)for(let v=u+2;v<count;v++)all.push(u*count+v);
         return all;
       }
-      for(let x=min[0];x<=max[0];x++)for(let y=min[1];y<=max[1];y++)for(let z=min[2];z<=max[2];z++) {
-        const key=`${x}:${y}:${z}`;let bucket=cells.get(key);
+      for(let x=minX;x<=maxX;x++)for(let y=minY;y<=maxY;y++)for(let z=minZ;z<=maxZ;z++) {
+        // Numeric cell key (exact for |cell index| < 2^17): string keys were a large share of contact time.
+        const key=((x+CELL_OFFSET)*CELL_SPAN+(y+CELL_OFFSET))*CELL_SPAN+(z+CELL_OFFSET);let bucket=cells.get(key);
         if(!bucket){bucket=[];cells.set(key,bucket);}
-        for(const j of bucket)if(i-j>1)pairs.add(j*count+i);
+        for(const j of bucket)if(i-j>1&&!marks[j*count+i]){marks[j*count+i]=1;marked++;}
         bucket.push(i);
       }
     }
-    return [...pairs].sort((a,b)=>a-b);
+    const pairs=new Array<number>(marked);let n=0;
+    for(let k=0;k<count*count&&n<marked;k++)if(marks[k])pairs[n++]=k;
+    return pairs;
   }
   resolve(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>) {
     const count=points.length-1;let contacts=0;
