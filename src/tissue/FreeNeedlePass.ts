@@ -23,6 +23,14 @@ export const WOUND_X = 0;
 /** Forcing warning thresholds: rotation off the curve (degrees) and arc-centre displacement (scene units, ≈ 3 mm). */
 export const FORCING_DEGREES = 15;
 export const FORCING_UNITS = 0.11;
+/**
+ * Tearing (2026-11-15): forcing well past the warning (more than TEAR_DEGREES
+ * off the curve, or the arc centre more than TEAR_UNITS ≈ 7 mm away) for
+ * TEAR_SECONDS tears the needle out of the tissue. A brief flick does not.
+ */
+export const TEAR_DEGREES = 35;
+export const TEAR_UNITS = 0.26;
+export const TEAR_SECONDS = 0.4;
 /** The tip must emerge this far (scene units, ≈ 1 mm) from the entry to count as an exit. */
 const MIN_EXIT_DISTANCE = 0.037;
 
@@ -36,6 +44,8 @@ export interface FreePassRecord {
   deepestLayer: PassLayer;
   /** Entry and exit on opposite sides of the wound. */
   crossesWound: boolean;
+  /** The needle was forced out of the tissue (torn) instead of completing the pass. */
+  torn?: boolean;
   /** The path through the tissue (Stage B2 thread): the needle's circle from the entry. */
   tract: FreeTract;
 }
@@ -82,6 +92,10 @@ export class FreeNeedlePass {
   private previousTip: THREE.Vector3 | null = null;
   /** Completed passes (tip in and out), oldest first. */
   readonly passes: FreePassRecord[] = [];
+  /** Passes that tore out (forced off the curve), oldest first. */
+  readonly torn: FreePassRecord[] = [];
+  /** How long the needle has been forced hard (s). */
+  private tearTime = 0;
   /** Completed passes before this index no longer carry the thread (Reset needle). */
   private threadStart = 0;
   /** How far the holder is forcing the needle off its curve this frame. */
@@ -121,9 +135,10 @@ export class FreeNeedlePass {
    * nobody holds it); `driverHolds` whether the needle driver holds it.
    * Returns the pose to give the needle (unchanged when not in tissue).
    */
-  update(wanted: { position: THREE.Vector3; quaternion: THREE.Quaternion }, held: boolean, driverHolds: boolean): { position: THREE.Vector3; quaternion: THREE.Quaternion } {
+  update(wanted: { position: THREE.Vector3; quaternion: THREE.Quaternion }, held: boolean, driverHolds: boolean, dt = 1 / 60): { position: THREE.Vector3; quaternion: THREE.Quaternion } {
     const e = this.engagement;
     if (!e) {
+      this.tearTime = 0;
       const tip = this.tip(wanted.position, wanted.quaternion);
       const previous = this.previousTip;
       this.previousTip = tip.clone();
@@ -147,6 +162,18 @@ export class FreeNeedlePass {
       const allowedCentre = pose.position;
       this.forcing = { degrees: THREE.MathUtils.radToDeg(wanted.quaternion.angleTo(pose.quaternion)), units: wanted.position.distanceTo(allowedCentre) };
     } else this.forcing = { degrees: 0, units: 0 };
+    // Sustained hard forcing tears the needle out: the pass ends and the needle follows the hand again.
+    const hard = this.forcing.degrees > TEAR_DEGREES || this.forcing.units > TEAR_UNITS;
+    this.tearTime = hard ? this.tearTime + Math.max(0, dt) : 0;
+    if (this.tearTime >= TEAR_SECONDS) {
+      e.record.torn = true;
+      this.torn.push(e.record);
+      this.engagement = null;
+      this.previousTip = this.tip(wanted.position, wanted.quaternion);
+      this.tearTime = 0;
+      this.forcing = { degrees: 0, units: 0 };
+      return wanted;
+    }
     this.observe(e, pose);
     if (e.angle < 0) {
       // Backed fully out: the pass is abandoned.
@@ -235,6 +262,8 @@ export class FreeNeedlePass {
     this.engagement = null;
     this.previousTip = null;
     this.passes.length = 0;
+    this.torn.length = 0;
+    this.tearTime = 0;
     this.threadStart = 0;
     this.forcing = { degrees: 0, units: 0 };
   }

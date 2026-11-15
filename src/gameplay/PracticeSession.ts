@@ -392,7 +392,7 @@ export class PracticeSession {
     // Sandbox: free needle passes anywhere (tissue/FreeNeedlePass.ts), and a needle nobody holds falls onto the pad (needleRest.ts).
     if(this.sandbox&&this.grasp){
       const root=this.grasp.needle.root,holder=this.grasp.holder;
-      const allowed=this.freePass.update({position:root.position.clone(),quaternion:root.quaternion.clone()},!!holder,holder?.kind==='needle-driver');
+      const allowed=this.freePass.update({position:root.position.clone(),quaternion:root.quaternion.clone()},!!holder,holder?.kind==='needle-driver',step);
       root.position.copy(allowed.position);root.quaternion.copy(allowed.quaternion);root.updateWorldMatrix(true,false);
       if(!holder&&!this.freePass.inTissue)settleNeedle(root,this.grasp.needle.points,step);
     }

@@ -104,3 +104,37 @@ describe('threaded passes (running stitch)', () => {
     expect(pass.passes).toHaveLength(2);
   });
 });
+
+describe('tearing when forced', () => {
+  const centre = new THREE.Vector3(0, SKIN_SURFACE_Y + 0.2, 0.2);
+  const enter = (pass: FreeNeedlePass) => {
+    let turn = 0;
+    while (!pass.inTissue) pass.update(pose(centre, (turn += 0.01)), true, true);
+    return turn;
+  };
+  const hardTwist = (turn: number) => pose(centre, turn, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1));
+
+  it('tears the needle out after sustained hard forcing, and it then follows the hand', async () => {
+    const { TEAR_SECONDS } = await import('./FreeNeedlePass');
+    const pass = new FreeNeedlePass(RADIUS, ARC);
+    const turn = enter(pass);
+    let frames = 0;
+    while (pass.inTissue && frames < 200) { pass.update(hardTwist(turn), true, true, 1 / 60); frames++; }
+    expect(pass.inTissue).toBe(false);
+    expect(frames / 60).toBeGreaterThanOrEqual(TEAR_SECONDS - 1e-9);
+    expect(pass.torn).toHaveLength(1);
+    expect(pass.torn[0].torn).toBe(true);
+    expect(pass.passes).toHaveLength(0);
+    const free = pass.update(hardTwist(turn), true, true);
+    expect(free.quaternion.angleTo(hardTwist(turn).quaternion)).toBeLessThan(1e-6);
+  });
+
+  it('does not tear on a brief flick or on ordinary forcing', () => {
+    const pass = new FreeNeedlePass(RADIUS, ARC);
+    const turn = enter(pass);
+    for (let i = 0; i < 10; i++) pass.update(hardTwist(turn), true, true, 1 / 60);
+    for (let i = 0; i < 120; i++) pass.update(pose(centre, turn, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.4)), true, true, 1 / 60);
+    expect(pass.inTissue).toBe(true);
+    expect(pass.torn).toHaveLength(0);
+  });
+});

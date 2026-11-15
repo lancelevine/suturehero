@@ -95,6 +95,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox forcing tears the pass (build 0.169)
+
+- `src/tissue/FreeNeedlePass.ts`: sustained hard forcing (TEAR_DEGREES 35,
+  TEAR_UNITS 0.26 for TEAR_SECONDS 0.4) ends the pass as `torn`; tests added.
+- `PracticeSession` passes the step as dt; `main.ts` shows a "Tissue torn"
+  message; `freePassMarks.ts` marks torn entries red.
+- Checked: tsc; gameplay/suture/tissue/setup/scene tests (281 pass).
+- Lance: in Sandbox, twist the driver hard across the curve mid-pass; the
+  needle should come free with a red mark and the message.
+
 ### 2026-11-15 — Claude — fix running-stitch thread jumping (build 0.168)
 
 - Lance: with several passes the suture jumps to the latest one. Cause:

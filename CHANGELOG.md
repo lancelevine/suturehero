@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.169 — Sandbox: forcing tears the needle out
+
+Forcing the needle hard off its curve (over 35° twist or about 7 mm off the
+arc) for 0.4 s now tears the pass out: the needle comes free, the entry is
+marked red, and a message says the tissue tore. Brief flicks and ordinary
+forcing still only warn. Thresholds are approximate, not tissue-validated.
+
 ## Build 0.168 — fix: running-stitch thread jumping to the latest pass
 
 With several passes, pulling the needle away after a pass made the thread
