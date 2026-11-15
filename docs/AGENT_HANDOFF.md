@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Shape-based knot recognizer in shadow mode (no behaviour change).
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -106,6 +106,20 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Shape-based knot recognition: experiment, not adopted (no build change)
+
+- Idea: recognise throws from the thread's final shape instead of the event
+  sequence (wrap → tail passage → seating), to be robust to speed/frame rate.
+- Tried the Gauss linking number between the long and short strands (free
+  ends extended) on real free-tying fixture knots:
+  surgeon+opposing −0.99 → −0.03; square −1.01 → −0.06; granny −1.01 → 0.00;
+  third throw −0.03 → −0.02. It does not separate single vs double wraps,
+  square vs granny, or two vs three throws once tightened. Code removed.
+- A shape recogniser would need real knot topology (crossing diagram of the
+  thread closed through the tissue, then e.g. the signature to tell square
+  from granny). Several sessions of research; not started.
+- Current approach kept (event-based recognition, hardened for speed in 0.191).
 
 ### 2026-11-15 — Claude — Free knots form with fast hands and low frame rates (build 0.191)
 
