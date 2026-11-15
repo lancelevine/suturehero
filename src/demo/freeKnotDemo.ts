@@ -62,7 +62,7 @@ function regraspEnds(model: FreeKnotPractice, { left, right }: Tools): Segment[]
 }
 
 /** One throw: position, wrap the long strand around the driver, pull the tail through, pull the ends apart. */
-function throwSegments(model: FreeKnotPractice, { left, right }: Tools, wraps: number, direction: number, first: boolean): Segment[] {
+function throwSegments(model: FreeKnotPractice, { left, right }: Tools, wraps: number, direction: number, first: boolean, title?: string): Segment[] {
   const base = new THREE.Vector3();
   const offset = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyQuaternion(right.root.quaternion);
   const radius = first ? 0.5 : 0.25;
@@ -72,11 +72,11 @@ function throwSegments(model: FreeKnotPractice, { left, right }: Tools, wraps: n
   let pullStart = new THREE.Vector3();
   let spread: THREE.Vector3[] = [];
   return [
-    { ...moveTo(right, () => new THREE.Vector3(0, 1, -0.65), 2), caption: first ? "Surgeon's knot · bring the driver over the wound" : 'Opposing throw · driver back over the wound' },
+    { ...moveTo(right, () => new THREE.Vector3(0, 1, -0.65), 2), caption: title ?? (first ? "Surgeon's knot · bring the driver over the wound" : 'Opposing throw · driver back over the wound') },
     moveTo(left, () => new THREE.Vector3(-0.5, 1, 0.55), 2),
     { ...moveTo(left, () => { base.copy(right.root.position); return wrapAt(0); }, 1.2) },
     {
-      caption: wraps === 2 ? 'Wrap the long strand twice around the driver' : 'Wrap once the other way around the driver',
+      caption: wraps === 2 ? 'Wrap the long strand twice around the driver' : 'Wrap once around the driver, the other way from the last throw',
       seconds: turns * SECONDS_PER_WRAP,
       start: () => base.copy(right.root.position),
       apply: (t) => left.root.position.copy(wrapAt(t * turns)),
@@ -133,6 +133,10 @@ export function freeKnotSegments(model: FreeKnotPractice, tools: Tools): Segment
     ...regraspEnds(model, tools),
     ...throwSegments(model, tools, 1, -1, false),
     lowerAndPull(model, tools),
-    pause(1.5, "Surgeon's knot tied and seated"),
+    // A third throw, reversed again, makes the knot secure (three or more alternating throws).
+    ...regraspEnds(model, tools),
+    ...throwSegments(model, tools, 1, 1, false, 'Third throw · reverse again to secure the knot'),
+    lowerAndPull(model, tools),
+    pause(1.5, "Surgeon's knot tied and seated · three throws"),
   ];
 }

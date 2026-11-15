@@ -29,8 +29,8 @@ it('performs a free pass and ties a locked, seated surgeon’s knot by thread ph
   expect(seated).toBe(true);
   // The stitch was kept and the practice is back in the Sandbox.
   expect(session.course.completed).toHaveLength(1);
-  expect(session.course.completed[0].review.join(' ')).toMatch(/Knot: /);
+  expect(session.course.completed[0].review.join(' ')).toMatch(/Knot: secure/);
   expect(session.sandbox).toBe(true);
-  // About two minutes of demo at 60 fps.
-  expect(frames / 60).toBeLessThan(150);
+  // About two and a half minutes of demo at 60 fps.
+  expect(frames / 60).toBeLessThan(200);
 }, 400000);

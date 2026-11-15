@@ -107,6 +107,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Demo: third throw and cutting the tails (build 0.187)
+
+- `freeKnotDemo.ts`: third throw; `physicsDemo.ts`: `DemoScissors` + trim
+  segments (position scissors, hold Comma); `main.ts` supplies the scissors
+  controls. Unit test now expects 'Knot: secure'.
+- `check-demo`: also asserts both tails cut and '1 tied (1 secure)';
+  timeout 25 min (12 min in this software-rendered sandbox);
+  SUTURE_DEMO_TRACE=1 logs captions.
+- Checked: tsc; demo unit tests; check-demo passes.
+
 ### 2026-11-15 — Claude — Demo by free physics: free pass and real instrument tie (build 0.186)
 
 - New `src/demo/choreography.ts` (timed segments, tested),

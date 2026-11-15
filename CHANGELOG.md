@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.187 — Demo: third throw and cutting the tails
+
+Demo, iteration 2: the instrument tie now has a third throw (reversed
+again), so the knot grades as secure, and the demo finishes by releasing
+the thread, lifting the instruments clear and cutting both tails with the
+scissors before keeping the stitch. About 2½–3 minutes on a normal computer.
+
 ## Build 0.186 — Demo by free physics: free pass and real instrument tie
 
 The ▶ Demo now performs the suture with free physics instead of the scripted

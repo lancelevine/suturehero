@@ -14,7 +14,18 @@ import { freeKnotSegments } from './freeKnotDemo';
  * guided-exercise demo.
  */
 
+/** Scissors controls from the page (main.ts); absent in unit tests, which skip trimming. */
+export interface DemoScissors {
+  /** "Position scissors at tail" for the next untrimmed tail; false when none is left. */
+  position(): boolean;
+  /** Holds or releases the scissors' closing key. */
+  close(closed: boolean): void;
+  /** Back to the needle driver. */
+  putAway(): void;
+}
+
 export interface DemoScene {
+  scissors?: DemoScissors;
   session: PracticeSession;
   needle: SutureModel;
   grasp: NeedleGrasp;
@@ -79,6 +90,7 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
     // Tie (freeKnotSegments starts from free tying begun after the pass).
     { seconds: 0.1 },
     ...freeKnotSegments(session.freeKnot, { left, right }),
+    ...trimSegments(scene),
     {
       caption: 'Stitch kept · simple interrupted suture complete',
       seconds: 2,
@@ -86,5 +98,34 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
         if (session.canFinishSandboxStitch) session.finishSandboxStitch();
       },
     },
+  ];
+}
+
+/** Release the instruments, lift them clear, and cut both tails with the scissors (page only). */
+function trimSegments({ scissors, left, right }: DemoScene): Segment[] {
+  if (!scissors) return [];
+  let lifts: THREE.Vector3[] = [];
+  const cut = (which: string): Segment[] => [
+    { caption: `Cut the ${which} tail, leaving a short end`, seconds: 0.8, start: () => void scissors.position() },
+    { seconds: 0.8, start: () => scissors.close(true) },
+    { seconds: 0.6, start: () => scissors.close(false) },
+  ];
+  return [
+    {
+      caption: 'Release the thread and lift the instruments clear',
+      seconds: 2,
+      start: () => {
+        left.openness = 0.7;
+        right.openness = 0.7;
+        lifts = [left.root.position.clone(), right.root.position.clone()];
+      },
+      apply: (t) => {
+        left.root.position.copy(lifts[0]).add(new THREE.Vector3(-0.3, 0.6 * ease(t), 0.3));
+        right.root.position.copy(lifts[1]).add(new THREE.Vector3(0.3, 0.6 * ease(t), -0.3));
+      },
+    },
+    ...cut('long'),
+    ...cut('short'),
+    { seconds: 0.6, start: () => scissors.putAway() },
   ];
 }

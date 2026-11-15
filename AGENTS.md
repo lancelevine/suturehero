@@ -85,8 +85,9 @@ area they cover; they are not run by CI.
   `check-handle-jaws`, `check-handle-jaws-stereo`, `check-profiler`.
 - iPhone start-up (`src/ui/iphoneStart.ts`, iPhone camera mode): run
   `check-iphone-start`.
-- Demo button (`src/demo/`): run `check-demo` (about 3 minutes; plays the
-  whole guided stitch).
+- Demo button (`src/demo/`): run `src/demo/freeKnotDemo.test.ts` (about a
+  minute) and `check-demo` (about 12 minutes in a software-rendered sandbox;
+  `SUTURE_DEMO_TRACE=1` prints the captions as it goes).
 - Sandbox changes (free passes, thread, tears, replay, session panel): run
   `check-sandbox` (uses the development-only `window.__sutureHeroSandbox`
   hook in `src/main.ts`), plus `check-layout` and `check-free-tying`.
