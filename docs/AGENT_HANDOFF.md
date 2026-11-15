@@ -112,6 +112,21 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Knot topology shadow project: concluded, code removed (no build change)
+
+- Checked the physics for pass-through: over a full throw (2,043 steps) no
+  thread segment passed through another (closest long/short gap 0.0172 vs
+  contact distance 0.019). The physics keeps the thread's topology.
+- Why the fixture knots read as the unknot: a suture knot with the ends free
+  is topologically just the two strands twisted around each other. Crossings
+  between the strands seen from above: single throw "+ +" (one full twist);
+  square and granny cancel pairwise to nothing. Square vs granny and
+  "holds or not" are mechanical (friction, tension), not topological.
+- So topology-based recognition cannot work for sutures, whatever the
+  physics. Removed `src/knot/` crossingDiagram, gaussCode, jones, threadKnot
+  (restore from commit c72476c if ever useful; Jones/crossing code was tested
+  on ideal knots).
+
 ### 2026-11-15 — Claude — Knot engine switch (build 0.194)
 
 - New `src/knot/engines.ts` (+ test): `KnotEngine` (the FreeKnotPractice
