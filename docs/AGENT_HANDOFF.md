@@ -107,6 +107,23 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Knot topology shadow project, step 4: thread closure, open question (no build change)
+
+- New `src/knot/threadKnot.ts` (+ test): closes the suture (short tail →
+  entry → under the skin → exit → long strand → arc far above → tail) and
+  names its knot from the Jones polynomial (unknot, trefoil, 5₂, square,
+  granny, surgeon's combinations). Only the untied case is tested.
+- Finding: on free-tying fixture knots (single, square, granny, surgeon's +
+  opposing + third) every result is the unknot, also from three raw views
+  without simplification. A synthetic overhand tied in the long strand also
+  read as the unknot, so the cause is unresolved: the closure may run back
+  through the knot (that test's ends leave near the knot's middle), or the
+  long and short strands pass through each other in the physics
+  (`StrandPairContact.ts` says "not a knot solver").
+- Next step: settle that — validate the closure on a synthetic knot whose
+  ends leave outward, and separately watch the long/short strand gap during
+  a throw for pass-through events.
+
 ### 2026-11-15 — Claude — Knot topology shadow project, step 3: Jones polynomial (no build change)
 
 - New `src/knot/jones.ts` (+ test): Jones polynomial from a Gauss code by the
