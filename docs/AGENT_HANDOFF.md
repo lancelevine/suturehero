@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — iPhone camera mode (Safari rear wide lens, 1080p60).
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -54,6 +54,9 @@ entry when finishing.
     instrument and camera, then check the reading. Only synthetic-camera
     tested so far. If it doesn't work, the selector switches back to Classic.
 - **Known issues:**
+  - `check-tracking-storage` times out waiting for
+    `#camera-settings-controls > *` to be visible (also on 0.179); not
+    investigated.
   - `check-practice-setup` times out waiting for a reload after a setup
     change (`waitForNavigation`); same on build 0.169, so older than the
     Sandbox batch. Not investigated. Its `canvas` selector was fixed (camera
@@ -101,6 +104,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — iPhone camera mode (build 0.180)
+
+- `src/input/iphoneCamera.ts` (new, tested); `cameraDevices.ts`: `iphone`
+  mode, iPhone default, rear facingMode, reopen with Back Camera;
+  `captureScheduling.ts` frame-driven auto for iphone; panel note;
+  `tracking.ts` resolution line shows lens + portrait warning.
+- Checked: tsc; input tests; check-camera-controls; production build.
+  check-tracking-storage times out waiting for camera settings controls
+  with and without this change (older issue, not investigated).
+- Lance: on the iPhone, start the camera; check the resolution line says
+  Back Camera and ~1920×1080 · 60 fps; recalibrate the camera; send a
+  profile if detection is still poor.
 
 ### 2026-11-15 — Claude — Natural-looking knot wraps (build 0.179)
 

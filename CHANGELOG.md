@@ -5,6 +5,20 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.180 — iPhone camera mode
+
+New camera type: iPhone in Safari (Camera controls → Camera type). It is
+chosen automatically when SutureHero is opened on an iPhone.
+- Uses the single 1× rear lens: if Safari picks the Back Dual Wide (or
+  Triple/Ultra Wide) camera, the app reopens with the plain Back Camera.
+  The dual camera switches lenses by itself up close, which made the image
+  jump in scale and broke marker tracking.
+- Requests 1920×1080 at 60 fps (less motion blur; Safari otherwise opens a
+  low resolution) and uses frame-by-frame capture scheduling.
+- The diagnostics resolution line shows the lens in use and warns when
+  the phone is upright (portrait): hold it sideways.
+Not tested on a real iPhone.
+
 ## Build 0.179 — Natural-looking knot wraps
 
 Guided knot wraps (and the Demo) look more natural: the wraps now lie

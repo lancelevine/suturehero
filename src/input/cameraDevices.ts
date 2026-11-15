@@ -1,4 +1,5 @@
 import {recordedInput} from '../trackingLab/runtime';
+import {isIphone,isSwitchingLens,preferredIphoneCamera} from './iphoneCamera';
 /**
  * Camera device helpers shared by the tracking page: which mode to request
  * from a webcam, listing devices, remembering the chosen device, and the
@@ -18,20 +19,27 @@ export const CAMERA_MODES = {
   webcam1080: { label: 'Current webcams (1920×1080 @ 30 fps)', width: 1920, height: 1080, frameRate: 30, monochrome: false },
   /** Arducam B0332 OV9281: monochrome global shutter, MJPEG 1280×800 up to 120 fps. */
   ov9281: { label: 'OV9281 global shutter (1280×800 @ 120 fps, monochrome)', width: 1280, height: 800, frameRate: 120, monochrome: true },
+  /**
+   * iPhone in Safari (2026-11-15): the single 1× rear lens (input/iphoneCamera.ts) at 1080p,
+   * 60 fps for less motion blur. Safari otherwise opens a low default resolution.
+   */
+  iphone: { label: 'iPhone in Safari (rear 1× camera, 1920×1080 @ 60 fps)', width: 1920, height: 1080, frameRate: 60, monochrome: false },
 } as const;
 export type CameraModeId = keyof typeof CAMERA_MODES;
 export const CAMERA_MODE_STORAGE_KEY = 'suturehero.cameraMode.v1';
 const DEFAULT_CAMERA_MODE: CameraModeId = 'webcam1080';
+/** On an iPhone the iPhone mode is the default until another camera type is chosen. */
+const defaultMode = (): CameraModeId => (typeof navigator !== 'undefined' && isIphone(navigator.userAgent) ? 'iphone' : DEFAULT_CAMERA_MODE);
 
 export function parseCameraMode(value: unknown): CameraModeId {
-  return typeof value === 'string' && value in CAMERA_MODES ? (value as CameraModeId) : DEFAULT_CAMERA_MODE;
+  return typeof value === 'string' && value in CAMERA_MODES ? (value as CameraModeId) : defaultMode();
 }
 
 export function cameraMode(storage = defaultStorage()): CameraModeId {
   try {
     return parseCameraMode(storage?.getItem(CAMERA_MODE_STORAGE_KEY));
   } catch {
-    return DEFAULT_CAMERA_MODE;
+    return defaultMode();
   }
 }
 
@@ -51,11 +59,13 @@ export function cameraRequest(storage = defaultStorage()) {
 /** Default request (current webcams); prefer cameraRequest(), which follows the Camera type setting. */
 export const CAMERA_REQUEST = { width: CAMERA_MODES.webcam1080.width, height: CAMERA_MODES.webcam1080.height, frameRate: CAMERA_MODES.webcam1080.frameRate } as const;
 
-export function cameraConstraints(deviceId?: string, request: { width: number; height: number; frameRate: number } = cameraRequest()): MediaStreamConstraints {
+export function cameraConstraints(deviceId?: string, request: { width: number; height: number; frameRate: number } = cameraRequest(), rearCamera = false): MediaStreamConstraints {
   return {
     audio: false,
     video: {
       deviceId: deviceId ? { exact: deviceId } : undefined,
+      // iPhone mode without a chosen camera: the rear camera, not the selfie camera.
+      ...(rearCamera && !deviceId ? { facingMode: { ideal: 'environment' } } : {}),
       width: { ideal: request.width },
       height: { ideal: request.height },
       frameRate: { ideal: request.frameRate },
@@ -65,7 +75,16 @@ export function cameraConstraints(deviceId?: string, request: { width: number; h
 
 export async function openCamera(deviceId?: string): Promise<MediaStream> {
   if(recordedInput())return recordedInput()!.open(deviceId);
-  return navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId));
+  if (cameraMode() !== 'iphone') return navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId));
+  const stream = await navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId, cameraRequest(), true));
+  // A lens-switching camera ("Back Dual Wide Camera") jumps between lenses at close range:
+  // reopen with the single 1× "Back Camera" (labels are only known once permission is given).
+  const label = stream.getVideoTracks()[0]?.label ?? '';
+  if (!isSwitchingLens(label)) return stream;
+  const main = preferredIphoneCamera(label, await availableCameras());
+  if (!main) return stream;
+  for (const track of stream.getTracks()) track.stop();
+  return navigator.mediaDevices.getUserMedia(cameraConstraints(main.deviceId, cameraRequest(), true));
 }
 
 export async function availableCameras(): Promise<MediaDeviceInfo[]> {

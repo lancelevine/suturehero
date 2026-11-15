@@ -126,3 +126,24 @@ describe('camera type', () => {
     expect(CAMERA_MODES.webcam1080.frameRate).toBe(30);
   });
 });
+
+describe('iPhone camera mode', () => {
+  it('asks Safari for the rear camera at 1080p60 and defaults to iPhone mode on an iPhone', async () => {
+    const { cameraConstraints, CAMERA_MODES, parseCameraMode } = await import('./cameraDevices');
+    const video = cameraConstraints(undefined, CAMERA_MODES.iphone, true).video as MediaTrackConstraints;
+    expect(video.facingMode).toEqual({ ideal: 'environment' });
+    expect(video.width).toEqual({ ideal: 1920 });
+    expect(video.frameRate).toEqual({ ideal: 60 });
+    // A chosen device wins over facingMode.
+    expect((cameraConstraints('abc', CAMERA_MODES.iphone, true).video as MediaTrackConstraints).facingMode).toBeUndefined();
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', { value: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X)' }, configurable: true });
+    try {
+      expect(parseCameraMode(null)).toBe('iphone');
+      expect(parseCameraMode('webcam1080')).toBe('webcam1080');
+    } finally {
+      if (original) Object.defineProperty(globalThis, 'navigator', original);
+      else delete (globalThis as { navigator?: unknown }).navigator;
+    }
+  });
+});

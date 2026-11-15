@@ -44,7 +44,8 @@ export function createCameraSettingsPanel(container: HTMLElement, cameras: () =>
     note.className = 'tracking-message';
     const describe = () => {
       const mode = CAMERA_MODES[select.value as CameraModeId];
-      note.textContent = `Requests ${mode.width}×${mode.height} at ${mode.frameRate} fps. Stop and start each camera to apply.` + (mode.monochrome ? ' Monochrome: use white or striped jaw balls, or the handle prism; coloured balls cannot work.' : '');
+      note.textContent = `Requests ${mode.width}×${mode.height} at ${mode.frameRate} fps. Stop and start each camera to apply.` + (mode.monochrome ? ' Monochrome: use white or striped jaw balls, or the handle prism; coloured balls cannot work.' : '')
+        + (select.value === 'iphone' ? ' Uses the single 1× rear lens (the Dual Wide camera switches lenses up close, which breaks tracking). Hold the iPhone sideways and steady (a stand), 25–40 cm from the markers, in bright even light.' : '');
     };
     select.addEventListener('change', () => {
       setCameraMode(select.value as CameraModeId);

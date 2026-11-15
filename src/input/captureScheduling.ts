@@ -24,7 +24,7 @@ export function parseFrameDrivenSetting(value: unknown): FrameDrivenSetting {
 
 export function frameDrivenEnabled(setting: FrameDrivenSetting, mode: CameraModeId, supported: boolean): boolean {
   if (!supported) return false;
-  return setting === 'on' || (setting === 'auto' && mode === 'ov9281');
+  return setting === 'on' || (setting === 'auto' && (mode === 'ov9281' || mode === 'iphone'));
 }
 
 const read = () => {
