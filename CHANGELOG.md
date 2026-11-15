@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.172 — Sandbox: needle loading check, tear limits in mm
+
+- Needle loading check: while the driver holds the needle in the Sandbox, the
+  status says where it is gripped (percent from the swage) and warns when it
+  is too near the swage or the tip (guidance: a third to half way along).
+- The Sandbox readout states the skin type's tear limit in degrees and mm.
+
 ## Build 0.171 — Sandbox: hold the suture with either instrument
 
 In the Sandbox, either instrument can now hold the suture outside knot

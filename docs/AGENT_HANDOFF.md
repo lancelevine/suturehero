@@ -95,6 +95,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox: needle loading check, tear limits in mm (build 0.172)
+
+- `src/suture/needleLoading.ts` (new, tested); messages in `main.ts`.
+- Checked: tsc, needleLoading test.
+- Lance: grip the needle near the swage and near the tip; read the message.
+
 ### 2026-11-15 — Claude — Sandbox: hold the suture with either instrument (build 0.171)
 
 - `src/suture/ThreadGrasp.ts` (new, tested); `SutureModel.advanceFreeThread`
