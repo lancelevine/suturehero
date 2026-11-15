@@ -10,6 +10,15 @@ export class ThreadStrand {
   private previous: THREE.Vector3[];
   private materialLength:number;
   private edgeLengths?:number[];
+  /**
+   * Solver settings per physics step (knot engines may trade accuracy for speed; the
+   * defaults are the classic engine's): constraint iterations, and how often (every Nth
+   * iteration) thread self-contact and instrument contact are resolved. Instrument contact
+   * always runs on the last iteration.
+   */
+  solverIterations=24;
+  selfContactEvery=6;
+  toolContactEvery=1;
   get count(){return this.points.length;}
   /** Copies of the current and previous points (replay, gameplay/replayBuffer.ts). */
   snapshot(){return {points:this.points.map(p=>p.clone()),previous:this.previous.map(p=>p.clone())};}
@@ -105,12 +114,12 @@ export class ThreadStrand {
         p.addScaledVector(this.delta.subVectors(p,prev),PRACTICE_SETUP.suture.drag);p.y-=2.5*step*step;
         prev.set(x,y,z);
       }
-      for(let iteration=0;iteration<24;iteration++) {
+      for(let iteration=0;iteration<this.solverIterations;iteration++) {
         if(iteration>0 && contactStart)this.points.forEach((p,i)=>contactStart[i].copy(p));
         this.projectDistances(anchors,iteration%2!==0);
         this.projectBends(anchors);
-        if(iteration%6===5)this.contact.resolve(this.points,this.previous,this.pinned);
-        toolContact?.(this.points,this.previous,this.pinned,{from:iteration===0?(substep-1)/steps:substep/steps,to:substep/steps,start:contactStart});
+        if(iteration%this.selfContactEvery===this.selfContactEvery-1)this.contact.resolve(this.points,this.previous,this.pinned);
+        if(iteration%this.toolContactEvery===this.toolContactEvery-1||iteration===this.solverIterations-1)toolContact?.(this.points,this.previous,this.pinned,{from:iteration===0?(substep-1)/steps:substep/steps,to:substep/steps,start:contactStart});
         this.tissueContact?.(this.points,this.previous,this.pinned);
         for(let i=0;i<this.count;i++)if(!anchors.has(i))this.points[i].y=Math.max(this.points[i].y,surfaceAt(this.points[i]));
       }

@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.195 — Knot physics about twice as fast overall
+
+Knot physics faster again (same results): thread self-contact reuses its
+candidate list across the many contact passes of each physics step. The
+same knot now takes about half the computer time it did before build 0.193.
+In the demo the tie's median frame is about 4–10 ms (was 9–17 ms); pulling
+the ends apart about 17 ms (was ~32 ms).
+
 ## Build 0.194 — Knot engine switch
 
 New Practice setup option: Knot engine. Free tying can run on different

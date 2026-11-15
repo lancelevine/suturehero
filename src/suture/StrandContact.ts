@@ -24,17 +24,40 @@ export function closestSegments(a:THREE.Vector3,b:THREE.Vector3,c:THREE.Vector3,
   return result;
 }
 const CELL_OFFSET=2**17,CELL_SPAN=2**18;
+/**
+ * Extra search margin (scene units) so the candidate list can be reused across the many
+ * contact passes of one physics step (the knot model runs up to 16 per step while a throw
+ * is held): any pair that could come into contact before a point moves half this far is listed.
+ */
+export const CANDIDATE_MARGIN=0.02;
 /** Discrete segment self-contact. Adjacent segments are exempt from self-contact. */
 export class StrandContact {
   private marks=new Uint8Array(0);
+  /** Candidate pairs found with an extra margin, reused until any point moves half that margin. */
+  private cached:number[]|null=null;
+  private cachedAt:THREE.Vector3[]=[];
   constructor(private cellSize:number) {}
+  private reusable(points:readonly THREE.Vector3[]){
+    if(!this.cached||this.cachedAt.length!==points.length)return false;
+    const limit=(CANDIDATE_MARGIN/2)**2;
+    for(let i=0;i<points.length;i++)if(points[i].distanceToSquared(this.cachedAt[i])>limit)return false;
+    return true;
+  }
   private candidates(points:readonly THREE.Vector3[]) {
+    // While no point has moved half the margin since the list was built, no pair outside it can be in contact.
+    if(this.reusable(points))return this.cached!;
+    const pairs=this.search(points);
+    this.cached=pairs;
+    this.cachedAt=points.map(p=>p.clone());
+    return pairs;
+  }
+  private search(points:readonly THREE.Vector3[]) {
     // Cells and their buckets are reused between steps (emptied, not reallocated).
     const cells=new Map<number,number[]>(),count=points.length-1;
     // Pair marks (j*count+i, j<i), read back in order: the same sorted pairs as a Set + sort, without either.
     if(this.marks.length<count*count)this.marks=new Uint8Array(count*count);else this.marks.fill(0,0,count*count);
     const marks=this.marks;let marked=0;
-    const pad=THREAD_CONTACT_DISTANCE;
+    const pad=THREAD_CONTACT_DISTANCE+CANDIDATE_MARGIN;
     for(let i=0;i<count;i++) {
       const a=points[i],b=points[i+1];
       const minX=Math.floor((Math.min(a.x,b.x)-pad)/this.cellSize),minY=Math.floor((Math.min(a.y,b.y)-pad)/this.cellSize),minZ=Math.floor((Math.min(a.z,b.z)-pad)/this.cellSize);

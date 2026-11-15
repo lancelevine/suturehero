@@ -112,6 +112,20 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Knot physics about twice as fast overall (build 0.195)
+
+- `StrandContact.ts`: candidate pairs found with CANDIDATE_MARGIN (0.02) and
+  reused until any point moves half of it (FreeKnotPractice runs up to 16
+  contact sweeps per step while a throw is held). Checksum still identical.
+- `ThreadStrand.ts`: solverIterations / selfContactEvery / toolContactEvery
+  (defaults = classic, identical result). A cheaper-solver 'Claude' engine
+  (12/4/2 etc.) saved ~30% time but failed second throws: not kept.
+- Shared `test-support/knotTrials.ts` (tieKnot for any engine);
+  FreeKnotSpeed uses it.
+- Measured: surgeon's knot fixture 36.2 s (0.192) → 17.7 s; demo frame cost
+  median 6.6 ms, p95 18 ms, 8% of frames > 16 ms (pull-apart). Next: worker.
+- Checked: tsc; gameplay/suture/demo/knot/tissue tests 303 pass.
+
 ### 2026-11-15 — Claude — Knot topology shadow project: concluded, code removed (no build change)
 
 - Checked the physics for pass-through: over a full throw (2,043 steps) no
