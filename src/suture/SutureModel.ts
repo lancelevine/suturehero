@@ -58,6 +58,8 @@ export class SutureModel {
     this.strand.advance(dt,pins,surfaceAt);
     this.thread.update(this.strand.points,this.root.matrixWorld);
   }
+  /** Redraws the thread from the strand (after a replay sets it). */
+  refreshThread(){this.root.updateWorldMatrix(true,false);this.thread.update(this.strand.points,this.root.matrixWorld);}
   reset() { this.root.position.set(-0.3,Math.max(.74,.44+NEEDLE_RADIUS),0);
     this.root.quaternion.setFromAxisAngle(new THREE.Vector3(-Math.cos(NEEDLE_ARC),0,-Math.sin(NEEDLE_ARC)),Math.PI/2);
     if(this.thread) {

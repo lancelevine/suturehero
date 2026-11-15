@@ -95,6 +95,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox: slow-motion replay with tip paths (build 0.176)
+
+- `src/gameplay/replayBuffer.ts` (new, tested), `src/scene/ReplayController.ts`
+  (new), `ThreadStrand.snapshot/restore`, `SutureModel.refreshThread`,
+  Replay button in `WorkspaceLayout.ts`; loop skips session.update while
+  replaying.
+- Checked: tsc; replay + suture tests; check-layout; Playwright: move,
+  replay, no console errors.
+- Lance: do a pass, press Replay ½×, check instruments/needle/thread.
+
 ### 2026-11-15 — Claude — Sandbox: session summary, spacing, targets, progress, export (build 0.175)
 
 - `src/gameplay/sandboxSummary.ts` (new, tested): summary, targets,

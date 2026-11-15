@@ -1,3 +1,4 @@
+import {ReplayController} from './scene/ReplayController';
 import {describeSpacing,summarizeSandbox} from './gameplay/sandboxSummary';
 import {mountSandboxSummaryPanel} from './ui/SandboxSummaryPanel';
 import {NEEDLE_ARC} from './suture/needleGeometry';
@@ -50,7 +51,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.175 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.176 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -67,13 +68,15 @@ try {
   const heldDisplay=new HeldInstrumentDisplay();
   const passMarks=new FreePassMarks();
   // Sandbox session summary, targets, progress and export (ui/SandboxSummaryPanel.ts).
-  {const feedback=document.querySelector('.exercise-feedback');const host=document.createElement('div');feedback?.after(host);
+  {const review=document.querySelector('#workspace-session-review');const host=document.createElement('div');if(review)review.querySelector('summary')?.after(host);else document.querySelector('.exercise-feedback')?.after(host);
    // Mounted after the session exists (it is created further down this setup).
    setTimeout(()=>mountSandboxSummaryPanel(host,{active:()=>session.sandbox||session.canFinishSandboxStitch||session.freePass.passes.length>0,passes:()=>session.freePass.passes,torn:()=>session.freePass.torn,stitches:()=>session.course.active?[]:session.course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review})),build:()=>document.querySelector('.version')?.textContent??''}),0);}
   /** How long the "tissue torn" message stays (ms), and the torn passes already announced. */
   const TORN_MESSAGE_MS=3500;let tornSeen=0,tornMessageUntil=0,cutSeen=0,cutMessageUntil=0;view.scene.add(passMarks.root);
   const tipMarkers=new TipMarkers([{root:tools[0].root,color:0x65d8c1},{root:tools[1].root,color:0xe65353}]);view.scene.add(tipMarkers.root);
   const needle=new SutureModel(); const grasp=new NeedleGrasp(needle);
+  // Slow-motion replay of the last 12 s of the Sandbox (scene/ReplayController.ts).
+  const replay=new ReplayController(tools,needle);
   const tissue=new TissuePatch();const artery=new ArteryTissue();artery.root.visible=false;
   view.scene.add(tissue.root,artery.root,needle.root,...tools.map(tool=>tool.root));
   const scissors=new Scissors();view.scene.add(scissors.root);
@@ -181,6 +184,9 @@ try {
   });
   const passGuide=new PassGuide(session.pass); view.scene.add(passGuide.root);
   // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
+  view.scene.add(replay.paths);
+  document.querySelector('#replay')?.addEventListener('click',()=>{if(replay.replaying)replay.stop();else replay.start();});
+  document.querySelector('#reset')?.addEventListener('click',()=>replay.clear());
   document.querySelector('#undo-pass')?.addEventListener('click',()=>{if(!session.sandbox)return;const wasIn=session.freePass.inTissue;if(session.freePass.undoLast()){if(wasIn)grasp.reset();session.freeThread.reset();session.freePass.rejection=null;}});
   document.querySelector('#reset-needle')?.addEventListener('click',()=>{if(!session.sandbox)return;session.freePass.abortCurrent();session.freePass.unthreadAll();session.freeThread.reset();grasp.reset();});
   document.querySelector('#begin-pass')!.addEventListener('click',()=>{
@@ -286,7 +292,7 @@ try {
     object.quaternion.slerp(desiredRotation,1-Math.exp(-Math.min(frameDt,.05)*50));
   };
   let last=performance.now();
-  view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();session.update(dt); last=time;
+  view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){
      simulatorFrames++;
      if(time-lastSimulatorFps>=1000){
@@ -412,6 +418,7 @@ try {
     const title=document.querySelector('#exercise-title')!;
     const pass=session.pass; passGuide.update(pass); if(session.canPlanBites)passGuide.root.visible=true; if(session.sandbox)passGuide.root.visible=false; if(!showNeedleGuide.checked || knot.active || session.freeKnot.active) passGuide.root.visible=false;
     (document.querySelector('#begin-pass') as HTMLButtonElement).disabled=!session.canBeginPass;
+    {const replayButton=document.querySelector<HTMLButtonElement>('#replay');if(replayButton){replayButton.disabled=!replay.replaying&&!replay.available;const label=replay.replaying?`Stop replay ${Math.round(replay.progress*100)}%`:'Replay ½×';if(replayButton.textContent!==label)replayButton.textContent=label;}}
     {const resetNeedle=document.querySelector<HTMLButtonElement>('#reset-needle');if(resetNeedle)resetNeedle.disabled=!session.sandbox;const undo=document.querySelector<HTMLButtonElement>('#undo-pass');if(undo)undo.disabled=!session.sandbox||(!session.freePass.inTissue&&!session.freePass.passes.length&&!session.freePass.torn.length);}
     document.querySelector('#begin-pass')!.textContent=session.sandbox?'Start guided exercise':session.preparingEdge?'Begin needle pass':'Start guided pass';
     {const heading=document.querySelector('.scene-heading h2');const headingText=session.sandbox?'Sandbox':'Simple interrupted suture';if(heading&&heading.textContent!==headingText)heading.textContent=headingText;}

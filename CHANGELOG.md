@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.176 — Sandbox: slow-motion replay with tip paths
+
+- Replay ½×: plays the last 12 s of the Sandbox back at half speed, with
+  each instrument's tip path drawn; the simulation pauses and resumes where
+  it was. Click again to stop.
+- The Sandbox session panel moved into the Session & stitch review drawer.
+
 ## Build 0.175 — Sandbox: session summary, spacing, targets, progress, export
 
 New Sandbox session panel under the exercise feedback:

@@ -11,6 +11,12 @@ export class ThreadStrand {
   private materialLength:number;
   private edgeLengths?:number[];
   get count(){return this.points.length;}
+  /** Copies of the current and previous points (replay, gameplay/replayBuffer.ts). */
+  snapshot(){return {points:this.points.map(p=>p.clone()),previous:this.previous.map(p=>p.clone())};}
+  /** Restores a snapshot (and, without `previous`, stops all motion). */
+  restore(state:{points:readonly THREE.Vector3[];previous?:readonly THREE.Vector3[]}){
+    state.points.forEach((p,i)=>{this.points[i]?.copy(p);this.previous[i]?.copy(state.previous?.[i]??p);});
+  }
   private edgeRest(index:number){return this.edgeLengths?.[index]??this.restLength;}
   get length() {return this.materialLength;}
   get restLength() {return this.materialLength/(this.count-1);}
