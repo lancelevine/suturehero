@@ -16,10 +16,14 @@ import { ease, type Segment } from './choreography';
 const TIP = new THREE.Vector3(0, 0, 0.05);
 const CLOSED = 0.1;
 const OPEN = 0.7;
-/** Seconds per full wrap (the free-tying tests use 4 s; faster wraps must still lock, checked in freeKnotDemo.test.ts). */
+/**
+ * Seconds per full wrap. 2.5 s locks since the thread takes extra physics steps while it is
+ * wound on the driver (FreeKnotPractice MAX_PIN_MOVE_PER_STEP, build 0.191); before that it
+ * needed 3.2 s. Checked in freeKnotDemo.test.ts.
+ */
 /** Share of the tightening spent pulling; the rest holds the tension so the throw seats on the skin. */
 const TIGHTEN_PULL_SHARE = 0.7;
-const SECONDS_PER_WRAP = 3.2;
+const SECONDS_PER_WRAP = 2.5;
 
 type Tools = { left: Instrument; right: Instrument };
 

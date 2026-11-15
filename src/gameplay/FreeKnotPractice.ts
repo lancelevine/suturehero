@@ -18,6 +18,21 @@ import { threadSurfaceAt,threadBaseAt } from '../suture/TissueThreadGuide';
 import { InstrumentThreadContact,shaftWinding } from '../suture/InstrumentThreadContact';
 interface Grip {strand:ThreadStrand;index:number;local:THREE.Vector3}
 /** Free handling sandbox: no prescribed instrument poses, wrap path or completed-knot score. */
+/**
+ * Thread physics stepping (fixed 1/120 s steps, at most MAX_TIME_STEPS per update for the
+ * clock, so slow frames stay responsive). The thread only follows a held point so far per
+ * step: measured 2026-11-15, a wrap around the driver formed with the held point moving
+ * 0.0105 scene units per step and came up short at 0.0164 (a quick hand, a 30 fps frame
+ * rate, or a camera-tracking jump). When a held point moves more than
+ * MAX_PIN_MOVE_PER_STEP (≈ 0.2 mm) per step, extra steps are taken, up to
+ * MAX_STEPS_PER_UPDATE, but only while the thread is wound on the driver (WRAPPING_WINDING).
+ * Everything else steps exactly as before.
+ */
+export const MAX_TIME_STEPS=2;
+export const MAX_PIN_MOVE_PER_STEP=0.008;
+export const MAX_STEPS_PER_UPDATE=8;
+/** The thread counts as being wrapped once it is this many turns around the driver (≈ 54°). */
+export const WRAPPING_WINDING=0.15;
 export class FreeKnotPractice {
   active=false;
   long=new ThreadStrand(2.1,64);
@@ -117,6 +132,8 @@ export class FreeKnotPractice {
   private lastOpen=new Map<string,number>();
   private contact=new InstrumentThreadContact();
   private accumulator=0;
+  /** Each gripping jaw's grip point at the last update, for motion sub-stepping. */
+  private readonly lastJaw=new Map<string,THREE.Vector3>();
   padOffsetZ=0;
   tractHalfWidth=TRACT_HALF_WIDTH;
   private skinTopAt=(p:THREE.Vector3)=>this.surfaceAt(p);
@@ -308,10 +325,28 @@ export class FreeKnotPractice {
       const grip=this.grips.get(tool.id);if(grip)pins.get(grip.strand)!.set(grip.index,tool.root.localToWorld(grip.local.clone()));
     }
     this.accumulator+=Math.max(0,Math.min(dt,0.05));
-    const step=1/120,steps=Math.min(2,Math.floor((this.accumulator+1e-10)/step));
+    const step=1/120,timeSteps=Math.min(MAX_TIME_STEPS,Math.floor((this.accumulator+1e-10)/step));
+    // The thread only follows a held point so far per step: when an instrument moves fast
+    // (a quick hand, a low frame rate, a camera-tracking jump) take more, smaller steps, or the
+    // thread lags and a wrap around the driver comes up short (2026-11-15 speed measurements).
+    // Measured from each gripping jaw's own movement since the last update (not the gap to the
+    // thread, which stays large whenever the thread is at its reach limit).
+    let largestMove=0;
+    for(const tool of tools) {
+      const grip=this.grips.get(tool.id);
+      if(!grip){this.lastJaw.delete(tool.id);continue;}
+      const jaw=tool.root.localToWorld(grip.local.clone()),before=this.lastJaw.get(tool.id);
+      if(before)largestMove=Math.max(largestMove,jaw.distanceTo(before));
+      this.lastJaw.set(tool.id,jaw);
+    }
+    const motionSteps=Math.ceil(largestMove/MAX_PIN_MOVE_PER_STEP);
+    // Only while the thread is wound on the driver: that is where it lagged. Fast repositioning
+    // of a gripped thread elsewhere keeps its tested single-step behaviour.
+    const wrapping=Math.abs(this.winding)>=WRAPPING_WINDING;
+    const steps=timeSteps===0?0:Math.min(MAX_STEPS_PER_UPDATE,Math.max(timeSteps,wrapping?motionSteps:0));
     // Keep the display responsive on slower machines; discard overdue work
-    // rather than running six expensive contact solves in the next frame.
-    this.accumulator=Math.min(this.accumulator,steps*step+step*.999);
+    // rather than running many expensive contact solves in the next frame.
+    this.accumulator=Math.min(this.accumulator,timeSteps*step+step*.999);
     const starts=new Map([...pins].map(([strand,map])=>[strand,new Map([...map].map(([index])=>[index,strand.points[index].clone()]))]));
     const exemptions=new Map<ThreadStrand,Map<string,Set<number>>>();
     for(const strand of this.strands) {
@@ -404,6 +439,8 @@ export class FreeKnotPractice {
       for(const strand of this.strands)strand.dampInternalMotion();
       this.accumulator-=step;
     }
+    // Extra motion steps run the thread slightly ahead of the clock; they are not owed back.
+    this.accumulator=Math.max(0,this.accumulator);
     if(steps===0)for(const strand of this.strands)strand.advance(0,pins.get(strand)!,this.supportAt);
 
     for(const [strand,feedback] of [[this.long,this.tension.long],[this.short,this.tension.short]] as const){
@@ -429,5 +466,5 @@ export class FreeKnotPractice {
     }
     return false;
   }
-  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.trimmedTails.clear();this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.tissueSeat.reset();this.sequence=undefined;this.recorded=false;this.seatingArmed=false;this.groundedThrows.clear();this.bearingTime=0;this.tension.long.reset();this.tension.short.reset();this.gripRequests.clear();this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;}
+  reset() {this.short=new ThreadStrand(1.2,40);this.fragments.length=0;this.cutMessage='';this.trimmedTails.clear();this.earlierThrows.length=0;this.retainedThrow=new FreeThrow();this.tissueSeat.reset();this.sequence=undefined;this.recorded=false;this.seatingArmed=false;this.groundedThrows.clear();this.bearingTime=0;this.tension.long.reset();this.tension.short.reset();this.gripRequests.clear();this.postTaut=false;this.feedback='';this.passage.reset();this.contact=new InstrumentThreadContact();this.active=false;this.grips.clear();this.lastOpen.clear();this.winding=0;this.driverOnTissue=false;this.accumulator=0;this.lastJaw.clear();}
 }

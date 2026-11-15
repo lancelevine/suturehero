@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Free knot locking at faster instrument speeds (physics sub-stepping investigation).
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -106,6 +106,22 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Free knots form with fast hands and low frame rates (build 0.191)
+
+- `FreeKnotPractice.ts`: motion sub-stepping (MAX_PIN_MOVE_PER_STEP 0.008,
+  MAX_STEPS_PER_UPDATE 8) from each gripping jaw's own movement, only while
+  |winding| ≥ WRAPPING_WINDING 0.15; MAX_TIME_STEPS stays 2 (budget test).
+  Broader versions (all motion; 4 time steps) broke existing tests and were
+  dropped.
+- Measurements (fixture motion ÷ speed): before, a wrap formed with the held
+  point moving 0.0105/step and failed at 0.0164; 30 fps failed at 1×.
+- New `FreeKnotSpeed.test.ts` (lock at 30 fps 1×, 60/120 fps 2×; double
+  first throw at 2.5×/4×). Not asserted: second throw at ≥ 2.5×, and at
+  30 fps 1.6× (direction read as same as the first).
+- Demo SECONDS_PER_WRAP 2.5. Checked: tsc; gameplay/suture/demo tests
+  (238); check-demo passes.
+- Lance: try free tying by hand/camera, especially the first double throw.
 
 ### 2026-11-15 — Claude — Demo: right-to-left pass with forceps eversion, natural speed (build 0.190)
 

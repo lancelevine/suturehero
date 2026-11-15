@@ -5,6 +5,20 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.191 — Free knots form with fast hands and low frame rates
+
+Free tying: knots form more reliably with fast hands and low frame rates.
+The thread used to lag behind the forceps while being wrapped around the
+driver whenever the forceps moved too far per physics step (a quick hand,
+30 fps, or a camera-tracking jump), so the wrap came up short and the throw
+did not register. While the thread is wound on the driver, the physics now
+takes extra, smaller steps when the gripping jaw moves fast.
+- At 30 fps a surgeon's knot now locks at normal hand speed (it did not).
+- The double first throw forms at up to 4× hand speed.
+- The demo wraps in 2.5 s instead of 3.2 s.
+Known limits: at 2.5× speed or more, and at 30 fps above normal speed, the
+second throw can still fail to count as a lock.
+
 ## Build 0.190 — Demo: right-to-left pass with forceps eversion, natural speed
 
 Demo changes from Lance's review:
