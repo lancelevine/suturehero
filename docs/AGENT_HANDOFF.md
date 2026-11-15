@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox realism batch: tissue shape, skin tears, thread grasp, feedback, replay, progress, cleanup (many commits).
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -54,6 +54,13 @@ entry when finishing.
     instrument and camera, then check the reading. Only synthetic-camera
     tested so far. If it doesn't work, the selector switches back to Classic.
 - **Known issues:**
+  - `check-practice-setup` times out waiting for a reload after a setup
+    change (`waitForNavigation`); same on build 0.169, so older than the
+    Sandbox batch. Not investigated. Its `canvas` selector was fixed (camera
+    lab canvases made it ambiguous).
+  - Legacy classic-ball jaw code in `src/tracking.ts` was NOT removed: it
+    still carries the colored and striped modes, which AGENTS.md says
+    remain supported. Removing it needs Lance's decision on those modes.
   - Tracking Lab library can be clipped by camera setup's body overflow lock;
     browser zoom-out is the current workaround. A separate Lab scrolling fix
     is still needed.
@@ -94,6 +101,20 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Sandbox batch finished (builds 0.170–0.177)
+
+- Done: live skin shape and wound gap, skin tears + undo, jitter smoothing,
+  entry angle, tissue tear limits, thread grasp, needle loading, tear limits
+  in mm, thread drag and cut-through, knot security, edge approximation,
+  session summary/spacing/targets/progress/export, replay, forceps
+  eversion, `check-sandbox`.
+- Not done: legacy ball removal (see Known issues); stereo tracking needs
+  OV9281 profiles from Lance.
+- Checked: full unit suite 737/737 (Node 24); browser checks check-sandbox
+  (3/3), check-layout, check-free-tying, check-guided-thread, check-knot,
+  check-status-strip, check-production-mode pass; check-practice-setup
+  fails as before the batch.
 
 ### 2026-11-15 — Claude — Sandbox browser check (no build change)
 

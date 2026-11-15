@@ -4,13 +4,13 @@ import {chromium} from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 try {
  const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});await page.locator('canvas').waitFor();
+ await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});await page.locator('#viewport canvas').first().waitFor();
  for(const width of [320,375,390,760,900,1440]){
   await page.setViewportSize({width,height:1050});assert(await page.locator('.version').isVisible());
   assert(await page.evaluate(()=>{const r=document.querySelector('.version').getBoundingClientRect();return r.left>=document.querySelector('.brand').getBoundingClientRect().right&&r.right<=innerWidth&&document.documentElement.scrollWidth<=innerWidth+1;}),`Header or page overflow at ${width}px`);
  }
  const selectSetup=async(id,value)=>{
-  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.locator(id).selectOption(value)]);await page.locator('canvas').waitFor();
+  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.locator(id).selectOption(value)]);await page.locator('#viewport canvas').first().waitFor();
  };
  await selectSetup('#skin-type','thick');assert.equal(await page.locator('#skin-type').inputValue(),'thick');
  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.locator('#switch-environment').click()]);
