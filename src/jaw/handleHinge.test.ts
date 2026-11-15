@@ -166,3 +166,14 @@ describe('open/closed-only jaws', () => {
     expect(binaryOpening(true, 0.3)).toBe(false);
   });
 });
+
+describe('handle prism IDs', () => {
+  it('uses forceps 18, 19, 28 and never shares an ID between instruments or with a ring', async () => {
+    const { HANDLE_PRISM_IDS } = await import('./handleHinge');
+    expect(HANDLE_PRISM_IDS.forceps).toEqual([18, 19, 28]);
+    const all = Object.values(HANDLE_PRISM_IDS).flat();
+    expect(new Set(all).size).toBe(all.length);
+    const rings = [0, 10, 20].flatMap((first) => Array.from({ length: 8 }, (_, i) => first + i));
+    expect(all.filter((id) => rings.includes(id))).toEqual([]);
+  });
+});

@@ -95,6 +95,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — forceps prism IDs 18, 19, 28 (build 0.158)
+
+- Lance asked for forceps prism IDs 18, 19, 28. `HANDLE_PRISM_IDS`:
+  forceps [18, 19, 28]; scissors [28, 29, 32] → [29, 32, 33] to avoid the
+  clash. Test: forceps IDs, no shared IDs, none on the 8-face rings.
+  Jaw tests (51) pass. A saved forceps prism calibration (face layout by
+  index) would need redoing; none existed.
+
 ### 2026-11-14 — Claude — camera tip dots, white axis (build 0.157)
 
 - New `src/input/stereoProjection.ts` (+ test: projection into both

@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.158 — forceps jaw prism IDs 18, 19, 28
+
+The forceps' handle-prism faces are now ArUco IDs 18, 19 and 28 (was 18,
+19, 31), to match the printed prism. The scissors' prism moved from 28, 29,
+32 to 29, 32, 33 so no ID is shared. Needle driver unchanged (8, 9, 30).
+
 ## Build 0.157 — tip dots in the camera views; white axis line
 
 - Each calibrated stereo tip is drawn as a dot (instrument colour, white

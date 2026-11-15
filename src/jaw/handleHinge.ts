@@ -18,11 +18,13 @@ import { faceGeometry } from '../input/prismPose';
  * 0, 1, 2 going around the prism). Chosen by Lance: the two IDs right after
  * each 8-face ring, plus one free ID. (The legacy 3-face prism tracker's
  * scissors group also uses 8; that tracker is not in use.)
+ * 2026-11-15: forceps 18, 19, 31 → 18, 19, 28 (Lance's printed prism);
+ * scissors moved from 28, 29, 32 to 29, 32, 33 so no ID is shared.
  */
 export const HANDLE_PRISM_IDS = {
   needleDriver: [8, 9, 30],
-  forceps: [18, 19, 31],
-  scissors: [28, 29, 32],
+  forceps: [18, 19, 28],
+  scissors: [29, 32, 33],
 } as const;
 
 /**
