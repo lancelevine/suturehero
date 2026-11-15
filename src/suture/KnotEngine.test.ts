@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAutomaticKnotSequence, EventLedgerKnotSequence } from './KnotEngine';
+import { createAutomaticKnotSequence, EventLedgerKnotSequence, retainedContactSweeps } from './KnotEngine';
 
 describe('switchable knot engines', () => {
   it('keeps the current implementation available as legacy mode', () => {
@@ -30,8 +30,19 @@ describe('switchable knot engines', () => {
     expect(square.locked).toBe(true);
     const surgeon = new EventLedgerKnotSequence();
     surgeon.seat({ wraps: 2, direction: 1, postHeld: false });
-    surgeon.seat({ wraps: 1, direction: -1, postHeld: false });
+    surgeon.seat({ wraps: 2, direction: -1, postHeld: false });
     expect(surgeon.technique).toBe('surgeon');
     expect(surgeon.locked).toBe(true);
+    const multiple = new EventLedgerKnotSequence();
+    expect(multiple.seat({ wraps: 3, direction: 1, postHeld: false })).toBe(true);
+    expect(multiple.technique).toBe('multiple');
+    expect(multiple.seat({ wraps: 1, direction: -1, postHeld: false })).toBe(true);
+    expect(multiple.locked).toBe(true);
   });
+});
+
+it('halves retained contact work while preserving extra low-FPS substeps', () => {
+  expect(retainedContactSweeps('legacy', 1)).toBe(16);
+  expect(retainedContactSweeps('event-ledger', 1)).toBe(8);
+  expect(retainedContactSweeps('event-ledger', 2)).toBe(6);
 });

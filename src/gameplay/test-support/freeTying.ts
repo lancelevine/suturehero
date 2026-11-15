@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import {Instrument} from '../../instruments/Instrument';
 import {FreeKnotPractice} from '../FreeKnotPractice';
 import type {KnotTechnique} from '../../suture/KnotTechnique';
-export function createFreeTyingFixture(technique:KnotTechnique|'auto',advance=(dt:number,model:FreeKnotPractice,tools:Instrument[])=>model.update(dt,tools),motion?:{radius:number;depth:number;pullSide:number;rotation?:[number,number,number]}){
- const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools,technique);
+import type {KnotEngineMode} from '../../suture/KnotEngine';
+export function createFreeTyingFixture(technique:KnotTechnique|'auto',advance=(dt:number,model:FreeKnotPractice,tools:Instrument[])=>model.update(dt,tools),motion?:{radius:number;depth:number;pullSide:number;rotation?:[number,number,number]},mode:KnotEngineMode='legacy'){
+ const tools=[new Instrument('left',0),new Instrument('right',0)],model=new FreeKnotPractice();model.begin(tools,technique,mode);
  const [left,right]=tools;
  for(let i=0;i<240;i++)advance(1/120,model,tools);
  right.root.position.copy(model.short.points.at(-1)!);right.root.position.z-=.05;advance(1/120,model,tools);right.openness=.1;advance(1/120,model,tools);

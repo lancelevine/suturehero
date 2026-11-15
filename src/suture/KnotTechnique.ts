@@ -14,6 +14,10 @@ export class KnotTechniqueSequence {
   acceptsGeometry(wraps:number,direction:number){return wraps===this.requiredWraps&&(!this.requiredDirection||direction===this.requiredDirection);}
   get sliding(){return this.technique==='sliding'&&this.throws.length<=2;}
   get locked(){return this.throws.length>=(this.technique==='surgeon'?2:3);}
+  isLockThrow(index:number){
+    const minimum=this.technique==='surgeon'?1:2;
+    return index>=minimum&&this.throws[index].direction!==this.throws[index-1].direction;
+  }
   accepts(wraps:number,direction:number,postHeld:boolean){return this.acceptsGeometry(wraps,direction) && (this.technique!=='sliding'||this.throws.length>=2||postHeld);}
   seat(record:ThrowRecord){if(!this.accepts(record.wraps,record.direction,record.postHeld))return false;this.throws.push({...record});return true;}
   get instruction(){

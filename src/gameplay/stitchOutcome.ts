@@ -22,17 +22,20 @@ export interface KnotReport {
 export function assessKnot(throws: readonly ThrowRecord[], seatedThrows: number): KnotReport {
   const notes: string[] = [];
   if (!throws.length) return { security: 'insecure', notes: ['No throws'] };
-  // Consecutive single throws in the same direction after the start form a granny (slips); opposing ones are square.
+  // Opposing direction provides the locking evidence even when fast input leaves
+  // an extra turn in a later throw. Same-direction singles form a granny unless
+  // the second throw after a single start is a deliberate sliding start with
+  // a taut post. Extra turns do not excuse a same-direction granny throw.
   let grannies = 0;
   let squares = 0;
   for (let i = 1; i < throws.length; i++) {
-    if (throws[i].wraps !== 1) continue;
     if (throws[i].direction === throws[i - 1].direction) {
       // A same-direction second throw with the post held is a deliberate sliding start.
-      if (!(i === 1 && throws[i].postHeld)) grannies++;
+      if (!(i === 1 && throws[0].wraps === 1 && throws[i].postHeld)) grannies++;
     } else squares++;
   }
-  const start = throws[0].wraps === 2 ? "surgeon's start" : throws.length > 1 && throws[1].direction === throws[0].direction ? 'sliding start' : 'square start';
+  const sameDirectionStart = throws.length > 1 && throws[1].direction === throws[0].direction;
+  const start = throws[0].wraps === 2 ? "surgeon's start" : throws[0].wraps > 2 ? `${throws[0].wraps}-turn start` : sameDirectionStart && throws[1].postHeld ? 'sliding start' : sameDirectionStart ? 'unsecured same-direction start' : 'square start';
   notes.push(`${start} · ${throws.length} throw${throws.length > 1 ? 's' : ''}`);
   if (squares) notes.push(`${squares} opposing (square) throw${squares > 1 ? 's' : ''}`);
   if (grannies) notes.push(`${grannies} granny throw${grannies > 1 ? 's' : ''} (same direction: slips) · reverse each throw`);

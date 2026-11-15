@@ -6,7 +6,7 @@ import {KnotTissueSeat,stitchSupport} from '../suture/KnotTissueSeat';
 import {THREAD_RADIUS} from '../suture/threadMaterial';
 import {skinThreadContact} from '../tissue/SkinThreadContact';
 import {KnotTechniqueSequence,type KnotTechnique} from '../suture/KnotTechnique';
-import {createAutomaticKnotSequence,type AutomaticKnotSequence,type KnotEngineMode} from '../suture/KnotEngine';
+import {createAutomaticKnotSequence,retainedContactSweeps,type AutomaticKnotSequence,type KnotEngineMode} from '../suture/KnotEngine';
 import {tractEntry,tractExit} from '../tissue/sutureTract';
 import { FreeThrow } from '../suture/FreeThrow';
 import { TailPassage } from '../suture/TailPassage';
@@ -57,7 +57,7 @@ export class FreeKnotPractice {
   get lockSeated(){
     if(!this.sequence?.locked)return false;
     const minimum=this.sequence.technique==='sliding'?3:2;
-    return this.sequence.throws.some((t,i)=>i>=minimum-1&&i<this.seatedThrowCount&&t.wraps===1&&t.direction!==this.sequence!.throws[i-1].direction);
+    return this.sequence.throws.some((t,i)=>i>=minimum-1&&i<this.seatedThrowCount&&(this.sequence!.isLockThrow?.(i)??(t.wraps===1&&t.direction!==this.sequence!.throws[i-1].direction)));
   }
   readonly fragments:ThreadStrand[]=[];
   cutMessage='';
@@ -414,7 +414,11 @@ export class FreeKnotPractice {
         else previous.advanceEngagement(step);
       }
       const activeConstraints=constraints.filter(t=>t.active||t.phase==='passed');
-      const contactSweeps=activeConstraints.some(t=>t.phase==='retained')?16:activeConstraints.some(t=>t.active)?4:2;
+      // Low display rates already execute several physics substeps per update;
+      // six contact projections per substep converge without over-constraining
+      // the collar. A single 120 Hz step needs eight to finish draw-down.
+      const retainedSweeps=retainedContactSweeps(this.knotEngineMode,steps);
+      const contactSweeps=activeConstraints.some(t=>t.phase==='retained')?retainedSweeps:activeConstraints.some(t=>t.active)?4:2;
       if(activeConstraints.length)for(let iteration=0;iteration<contactSweeps;iteration++){
         for(const constraint of activeConstraints)constraint.resolve(this.long,this.short,subPins.get(this.long)!,subPins.get(this.short)!);
         for(const strand of this.strands)strand.projectContacts(subPins.get(strand)!,this.supportAt,(p,previous,pinned,start)=>this.contact.resolve(p,previous,pinned,{from:(n+1)/steps,to:(n+1)/steps,start},exemptions.get(strand)),iteration%2!==0);

@@ -20,6 +20,21 @@ describe('knot security', () => {
     expect(sliding.security).toBe('secure');
     expect(sliding.notes[0]).toMatch(/sliding start/);
   });
+  it('uses opposing direction as locking evidence even when a later throw has an extra turn', () => {
+    const report = assessKnot([t(2, 1), t(2, -1), t(1, 1)], 3);
+    expect(report.security).toBe('secure');
+    expect(report.notes.join()).toMatch(/2 opposing/);
+  });
+  it('does not describe same-direction throws as sliding without a taut post', () => {
+    const report = assessKnot([t(1, 1), t(1, 1), t(1, -1)], 3);
+    expect(report.security).toBe('may slip');
+    expect(report.notes[0]).toMatch(/unsecured/);
+  });
+  it('flags a same-direction repeat even when that repeat has two turns', () => {
+    const report = assessKnot([t(2, 1), t(2, 1), t(1, -1)], 3);
+    expect(report.security).toBe('may slip');
+    expect(report.notes.join()).toMatch(/granny/);
+  });
 });
 
 describe('edge approximation', () => {

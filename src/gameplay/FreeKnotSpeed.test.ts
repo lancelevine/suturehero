@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { expect, it } from 'vitest';
 import { Instrument } from '../instruments/Instrument';
 import { FreeKnotPractice } from './FreeKnotPractice';
+import type { KnotEngineMode } from '../suture/KnotEngine';
 
 /**
  * Knot locking at different hand speeds and frame rates (2026-11-15). The same
@@ -10,10 +11,10 @@ import { FreeKnotPractice } from './FreeKnotPractice';
  * (fewer turns around the driver than the forceps made) at 30 fps even at
  * normal speed, and from about 2.5× speed at any frame rate.
  */
-async function tie(speed: number, fps: number, throws: Array<[number, number]>) {
+async function tie(speed: number, fps: number, throws: Array<[number, number]>, mode: KnotEngineMode = 'legacy') {
   const tools = [new Instrument('left', 0), new Instrument('right', 0)];
   const model = new FreeKnotPractice();
-  model.begin(tools, 'auto');
+  model.begin(tools, 'auto', mode);
   const [left, right] = tools;
   const advance = () => model.update(1 / fps, tools);
   const segment = async (seconds: number, apply: (t: number) => void) => {
@@ -76,8 +77,21 @@ it.each([
 ])('locks a surgeon’s knot at $speed× hand speed and $fps fps', async ({ speed, fps }) => {
   const model = await tie(speed, fps, [[2, 1], [1, -1]]);
   expect(model.sequence!.technique, model.instruction).toBe('surgeon');
-  expect(model.sequence!.throws, model.instruction).toHaveLength(2);
-  expect(model.sequence!.locked, model.instruction).toBe(true);
+  expect(model.sequence!.throws, `${model.instruction} · ${model.retainedThrow.phase} · ${model.retainedThrow.lastFailure}`).toHaveLength(2);
+  expect(model.sequence!.locked, `${model.instruction} · ${JSON.stringify(model.sequence!.throws)}`).toBe(true);
+}, 300000);
+
+it.each([
+  { speed: 1, fps: 30 },
+  { speed: 1.6, fps: 30 },
+  { speed: 2, fps: 60 },
+  { speed: 2, fps: 120 },
+  { speed: 2.5, fps: 120 },
+])('locks the event-ledger surgeon knot at $speed× and $fps FPS', async ({ speed, fps }) => {
+  const model = await tie(speed, fps, [[2, 1], [1, -1]], 'event-ledger');
+  expect(model.sequence!.throws, `${model.instruction} · ${model.retainedThrow.phase} · ${model.retainedThrow.lastFailure}`).toHaveLength(2);
+  expect(model.sequence!.technique, model.instruction).toBe('surgeon');
+  expect(model.sequence!.locked, `${model.instruction} · ${JSON.stringify(model.sequence!.throws)}`).toBe(true);
 }, 300000);
 
 // At extreme speeds the first (double) throw must still form as wrapped; whether the

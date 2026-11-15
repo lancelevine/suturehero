@@ -12,6 +12,7 @@ export interface AutomaticKnotSequence {
   readonly locked: boolean;
   readonly sliding: boolean;
   readonly instruction: string;
+  isLockThrow?(index: number): boolean;
   acceptsGeometry(wraps: number, direction: number): boolean;
   seat(record: ThrowRecord): boolean;
 }
@@ -24,6 +25,7 @@ export class EventLedgerKnotSequence implements AutomaticKnotSequence {
     const first = this.throws[0], second = this.throws[1];
     if (!first) return 'auto';
     if (first.wraps === 2) return 'surgeon';
+    if (first.wraps > 2) return 'multiple';
     if (!second) return 'single';
     if (second.direction !== first.direction) return 'square';
     return second.postHeld ? 'sliding' : 'unsecured';
@@ -33,19 +35,23 @@ export class EventLedgerKnotSequence implements AutomaticKnotSequence {
     return {
       auto: 'Event ledger · detecting knot start', single: 'Event ledger · single first throw',
       surgeon: "Event ledger · surgeon's start", sliding: 'Event ledger · sliding start',
-      square: 'Event ledger · square start', unsecured: 'Event ledger · unsecured same-direction throws',
+      square: 'Event ledger · square start', multiple: 'Event ledger · multiple-wrap start',
+      unsecured: 'Event ledger · unsecured same-direction throws',
     }[this.technique]!;
   }
 
   get requiredWraps() { return 0; }
   get requiredDirection() { return this.throws.length ? -this.throws.at(-1)!.direction : 0; }
+  isLockThrow(index: number) {
+    const minimum = this.technique === 'sliding' ? 2 : 1;
+    return index >= minimum && this.throws[index].direction !== this.throws[index - 1].direction;
+  }
   get locked() {
-    const minimum = this.technique === 'sliding' ? 3 : 2;
-    return this.throws.some((record, index) => index >= minimum - 1 && record.wraps === 1 && record.direction !== this.throws[index - 1].direction);
+    return this.throws.some((_, index) => this.isLockThrow(index));
   }
   get sliding() { return !this.locked && (this.technique === 'single' || this.technique === 'sliding'); }
   acceptsGeometry(wraps: number, direction: number) {
-    return Number.isInteger(wraps) && wraps >= 1 && wraps <= 2 && (direction === 1 || direction === -1);
+    return Number.isInteger(wraps) && wraps >= 1 && wraps <= 4 && (direction === 1 || direction === -1);
   }
   seat(record: ThrowRecord) {
     if (!this.acceptsGeometry(record.wraps, record.direction)) return false;
@@ -63,4 +69,10 @@ export class EventLedgerKnotSequence implements AutomaticKnotSequence {
 
 export function createAutomaticKnotSequence(mode: KnotEngineMode): AutomaticKnotSequence {
   return mode === 'event-ledger' ? new EventLedgerKnotSequence() : new InferredKnotSequence();
+}
+
+/** Contact projections per retained-throw physics substep. */
+export function retainedContactSweeps(mode: KnotEngineMode, physicsStepsThisFrame: number): number {
+  if (mode === 'legacy') return 16;
+  return physicsStepsThisFrame > 1 ? 6 : 8;
 }
