@@ -78,6 +78,8 @@ export class FreeKnotPractice {
   private get maximumOpeningIndex(){return ([...this.grips.values()].find(g=>g.strand===this.long)?.index??this.long.count-1)-1;}
   private get observationWraps(){return this.retainedThrow.phase==='retained'&&!this.recorded?this.retainedThrow.wraps:this.sequence?.requiredWraps??1;}
   get instruction(){return this.sequence?`${this.sequence.label} · ${this.sequence.throws.length} throws tightened · ${(this.sequence.locked?(this.lockSeated?'Opposing lock seated · Alternate later throws':'Opposing throw formed · Lower and tighten it onto the existing knot'):this.sequence.instruction)}${this.sequence.sliding?' · Short post: '+(this.postTaut?'taut':'take up slack'):''}${this.feedback?' · '+this.feedback:''}${this.trimHint?' · '+this.trimHint:''}`:'Free first throw';}
+  /** Throws seated down on the knot (for knot security, gameplay/stitchOutcome.ts). */
+  get seatedThrows(){return this.seatedThrowCount;}
   private get seatedThrowCount(){
     if(!this.tissueSeat.contact||this.tissueSeat.load<.5)return 0;
     const knots=[...this.earlierThrows,this.retainedThrow].filter(t=>t.active);

@@ -95,6 +95,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox: knot security and edge approximation (build 0.174)
+
+- `src/gameplay/stitchOutcome.ts` (new, tested): assessKnot, assessEdges.
+- `PracticeSession.sandboxStitchOutcome`; finishSandboxStitch adds review
+  lines and applies SLIP_CLOSURE_LOSS; `FreeKnotPractice.seatedThrows`.
+- Checked: tsc; gameplay tests (75 pass).
+- Lance: tie a granny (same direction twice) and a square knot; compare.
+
 ### 2026-11-15 — Claude — Sandbox: thread drag and cut-through (build 0.173)
 
 - `FreeThreadGuide`: drag (MAX_SLIDE_SPEED, DRAG_TRACT_UNITS), `tension`,

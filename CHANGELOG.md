@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.174 — Sandbox: knot security and edge approximation
+
+- Knot security for Sandbox stitches: square vs granny throws, unseated
+  throws, and fewer than 3 throws are named while tying and in the saved
+  stitch review (secure / may slip / insecure). A knot that may slip loosens
+  when the stitch is finished (keeps 70% of its closure).
+- Edge approximation: edges meet / small gap / overlap, everted / flat /
+  inverted, and which edge is higher.
+Rule-based teaching feedback, not a mechanical knot test.
+
 ## Build 0.173 — Sandbox: thread drag and cut-through
 
 Thread now drags through the tissue in the Sandbox: it slides through at a

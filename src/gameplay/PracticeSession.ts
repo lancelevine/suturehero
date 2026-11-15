@@ -1,3 +1,4 @@
+import {assessEdges,assessKnot,SLIP_CLOSURE_LOSS} from './stitchOutcome';
 import {ThreadGrasp,type JawState} from '../suture/ThreadGrasp';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {shapedSkinSurface} from '../tissue/freeSkinSurface';
@@ -89,10 +90,19 @@ export class PracticeSession {
    * Keeps the tied Sandbox stitch (closure at its own position, frozen strands)
    * and returns to the Sandbox with a fresh needle and thread.
    */
+  /** Knot security and edge approximation of the Sandbox stitch being tied (gameplay/stitchOutcome.ts), or null. */
+  get sandboxStitchOutcome(){
+    if(!this.freeKnotAnchors||!this.freeKnot.active)return null;
+    return {knot:assessKnot(this.freeKnot.sequence?.throws??[],this.freeKnot.seatedThrows),edges:assessEdges(this.wound.closure,this.tissueResponse.eversion,this.wound.edgeMismatch)};
+  }
   finishSandboxStitch(){
     if(!this.canFinishSandboxStitch||this.sandboxStitchZ===null)return false;
-    const site={siteZ:this.sandboxStitchZ,closure:this.wound.closure,initialGap:this.wound.initialGap,tractBottom:this.wound.tractBottom,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,mismatch:this.wound.edgeMismatch};
-    if(!this.course.recordSandbox(site,this.stitchAssessment.feedback,[this.freeKnot.long.points,this.freeKnot.short.points]))return false;
+    const outcome=this.sandboxStitchOutcome!;
+    // A knot that may slip loosens once let go: it keeps less of its closure.
+    const kept=outcome.knot.security==='secure'?1:1-SLIP_CLOSURE_LOSS;
+    const site={siteZ:this.sandboxStitchZ,closure:this.wound.closure*kept,initialGap:this.wound.initialGap,tractBottom:this.wound.tractBottom,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,mismatch:this.wound.edgeMismatch};
+    const review=[...this.stitchAssessment.feedback,`Knot: ${outcome.knot.security} · ${outcome.knot.notes.join(' · ')}`,...(kept<1?['Knot loosened after release']:[]),`Edges: ${outcome.edges.notes.join(' · ')}`];
+    if(!this.course.recordSandbox(site,review,[this.freeKnot.long.points,this.freeKnot.short.points]))return false;
     this.resetCurrent();
     this.freeKnotAnchors=null;this.sandboxStitchZ=null;
     this.freePass.abortCurrent();this.freePass.unthreadAll();this.freeThread.reset();
