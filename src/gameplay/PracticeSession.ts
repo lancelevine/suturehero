@@ -1,3 +1,5 @@
+import {NEEDLE_ARC,NEEDLE_RADIUS} from '../suture/needleGeometry';
+import {FreeNeedlePass} from '../tissue/FreeNeedlePass';
 import {settleNeedle} from './needleRest';
 import {TISSUE_LAYERS} from '../tissue/anatomy';
 import {DEFAULT_BITE_WIDTH} from '../tissue/BitePlan';
@@ -93,6 +95,8 @@ export class PracticeSession {
    * the instruments, needle and tissue edges can be used freely, in any order.
    * Ends with Start guided exercise or the Free tying lab; Reset returns to it.
    */
+  /** Sandbox needle passes (Stage B1). */
+  readonly freePass=new FreeNeedlePass(NEEDLE_RADIUS,NEEDLE_ARC);
   get sandbox(){return !this.guidedEdge&&this.pass.phase==='idle'&&!this.freeKnot.active&&!this.knot.active&&!this.knotSlack.trimmed&&!this.course.finished;}
   get preparingEdge(){return this.guidedEdge && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
   private updateEversion(dt:number,allowGrasp=true){
@@ -337,8 +341,13 @@ export class PracticeSession {
     this.updateEversion(step);
     const needleTools=this.eversion.held?this.instruments.filter(t=>t.kind!=='forceps'):this.instruments;
     this.grasp?.update(needleTools,this.pass.phase==='complete');
-    // Sandbox: a needle nobody holds falls onto the pad (needleRest.ts).
-    if(this.sandbox&&this.grasp&&!this.grasp.holder)settleNeedle(this.grasp.needle.root,this.grasp.needle.points,step);
+    // Sandbox: free needle passes anywhere (tissue/FreeNeedlePass.ts), and a needle nobody holds falls onto the pad (needleRest.ts).
+    if(this.sandbox&&this.grasp){
+      const root=this.grasp.needle.root,holder=this.grasp.holder;
+      const allowed=this.freePass.update({position:root.position.clone(),quaternion:root.quaternion.clone()},!!holder,holder?.kind==='needle-driver');
+      root.position.copy(allowed.position);root.quaternion.copy(allowed.quaternion);root.updateWorldMatrix(true,false);
+      if(!holder&&!this.freePass.inTissue)settleNeedle(root,this.grasp.needle.points,step);
+    }
     if(constrained) {
       if(this.oppositeEdgeRequired&&this.eversion.anchor.x>0&&!this.eversion.held&&this.eversion.target.distanceTo(this.eversion.anchor)<.01)this.eversion.begin(-1);
       if(this.oppositeEdgeRequired&&this.eversion.anchor.x<0)this.eversion.opposingEdgeX=p=>.05-fieldShift(.05,p.z+this.course.siteZ,this.tissueField,p.y);
@@ -365,6 +374,6 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset(){this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
+  reset(){this.freePass.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
   private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.oppositeEdgeRequired=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }

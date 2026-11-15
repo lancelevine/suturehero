@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox Stage B1: free needle passes (entry anywhere, follow the curve, exit).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,25 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Sandbox Stage B1: free needle passes (build 0.161)
+
+- New `src/tissue/FreeNeedlePass.ts` (+ tests): engages when the
+  driver-held tip crosses down through the skin over the pad; fixes arc
+  centre and axis (needle local −Y) at entry; reduces the holder's wanted
+  pose to a twist about that axis (unwrapped past 180°); before the exit
+  the swage stops at the entry, after it the pass completes when the swage
+  leaves the exit; backing out abandons; released needle stays put;
+  forcing = off-curve rotation > 15° or centre offset > 0.11 units. Records
+  entry, exit, depth, deepest layer, crosses-wound.
+- `freePassFeedback.ts` (+ test), `scene/freePassMarks.ts`; PracticeSession
+  runs it in the sandbox after the grasp update (needle settles only when
+  not in tissue); reset clears. main.ts: sandbox messages (in skin /
+  forcing / last pass), marks. Session test: driver turning the needle
+  completes a pass across the wound.
+- Checks: gameplay/suture/tissue/scene tests (260) pass; tsc;
+  check-production-mode passes. Not yet tried with tracked instruments.
+- Next (B2): thread through free passes; (B3) knots on them.
 
 ### 2026-11-15 — Claude — Sandbox default mode, Stage A (build 0.160)
 

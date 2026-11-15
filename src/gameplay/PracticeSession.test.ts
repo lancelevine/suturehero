@@ -226,3 +226,25 @@ it('starts in the sandbox, lets a released needle settle on the pad, and leaves 
  session.reset();
  expect(session.sandbox).toBe(true);
 });
+it('makes a free needle pass in the sandbox when the driver turns the needle into the skin',()=>{
+ const needle=new SutureModel(),left=new Instrument('left',0),right=new Instrument('right',0);
+ const scene=new THREE.Scene();scene.add(needle.root,left.root,right.root);
+ left.root.position.set(3,3,3);
+ const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+ // Needle circle vertical across the wound, centre 0.15 above the skin; the driver holds it.
+ const centre=new THREE.Vector3(0,.41+.15,.2);
+ needle.root.position.copy(centre);needle.root.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);needle.root.updateWorldMatrix(true,false);
+ right.root.position.set(.5,1,.2);right.root.updateWorldMatrix(true,false);right.openness=.1;
+ session.grasp!.attach(right);
+ const axis=new THREE.Vector3(0,0,1),step=new THREE.Quaternion().setFromAxisAngle(axis,.01);
+ let inSkin=false;
+ for(let i=0;i<600&&session.freePass.passes.length===0;i++){
+  // Turn the driver (and so the held needle) about the needle's curve centre.
+  right.root.position.sub(centre).applyQuaternion(step).add(centre);right.root.quaternion.premultiply(step);right.root.updateWorldMatrix(true,false);
+  session.update(1/60);inSkin||=session.freePass.inTissue;
+ }
+ expect(inSkin).toBe(true);
+ expect(session.freePass.passes).toHaveLength(1);
+ expect(session.freePass.passes[0].crossesWound).toBe(true);
+ session.reset();expect(session.freePass.passes).toHaveLength(0);
+});

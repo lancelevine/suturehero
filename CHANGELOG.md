@@ -5,6 +5,18 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.161 — Sandbox: free needle passes anywhere (Stage B1)
+
+In the Sandbox, push the needle tip into the skin anywhere on the pad while
+holding it with the needle driver. Once in, the needle can only advance or
+back out along its own curve, like a real curved needle; twisting against
+the curve shows "Forcing the needle off its curve". Let go and it stays in
+the skin; regrasp it with either instrument (e.g. the forceps on the tip
+once it is out) and keep rotating to pull it through. Entry (teal) and exit
+(amber) points are marked, and each pass is reported in mm: distance from
+the wound edge at entry and exit, depth and deepest layer, and whether it
+crosses the wound. Thread and knots for free passes come next.
+
 ## Build 0.160 — Sandbox is the default mode
 
 The simulator now opens in a free-play Sandbox: no exercise steps, no
