@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Natural-looking guided knot wraps (tight coil on the driver, hand-like forceps loop).
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -101,6 +101,16 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Natural-looking knot wraps (build 0.179)
+
+- `LoopTightening.ts`: WRAP_RADIUS 0.095 (was 0.14), WRAP_PITCH 0.05 (was
+  0.12). `GuidedKnot.ts`: forcepsWrapOffset / wrapSweepAngle (eased
+  ellipse); `knotGeometry.ts` lays the coil behind the forceps.
+- Tests: LoopTightening expectations follow WRAP_RADIUS; new wrap-path
+  test. Checked: tsc; suture/gameplay/scene tests (244); check-knot,
+  check-demo pass.
+- Lance: watch the Demo's wraps; say if the loop should be smaller/faster.
 
 ### 2026-11-15 — Claude — Demo button: automatic simple interrupted suture (build 0.178)
 

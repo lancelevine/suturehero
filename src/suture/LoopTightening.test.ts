@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import * as THREE from 'three';
-import {tighteningPose} from './LoopTightening';
+import {tighteningPose,WRAP_RADIUS} from './LoopTightening';
 import {knotLoop,knotTailContact} from './knotGeometry';
 import {GuidedKnot} from './GuidedKnot';
 it('carries the entire wrap with driver translation and rotation before release',()=>{
@@ -16,7 +16,7 @@ it('slides along the shaft before reducing radius, connects to the tail and fini
   const start=tighteningPose(driver,0),slipped=tighteningPose(driver,0.3);
   expect(start.center.distanceTo(slipped.center)).toBeCloseTo(0.5);
   expect(slipped.radius).toBe(start.radius);
-  let radius=0.14;
+  let radius=WRAP_RADIUS;
   for(let i=0;i<=100;i++) {
     k.seating=i/100;const loop=knotLoop(k,driver);
     expect(loop.radius).toBeLessThanOrEqual(radius+1e-10);radius=loop.radius;
@@ -25,7 +25,7 @@ it('slides along the shaft before reducing radius, connects to the tail and fini
   }
   const final=tighteningPose(driver,1),other=tighteningPose(new THREE.Matrix4().makeTranslation(2,2,2),1);
   expect(final.radius).toBeCloseTo(0.06);expect(final.center.distanceTo(other.center)).toBe(0);
-  k.seating=0;expect(knotLoop(k,driver).radius).toBe(0.14);
+  k.seating=0;expect(knotLoop(k,driver).radius).toBe(WRAP_RADIUS);
 });
 it('lays the wrap behind the moving forceps in both directions without a pop at zero or completion',()=>{
   for(const direction of [1,-1]) {
@@ -47,4 +47,16 @@ it('lays the wrap behind the moving forceps in both directions without a pop at 
     expect(held.end.distanceTo(full.end)).toBe(0);expect(held.length).toBe(full.length);
     k.phase='wrapping';k.wrap=0;expect(knotLoop(k,driver).end.distanceTo(initial.end)).toBe(0);
   }
+});
+it('moves the forceps around the wrap like a hand: an eased ellipse that starts and ends at the same place',async()=>{
+  const {forcepsWrapOffset,WRAP_REACH_X,WRAP_REACH_Y}=await import('./GuidedKnot');
+  expect(forcepsWrapOffset(0,1,1).distanceTo(new THREE.Vector3(-WRAP_REACH_X,0,0))).toBeLessThan(1e-9);
+  expect(forcepsWrapOffset(1,1,2).distanceTo(new THREE.Vector3(-WRAP_REACH_X,0,0))).toBeLessThan(1e-9);
+  // Not a circle: a quarter of the way round it is at the shorter vertical reach.
+  expect(Math.abs(forcepsWrapOffset(0.5,1,1).x)).toBeCloseTo(WRAP_REACH_X,6);
+  const heights=Array.from({length:101},(_,i)=>Math.abs(forcepsWrapOffset(i/100,1,1).y));
+  expect(Math.max(...heights)).toBeLessThan(WRAP_REACH_Y*1.06);
+  // Eased: slow at the start, fast in the middle.
+  const step=(t:number)=>forcepsWrapOffset(t+0.01,1,1).distanceTo(forcepsWrapOffset(t,1,1));
+  expect(step(0)).toBeLessThan(step(0.5)/5);
 });

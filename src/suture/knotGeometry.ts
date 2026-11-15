@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { tighteningPose } from './LoopTightening';
-import type { GuidedKnot } from './GuidedKnot';
+import { wrapSweepAngle, type GuidedKnot } from './GuidedKnot';
 export const SEATED_LOOP_LENGTH=96*0.06*Math.sin(Math.PI/48);
 /** Shared assisted loop geometry keeps simulation anchors and rendering aligned. */
 export function knotLoop(knot:GuidedKnot,driverWorld:THREE.Matrix4) {
@@ -15,7 +15,8 @@ export function knotLoop(knot:GuidedKnot,driverWorld:THREE.Matrix4) {
   const startAngle=Math.PI*(1-THREE.MathUtils.smoothstep(seating,0.3,1));
   for(let i=0;i<=(fraction>0?steps:0);i++) {
     const turn=fraction*i/steps;
-    const a=startAngle-turn*Math.PI*2*knot.direction*knot.wraps;
+    // Laid behind the forceps as they carry the strand around (GuidedKnot.forcepsWrapOffset).
+    const a=startAngle-wrapSweepAngle(turn,knot.direction,knot.wraps);
     points.push(center.clone().add(new THREE.Vector3(Math.cos(a)*pose.radius,Math.sin(a)*pose.radius,(turn-0.5)*pose.pitch).applyQuaternion(pose.rotation)));
   }
   let length=0;

@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.179 — Natural-looking knot wraps
+
+Guided knot wraps (and the Demo) look more natural: the wraps now lie
+tight on the needle driver shaft instead of forming a wide floating ring,
+with adjacent turns. The forceps no longer trace a perfect constant-speed
+circle: they loop in a wider-than-tall ellipse, speed up and slow down like
+a hand, wobble slightly and drift along the driver. The wrap is still
+guided (assisted), not free strand physics.
+
 ## Build 0.178 — Demo button: automatic simple interrupted suture
 
 New ▶ Demo button (top right of the 3D view): the instruments perform a

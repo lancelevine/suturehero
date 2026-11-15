@@ -2,6 +2,38 @@ import {KnotTechniqueSequence,type KnotTechnique} from './KnotTechnique';
 import * as THREE from 'three';
 import type { ToolCommand } from '../input/types';
 /** Guided throw sequence, not a knot topology, friction, or tension simulation. */
+/**
+ * Where the forceps carry the long strand around the driver during a wrap, relative to
+ * the wrap centre (2026-11-15). A hand does not trace a perfect constant-speed circle:
+ * the loop is an ellipse (wider than tall), speeds up and slows down, wobbles a little,
+ * and drifts toward the driver tip and back. Starts and ends at (−0.55, 0, 0) as before.
+ */
+export const WRAP_REACH_X=0.55;
+export const WRAP_REACH_Y=0.38;
+/** Drift along the driver during a wrap (scene units) and radius wobble (fraction). */
+const WRAP_DRIFT=0.1;
+const WRAP_WOBBLE=0.05;
+/** The forceps' parameter angle around the wrap: eased so the hand accelerates into the loop and slows as it finishes. */
+function wrapParameter(wrap:number,direction:number,wraps:number){
+  const progress=THREE.MathUtils.clamp(wrap,0,1);
+  return progress*progress*(3-2*progress)*Math.PI*2*direction*wraps;
+}
+/**
+ * The direction (angle swept, continuous) from the wrap centre to the forceps: the coil
+ * on the driver is laid behind the moving forceps (suture/knotGeometry.ts).
+ */
+export function wrapSweepAngle(wrap:number,direction:number,wraps:number){
+  const a=wrapParameter(wrap,direction,wraps);
+  // Polar angle of the ellipse point (−cos a·X, sin a·Y), measured the same way as a, without a jump at each quadrant.
+  return a+Math.atan2((WRAP_REACH_Y-WRAP_REACH_X)*Math.sin(a)*Math.cos(a),WRAP_REACH_X*Math.cos(a)**2+WRAP_REACH_Y*Math.sin(a)**2);
+}
+export function forcepsWrapOffset(wrap:number,direction:number,wraps:number){
+  const progress=THREE.MathUtils.clamp(wrap,0,1);
+  const a=wrapParameter(wrap,direction,wraps);
+  const wobble=1+WRAP_WOBBLE*Math.sin(3*a)*Math.sin(Math.PI*progress);
+  return new THREE.Vector3(-Math.cos(a)*WRAP_REACH_X*wobble,Math.sin(a)*WRAP_REACH_Y*wobble,WRAP_DRIFT*Math.sin(Math.PI*progress));
+}
+
 export class GuidedKnot {
   phase: 'idle'|'wrapping'|'tail'|'seating'|'between'|'complete'='idle';
   throws=0;
@@ -42,8 +74,7 @@ export class GuidedKnot {
   }
   get leftPosition() {
     if(this.phase==='wrapping') {
-      const a=this.wrap*Math.PI*2*this.direction*this.wraps;
-      return this.center.clone().add(new THREE.Vector3(-Math.cos(a)*0.55,Math.sin(a)*0.55,0));
+      return this.center.clone().add(forcepsWrapOffset(this.wrap,this.direction,this.wraps));
     }
     const forcepsSide=-this.direction;
     const seat=this.phase==='between' || this.phase==='complete'?1:this.seating;
