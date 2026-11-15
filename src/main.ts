@@ -1,3 +1,5 @@
+import {mountIphoneStart} from './ui/iphoneStart';
+import {cameraMode as deviceCameraMode} from './input/cameraDevices';
 import {mountDemoControl} from './ui/demoControl';
 import {ReplayController} from './scene/ReplayController';
 import {describeSpacing,summarizeSandbox} from './gameplay/sandboxSummary';
@@ -52,7 +54,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.181 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.182 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -62,7 +64,7 @@ app.innerHTML=`
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
 mountTrackingLab(app);
-mountProductionMode(app);
+const productionMode=mountProductionMode(app);
 try {
   const view=createScene(document.querySelector('#viewport')!);
   const tools=[new Instrument('left',0x65d8c1),new Instrument('right',0xe65353)];
@@ -253,6 +255,8 @@ try {
   cameraToggle.addEventListener('click',()=>{if(cameraEnabled){const show=cameraPanel.hidden;cameraPanel.hidden=!show;cameraPanel.style.display=show?'flex':'none';cameraToggle.setAttribute('aria-expanded',String(show));if(show)workspaceLayout.openSetup();else document.body.classList.remove('camera-setup-active');}else void setCameraMode(true);});
   window.addEventListener('suturehero:open-camera-setup',()=>{if(cameraEnabled){cameraPanel.hidden=false;cameraPanel.style.display='flex';workspaceLayout.openSetup();}else void setCameraMode(true);});
   void setCameraMode(true); // Open setup without starting a camera stream.
+  // iPhone camera type (the default on an iPhone): open Production with a one-tap back camera start (ui/iphoneStart.ts).
+  {const stage=document.querySelector<HTMLElement>('#production-mode .production-stage');if(stage&&deviceCameraMode()==='iphone')mountIphoneStart(stage,productionMode.open);}
   document.querySelector('#disable-camera-tracking')!.addEventListener('click',()=>{void setCameraMode(false);});
   instrumentCalibration.subscribe((name,reason)=>{if(reason==='reset'){cameraOrigins.delete(name);cameraPoses.delete(name);}if(reason==='neutral'){let bridge=cameraOrigins.get(name);if(!bridge){bridge=new TrackedPositionBridge();cameraOrigins.set(name,bridge);}bridge.alignOnNeutral();}});
   const onTrackingData=(data:unknown)=>{

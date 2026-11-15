@@ -22,6 +22,8 @@ export async function installSyntheticCamera(page,options={}){
  await page.addInitScript(({muted,resolutionScale,jawEngine,frameRate,secondFrameRate,frameWidth,frameHeight,monochrome,cameraMode,frameDriven})=>{
   try{if(cameraMode&&window===window.top)localStorage.setItem('suturehero.cameraMode.v1',cameraMode);}catch{}
   try{if(frameDriven&&window===window.top)localStorage.setItem('suturehero.frameDrivenCapture.v1',frameDriven);}catch{}
+  // These 2D scenes show prism markers; the app default became the 8-face ring in build 0.182.
+  try{if(window===window.top&&!localStorage.getItem('suturehero.trackerType'))localStorage.setItem('suturehero.trackerType','prism');}catch{}
   // These 2D scenes exercise the classic colored/striped jaw tracker.
   try{if(window===window.top&&!localStorage.getItem('suturehero.jawEngine.v1'))localStorage.setItem('suturehero.jawEngine.v1',jawEngine);}catch{}
   window.__ballScene={shift:0,open:false,distractor:false,marker:true,muted};window.__jawEvents=[];

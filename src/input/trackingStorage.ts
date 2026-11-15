@@ -77,9 +77,9 @@ export function readStoredJson(key: string, storage = browserStorage()): unknown
 
 // --- Tracker geometry -------------------------------------------------------
 
-/** Unknown values fall back to the original prism tracker. */
+/** Unknown or unset values fall back to the 8-face ring, the tracker in use (default since 2026-11-15; was the prism). */
 export function parseTrackerType(value: unknown): TrackerType {
-  return value === 'ring8' || value === 'ring6' ? value : 'prism';
+  return value === 'prism' || value === 'ring6' ? value : 'ring8';
 }
 
 // --- Needle-driver jaw ball pattern -----------------------------------------

@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — iPhone opens Production + back camera; 8-face ring default.
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -54,6 +54,8 @@ entry when finishing.
     instrument and camera, then check the reading. Only synthetic-camera
     tested so far. If it doesn't work, the selector switches back to Classic.
 - **Known issues:**
+  - `check-ball-pairs` fails a colour assertion (rgb 225,53,63 vs
+    225,50,60), also on 0.181; not investigated.
   - `check-tracking-storage` times out waiting for
     `#camera-settings-controls > *` to be visible (also on 0.179); not
     investigated.
@@ -104,6 +106,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — iPhone opens Production with back camera; 8-face ring default (build 0.182)
+
+- `src/ui/iphoneStart.ts` (new): opens Production, overlay button clicks
+  #start-camera; CSS in production.css; `main.ts` mounts it when
+  cameraMode() is iphone. `parseTrackerType` default ring8 (test updated);
+  `scripts/synthetic-camera.mjs` pins prism for its 2D prism scenes.
+- `scripts/check-iphone-start.mjs` (new, iPhone emulation) passes; tsc;
+  input/ui tests; check-tracking-motion, check-status-strip,
+  check-production-mode, check-ring-handoffs, check-layout pass.
+  check-ball-pairs fails on a colour (rgb 225,53,63 vs 225,50,60) with and
+  without this change (older).
+- Lance: open on the iPhone, tap Start back camera, allow the camera.
 
 ### 2026-11-15 — Claude — Hint when markers are too far from the camera (build 0.181)
 

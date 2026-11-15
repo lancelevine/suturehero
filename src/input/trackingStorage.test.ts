@@ -53,12 +53,12 @@ describe('safe storage access', () => {
 });
 
 describe('saved choices', () => {
-  it('accepts known tracker types and falls back to the prism', () => {
+  it('accepts known tracker types and falls back to the 8-face ring', () => {
     expect(parseTrackerType('ring8')).toBe('ring8');
     expect(parseTrackerType('ring6')).toBe('ring6');
     expect(parseTrackerType('prism')).toBe('prism');
-    expect(parseTrackerType(null)).toBe('prism');
-    expect(parseTrackerType('ring12')).toBe('prism');
+    expect(parseTrackerType(null)).toBe('ring8');
+    expect(parseTrackerType('ring12')).toBe('ring8');
   });
 
   it('accepts known needle-driver ball patterns and falls back to color', () => {

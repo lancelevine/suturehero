@@ -83,6 +83,8 @@ area they cover; they are not run by CI.
   `check-ring-handoffs`, `check-ball-pairs`, `check-striped-jaws`,
   `check-striped-lifecycle`, `check-calibration-preview`, `check-marker-jaws`,
   `check-handle-jaws`, `check-handle-jaws-stereo`, `check-profiler`.
+- iPhone start-up (`src/ui/iphoneStart.ts`, iPhone camera mode): run
+  `check-iphone-start`.
 - Demo button (`src/demo/`): run `check-demo` (about 3 minutes; plays the
   whole guided stitch).
 - Sandbox changes (free passes, thread, tears, replay, session panel): run

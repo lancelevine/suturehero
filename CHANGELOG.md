@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.182 — iPhone opens Production with back camera; 8-face ring default
+
+- On an iPhone (iPhone camera type) the page opens straight into Production
+  mode with a large Start back camera button. One tap starts the rear 1×
+  camera (iOS needs a tap before the camera can start).
+- The 8-face ring is now the default marker tracker when none has been
+  chosen. A saved choice (prism, 6-face) is kept.
+
 ## Build 0.181 — Hint when markers are too far from the camera
 
 With one camera, the status strip now says when an instrument is too far
