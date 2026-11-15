@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.183 — iPhone: outlines follow markers more closely
+
+iPhone mode no longer uses frame-by-frame capture scheduling. On the
+iPhone it made marker following run on only every other camera frame
+(about 16 updates a second instead of about 31), so the outlines lagged
+behind the markers (Lance's 0.182 profile).
+
 ## Build 0.182 — iPhone opens Production with back camera; 8-face ring default
 
 - On an iPhone (iPhone camera type) the page opens straight into Production

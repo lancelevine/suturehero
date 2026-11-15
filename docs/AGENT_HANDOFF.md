@@ -107,6 +107,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — iPhone: outlines follow markers more closely (build 0.183)
+
+- `captureScheduling.ts`: frame-driven auto only for ov9281 again (test
+  updated). 0.182 profile: capture attempts 16.4/s vs 31.6/s in 0.179;
+  flow round trip ~20 ms + bitmap wait ~12 ms; applied image age ~70 ms.
+  Still 1080×1920 portrait at 30 fps; driver ~34 cm, 'too tilted or small'.
+- Checked: tsc; captureScheduling tests.
+- Lance: hold the iPhone sideways; send a profile from this build.
+
 ### 2026-11-15 — Claude — iPhone opens Production with back camera; 8-face ring default (build 0.182)
 
 - `src/ui/iphoneStart.ts` (new): opens Production, overlay button clicks

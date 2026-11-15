@@ -24,7 +24,10 @@ export function parseFrameDrivenSetting(value: unknown): FrameDrivenSetting {
 
 export function frameDrivenEnabled(setting: FrameDrivenSetting, mode: CameraModeId, supported: boolean): boolean {
   if (!supported) return false;
-  return setting === 'on' || (setting === 'auto' && (mode === 'ov9281' || mode === 'iphone'));
+  // Not for the iPhone (2026-11-15 profile): its flow round trip (~20–32 ms) is about one
+  // 30 fps frame, so frame-driven capture skipped every other frame (16 flow updates/s vs
+  // ~31 with display-driven capture) and the outlines lagged the markers.
+  return setting === 'on' || (setting === 'auto' && mode === 'ov9281');
 }
 
 const read = () => {
