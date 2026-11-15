@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — handle-prism jaws: use rotation when the stereo position span is too small.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,20 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — forceps jaws stay closed: prefer rotation for small stereo travel (build 0.159)
+
+- Lance's Lab recording (0.158): forceps opening/closing, virtual stays
+  closed. Saved forceps calibration: hinge 26.3° closed→open, stereo prism
+  centre 3.3 mm closed→open (≈ 7 mm from the hinge pin; frames show the
+  prism cube near the box lock). Stereo position reading was always
+  preferred and its 3.3 mm range is mostly jitter. Only face 19 was seen.
+- `stereoHandle.ts`: USABLE_STEREO_TRAVEL_MM 10, `preferStereoOpening` (+
+  test); controller uses rotation when travel < 10 mm and a rotation model
+  exists; Calibrate open message explains. Jaw tests (52) and
+  check-handle-jaws-stereo pass.
+- Lance: no recalibration needed; moving the prism further from the hinge
+  would make the stereo reading usable.
 
 ### 2026-11-15 — Claude — forceps prism IDs 18, 19, 28 (build 0.158)
 

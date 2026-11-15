@@ -11,6 +11,8 @@ import {
   robustPoint,
   serializeStereoHandle,
   stereoOpening,
+  preferStereoOpening,
+  USABLE_STEREO_TRAVEL_MM,
   triangulateMarker,
   MIN_STEREO_TRAVEL_MM,
   type StereoHandleModel,
@@ -496,6 +498,11 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
     const travel = robust.point.distanceTo(closed);
     if (travel < MIN_STEREO_TRAVEL_MM) return `Stereo: the prism only moved ${travel.toFixed(1)} mm between closed and open; open the jaws fully.`;
     stereoModels.set(c.instrument, { closed, open: robust.point });
+    if (travel < USABLE_STEREO_TRAVEL_MM) {
+      filters.delete(c.instrument);
+      saveStereo();
+      return `Stereo: the prism moves only ${travel.toFixed(1)} mm (it is close to the hinge), so the handle-rotation reading is used. Mount the prism further from the hinge to use both cameras' position reading.`;
+    }
     filters.delete(c.instrument);
     saveStereo();
     return `Stereo calibrated: the prism moves ${travel.toFixed(1)} mm from closed to open.`;
@@ -583,7 +590,8 @@ export function mountHandlePrismJaws(container: HTMLElement, host: HandlePrismHo
         }
         // Prefer the stereo (both-camera) position; fall back to one camera's face rotation.
         let raw: number | null = null;
-        if (stereoModel && stereo) {
+        // Stereo position only with a usable closed→open range (stereoHandle.ts preferStereoOpening); else rotation.
+        if (stereoModel && stereo && preferStereoOpening(stereoModel, !!model)) {
           raw = stereoOpening(stereoModel, stereo.point);
           sources.set(name, `stereo 3D, face${stereo.ids.length > 1 ? 's' : ''} ${stereo.ids.join(', ')}`);
           failures.delete(name);

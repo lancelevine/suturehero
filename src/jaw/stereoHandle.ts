@@ -23,6 +23,19 @@ export const MAX_CORNER_RAY_GAP_MM = 3;
 export const DEFAULT_PRISM_FACE_WIDTH_MM = 19;
 /** The closed→open movement must be at least this long to calibrate (mm). */
 export const MIN_STEREO_TRAVEL_MM = 3;
+/**
+ * The stereo (prism position) reading is used only when closed and open are
+ * at least this far apart (mm); a smaller range is mostly stereo jitter.
+ * Lance's forceps prism sat about 7 mm from the hinge: the handle turned 26°
+ * but the prism moved 3.3 mm, so the stereo reading never reached "open"
+ * (2026-11-15). Below this, the rotation reading (handleHinge.ts) is used.
+ */
+export const USABLE_STEREO_TRAVEL_MM = 10;
+
+/** Whether to read the jaws from the stereo prism position rather than the handle rotation. */
+export function preferStereoOpening(model: StereoHandleModel, hasRotationModel: boolean): boolean {
+  return !hasRotationModel || model.open.distanceTo(model.closed) >= USABLE_STEREO_TRAVEL_MM;
+}
 
 /** 3D corners (camera-1 mm) of one marker seen by both cameras, or null if any corner fails. */
 export function triangulateMarker(calibration: StereoCalibration, first: Pixel[], second: Pixel[], size1: Size, size2: Size): Vector3[] | null {

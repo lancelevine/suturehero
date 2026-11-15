@@ -64,3 +64,15 @@ describe('stereo handle prism', () => {
     expect(parseStereoHandle({ version: 1, closed: [0, 0, 0], open: [1, 0, 0] })).toBeNull();
   });
 });
+
+describe('stereo or rotation jaw reading', () => {
+  it('uses the stereo position only with a usable closed-to-open range, unless there is no rotation calibration', async () => {
+    const { Vector3 } = await import('three');
+    const { preferStereoOpening } = await import('./stereoHandle');
+    const near = { closed: new Vector3(6, 98, 7), open: new Vector3(8.9, 96.8, 8.4) }; // Lance's forceps: 3.3 mm
+    const far = { closed: new Vector3(0, 0, 0), open: new Vector3(12, 0, 0) };
+    expect(preferStereoOpening(near, true)).toBe(false);
+    expect(preferStereoOpening(near, false)).toBe(true);
+    expect(preferStereoOpening(far, true)).toBe(true);
+  });
+});

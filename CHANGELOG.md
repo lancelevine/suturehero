@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.159 — forceps jaws: rotation reading when the prism barely moves
+
+With both cameras running, the handle-prism jaws were always read from the
+prism's 3D position. On Lance's forceps the prism sits about 7 mm from the
+hinge: the handle turns 26° but the prism moves only 3.3 mm, which stereo
+jitter swamps, so the forceps stayed closed. The position reading is now
+used only when closed and open are at least 10 mm apart; otherwise the
+handle-rotation reading is used, and Calibrate open says so.
+
 ## Build 0.158 — forceps jaw prism IDs 18, 19, 28
 
 The forceps' handle-prism faces are now ArUco IDs 18, 19 and 28 (was 18,
