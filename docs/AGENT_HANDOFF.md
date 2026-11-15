@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — iPhone: squashed marker outlines (VideoFrame orientation).
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -106,6 +106,18 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — iPhone: outlines sit on the markers (build 0.185)
+
+- `src/input/videoSnapshot.ts`: `frameMatchesVideo` (new test); VideoFrame or
+  track frames whose size/rotation differ from videoWidth×videoHeight are
+  closed and the canvas copy (drawn upright) is used instead.
+- Evidence: recording showed outlines ~1/3 size, offset toward the top
+  right, every frame; profile snapshot backend VideoFrame, 1080×1920.
+- Checked: tsc; videoSnapshot test; check-tracking-motion,
+  check-ring-handoffs, check-iphone-start, check-profiler.
+- Lance: on the iPhone, Diagnostics should now say snapshot 'canvas
+  fallback' if this triggered; outlines should sit on the markers.
 
 ### 2026-11-15 — Claude — Move-closer hint uses marker size in pixels (build 0.184)
 

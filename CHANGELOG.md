@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.185 — iPhone: outlines sit on the markers
+
+Fix: on the iPhone the marker outlines were drawn small and in the wrong
+place (they seemed to jump around, and markers read as "12 px"). The frame
+copy used for decoding kept the camera sensor's orientation instead of the
+picture's, so the image was squashed. Such frames are now copied upright
+first. Seen in Lance's screen recording; not yet confirmed on the iPhone.
+
 ## Build 0.184 — Move-closer hint uses marker size in pixels
 
 The "move the camera closer" hint now goes by how big the markers are in
