@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.171 — Sandbox: hold the suture with either instrument
+
+In the Sandbox, either instrument can now hold the suture outside knot
+tying: close the jaws near the thread to grip it, move to pull it, open to
+let go. Thread inside the tissue cannot be gripped, and an instrument that
+holds the needle or the skin edge does not grip thread.
+
 ## Build 0.170 — Sandbox: passes meet the real skin; tears split it
 
 - Free passes meet the live skin surface instead of a flat plane: no skin in

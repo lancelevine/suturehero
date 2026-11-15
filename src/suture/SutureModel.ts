@@ -1,3 +1,4 @@
+import type {JawState,ThreadGrasp} from './ThreadGrasp';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import { ThreadStrand,type StrandObstacle } from './ThreadStrand';
 import { TissueThreadGuide,threadSurfaceAt } from './TissueThreadGuide';
@@ -47,11 +48,14 @@ export class SutureModel {
     this.thread.update(this.strand.points,this.root.matrixWorld);
   }
   /** Advances the thread with pins from FreeThreadGuide (Sandbox free passes) instead of the guided-pass guide. */
-  advanceFreeThread(dt:number,guide:FreeThreadGuide,passes:readonly ThreadedPass[],surfaceAt=threadSurfaceAt,tissueContact?:StrandObstacle) {
+  advanceFreeThread(dt:number,guide:FreeThreadGuide,passes:readonly ThreadedPass[],surfaceAt=threadSurfaceAt,tissueContact?:StrandObstacle,held?:{grasp:ThreadGrasp;jaws:readonly JawState[]}) {
     this.root.updateWorldMatrix(true,false);
     const eye=this.points[0].clone().applyMatrix4(this.root.matrixWorld);
     this.strand.tissueContact=tissueContact;
-    this.strand.advance(dt,guide.anchors(this.strand,eye,passes),surfaceAt);
+    const pins=guide.anchors(this.strand,eye,passes);
+    // Thread held by an instrument (suture/ThreadGrasp.ts) follows the jaw; thread in the tissue stays put.
+    if(held){held.grasp.update(held.jaws,this.strand.points,new Set(pins.keys()));for(const [i,p] of held.grasp.pins(held.jaws))if(!pins.has(i))pins.set(i,p);}
+    this.strand.advance(dt,pins,surfaceAt);
     this.thread.update(this.strand.points,this.root.matrixWorld);
   }
   reset() { this.root.position.set(-0.3,Math.max(.74,.44+NEEDLE_RADIUS),0);

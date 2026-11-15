@@ -1,3 +1,4 @@
+import {ThreadGrasp,type JawState} from '../suture/ThreadGrasp';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {shapedSkinSurface} from '../tissue/freeSkinSurface';
 import {SKIN_SURFACE_Y} from '../tissue/FreeNeedlePass';
@@ -145,6 +146,12 @@ export class PracticeSession {
   readonly freePass=new FreeNeedlePass(NEEDLE_RADIUS,NEEDLE_ARC);
   /** Thread pins for free passes (Stage B2). */
   readonly freeThread=new FreeThreadGuide();
+  /** Sandbox: either instrument can hold the suture outside knot tying (suture/ThreadGrasp.ts). */
+  readonly threadGrasp=new ThreadGrasp();
+  private threadJaws():JawState[]{
+    return this.instruments.map(tool=>{tool.root.updateWorldMatrix(true,false);
+      return {id:tool.id,openness:tool.openness,tip:tool.root.localToWorld(new THREE.Vector3(0,0,0.05)),busy:this.grasp?.holder===tool||(tool.kind==='forceps'&&this.eversion.held)};});
+  }
   get sandbox(){return !this.guidedEdge&&this.pass.phase==='idle'&&!this.freeKnot.active&&!this.knot.active&&!this.knotSlack.trimmed&&!this.course.finished;}
   get preparingEdge(){return this.guidedEdge && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
   private updateEversion(dt:number,allowGrasp=true){
@@ -401,7 +408,7 @@ export class PracticeSession {
       } else tool.update(command,step);
     }
     this.updateEversion(step);
-    const needleTools=this.eversion.held?this.instruments.filter(t=>t.kind!=='forceps'):this.instruments;
+    const needleTools=(this.eversion.held?this.instruments.filter(t=>t.kind!=='forceps'):this.instruments).filter(t=>!(this.sandbox&&this.threadGrasp.holds(t.id)));
     this.grasp?.update(needleTools,this.pass.phase==='complete');
     // Sandbox: free needle passes anywhere (tissue/FreeNeedlePass.ts), and a needle nobody holds falls onto the pad (needleRest.ts).
     if(this.sandbox&&this.grasp){
@@ -433,12 +440,12 @@ export class PracticeSession {
     if(this.grasp) {
       const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
       // Sandbox: the thread runs through every threaded free pass, newest first (suture/FreeThreadGuide.ts).
-      if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.threadedPasses(),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact);
-      else this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);
+      if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.threadedPasses(),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact,{grasp:this.threadGrasp,jaws:this.threadJaws()});
+      else{this.threadGrasp.reset();this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);}
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset(){this.freeKnotAnchors=null;this.sandboxStitchZ=null;this.freePass.reset();this.freeThread.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
+  reset(){this.freeKnotAnchors=null;this.sandboxStitchZ=null;this.freePass.reset();this.freeThread.reset();this.threadGrasp.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
   private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.oppositeEdgeRequired=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }

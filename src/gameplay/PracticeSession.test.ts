@@ -338,3 +338,19 @@ it('keeps several tied sandbox stitches, each closing the wound at its own posit
  seated.mockRestore();
  session.reset();expect(session.course.completed).toHaveLength(0);
 });
+it('lets either instrument hold the suture in the sandbox, outside knot tying',()=>{
+ const needle=new SutureModel(),left=new Instrument('left',0),right=new Instrument('right',0);
+ const scene=new THREE.Scene();scene.add(needle.root,left.root,right.root);
+ left.root.position.set(3,3,3);right.root.position.set(-3,3,3);
+ const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+ for(let i=0;i<60;i++)session.update(1/60);
+ const index=Math.floor(needle.strand.points.length*.6),target=needle.strand.points[index].clone();
+ const placeTip=(p:THREE.Vector3)=>{left.root.position.copy(p).sub(new THREE.Vector3(0,0,.05).applyQuaternion(left.root.quaternion));left.root.updateWorldMatrix(true,false);};
+ placeTip(target);left.openness=.7;session.update(1/60);left.openness=.1;session.update(1/60);
+ expect(session.threadGrasp.holds('left')).toBe(true);
+ const lifted=target.clone().add(new THREE.Vector3(0,.3,0));
+ for(let i=0;i<30;i++){placeTip(lifted);session.update(1/60);}
+ expect(needle.strand.points[session.threadGrasp.grips.get('left')!].distanceTo(lifted)).toBeLessThan(.02);
+ left.openness=.7;session.update(1/60);
+ expect(session.threadGrasp.holds('left')).toBe(false);
+});

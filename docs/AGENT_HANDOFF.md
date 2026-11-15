@@ -95,6 +95,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox: hold the suture with either instrument (build 0.171)
+
+- `src/suture/ThreadGrasp.ts` (new, tested); `SutureModel.advanceFreeThread`
+  takes held-thread pins; `PracticeSession.threadGrasp`; status message.
+- Checked: tsc; gameplay + suture tests (215 pass, new session test).
+- Lance: in the Sandbox, grip the thread with the forceps (Z) and pull.
+
 ### 2026-11-15 — Claude — Sandbox skin shape, tears, undo, angle, jitter (build 0.170)
 
 - `src/tissue/FreeNeedlePass.ts`: `surfaceAt`/`halfGapAt` (live surface),
