@@ -107,6 +107,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Knot topology shadow project, step 3: Jones polynomial (no build change)
+
+- New `src/knot/jones.ts` (+ test): Jones polynomial from a Gauss code by the
+  Kauffman bracket state sum (≤ 18 crossings). Chosen over the signature
+  (planned) because it needs no 2D face structure and still separates square
+  (trefoil # mirror) from granny (trefoil # trefoil). Matches the known
+  polynomials of the unknot, both trefoils and the figure-eight. Not used by
+  the app.
+
 ### 2026-11-15 — Claude — Knot topology shadow project, step 2: Gauss code simplification (no build change)
 
 - New `src/knot/gaussCode.ts` (+ test): Gauss code from a crossing diagram;
