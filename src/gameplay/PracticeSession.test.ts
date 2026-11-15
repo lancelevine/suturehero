@@ -354,3 +354,21 @@ it('lets either instrument hold the suture in the sandbox, outside knot tying',(
  left.openness=.7;session.update(1/60);
  expect(session.threadGrasp.holds('left')).toBe(false);
 });
+it('keeps a free knot’s closure after letting go once its lock has been seated',()=>{
+ const tools=[new Instrument('left',0),new Instrument('right',0)];
+ const s=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},tools);
+ s.beginFreeTying('auto');
+ vi.spyOn(s.freeKnot,'update').mockImplementation(()=>{});
+ const seat=vi.spyOn(s.freeKnot,'lockSeated','get').mockReturnValue(false);
+ const load=vi.spyOn(s.freeKnot,'closureLoad','get').mockReturnValue(1);
+ s.wound.setDermalBites(new THREE.Vector3(.25,.31,0),new THREE.Vector3(-.25,.31,0));
+ for(let i=0;i<120;i++)s.update(1/60);
+ const tensioned=s.wound.closure;expect(tensioned).toBeGreaterThan(.9);
+ // Released without a seated lock: the wound springs open.
+ load.mockReturnValue(0);for(let i=0;i<120;i++)s.update(1/60);expect(s.wound.closure).toBeLessThan(.1);
+ // Tension again, seat the lock, then let go: the tied knot holds.
+ load.mockReturnValue(1);for(let i=0;i<120;i++)s.update(1/60);
+ seat.mockReturnValue(true);s.update(1/60);
+ seat.mockReturnValue(false);load.mockReturnValue(0);for(let i=0;i<120;i++)s.update(1/60);
+ expect(s.wound.closure).toBeGreaterThan(.9);
+});

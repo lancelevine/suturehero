@@ -33,52 +33,144 @@ export interface DemoScene {
   right: Instrument;
 }
 
-/** Needle circle centre above the skin for the demo bite (scene units): reaches mid-dermis both sides. */
+/**
+ * Needle circle centre above the skin for the demo bite (scene units): bites ≈ 6.5 mm from
+ * the edge, ≈ 3.2 mm deep (mid-dermis), entering at ≈ 53°. The 3/8 PS-2 spans ≈ 106° of
+ * its 135° arc in the skin, so the driver grips near the back to stay out of the skin.
+ */
 const PASS_CENTRE = new THREE.Vector3(0, 0.41 + 0.18, 0);
 /** Driver turn rate while driving the needle (rad/s), about a wrist's pronation speed. */
 const DRIVE_RATE = 0.6;
+/** Longest a drive may take (s); each drive ends earlier on its own condition. */
+const DRIVE_SECONDS = 20;
+/** Skin surface height (scene units). */
+const SKIN_Y = 0.41;
+/** How far the tip comes out before the driver lets go (scene units, ≈ 1 mm). */
+const TIP_OUT = 0.04;
+/** Needle counts as exposed this far above the skin (scene units, ≈ 1 mm). */
+const EXPOSED_CLEARANCE = 0.04;
 /** Where the forceps wait, out of the way of the pass. */
-const FORCEPS_REST = new THREE.Vector3(-1.2, 1.3, 0.8);
+const FORCEPS_REST = new THREE.Vector3(-1.6, 1.2, -0.9);
+
+/** Where along the needle the driver grips it, from the swage (0) to the tip (1): near the back for this wide bite. */
+const GRIP_FRACTION = 0.1;
+/** Jaw point in the driver's own frame (the needle grasp uses the same point). */
+const JAW_LOCAL = new THREE.Vector3(0, 0, 0.05);
+/** Height above the needle from which the driver approaches and lifts (scene units, ≈ 11 mm). */
+const APPROACH_HEIGHT = 0.4;
+
+const matrixOf = (position: THREE.Vector3, quaternion: THREE.Quaternion) => new THREE.Matrix4().compose(position, quaternion, new THREE.Vector3(1, 1, 1));
+
+/** Needle pose at the start of the bite: circle in the world XY plane around PASS_CENTRE. */
+const passNeedlePose = () => matrixOf(PASS_CENTRE, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2));
+
+/**
+ * Driver pose holding the needle at the start of the bite: jaws on the needle at
+ * GRIP_FRACTION, shaft perpendicular to the needle's plane (how a needle is loaded).
+ */
+function passDriverPose(needle: SutureModel) {
+  const gripLocal = needle.points[Math.round(GRIP_FRACTION * (needle.points.length - 1))];
+  const gripWorld = gripLocal.clone().applyMatrix4(passNeedlePose());
+  return matrixOf(gripWorld.sub(JAW_LOCAL), new THREE.Quaternion());
+}
+
+/** Moves a tool between two poses (computed when the segment starts), easing in and out. */
+function poseMove(tool: Instrument, target: () => THREE.Matrix4, seconds: number, caption?: string): Segment {
+  const from = { p: new THREE.Vector3(), q: new THREE.Quaternion() };
+  const to = { p: new THREE.Vector3(), q: new THREE.Quaternion() };
+  return {
+    caption,
+    seconds,
+    start: () => {
+      from.p.copy(tool.root.position);
+      from.q.copy(tool.root.quaternion);
+      target().decompose(to.p, to.q, new THREE.Vector3());
+    },
+    apply: (t) => {
+      const k = ease(t);
+      tool.root.position.copy(from.p).lerp(to.p, k);
+      tool.root.quaternion.copy(from.q).slerp(to.q, k);
+      tool.root.updateWorldMatrix(true, false);
+    },
+  };
+}
 
 export function physicsDemoSegments(scene: DemoScene): Segment[] {
   const { session, needle, grasp, left, right } = scene;
   const forcepsStart = new THREE.Vector3();
-  let driven = 0;
-  return [
-    {
-      caption: 'Simple interrupted suture · automatic demonstration (free physics)',
-      seconds: 1.5,
-      start: () => {
-        // Load the needle in the driver at the start of its arc (instantly, before anything moves).
-        grasp.release();
-        needle.root.position.copy(PASS_CENTRE);
-        needle.root.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-        needle.root.updateWorldMatrix(true, false);
-        right.root.position.set(0.5, 1, 0);
-        right.root.quaternion.identity();
-        right.root.updateWorldMatrix(true, false);
-        right.openness = 0.1;
-        grasp.attach(right);
-        forcepsStart.copy(left.root.position);
-        left.openness = 0.65;
-      },
-      apply: (t) => left.root.position.copy(forcepsStart).lerp(FORCEPS_REST, ease(t)),
-    },
-    {
-      caption: 'Drive the needle through the skin along its curve',
-      seconds: 20,
+  /** Turns the held needle about its circle centre (pronation) until `done`. */
+  const drive = (caption: string, done: () => boolean): Segment => {
+    let driven = 0;
+    return {
+      caption,
+      seconds: DRIVE_SECONDS,
       start: () => (driven = 0),
       apply: (t) => {
-        // Turn the driver (and the held needle) about the needle's circle centre.
-        const target = t * 20 * DRIVE_RATE;
+        const target = t * DRIVE_SECONDS * DRIVE_RATE;
         const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), target - driven);
         driven = target;
         right.root.position.sub(PASS_CENTRE).applyQuaternion(turn).add(PASS_CENTRE);
         right.root.quaternion.premultiply(turn);
         right.root.updateWorldMatrix(true, false);
       },
-      done: () => session.freePass.passes.length > 0,
+      done,
+    };
+  };
+  /**
+   * Driver pose gripping the exposed part of the needle beyond the exit (half way between
+   * where it leaves the skin and the tip), in the same loading as the first grip.
+   */
+  const regripPose = () => {
+    needle.root.updateWorldMatrix(true, false);
+    const world = needle.points.map((p) => p.clone().applyMatrix4(needle.root.matrixWorld));
+    let firstExposed = world.length - 1;
+    while (firstExposed > 0 && world[firstExposed - 1].y > SKIN_Y + EXPOSED_CLEARANCE) firstExposed--;
+    const index = Math.round((firstExposed + world.length - 1) / 2);
+    const gripLocal = needle.points[index].clone();
+    // Same orientation relation as the first grip (shaft perpendicular to the needle plane), moved to this point.
+    const relative = passNeedlePose().invert().multiply(passDriverPose(needle));
+    const rotation = new THREE.Quaternion();
+    needle.root.matrixWorld.clone().multiply(relative).decompose(new THREE.Vector3(), rotation, new THREE.Vector3());
+    const jawWorld = gripLocal.applyMatrix4(needle.root.matrixWorld);
+    return matrixOf(jawWorld.sub(JAW_LOCAL.clone().applyQuaternion(rotation)), rotation);
+  };
+  // The driver's pickup pose: the same grip relation as at the bite start, applied to the resting needle.
+  const pickupPose = () => {
+    needle.root.updateWorldMatrix(true, false);
+    const relative = passNeedlePose().invert().multiply(passDriverPose(needle));
+    return needle.root.matrixWorld.clone().multiply(relative);
+  };
+  const above = (pose: () => THREE.Matrix4) => () => pose().premultiply(new THREE.Matrix4().makeTranslation(0, APPROACH_HEIGHT, 0));
+  const liftedPassPose = above(() => passDriverPose(needle));
+  return [
+    {
+      caption: 'Simple interrupted suture · automatic demonstration (free physics)',
+      seconds: 2,
+      start: () => {
+        // The needle settles on the pad (it was just reset); the forceps move out of the way.
+        forcepsStart.copy(left.root.position);
+        left.openness = 0.65;
+        right.openness = 0.65;
+      },
+      apply: (t) => left.root.position.copy(forcepsStart).lerp(FORCEPS_REST, ease(t)),
     },
+    poseMove(right, above(pickupPose), 2.5, 'Load the needle in the needle driver, near its back'),
+    poseMove(right, pickupPose, 1.2),
+    { seconds: 0.8, start: () => (right.openness = 0.1), done: () => grasp.holder === right },
+    poseMove(right, () => above(pickupPose)(), 1.2, 'Lift the needle and bring it to the wound'),
+    poseMove(right, liftedPassPose, 2.5),
+    poseMove(right, () => passDriverPose(needle), 1.5, 'Enter the skin about 6–7 mm from the edge'),
+    drive('Drive the needle through the skin along its curve', () => {
+      // Until the tip is well out on the far side: then let go and regrasp the tip.
+      const tip = needle.getTipPose().position;
+      return !!session.freePass.current?.exit && tip.y > SKIN_Y + TIP_OUT;
+    }),
+    { caption: 'Tip out through the far edge · let go of the needle', seconds: 0.6, start: () => (right.openness = 0.65) },
+    poseMove(right, () => regripPose().premultiply(new THREE.Matrix4().makeTranslation(0.15, APPROACH_HEIGHT, 0)), 1.5),
+    poseMove(right, () => regripPose().premultiply(new THREE.Matrix4().makeTranslation(0, APPROACH_HEIGHT * 0.5, 0)), 1.2, 'Regrasp the needle near its tip'),
+    poseMove(right, () => regripPose(), 1),
+    { seconds: 0.8, start: () => (right.openness = 0.1), done: () => grasp.holder === right },
+    drive('Pull the needle out along its curve · the thread follows', () => session.freePass.passes.length > 0),
     {
       caption: 'Needle through both edges · the thread follows',
       seconds: 1.5,
@@ -103,12 +195,11 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
 
 /** Release the instruments, lift them clear, and cut both tails with the scissors (page only). */
 function trimSegments({ scissors, left, right }: DemoScene): Segment[] {
-  if (!scissors) return [];
   let lifts: THREE.Vector3[] = [];
   const cut = (which: string): Segment[] => [
-    { caption: `Cut the ${which} tail, leaving a short end`, seconds: 0.8, start: () => void scissors.position() },
-    { seconds: 0.8, start: () => scissors.close(true) },
-    { seconds: 0.6, start: () => scissors.close(false) },
+    { caption: `Cut the ${which} tail, leaving a short end`, seconds: 0.8, start: () => void scissors?.position() },
+    { seconds: 0.8, start: () => scissors?.close(true) },
+    { seconds: 0.6, start: () => scissors?.close(false) },
   ];
   return [
     {
@@ -124,8 +215,7 @@ function trimSegments({ scissors, left, right }: DemoScene): Segment[] {
         right.root.position.copy(lifts[1]).add(new THREE.Vector3(0.3, 0.6 * ease(t), -0.3));
       },
     },
-    ...cut('long'),
-    ...cut('short'),
-    { seconds: 0.6, start: () => scissors.putAway() },
+    // The scissors come from the page; unit tests have none and skip the cutting.
+    ...(scissors ? [...cut('long'), ...cut('short'), { seconds: 0.6, start: () => scissors.putAway() }] : []),
   ];
 }

@@ -5,6 +5,20 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.188 — Demo: natural needle pickup, drive and regrasp; seated knots hold
+
+Demo, iteration 3 (more natural needle handling):
+- The needle driver now picks the needle up from where it rests (jaws on
+  the needle, shaft perpendicular to its plane) instead of the needle
+  appearing in it, and carries it to the wound.
+- It drives the needle until the tip is out, lets go, regrasps the tip and
+  pulls the needle out along its curve, so its jaws never go into the skin.
+  Bite about 6.5 mm from the edge, about 3 mm deep (dermis), 53° entry.
+- The forceps wait out of the camera's way.
+Sandbox fix: once a free knot's lock has been seated, the wound stays
+closed and the stitch can be kept after you let go of the thread (it used
+to spring open), and the knot is graded by the throws seated while tying.
+
 ## Build 0.187 — Demo: third throw and cutting the tails
 
 Demo, iteration 2: the instrument tie now has a third throw (reversed

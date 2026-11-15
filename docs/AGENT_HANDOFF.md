@@ -107,6 +107,19 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Demo: natural needle pickup, drive and regrasp; seated knots hold (build 0.188)
+
+- `physicsDemo.ts`: pickup pose from the bite grip relation, drive →
+  release → regrasp near tip → drive; PASS_CENTRE 0.18, GRIP_FRACTION 0.1,
+  TIP_OUT 0.04; FORCEPS_REST moved; trim segments now release/lift always
+  (cutting only with page scissors).
+- `PracticeSession.ts`: `freeLockClosure` (closure kept after a seated lock,
+  canFinishSandboxStitch latched), `freeSeatedThrows` for the knot grade.
+  New PracticeSession test. Release-check semantics unchanged.
+- Demo test asserts real grip (jaw within 0.03 of needle), jaws/shaft above
+  skin, dermis bite, secure knot, kept after release.
+- Checked: tsc; demo + gameplay tests (84); check-demo passes.
+
 ### 2026-11-15 — Claude — Demo: third throw and cutting the tails (build 0.187)
 
 - `freeKnotDemo.ts`: third throw; `physicsDemo.ts`: `DemoScissors` + trim
