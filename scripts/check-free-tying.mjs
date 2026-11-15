@@ -5,7 +5,8 @@ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'
 try {
   const page=await browser.newPage({viewport:{width:1440,height:1180}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
+  // The standard PS-2: with the Sandbox trainer needle (build 0.163) Start guided exercise reloads with it.
+  await page.goto(new URL('?needle=ps2',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href,{waitUntil:'domcontentloaded'});
   const build=await page.locator('.version').innerText();assert.match(build,/BUILD \d+\.\d+/);
   const evertSkin=async()=>{
     await page.getByRole('button',{name:'Position forceps at skin edge',exact:true}).click();
@@ -15,7 +16,8 @@ try {
     await page.keyboard.up('e');await page.keyboard.up('Shift');
   };
   await evertSkin();
-  assert.match(await page.locator('#begin-pass').innerText(),/Start guided pass/);
+  // Before any exercise the practice is in the Sandbox (build 0.160): the button starts the guided exercise.
+  assert.match(await page.locator('#begin-pass').innerText(),/Start guided exercise/);
   await page.getByRole('button',{name:'Reset practice',exact:true}).click();
   await page.getByRole('button',{name:'Free tying lab',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Forceps: holding'));
@@ -50,7 +52,7 @@ try {
   await page.getByRole('button',{name:'Reset practice',exact:true}).click();
   await page.waitForFunction(()=>!document.querySelector('#begin-pass').disabled);
   assert.equal(await page.locator('#free-note').isVisible(),false);
-  await page.getByRole('button',{name:'Start guided pass',exact:true}).click();
+  await page.getByRole('button',{name:'Start guided exercise',exact:true}).click();
   await prepareEversion(page);
   await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('U advances'));
   assert.deepEqual(errors,[]);console.log('Free lab: movement inputs, release, finite readout, resize and guided reset passed.');

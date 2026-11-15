@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.166 — Sandbox: tie a knot on your stitch (Stage B3)
+
+After a free pass in the Sandbox, the "Free tying lab" button becomes "Tie
+knot on this stitch": the knot-tying physics starts on your most recent
+pass, with the thread ends at its real entry and exit. If the pass crosses
+the wound and reaches the dermis on both sides, tightening the knot closes
+the wound, and the stitch feedback covers the knot, closure and trimming as
+for the guided stitch. Reset practice returns to the Sandbox.
+
 ## Build 0.165 — Sandbox: running stitch through several passes (Stage B2, part 2)
 
 The thread now stays in every pass you make, in order: from the needle it

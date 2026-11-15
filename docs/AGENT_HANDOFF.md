@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox Stage B3: tie knots on free passes.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,25 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — knots on free passes, B3 (build 0.166)
+
+- New `src/tissue/freePassKnot.ts` (+ tests): `freePassBites(tract)` =
+  where the tract crosses DERMAL_MIDPOINT (0.31) on each side of the wound
+  (right first, as WoundApproximation.setDermalBites wants).
+- PracticeSession: `canTieFreePass` / `tieFreePass()` start FreeKnotPractice
+  on the latest pass (anchors kept in `freeKnotAnchors`, used each frame
+  instead of the guided pass's), set the dermal bites, `freeFromPass`;
+  stitchAssessment counts pass + extraction done for a sandbox knot.
+  main.ts: the Free tying lab button reads/acts "Tie knot on this stitch"
+  when a pass can be tied. Session test: pass 0.18 above the skin, tie,
+  2 dermal bites, anchors at entry/exit, assessment past the pass stages.
+- check-free-tying had been failing since 0.160 (button renamed to "Start
+  guided exercise"); updated (loads ?needle=ps2, new label). It passes.
+  check-guided-thread, check-knot, check-layout still use the old label:
+  fixed in the next commit.
+- Tests: gameplay/suture/tissue/setup/scene (276) pass; tsc;
+  check-production-mode passes.
 
 ### 2026-11-15 — Claude — running stitch, B2 part 2 (build 0.165)
 

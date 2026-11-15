@@ -278,3 +278,33 @@ it('threads a running stitch of two free passes in the sandbox',()=>{
   expect(Math.min(...needle.strand.points.map(p=>p.distanceTo(middle)))).toBeLessThan(.06);
  }
 });
+it('ties a knot on a free sandbox pass across the wound (Stage B3)',()=>{
+ const needle=new SutureModel(),left=new Instrument('left',0),right=new Instrument('right',0);
+ const scene=new THREE.Scene();scene.add(needle.root,left.root,right.root);
+ left.root.position.set(3,3,3);
+ const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+ expect(session.canTieFreePass).toBe(false);
+ // A pass 0.18 above the skin reaches mid-dermis (0.31) on both sides of the wound.
+ const centre=new THREE.Vector3(0,.41+.18,0);
+ needle.root.position.copy(centre);needle.root.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);needle.root.updateWorldMatrix(true,false);
+ right.root.position.set(.5,1,0);right.root.updateWorldMatrix(true,false);right.openness=.1;
+ session.grasp!.attach(right);
+ const step=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.01);
+ for(let i=0;i<600&&session.freePass.passes.length===0;i++){
+  right.root.position.sub(centre).applyQuaternion(step).add(centre);right.root.quaternion.premultiply(step);right.root.updateWorldMatrix(true,false);
+  session.update(1/60);
+ }
+ expect(session.freePass.passes).toHaveLength(1);
+ expect(session.canTieFreePass).toBe(true);
+ expect(session.tieFreePass()).toBe(true);
+ expect(session.freeKnot.active).toBe(true);
+ expect(session.sandbox).toBe(false);
+ expect(session.wound.dermalBiteCount).toBe(2);
+ session.update(1/60);
+ const pass=session.freePass.passes[0];
+ expect(session.freeKnot.entry.distanceTo(pass.entry)).toBeLessThan(.02);
+ expect(session.freeKnot.exit.distanceTo(pass.exit!)).toBeLessThan(.02);
+ expect(session.stitchAssessment.stage).not.toMatch(/Evert and pass|Transfer and extract/);
+ session.reset();
+ expect(session.sandbox).toBe(true);
+});

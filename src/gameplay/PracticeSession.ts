@@ -1,3 +1,4 @@
+import {freePassBites} from '../tissue/freePassKnot';
 import {FreeThreadGuide} from '../suture/FreeThreadGuide';
 import {NEEDLE_ARC,NEEDLE_RADIUS} from '../suture/needleGeometry';
 import {FreeNeedlePass} from '../tissue/FreeNeedlePass';
@@ -67,6 +68,25 @@ export class PracticeSession {
     if(!this.canBeginKnot||!this.grasp)return false;
     this.grasp.release();this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,.1,1.2);
     this.eversion.reset();this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;
+    return true;
+  }
+  /**
+   * Sandbox knot (Stage B3): the tying physics anchored at the most recent
+   * free pass's entry and exit (kept each frame instead of the guided pass's).
+   */
+  private freeKnotAnchors:{entry:THREE.Vector3;exit:THREE.Vector3}|null=null;
+  /** A completed, threaded free pass can be tied (needle out of the skin). */
+  get canTieFreePass(){return this.sandbox&&!this.freePass.inTissue&&this.freePass.threadedPasses().length>0;}
+  tieFreePass(){
+    if(!this.canTieFreePass||!this.grasp)return false;
+    const pass=this.freePass.passes[this.freePass.passes.length-1];
+    if(!pass?.exit)return false;
+    this.grasp.release();this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,.1,1.2);
+    this.eversion.reset();
+    this.freeKnotAnchors={entry:pass.entry.clone(),exit:pass.exit.clone()};
+    this.freeKnot.entry.copy(this.tissuePoint(pass.entry));this.freeKnot.exit.copy(this.tissuePoint(pass.exit));
+    this.wound.setDermalBites(...freePassBites(pass.tract));
+    this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;
     return true;
   }
   readonly eversion=new EdgeEversion();
@@ -170,7 +190,9 @@ export class PracticeSession {
   get stitchAssessment(){
     const free=this.freeKnot,isFree=free.active,lab=isFree&&!this.freeFromPass;
     const released=isFree?this.freeReleaseTime>=1.5:this.releaseCheck.state==='passed';
-    return assessStitch({lab,skin:this.environment.id==='skin',pass:this.pass.phase==='complete',extracted:this.pull.phase==='complete',
+    // A Sandbox knot is tied on a completed free pass: count the pass and extraction as done.
+    const sandboxKnot=!!this.freeKnotAnchors;
+    return assessStitch({lab,skin:this.environment.id==='skin',pass:sandboxKnot||this.pass.phase==='complete',extracted:sandboxKnot||this.pull.phase==='complete',
       knot:isFree?!!free.sequence?.locked:this.knot.phase==='complete',seated:isFree?free.lockSeated:this.knot.phase==='complete'&&this.wound.closure>.9,
       released,trimmed:isFree?free.trimmedTails.size:this.knotSlack.trimmedTails.size,bites:this.wound.purchaseSites,closure:this.wound.closure,
       eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,edgeMismatch:this.wound.edgeMismatch,planned:this.pass.customBites,deepGap:this.environment.id==='skin'?this.wound.initialGap-2*fieldShift(this.wound.initialGap/2,this.course.siteZ,this.tissueField,DEEP_DERMIS_Y):undefined,skinTractionPeak:this.handlingPeak,skinGraspSlips:this.handlingSlips,
@@ -271,7 +293,8 @@ export class PracticeSession {
     }
     if(this.freeKnot.active) {
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
-      this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));
+      const anchors=this.freeKnotAnchors??{entry:this.pass.entry,exit:this.pass.exit};
+      this.freeKnot.entry.copy(this.tissuePoint(anchors.entry));this.freeKnot.exit.copy(this.tissuePoint(anchors.exit));
       this.freeKnot.update(step,this.instruments,this.eversion.held?new Set(['left']):undefined);
       this.wound.update(this.freeKnot.closureLoad,step,this.freeKnot.pullDemand);
       const released=![...this.freeKnot.grips.values()].some(g=>g.strand===this.freeKnot.long||g.strand===this.freeKnot.short);
@@ -379,6 +402,6 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset(){this.freePass.reset();this.freeThread.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
+  reset(){this.freeKnotAnchors=null;this.freePass.reset();this.freeThread.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
   private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.oppositeEdgeRequired=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }
