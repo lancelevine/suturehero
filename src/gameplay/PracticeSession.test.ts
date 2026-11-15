@@ -209,3 +209,20 @@ it('pauses at the first side until the visible epidermal edges are drawn flush',
  tools[0].openness=.7;s.update(.01);const paused=s.pass.angle;tick(3);expect(s.pass.angle).toBe(paused);
  alignOppositeEdge(s,tools);tick(100);expect(s.pass.phase).toBe('complete');s.reset();expect(s.oppositeEdgeRequired).toBe(false);
 });
+it('starts in the sandbox, lets a released needle settle on the pad, and leaves it for the guided exercise',()=>{
+ const needle=new SutureModel(),left=new Instrument('left',0),right=new Instrument('right',0);
+ const scene=new THREE.Scene();scene.add(needle.root,left.root,right.root);
+ left.root.position.set(3,3,3);right.root.position.set(-3,3,3);
+ const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+ expect(session.sandbox).toBe(true);
+ const startY=needle.root.position.y;
+ for(let i=0;i<120;i++)session.update(1/60);
+ expect(needle.root.position.y).toBeLessThan(startY);
+ needle.root.updateWorldMatrix(true,false);
+ const lowest=Math.min(...needle.points.map(p=>p.clone().applyMatrix4(needle.root.matrixWorld).y));
+ expect(lowest).toBeGreaterThan(.4);expect(lowest).toBeLessThan(.43);
+ expect(session.beginPass()).toBe(true);
+ expect(session.sandbox).toBe(false);
+ session.reset();
+ expect(session.sandbox).toBe(true);
+});

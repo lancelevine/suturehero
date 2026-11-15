@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — sandbox as the default practice mode (Stage A).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,21 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Sandbox default mode, Stage A (build 0.160)
+
+- Lance: the default should be a sandbox where you can do anything. Agreed
+  plan: A sandbox UI/state (this), B free needle passes anywhere (new
+  needle–tissue model, days), C free knot tying on placed stitches.
+- `PracticeSession.sandbox` getter (no guided edge, pass idle, no knot,
+  not trimmed/finished); in it, an unheld needle settles onto the pad
+  (`src/gameplay/needleRest.ts` + tests). Grasp/hand-off/eversion already
+  worked outside the guided flow. main.ts: Sandbox title/heading/toolbar
+  label, controls readout, "Start guided exercise" button, guided helpers
+  (pass ghost, grip guides) hidden. Session test added.
+- check-production-mode: procedure regex now accepts "Sandbox" (title
+  changed on purpose). Gameplay + suture tests (198) pass; screenshot and
+  a guided-start / reset round trip checked in the browser.
 
 ### 2026-11-15 — Claude — forceps jaws stay closed: prefer rotation for small stereo travel (build 0.159)
 

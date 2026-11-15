@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.160 — Sandbox is the default mode
+
+The simulator now opens in a free-play Sandbox: no exercise steps, no
+"Start guided pass" gate. Pick up the needle with either instrument, pass
+it between them, put it down (a released needle drops onto the pad), and
+lift the skin edges with the forceps, in any order. "Start guided
+exercise" enters the step-by-step stitch; "Free tying lab" is unchanged;
+"Reset practice" returns to the Sandbox. Free needle passes into the
+tissue anywhere are the next stage (not yet).
+
 ## Build 0.159 — forceps jaws: rotation reading when the prism barely moves
 
 With both cameras running, the handle-prism jaws were always read from the

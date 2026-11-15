@@ -1,3 +1,4 @@
+import {settleNeedle} from './needleRest';
 import {TISSUE_LAYERS} from '../tissue/anatomy';
 import {DEFAULT_BITE_WIDTH} from '../tissue/BitePlan';
 import {StitchCourse} from './StitchCourse';
@@ -87,6 +88,12 @@ export class PracticeSession {
     if(!this.oppositeEdgeReady)return 'Opposite edge held · Pull inward with D until the epidermal edges meet · Shift slows movement';
     return 'Epidermal edges flush · Stop pulling and hold U to advance the needle driver';
   }
+  /**
+   * Sandbox (the default since 2026-11-15): nothing guided has started, so
+   * the instruments, needle and tissue edges can be used freely, in any order.
+   * Ends with Start guided exercise or the Free tying lab; Reset returns to it.
+   */
+  get sandbox(){return !this.guidedEdge&&this.pass.phase==='idle'&&!this.freeKnot.active&&!this.knot.active&&!this.knotSlack.trimmed&&!this.course.finished;}
   get preparingEdge(){return this.guidedEdge && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
   private updateEversion(dt:number,allowGrasp=true){
     const forceps=this.instruments.find(t=>t.kind==='forceps');if(!forceps)return;
@@ -330,6 +337,8 @@ export class PracticeSession {
     this.updateEversion(step);
     const needleTools=this.eversion.held?this.instruments.filter(t=>t.kind!=='forceps'):this.instruments;
     this.grasp?.update(needleTools,this.pass.phase==='complete');
+    // Sandbox: a needle nobody holds falls onto the pad (needleRest.ts).
+    if(this.sandbox&&this.grasp&&!this.grasp.holder)settleNeedle(this.grasp.needle.root,this.grasp.needle.points,step);
     if(constrained) {
       if(this.oppositeEdgeRequired&&this.eversion.anchor.x>0&&!this.eversion.held&&this.eversion.target.distanceTo(this.eversion.anchor)<.01)this.eversion.begin(-1);
       if(this.oppositeEdgeRequired&&this.eversion.anchor.x<0)this.eversion.opposingEdgeX=p=>.05-fieldShift(.05,p.z+this.course.siteZ,this.tissueField,p.y);

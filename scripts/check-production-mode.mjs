@@ -32,7 +32,7 @@ try {
     assert(state.inProduction && !state.labOpen, JSON.stringify(state));
     assert(state.width > viewport.width * 0.8 && state.height > viewport.height * 0.5, JSON.stringify(state));
     assert(!state.controlsShown, 'simulator controls hidden');
-    assert.match(state.procedure, /suture/i);
+    assert.match(state.procedure, /suture|sandbox/i);
     assert(!state.overflow, 'no horizontal scroll');
     const rendering = await page.evaluate(() => new Promise((resolve) => {
       const canvas = document.querySelector('#viewport canvas');
