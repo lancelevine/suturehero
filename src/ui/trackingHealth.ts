@@ -18,8 +18,8 @@ export interface InstrumentHealth {
   depthHeld: boolean;
   /** Why stereo was not used for it, when stereo is on. */
   stereoRejection: string | null;
-  /** Single-camera distance to the tracker (mm), when measured; undefined = not reported. */
-  distanceMm?: number | null;
+  /** Side of the instrument's best marker in the camera image (px), when seen; undefined = not reported. */
+  markerSidePx?: number | null;
   /** Stereo tip calibrated (src/input/stereoTipCalibration.ts); undefined = not reported. */
   tipCalibrated?: boolean;
 }
@@ -54,11 +54,13 @@ export interface ChecklistItem {
 }
 
 /**
- * Beyond this camera distance (mm) the 12 mm ring markers cover too few pixels to
- * decode reliably (a 2026-11-15 iPhone profile at 36–55 cm tracked poorly); the
- * strip suggests moving the camera closer. Approximate guidance.
+ * Markers smaller than this in the image (px per side) are hard to decode: the
+ * 4×4 ArUco grid plus border is 6 cells, so about 4 px per cell. Measured in pixels
+ * rather than from a distance estimate, which depends on the camera calibration
+ * (2026-11-15: an uncalibrated iPhone reported "too far" with markers clearly in view).
+ * Approximate guidance.
  */
-export const FAR_CAMERA_MM = 400;
+export const SMALL_MARKER_PX = 24;
 /** Suggested working distance shown with the hint. */
 export const SUGGESTED_DISTANCE = '25–35 cm';
 
@@ -148,8 +150,8 @@ export function holdingReasons(input: HealthInput): string[] {
       continue;
     }
     if (instrument.depthHeld) reasons.push(`${instrument.label}: depth held · marker too tilted or small`);
-    if (!input.stereoMode && instrument.distanceMm != null && instrument.distanceMm > FAR_CAMERA_MM) {
-      reasons.push(`${instrument.label}: about ${Math.round(instrument.distanceMm / 10)} cm from the camera · markers too small · move the camera closer (${SUGGESTED_DISTANCE})`);
+    if (!input.stereoMode && instrument.markerSidePx != null && instrument.markerSidePx < SMALL_MARKER_PX) {
+      reasons.push(`${instrument.label}: markers small in the image (${Math.round(instrument.markerSidePx)} px) · move the camera closer (${SUGGESTED_DISTANCE})`);
     }
     if (input.stereoMode && instrument.stereoRejection) reasons.push(`${instrument.label}: one camera only · ${instrument.stereoRejection}`);
   }

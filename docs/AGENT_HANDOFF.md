@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — base the "move closer" hint on marker pixel size.
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -106,6 +106,16 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Move-closer hint uses marker size in pixels (build 0.184)
+
+- `trackerDistance.ts`: exported `markerSidePx`; `trackingHealth.ts`:
+  SMALL_MARKER_PX 24 replaces FAR_CAMERA_MM; `tracking.ts` stores the chosen
+  marker side per instrument.
+- Checked: tsc; trackingHealth + trackerDistance tests; check-status-strip,
+  check-tracking-motion.
+- Open: Lance reports outlines jumping while still on the iPhone in
+  landscape (0.182); needs a landscape profile/recording to diagnose.
 
 ### 2026-11-15 — Claude — iPhone: outlines follow markers more closely (build 0.183)
 

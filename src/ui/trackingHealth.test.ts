@@ -58,10 +58,10 @@ describe('holding reasons', () => {
     expect(stereo).toEqual(['Stereo paused: cameras out of step (camera 1 frame gap 176 ms)', 'Needle driver: one camera only · fit error 3.9 px (limit 3)']);
   });
 
-  it('suggests moving the camera closer when the markers are far away (single camera)', () => {
-    expect(holdingReasons(input({ instruments: [instrument({ distanceMm: 545 })] }))).toEqual(['Needle driver: about 55 cm from the camera · markers too small · move the camera closer (25–35 cm)']);
-    expect(holdingReasons(input({ instruments: [instrument({ distanceMm: 300 })] }))).toEqual([]);
-    expect(holdingReasons(input({ stereoMode: true, instruments: [instrument({ distanceMm: 545 })] }))).toEqual([]);
+  it('suggests moving the camera closer when markers are small in the image (single camera)', () => {
+    expect(holdingReasons(input({ instruments: [instrument({ markerSidePx: 17.4 })] }))).toEqual(['Needle driver: markers small in the image (17 px) · move the camera closer (25–35 cm)']);
+    expect(holdingReasons(input({ instruments: [instrument({ markerSidePx: 40 })] }))).toEqual([]);
+    expect(holdingReasons(input({ stereoMode: true, instruments: [instrument({ markerSidePx: 17 })] }))).toEqual([]);
   });
 });
 

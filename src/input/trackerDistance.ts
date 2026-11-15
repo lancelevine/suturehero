@@ -86,13 +86,18 @@ export interface DistanceResult {
   valid: boolean;
 }
 
+/** Mean side length (camera pixels) of a marker's four corners. */
+export function markerSidePx(corners: readonly { x: number; y: number }[]): number {
+  return corners.reduce((sum, p, i) => sum + Math.hypot(p.x - corners[(i + 1) % 4].x, p.y - corners[(i + 1) % 4].y), 0) / 4;
+}
+
 /** This frame's distances, or null when the chosen face is too small to measure (nothing is recorded then). */
 export function measureTrackerDistance(track: DistanceTrack, input: DistanceInput): DistanceResult | null {
   const corners = input.chosen.marker.corners;
-  const markerSidePx = corners.reduce((sum, p, i) => sum + Math.hypot(p.x - corners[(i + 1) % 4].x, p.y - corners[(i + 1) % 4].y), 0) / 4;
-  if (markerSidePx < MIN_MARKER_SIDE_PX) return null;
+  const sidePx = markerSidePx(corners);
+  if (sidePx < MIN_MARKER_SIDE_PX) return null;
   const markerSizeMm = trackerGeometry(input.trackerType).markerSizeMm;
-  const sizeDistance = (markerSizeMm * input.focalPx) / markerSidePx;
+  const sizeDistance = (markerSizeMm * input.focalPx) / sidePx;
   // Use the tracker centre, not whichever face is visible; a tilted face looks
   // smaller at the same depth, so trust the 3D pose when its fit is good.
   const { pose } = input.chosen;

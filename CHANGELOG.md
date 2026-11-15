@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.184 — Move-closer hint uses marker size in pixels
+
+The "move the camera closer" hint now goes by how big the markers are in
+the image (under 24 px per side), not by the estimated distance. The
+distance depends on the camera calibration, so an uncalibrated iPhone said
+"too far" with the markers clearly in view.
+
 ## Build 0.183 — iPhone: outlines follow markers more closely
 
 iPhone mode no longer uses frame-by-frame capture scheduling. On the
