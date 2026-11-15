@@ -1,3 +1,4 @@
+import {knotSurfaceAt,type KnotTissue} from '../knot/knotTissue';
 import {createKnotEngine,type KnotEngine} from '../knot/engines';
 import {assessEdges,assessKnot,SLIP_CLOSURE_LOSS} from './stitchOutcome';
 import {ThreadGrasp,type JawState} from '../suture/ThreadGrasp';
@@ -236,17 +237,15 @@ export class PracticeSession {
     }
     return this.fieldCache;
   }
+  /** The tissue under free tying as plain data (knot/knotTissue.ts), for knot engines that run elsewhere. */
+  get knotTissue():KnotTissue{
+    return {environment:this.environment.id,microTarget:this.environment.microTarget,siteZ:this.course.siteZ,field:this.tissueField};
+  }
   private configureTissueResponse(){
     this.syncBitePlan();this.eversion.tractionEnabled=this.environment.id==='skin';
     this.wound.response=this.environment.id==='skin'?this.tissueResponse:undefined;
     this.freeKnot.padOffsetZ=this.course.siteZ;this.eversion.padOffsetZ=this.course.siteZ;
-    this.freeKnot.surfaceAt=p=>{
-      if(this.environment.id!=='skin')return this.environment.surfaceAt(p);
-      const z=p.z+this.course.siteZ;
-      const onPad=Math.abs(p.x)<=2.68&&Math.abs(z)<=1.68;
-      const base=onPad?.423:Math.abs(p.x)<=3.5&&Math.abs(p.z)<=2.5?.055:-.075;
-      return base+(onPad?retainedSurfaceLift(p.x,z,this.tissueField):0);
-    };
+    this.freeKnot.surfaceAt=p=>this.environment.id!=='skin'?this.environment.surfaceAt(p):knotSurfaceAt(this.knotTissue,p);
     this.knotSlack.surfaceAt=this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt;
   }
   startCourse(){
