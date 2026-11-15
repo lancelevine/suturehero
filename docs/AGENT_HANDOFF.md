@@ -95,6 +95,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox: session summary, spacing, targets, progress, export (build 0.175)
+
+- `src/gameplay/sandboxSummary.ts` (new, tested): summary, targets,
+  storage `suturehero.sandboxTargets.v1` / `suturehero.sandboxProgress.v1`,
+  trend. `src/ui/SandboxSummaryPanel.ts` (new), CSS, mount in `main.ts`.
+- Checked: tsc; sandboxSummary tests; check-layout, check-production-mode;
+  page loads with no console errors (Playwright).
+- Lance: do a few passes, tie 3 stitches, Save session, Export JSON.
+
 ### 2026-11-15 — Claude — Sandbox: knot security and edge approximation (build 0.174)
 
 - `src/gameplay/stitchOutcome.ts` (new, tested): assessKnot, assessEdges.

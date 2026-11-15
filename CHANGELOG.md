@@ -5,6 +5,19 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.175 — Sandbox: session summary, spacing, targets, progress, export
+
+New Sandbox session panel under the exercise feedback:
+- Summary: passes, tears, cut-throughs, mean bite from the edge, depth,
+  entry angle, tied stitches and secure knots.
+- Stitch spacing review for tied Sandbox stitches (sorted along the wound),
+  also in the bite-planning spacing line.
+- Instructor targets (bite range, symmetry, entry angle, tears, even
+  spacing) with ✓/✗; editable, saved in this browser.
+- Progress: Save session to progress keeps up to 50 sessions and shows the
+  trend over the last 5; Export session JSON downloads everything.
+Approximate practice measures; not a validated assessment.
+
 ## Build 0.174 — Sandbox: knot security and edge approximation
 
 - Knot security for Sandbox stitches: square vs granny throws, unseated
