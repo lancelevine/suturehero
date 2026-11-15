@@ -31,6 +31,27 @@ export const FORCING_UNITS = 0.11;
 export const TEAR_DEGREES = 35;
 export const TEAR_UNITS = 0.26;
 export const TEAR_SECONDS = 0.4;
+/** Tear limits per tissue (src/environments/SkinTypes.ts); the defaults are TEAR_*. */
+export interface TearLimits {
+  degrees: number;
+  units: number;
+  seconds: number;
+}
+export const DEFAULT_TEAR_LIMITS: TearLimits = { degrees: TEAR_DEGREES, units: TEAR_UNITS, seconds: TEAR_SECONDS };
+/**
+ * Tracking jitter (2026-11-15): forcing is low-passed with this time constant (s) so camera
+ * noise on a held needle does not read as forcing or tear the tissue; twists smaller than
+ * ANGLE_DEADBAND (rad, about 0.25 deg) are ignored while in tissue.
+ */
+export const FORCING_SMOOTHING_S = 0.12;
+export const ANGLE_DEADBAND = 0.0045;
+/** A skin tear (rent) runs this long at least / at most (scene units, about 1.4-5.4 mm). */
+const RENT_MIN = 0.05;
+const RENT_MAX = 0.2;
+/** A needle entering within this distance (scene units, about 0.8 mm) of a rent finds no purchase. */
+const RENT_CLEARANCE = 0.03;
+/** Lifting the tip this far above the skin (scene units, ≈ 4 mm) clears a "no purchase" note. */
+const REJECTION_CLEAR_HEIGHT = 0.15;
 /** The tip must emerge this far (scene units, ≈ 1 mm) from the entry to count as an exit. */
 const MIN_EXIT_DISTANCE = 0.037;
 
@@ -42,10 +63,17 @@ export interface FreePassRecord {
   /** Deepest needle point below the skin surface (scene units). */
   depth: number;
   deepestLayer: PassLayer;
+  /** Distance (scene units) from the wound edge at entry / exit (the edge moves with the wound gap). */
+  entryEdge: number;
+  exitEdge: number | null;
+  /** Needle path angle to the skin surface at entry (degrees; 90 = perpendicular). */
+  entryAngleDeg: number;
   /** Entry and exit on opposite sides of the wound. */
   crossesWound: boolean;
   /** The needle was forced out of the tissue (torn) instead of completing the pass. */
   torn?: boolean;
+  /** Sequence number among passes and tears (for undo). */
+  order?: number;
   /** The path through the tissue (Stage B2 thread): the needle's circle from the entry. */
   tract: FreeTract;
 }
@@ -61,6 +89,19 @@ export interface FreeTract {
   start: THREE.Vector3;
   /** Angle along the tract where the tip came out, or null before it has. */
   exitAngle: number | null;
+}
+
+/** A tear in the skin left by a forced needle: a split from `from` to `to` on the surface. */
+export interface SkinRent {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+}
+
+/** Distance from `p` to the segment a-b, horizontally (x, z). */
+export function horizontalSegmentDistance(p: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3) {
+  const ax = b.x - a.x, az = b.z - a.z;
+  const t = THREE.MathUtils.clamp(((p.x - a.x) * ax + (p.z - a.z) * az) / Math.max(1e-12, ax * ax + az * az), 0, 1);
+  return Math.hypot(p.x - (a.x + ax * t), p.z - (a.z + az * t));
 }
 
 /** The point `angle` along a tract (world). */
@@ -96,6 +137,23 @@ export class FreeNeedlePass {
   readonly torn: FreePassRecord[] = [];
   /** How long the needle has been forced hard (s). */
   private tearTime = 0;
+  /** Counter for FreePassRecord.order. */
+  private order = 0;
+  /** Skin tears left by torn passes, oldest first. */
+  readonly rents: SkinRent[] = [];
+  /** Why the last attempted entry found no purchase (torn skin), or null. */
+  rejection: string | null = null;
+  /**
+   * The skin surface height at (x, z), or null where there is no skin (the open wound gap).
+   * Set by the session from the live tissue (edge eversion, stitch closure); flat by default.
+   */
+  surfaceAt: (x: number, z: number) => number | null = () => SKIN_SURFACE_Y;
+  /** Half the wound gap at z (scene units), for distances from the wound edge. */
+  halfGapAt: (z: number) => number = () => 0;
+  /** Tear limits for the current tissue. */
+  tearLimits: TearLimits = DEFAULT_TEAR_LIMITS;
+  /** Raw (unsmoothed) forcing this frame. */
+  rawForcing = { degrees: 0, units: 0 };
   /** Completed passes before this index no longer carry the thread (Reset needle). */
   private threadStart = 0;
   /** How far the holder is forcing the needle off its curve this frame. */
@@ -125,6 +183,11 @@ export class FreeNeedlePass {
     return this.inTissue && (this.forcing.degrees > FORCING_DEGREES || this.forcing.units > FORCING_UNITS);
   }
 
+  /** Skin height under `p`, or null in the wound gap / off the pad. */
+  private surface(p: THREE.Vector3): number | null {
+    return overPad(p) ? this.surfaceAt(p.x, p.z) : null;
+  }
+
   /** Needle tip (world) for a needle root pose. */
   private tip(position: THREE.Vector3, quaternion: THREE.Quaternion) {
     return new THREE.Vector3(Math.cos(this.arc) * this.radius, 0, Math.sin(this.arc) * this.radius).applyQuaternion(quaternion).add(position);
@@ -143,7 +206,18 @@ export class FreeNeedlePass {
       const previous = this.previousTip;
       this.previousTip = tip.clone();
       this.forcing = { degrees: 0, units: 0 };
-      if (driverHolds && previous && previous.y >= SKIN_SURFACE_Y && tip.y < SKIN_SURFACE_Y && overPad(tip)) this.engage(wanted, previous, tip);
+      this.rawForcing = { degrees: 0, units: 0 };
+      const surfaceBelow = this.surface(tip);
+      const surfaceAbove = previous ? this.surface(previous) ?? surfaceBelow : null;
+      // The "no purchase" note lasts until the needle is lifted clear of the skin.
+      if (surfaceBelow === null || tip.y > surfaceBelow + REJECTION_CLEAR_HEIGHT) this.rejection = null;
+      if (driverHolds && previous && surfaceBelow !== null && surfaceAbove !== null && previous.y >= surfaceAbove && tip.y < surfaceBelow) {
+        if (this.rents.some((rent) => horizontalSegmentDistance(tip, rent.from, rent.to) < RENT_CLEARANCE)) this.rejection = 'torn skin holds no stitch';
+        else {
+          this.rejection = null;
+          this.engage(wanted, previous, tip, surfaceAbove, surfaceBelow);
+        }
+      }
       return wanted;
     }
     if (held) {
@@ -152,22 +226,29 @@ export class FreeNeedlePass {
       if (delta.w < 0) delta.set(-delta.x, -delta.y, -delta.z, -delta.w);
       const wrapped = 2 * Math.atan2(delta.x * e.axis.x + delta.y * e.axis.y + delta.z * e.axis.z, delta.w);
       // A complete pass turns past 180°: take the equivalent angle nearest the previous one.
-      const twist = wrapped + 2 * Math.PI * Math.round((e.angle - wrapped) / (2 * Math.PI));
+      const unwrapped = wrapped + 2 * Math.PI * Math.round((e.angle - wrapped) / (2 * Math.PI));
+      // Ignore tracking jitter: tiny twists keep the needle where it is.
+      const twist = Math.abs(unwrapped - e.angle) < ANGLE_DEADBAND ? e.angle : unwrapped;
       // Before the tip exits, the swage stops at the entry; after, the needle can travel until the swage leaves the exit.
       const limit = e.exitAngle === null ? this.arc : e.exitAngle + this.arc;
       e.angle = Math.min(Math.max(twist, -0.05), limit + 0.05);
     }
     const pose = this.poseAt(e, e.angle);
-    if (held) {
-      const allowedCentre = pose.position;
-      this.forcing = { degrees: THREE.MathUtils.radToDeg(wanted.quaternion.angleTo(pose.quaternion)), units: wanted.position.distanceTo(allowedCentre) };
-    } else this.forcing = { degrees: 0, units: 0 };
-    // Sustained hard forcing tears the needle out: the pass ends and the needle follows the hand again.
-    const hard = this.forcing.degrees > TEAR_DEGREES || this.forcing.units > TEAR_UNITS;
+    this.rawForcing = held ? { degrees: THREE.MathUtils.radToDeg(wanted.quaternion.angleTo(pose.quaternion)), units: wanted.position.distanceTo(pose.position) } : { degrees: 0, units: 0 };
+    // Low-pass the forcing so tracking noise does not count; a sustained push still does.
+    const blend = 1 - Math.exp(-Math.max(0, dt) / FORCING_SMOOTHING_S);
+    this.forcing = {
+      degrees: this.forcing.degrees + (this.rawForcing.degrees - this.forcing.degrees) * blend,
+      units: this.forcing.units + (this.rawForcing.units - this.forcing.units) * blend,
+    };
+    // Sustained hard forcing tears the needle out: the pass ends, the skin splits, and the needle follows the hand again.
+    const limits = this.tearLimits;
+    const hard = this.forcing.degrees > limits.degrees || this.forcing.units > limits.units;
     this.tearTime = hard ? this.tearTime + Math.max(0, dt) : 0;
-    if (this.tearTime >= TEAR_SECONDS) {
+    if (this.tearTime >= limits.seconds) {
       e.record.torn = true;
       this.torn.push(e.record);
+      this.rents.push(this.rentFor(e, wanted.position.clone().sub(pose.position)));
       this.engagement = null;
       this.previousTip = this.tip(wanted.position, wanted.quaternion);
       this.tearTime = 0;
@@ -186,6 +267,19 @@ export class FreeNeedlePass {
     return pose;
   }
 
+  /** The split a torn pass leaves: from the entry along the forced direction (horizontal), longer the harder it was forced. */
+  private rentFor(e: Engagement, push: THREE.Vector3): SkinRent {
+    const from = e.record.entry.clone();
+    const direction = new THREE.Vector3(push.x, 0, push.z);
+    if (direction.lengthSq() < 1e-10) direction.set(e.axis.z, 0, -e.axis.x);
+    if (direction.lengthSq() < 1e-10) direction.set(1, 0, 0);
+    direction.normalize();
+    const length = THREE.MathUtils.clamp(RENT_MIN + this.forcing.units * 0.5, RENT_MIN, RENT_MAX);
+    const to = from.clone().addScaledVector(direction, length);
+    to.y = this.surface(to) ?? from.y;
+    return { from, to };
+  }
+
   /** Needle pose after advancing `angle` along the curve from the entry pose. */
   private poseAt(e: Engagement, angle: number) {
     const turn = new THREE.Quaternion().setFromAxisAngle(e.axis, angle);
@@ -193,10 +287,23 @@ export class FreeNeedlePass {
     return { position, quaternion: turn.multiply(e.baseQuaternion).normalize() };
   }
 
-  private engage(wanted: { position: THREE.Vector3; quaternion: THREE.Quaternion }, above: THREE.Vector3, below: THREE.Vector3) {
-    const t = (above.y - SKIN_SURFACE_Y) / Math.max(1e-9, above.y - below.y);
+  private engage(wanted: { position: THREE.Vector3; quaternion: THREE.Quaternion }, above: THREE.Vector3, below: THREE.Vector3, surfaceAbove: number, surfaceBelow: number) {
+    // Where the tip path crosses the (locally linear) surface between the two frames.
+    const t = THREE.MathUtils.clamp((above.y - surfaceAbove) / Math.max(1e-9, above.y - surfaceAbove - (below.y - surfaceBelow)), 0, 1);
     const entry = above.clone().lerp(below, t);
-    entry.y = SKIN_SURFACE_Y;
+    entry.y = THREE.MathUtils.lerp(surfaceAbove, surfaceBelow, t);
+    const depth = Math.max(0, surfaceBelow - below.y);
+    // Angle of the needle path to the local surface (normal from the surface slope).
+    const h = 0.01;
+    const sx = (this.surfaceAt(entry.x + h, entry.z) ?? entry.y) - (this.surfaceAt(entry.x - h, entry.z) ?? entry.y);
+    const sz = (this.surfaceAt(entry.x, entry.z + h) ?? entry.y) - (this.surfaceAt(entry.x, entry.z - h) ?? entry.y);
+    const normal = new THREE.Vector3(-sx / (2 * h), 1, -sz / (2 * h)).normalize();
+    // The path direction is the tip's tangent on the needle circle (frame-to-frame motion is too noisy).
+    const circleAxis = new THREE.Vector3(0, -1, 0).applyQuaternion(wanted.quaternion).normalize();
+    const tangent = new THREE.Vector3().crossVectors(circleAxis, below.clone().sub(wanted.position)).normalize();
+    if (tangent.dot(below.clone().sub(above)) < 0) tangent.negate();
+    const entryAngleDeg = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(-tangent.dot(normal), -1, 1)));
+    this.order++;
     this.engagement = {
       centre: wanted.position.clone(),
       axis: new THREE.Vector3(0, -1, 0).applyQuaternion(wanted.quaternion).normalize(),
@@ -204,7 +311,8 @@ export class FreeNeedlePass {
       basePosition: wanted.position.clone(),
       angle: 0,
       exitAngle: null,
-      record: { entry, exit: null, depth: Math.max(0, SKIN_SURFACE_Y - below.y), deepestLayer: layerAtDepth(Math.max(0, SKIN_SURFACE_Y - below.y)), crossesWound: false,
+      record: { entry, exit: null, depth, deepestLayer: layerAtDepth(depth), crossesWound: false, order: this.order,
+        entryEdge: Math.max(0, Math.abs(entry.x - WOUND_X) - this.halfGapAt(entry.z)), exitEdge: null, entryAngleDeg,
         tract: { centre: wanted.position.clone(), axis: new THREE.Vector3(0, -1, 0).applyQuaternion(wanted.quaternion).normalize(), start: below.clone().sub(wanted.position), exitAngle: null } },
     };
   }
@@ -215,13 +323,16 @@ export class FreeNeedlePass {
     for (let i = 0; i <= 32; i++) {
       const a = (i / 32) * this.arc;
       const p = new THREE.Vector3(Math.cos(a) * this.radius, 0, Math.sin(a) * this.radius).applyQuaternion(pose.quaternion).add(pose.position);
-      if (overPad(p) && p.y < SKIN_SURFACE_Y) r.depth = Math.max(r.depth, SKIN_SURFACE_Y - p.y);
+      const top = this.surface(p);
+      if (top !== null && p.y < top) r.depth = Math.max(r.depth, top - p.y);
     }
     r.deepestLayer = layerAtDepth(r.depth);
     const tip = this.tip(pose.position, pose.quaternion);
-    if (!r.exit && tip.y >= SKIN_SURFACE_Y && tip.distanceTo(r.entry) > MIN_EXIT_DISTANCE) {
+    const tipSurface = this.surface(tip);
+    if (!r.exit && tipSurface !== null && tip.y >= tipSurface && tip.distanceTo(r.entry) > MIN_EXIT_DISTANCE) {
       r.exit = tip.clone();
-      r.exit.y = SKIN_SURFACE_Y;
+      r.exit.y = tipSurface;
+      r.exitEdge = Math.max(0, Math.abs(r.exit.x - WOUND_X) - this.halfGapAt(r.exit.z));
       r.crossesWound = Math.sign(r.entry.x - WOUND_X) !== Math.sign(r.exit.x - WOUND_X);
       e.exitAngle = e.angle;
       r.tract.exitAngle = e.angle;
@@ -257,13 +368,35 @@ export class FreeNeedlePass {
     this.forcing = { degrees: 0, units: 0 };
   }
 
+  /**
+   * Undo (2026-11-15): takes back the most recent pass, torn or completed (its marks,
+   * thread and skin tear), or cancels a pass in progress. Returns whether anything was undone.
+   */
+  undoLast(): boolean {
+    if (this.engagement) {
+      this.abortCurrent();
+      return true;
+    }
+    const lastPass = this.passes.length > this.threadStart ? this.passes[this.passes.length - 1] : undefined;
+    const lastTorn = this.torn[this.torn.length - 1];
+    if (!lastPass && !lastTorn) return false;
+    if (lastTorn && (!lastPass || (lastTorn.order ?? 0) > (lastPass.order ?? 0))) {
+      this.torn.pop();
+      this.rents.pop();
+    } else this.passes.pop();
+    return true;
+  }
+
   /** Ends any pass in progress and forgets completed ones. */
   reset() {
     this.engagement = null;
     this.previousTip = null;
     this.passes.length = 0;
     this.torn.length = 0;
+    this.rents.length = 0;
+    this.rejection = null;
     this.tearTime = 0;
+    this.order = 0;
     this.threadStart = 0;
     this.forcing = { degrees: 0, units: 0 };
   }

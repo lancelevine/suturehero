@@ -95,6 +95,19 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox skin shape, tears, undo, angle, jitter (build 0.170)
+
+- `src/tissue/FreeNeedlePass.ts`: `surfaceAt`/`halfGapAt` (live surface),
+  `rents` + no purchase in torn skin, `undoLast()`, `entryAngleDeg`,
+  forcing smoothing (FORCING_SMOOTHING_S) and ANGLE_DEADBAND, `tearLimits`.
+- `src/tissue/freeSkinSurface.ts` (new): gap, edge roll, eversion/stitch lift.
+- `SkinTypes.ts`: tear limits per skin type, new `fragile` type.
+- UI: Undo pass button, rent drawing (`freePassMarks.ts`), messages.
+- Checked: tsc; gameplay/suture/tissue/setup/scene/environments/ui tests
+  (318 pass); check-production-mode, check-layout, check-free-tying.
+- Lance: lift an edge with the forceps and pass through it; force a pass
+  to tear and try re-entering the tear; Undo pass.
+
 ### 2026-11-15 — Claude — Sandbox forcing tears the pass (build 0.169)
 
 - `src/tissue/FreeNeedlePass.ts`: sustained hard forcing (TEAR_DEGREES 35,

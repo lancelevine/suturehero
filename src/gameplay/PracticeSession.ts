@@ -1,3 +1,6 @@
+import {PRACTICE_SETUP} from '../setup/PracticeSetup';
+import {shapedSkinSurface} from '../tissue/freeSkinSurface';
+import {SKIN_SURFACE_Y} from '../tissue/FreeNeedlePass';
 import {freePassBites} from '../tissue/freePassKnot';
 import {FreeThreadGuide} from '../suture/FreeThreadGuide';
 import {NEEDLE_ARC,NEEDLE_RADIUS} from '../suture/needleGeometry';
@@ -162,6 +165,17 @@ export class PracticeSession {
   readonly releaseCheck=new KnotReleaseCheck();
   readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
+  /** Free passes meet the live skin (tissue/freeSkinSurface.ts) and tear at the skin type's limits. */
+  private shapeFreePass(){
+    const pass=this.freePass;
+    pass.tearLimits=PRACTICE_SETUP.skin.tear;
+    if(this.environment.id!=='skin'){pass.surfaceAt=()=>SKIN_SURFACE_Y;pass.halfGapAt=()=>0;return;}
+    const top=TISSUE_LAYERS.epidermis.top,edge=this.wound.initialGap/2;
+    const halfGapAt=(z:number)=>Math.max(0,this.tissuePoint(new THREE.Vector3(edge,top,z)).x);
+    const source={halfGapAt,shapedTopAt:(x:number,z:number)=>this.eversion.deformPoint(this.tissuePoint(new THREE.Vector3(x,top,z))).y};
+    pass.halfGapAt=halfGapAt;
+    pass.surfaceAt=(x,z)=>shapedSkinSurface(x,z,source);
+  }
   private tissuePoint(p:THREE.Vector3){
     if(!this.fieldInUse)return this.wound.deformPoint(p);
     const z=p.z+this.course.siteZ,sites=this.tissueField;
@@ -391,6 +405,7 @@ export class PracticeSession {
     this.grasp?.update(needleTools,this.pass.phase==='complete');
     // Sandbox: free needle passes anywhere (tissue/FreeNeedlePass.ts), and a needle nobody holds falls onto the pad (needleRest.ts).
     if(this.sandbox&&this.grasp){
+      this.shapeFreePass();
       const root=this.grasp.needle.root,holder=this.grasp.holder;
       const allowed=this.freePass.update({position:root.position.clone(),quaternion:root.quaternion.clone()},!!holder,holder?.kind==='needle-driver',step);
       root.position.copy(allowed.position);root.quaternion.copy(allowed.quaternion);root.updateWorldMatrix(true,false);

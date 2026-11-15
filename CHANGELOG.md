@@ -5,6 +5,21 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.170 — Sandbox: passes meet the real skin; tears split it
+
+- Free passes meet the live skin surface instead of a flat plane: no skin in
+  the open wound gap, the cut edges roll over slightly, and edges lifted by
+  the forceps or pulled up by stitches are higher. Bite distances are now
+  measured from the wound edge.
+- A torn pass splits the skin (dark red tear along the forced direction);
+  torn skin holds no new stitch.
+- Undo pass button: takes back the last pass or tear.
+- Entry angle feedback (90° = perpendicular), with a hint when shallow.
+- Camera jitter on a held needle no longer reads as forcing (forcing is
+  smoothed over about 0.1 s; tiny twists ignored).
+- Tear limits depend on the skin type; new "Fragile thin skin" type tears
+  sooner. All values approximate.
+
 ## Build 0.169 — Sandbox: forcing tears the needle out
 
 Forcing the needle hard off its curve (over 35° twist or about 7 mm off the
