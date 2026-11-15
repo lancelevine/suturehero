@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox: forcing tears the needle out (8), then tissue-shape passes (2), then thread handling (3).
+- **In progress:** Claude Code — Sandbox realism batch: tissue shape, skin tears, thread grasp, feedback, replay, progress, cleanup (many commits).
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
