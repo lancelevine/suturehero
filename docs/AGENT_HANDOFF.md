@@ -109,7 +109,7 @@ entry when finishing.
 
 ### 2026-11-15 — Claude — Knot topology shadow project, step 1: crossing diagram (no build change)
 
-- New \`src/knot/crossingDiagram.ts\` (+ test): crossings of a closed 3D
+- New `src/knot/crossingDiagram.ts` (+ test): crossings of a closed 3D
   polyline seen along a view direction, with over/under and sign. Tested on
   ideal curves: loop 0 crossings, trefoil 3 (writhe ±3, mirrored), figure-eight
   4 (writhe 0), alternating over/under. Not used by the app.
