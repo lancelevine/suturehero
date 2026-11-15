@@ -252,3 +252,29 @@ it('makes a free needle pass in the sandbox when the driver turns the needle int
  expect(Math.min(...needle.strand.points.map(p=>p.distanceTo(middle)))).toBeLessThan(.05);
  session.reset();expect(session.freePass.passes).toHaveLength(0);
 });
+
+it('threads a running stitch of two free passes in the sandbox',()=>{
+ const needle=new SutureModel(),left=new Instrument('left',0),right=new Instrument('right',0);
+ const scene=new THREE.Scene();scene.add(needle.root,left.root,right.root);
+ left.root.position.set(3,3,3);
+ const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+ const axis=new THREE.Vector3(0,0,1),step=new THREE.Quaternion().setFromAxisAngle(axis,.01);
+ for(const z of [-.4,.2]){
+  // Place the needle for a vertical pass at z (centre 0.2 above the skin) and drive it through with the driver.
+  const centre=new THREE.Vector3(0,.41+.2,z),before=session.freePass.passes.length;
+  session.grasp!.release();
+  needle.root.position.copy(centre);needle.root.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);needle.root.updateWorldMatrix(true,false);
+  right.root.position.set(.5,1,z);right.root.quaternion.identity();right.root.updateWorldMatrix(true,false);right.openness=.1;
+  session.grasp!.attach(right);
+  for(let i=0;i<600&&session.freePass.passes.length===before;i++){
+   right.root.position.sub(centre).applyQuaternion(step).add(centre);right.root.quaternion.premultiply(step);right.root.updateWorldMatrix(true,false);
+   session.update(1/60);
+  }
+ }
+ expect(session.freePass.passes).toHaveLength(2);
+ for(let i=0;i<60;i++)session.update(1/60);
+ for(const pass of session.freePass.passes){
+  const t=pass.tract,middle=t.start.clone().applyAxisAngle(t.axis,t.exitAngle!/2).add(t.centre);
+  expect(Math.min(...needle.strand.points.map(p=>p.distanceTo(middle)))).toBeLessThan(.06);
+ }
+});

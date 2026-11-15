@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.165 — Sandbox: running stitch through several passes (Stage B2, part 2)
+
+The thread now stays in every pass you make, in order: from the needle it
+runs through your newest pass, across to the previous one, through it, and
+so on, so you can build a running stitch. A new pass takes the thread only
+once the needle's eye has gone in. If the strand runs out, the oldest
+passes are pulled out. "Reset needle" now also takes the thread out of all
+passes for a fresh start (their marks and feedback stay).
+
 ## Build 0.164 — Sandbox: the thread follows free needle passes (Stage B2, part 1)
 
 In the Sandbox the suture now follows the needle through a free pass: it

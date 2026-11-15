@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox Stage B2 part 2: running stitch (thread through several passes).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,20 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — running stitch, B2 part 2 (build 0.165)
+
+- `FreeThreadGuide.anchors(strand, eye, passes)` takes a newest-first chain
+  (`ThreadedPass`: tract + eyeAngle): first threaded pass has the sliding
+  exterior; older passes get exit/tract/entry pins with a loose span
+  (×1.05 slack); passes whose eye is not in are skipped; passes that do not
+  fit before the tail reserve are dropped (+ 6 tests).
+  `FreeNeedlePass.threadedPasses()` / `unthreadAll()` (+ test). Reset
+  needle unthreads all passes and resets the guide.
+- Session test: two driven passes, the strand lies along both tracts.
+  Gameplay/suture/tissue/setup/scene tests (273) pass; tsc;
+  check-production-mode passes.
+- Next: B3 knots on free passes.
 
 ### 2026-11-15 — Claude — thread through free passes, B2 part 1 (build 0.164)
 

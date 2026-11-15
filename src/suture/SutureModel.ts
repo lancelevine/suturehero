@@ -3,8 +3,7 @@ import { ThreadStrand,type StrandObstacle } from './ThreadStrand';
 import { TissueThreadGuide,threadSurfaceAt } from './TissueThreadGuide';
 import { StrandMesh } from '../scene/StrandMesh';
 import { NEEDLE_ARC, NEEDLE_RADIUS } from './needleGeometry';
-import type { FreeThreadGuide } from './FreeThreadGuide';
-import type { FreeTract } from '../tissue/FreeNeedlePass';
+import type { FreeThreadGuide, ThreadedPass } from './FreeThreadGuide';
 import * as THREE from 'three';
 /** Kinematic needle and an independent, length-constrained thread strand. */
 export class SutureModel {
@@ -48,11 +47,11 @@ export class SutureModel {
     this.thread.update(this.strand.points,this.root.matrixWorld);
   }
   /** Advances the thread with pins from FreeThreadGuide (Sandbox free passes) instead of the guided-pass guide. */
-  advanceFreeThread(dt:number,guide:FreeThreadGuide,tract:FreeTract|null,eyeAngle:number|null,surfaceAt=threadSurfaceAt,tissueContact?:StrandObstacle) {
+  advanceFreeThread(dt:number,guide:FreeThreadGuide,passes:readonly ThreadedPass[],surfaceAt=threadSurfaceAt,tissueContact?:StrandObstacle) {
     this.root.updateWorldMatrix(true,false);
     const eye=this.points[0].clone().applyMatrix4(this.root.matrixWorld);
     this.strand.tissueContact=tissueContact;
-    this.strand.advance(dt,guide.anchors(this.strand,eye,tract,eyeAngle),surfaceAt);
+    this.strand.advance(dt,guide.anchors(this.strand,eye,passes),surfaceAt);
     this.thread.update(this.strand.points,this.root.matrixWorld);
   }
   reset() { this.root.position.set(-0.3,Math.max(.74,.44+NEEDLE_RADIUS),0);

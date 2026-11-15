@@ -82,6 +82,8 @@ export class FreeNeedlePass {
   private previousTip: THREE.Vector3 | null = null;
   /** Completed passes (tip in and out), oldest first. */
   readonly passes: FreePassRecord[] = [];
+  /** Completed passes before this index no longer carry the thread (Reset needle). */
+  private threadStart = 0;
   /** How far the holder is forcing the needle off its curve this frame. */
   forcing = { degrees: 0, units: 0 };
 
@@ -205,6 +207,22 @@ export class FreeNeedlePass {
     this.previousTip = null;
   }
 
+  /**
+   * The passes the thread runs through, newest first (src/suture/FreeThreadGuide.ts):
+   * the pass in progress with its eye position, then completed passes (eye through).
+   */
+  threadedPasses(): Array<{ tract: FreeTract; eyeAngle: number }> {
+    const chain: Array<{ tract: FreeTract; eyeAngle: number }> = [];
+    if (this.engagement) chain.push({ tract: this.engagement.record.tract, eyeAngle: this.engagement.angle - this.arc });
+    for (let i = this.passes.length - 1; i >= this.threadStart; i--) chain.push({ tract: this.passes[i].tract, eyeAngle: Infinity });
+    return chain;
+  }
+
+  /** Takes the thread out of every completed pass (they keep their marks and feedback). */
+  unthreadAll() {
+    this.threadStart = this.passes.length;
+  }
+
   /** Cancels the pass in progress (e.g. the needle was reset), keeping completed ones. */
   abortCurrent() {
     this.engagement = null;
@@ -217,6 +235,7 @@ export class FreeNeedlePass {
     this.engagement = null;
     this.previousTip = null;
     this.passes.length = 0;
+    this.threadStart = 0;
     this.forcing = { degrees: 0, units: 0 };
   }
 }

@@ -87,3 +87,20 @@ describe('free pass tract (thread path)', () => {
     expect(tractPoint(tract, tract.exitAngle! / 2).distanceTo(centre)).toBeCloseTo(RADIUS, 6);
   });
 });
+
+describe('threaded passes (running stitch)', () => {
+  it('lists the pass in progress first, then completed passes newest first, until unthreaded', () => {
+    const pass = new FreeNeedlePass(RADIUS, ARC);
+    for (const z of [-0.3, 0.2]) {
+      const centre = new THREE.Vector3(0, SKIN_SURFACE_Y + 0.2, z);
+      const before = pass.passes.length;
+      for (let turn = 0; turn <= Math.PI * 1.9 && pass.passes.length === before; turn += 0.01) pass.update(pose(centre, turn), true, true);
+    }
+    const chain = pass.threadedPasses();
+    expect(chain.map((p) => p.tract.centre.z)).toEqual([0.2, -0.3]);
+    expect(chain.every((p) => p.eyeAngle === Infinity)).toBe(true);
+    pass.unthreadAll();
+    expect(pass.threadedPasses()).toHaveLength(0);
+    expect(pass.passes).toHaveLength(2);
+  });
+});

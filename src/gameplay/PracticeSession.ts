@@ -372,9 +372,8 @@ export class PracticeSession {
     }
     if(this.grasp) {
       const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
-      // Sandbox: the thread follows free passes (suture/FreeThreadGuide.ts) through the current or last pass.
-      const lastPass=this.freePass.passes[this.freePass.passes.length-1];
-      if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.current?.tract??lastPass?.tract??null,this.freePass.eyeAngle??(lastPass?Infinity:null),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact);
+      // Sandbox: the thread runs through every threaded free pass, newest first (suture/FreeThreadGuide.ts).
+      if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.threadedPasses(),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact);
       else this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
