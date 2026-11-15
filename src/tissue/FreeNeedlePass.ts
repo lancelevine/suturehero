@@ -66,6 +66,8 @@ export interface FreePassRecord {
   /** Distance (scene units) from the wound edge at entry / exit (the edge moves with the wound gap). */
   entryEdge: number;
   exitEdge: number | null;
+  /** How far the skin at the entry was raised above flat (scene units): positive when the edge was everted. */
+  entryLift?: number;
   /** Needle path angle to the skin surface at entry (degrees; 90 = perpendicular). */
   entryAngleDeg: number;
   /** Entry and exit on opposite sides of the wound. */
@@ -314,7 +316,7 @@ export class FreeNeedlePass {
       angle: 0,
       exitAngle: null,
       record: { entry, exit: null, depth, deepestLayer: layerAtDepth(depth), crossesWound: false, order: this.order,
-        entryEdge: Math.max(0, Math.abs(entry.x - WOUND_X) - this.halfGapAt(entry.z)), exitEdge: null, entryAngleDeg,
+        entryEdge: Math.max(0, Math.abs(entry.x - WOUND_X) - this.halfGapAt(entry.z)), exitEdge: null, entryAngleDeg, entryLift: entry.y - SKIN_SURFACE_Y,
         tract: { centre: wanted.position.clone(), axis: new THREE.Vector3(0, -1, 0).applyQuaternion(wanted.quaternion).normalize(), start: below.clone().sub(wanted.position), exitAngle: null } },
     };
   }

@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.177 — Sandbox: forceps eversion and counter-traction count
+
+Forceps technique counts in the Sandbox: the pass feedback credits an
+entry through an edge everted with the forceps, and suggests everting when
+entering near the edge without it. Holding the skin edge with the forceps
+(counter-traction) raises the tear limits by 30%. Approximate.
+
 ## Build 0.176 — Sandbox: slow-motion replay with tip paths
 
 - Replay ½×: plays the last 12 s of the Sandbox back at half speed, with

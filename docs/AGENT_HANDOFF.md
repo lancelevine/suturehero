@@ -95,6 +95,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox: forceps eversion and counter-traction count (build 0.177)
+
+- `FreePassRecord.entryLift`; `describeEversion` in `freePassFeedback.ts`;
+  COUNTER_TRACTION_TEAR_FACTOR in `PracticeSession.shapeFreePass`.
+- Checked: tsc; tissue + PracticeSession tests.
+- Lance: evert the edge with the forceps, then pass; read the feedback.
+
 ### 2026-11-15 — Claude — Sandbox: slow-motion replay with tip paths (build 0.176)
 
 - `src/gameplay/replayBuffer.ts` (new, tested), `src/scene/ReplayController.ts`

@@ -157,6 +157,7 @@ describe('tissue shape, jitter, skin tears and undo', () => {
     drive(pass, new THREE.Vector3(0, SKIN_SURFACE_Y + 0.2, 0.2));
     const r = pass.passes[0];
     expect(r.entry.y).toBeCloseTo(SKIN_SURFACE_Y + lift, 6);
+    expect(r.entryLift).toBeCloseTo(lift, 6);
     expect(r.depth).toBeCloseTo(0.15, 2);
     // Same geometry relative to the raised surface as the flat case with the centre 0.15 above it.
     expect(r.entry.x).toBeCloseTo(-Math.sqrt(0.3 ** 2 - 0.15 ** 2), 2);

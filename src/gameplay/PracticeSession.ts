@@ -2,6 +2,8 @@ import {assessEdges,assessKnot,SLIP_CLOSURE_LOSS} from './stitchOutcome';
 import {ThreadGrasp,type JawState} from '../suture/ThreadGrasp';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {shapedSkinSurface} from '../tissue/freeSkinSurface';
+/** Tear limits are this much higher while the forceps hold the skin edge (counter-traction; approximate). */
+const COUNTER_TRACTION_TEAR_FACTOR=1.3;
 import {SKIN_SURFACE_Y} from '../tissue/FreeNeedlePass';
 import {freePassBites} from '../tissue/freePassKnot';
 import {FreeThreadGuide} from '../suture/FreeThreadGuide';
@@ -192,7 +194,9 @@ export class PracticeSession {
   /** Free passes meet the live skin (tissue/freeSkinSurface.ts) and tear at the skin type's limits. */
   private shapeFreePass(){
     const pass=this.freePass;
-    pass.tearLimits=PRACTICE_SETUP.skin.tear;
+    // Counter-traction: holding the skin edge with the forceps steadies it, so it takes more forcing to tear.
+    const steadied=this.eversion.held?COUNTER_TRACTION_TEAR_FACTOR:1,tear=PRACTICE_SETUP.skin.tear;
+    pass.tearLimits={degrees:tear.degrees*steadied,units:tear.units*steadied,seconds:tear.seconds};
     if(this.environment.id!=='skin'){pass.surfaceAt=()=>SKIN_SURFACE_Y;pass.halfGapAt=()=>0;return;}
     const top=TISSUE_LAYERS.epidermis.top,edge=this.wound.initialGap/2;
     const halfGapAt=(z:number)=>Math.max(0,this.tissuePoint(new THREE.Vector3(edge,top,z)).x);
