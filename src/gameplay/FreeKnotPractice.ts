@@ -5,8 +5,8 @@ import {postIsTaut} from '../suture/PostTension';
 import {KnotTissueSeat,stitchSupport} from '../suture/KnotTissueSeat';
 import {THREAD_RADIUS} from '../suture/threadMaterial';
 import {skinThreadContact} from '../tissue/SkinThreadContact';
-import {InferredKnotSequence} from '../suture/InferredKnotSequence';
 import {KnotTechniqueSequence,type KnotTechnique} from '../suture/KnotTechnique';
+import {createAutomaticKnotSequence,type AutomaticKnotSequence,type KnotEngineMode} from '../suture/KnotEngine';
 import {tractEntry,tractExit} from '../tissue/sutureTract';
 import { FreeThrow } from '../suture/FreeThrow';
 import { TailPassage } from '../suture/TailPassage';
@@ -48,7 +48,8 @@ export class FreeKnotPractice {
   readonly passage=new TailPassage();
   retainedThrow=new FreeThrow();
   readonly earlierThrows:FreeThrow[]=[];
-  sequence?:KnotTechniqueSequence|InferredKnotSequence;
+  sequence?:KnotTechniqueSequence|AutomaticKnotSequence;
+  knotEngineMode:KnotEngineMode='legacy';
   postTaut=false;
   readonly tissueSeat=new KnotTissueSeat();
   private get firstKnot(){return this.earlierThrows.find(t=>t.active)??(this.retainedThrow.active?this.retainedThrow:undefined);}
@@ -139,9 +140,9 @@ export class FreeKnotPractice {
   private skinTopAt=(p:THREE.Vector3)=>this.surfaceAt(p);
   private skinContact=skinThreadContact(point=>this.contact.supportAt(point,this.skinTopAt),()=>this.padOffsetZ);
   private supportAt=(point:THREE.Vector3)=>(this.threadFloorAt??threadBaseAt)(point);
-  begin(tools:readonly Instrument[],technique?:KnotTechnique|'auto') {
+  begin(tools:readonly Instrument[],technique?:KnotTechnique|'auto',knotEngineMode:KnotEngineMode='legacy') {
     this.reset();this.active=true;
-    this.sequence=technique==='auto'?new InferredKnotSequence():technique?new KnotTechniqueSequence(technique):undefined;this.retainedThrow.feedFromWorkingEnd=!!technique;
+    this.knotEngineMode=knotEngineMode;this.sequence=technique==='auto'?createAutomaticKnotSequence(knotEngineMode):technique?new KnotTechniqueSequence(technique):undefined;this.retainedThrow.feedFromWorkingEnd=!!technique;
     this.long=new ThreadStrand(technique?3.5:2.1,technique?104:64);
     this.long.reset(technique?[this.exit,new THREE.Vector3(-.6,.45,1.1),new THREE.Vector3(-1.6,.5,1.35),new THREE.Vector3(-1.8,.85,.9),new THREE.Vector3(-1.3,1.15,.4)]:[this.exit,new THREE.Vector3(-0.7,0.65,0.2),new THREE.Vector3(-1.3,1.15,0.4)]);
     // Lay out the full short-side material in a broad arc. A compressed

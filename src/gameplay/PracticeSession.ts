@@ -20,6 +20,7 @@ import {MICRO_FLOOR_Y,MICRO_TARGETS} from '../environments/MicroTargets';
 import type {MicroTarget} from '../environments/MicroTargets';
 import {environments,createMicroEnvironment,type EnvironmentId} from '../environments/PracticeEnvironment';
 import type {KnotTechnique} from '../suture/KnotTechnique';
+import type {KnotEngineMode} from '../suture/KnotEngine';
 import { EdgeEversion } from '../tissue/EdgeEversion';
 import { FreeKnotPractice } from './FreeKnotPractice';
 import { KnotLoadTest } from './KnotLoadTest';
@@ -55,6 +56,7 @@ export class PracticeSession {
   get freeReleaseProgress(){return this.freeReleaseTime/1.5;}
   environment=environments.skin;
   selectedTechnique?:KnotTechnique;
+  knotEngineMode:KnotEngineMode='legacy';
   setEnvironment(id:EnvironmentId,target:MicroTarget='artery'){
     this.reset();this.environment=id==='microsurgery'?createMicroEnvironment(target):environments.skin;
     this.wound.initialGap=id==='microsurgery'?MICRO_TARGETS[target].gap:.1;
@@ -69,12 +71,12 @@ export class PracticeSession {
     this.reset();
     if(this.grasp) {this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,0.1,1.2);}
     this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));
-    this.freeKnot.begin(this.instruments,technique);this.wound.setDermalBites(...this.pass.purchaseSites);
+    this.freeKnot.begin(this.instruments,technique,this.knotEngineMode);this.wound.setDermalBites(...this.pass.purchaseSites);
   }
   continueFreeTying(){
     if(!this.canBeginKnot||!this.grasp)return false;
     this.grasp.release();this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,.1,1.2);
-    this.eversion.reset();this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
+    this.eversion.reset();this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));this.freeKnot.begin(this.instruments,'auto',this.knotEngineMode);this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
     return true;
   }
   /**
@@ -132,7 +134,7 @@ export class PracticeSession {
     this.sandboxStitchZ=(pass.entry.z+pass.exit.z)/2;
     this.freeKnot.entry.copy(this.tissuePoint(pass.entry));this.freeKnot.exit.copy(this.tissuePoint(pass.exit));
     this.wound.setDermalBites(...freePassBites(pass.tract));
-    this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
+    this.freeKnot.begin(this.instruments,'auto',this.knotEngineMode);this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
     return true;
   }
   readonly eversion=new EdgeEversion();

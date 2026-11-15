@@ -148,14 +148,20 @@ try {
   const needleSelect=document.querySelector('#needle-type') as HTMLSelectElement;
   const materialSelect=document.querySelector('#suture-material') as HTMLSelectElement;
   const techniqueSelect=document.querySelector('#knot-technique') as HTMLSelectElement;
+  const knotEngineLabel=document.createElement('label');
+  knotEngineLabel.innerHTML='Knot engine <select id="knot-engine"><option value="legacy">Current</option><option value="event-ledger">Codex event ledger (shadow)</option></select>';
+  techniqueSelect.closest('label')!.before(knotEngineLabel);
+  const knotEngineSelect=knotEngineLabel.querySelector('select')!;
+  knotEngineSelect.value=params.get('knotEngine')==='event-ledger'?'event-ledger':'legacy';
+  session.knotEngineMode=knotEngineSelect.value==='event-ledger'?'event-ledger':'legacy';
   needleSelect.value=PRACTICE_SETUP.needle.id;materialSelect.value=PRACTICE_SETUP.suture.id;
   techniqueSelect.value=params.get('technique')==='sliding'?'sliding':'surgeon';
   session.selectedTechnique=techniqueSelect.value==='sliding'?'sliding':'surgeon';
   const restartSetup=()=>{
     const url=new URL(location.href);url.searchParams.set('skin',skinSelect.value);url.searchParams.set('needle',needleSelect.value);url.searchParams.set('suture',materialSelect.value);
-    url.searchParams.set('environment',session.environment.id);url.searchParams.set('target',microSelect.value);url.searchParams.set('technique',techniqueSelect.value);location.assign(url.href);
+    url.searchParams.set('environment',session.environment.id);url.searchParams.set('target',microSelect.value);url.searchParams.set('technique',techniqueSelect.value);url.searchParams.set('knotEngine',knotEngineSelect.value);location.assign(url.href);
   };
-  techniqueSelect.addEventListener('change',restartSetup);skinSelect.addEventListener('change',restartSetup);needleSelect.addEventListener('change',restartSetup);materialSelect.addEventListener('change',restartSetup);
+  knotEngineSelect.addEventListener('change',restartSetup);techniqueSelect.addEventListener('change',restartSetup);skinSelect.addEventListener('change',restartSetup);needleSelect.addEventListener('change',restartSetup);materialSelect.addEventListener('change',restartSetup);
   const originalLesson=document.querySelector('.lesson p')!.textContent!;
   const originalEversion=document.querySelector('#eversion-note')!.textContent!;
   const originalFree=document.querySelector('#free-note')!.textContent!;
