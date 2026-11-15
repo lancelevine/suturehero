@@ -4,7 +4,8 @@ import { chromium } from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 try {
   const page=await browser.newPage({viewport:{width:1440,height:900}}); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(process.env.SUTURE_TEST_URL ?? 'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
+  // Since build 0.160 the practice opens in the Sandbox (button: Start guided exercise); load the standard PS-2 so it does not reload with it (0.163).
+  await page.goto(new URL('?needle=ps2',process.env.SUTURE_TEST_URL ?? 'http://127.0.0.1:5173/').href,{waitUntil:'domcontentloaded'});
   if(process.env.SUTURE_TEST_COURSE){await page.locator('#workspace-session-review').evaluate(e=>e.open=true);await page.locator('#start-course').click();assert.match(await page.locator('#course-status').innerText(),/Stitch 1 \/ 3/);assert.equal(await page.locator('#next-stitch').isDisabled(),true);}
   if(process.env.SUTURE_TEST_BITES){
     await page.locator('#workspace-stitch-plan').evaluate(e=>e.open=true);
@@ -21,7 +22,7 @@ try {
     assert.equal(await page.locator('#cross-section-canvas').isVisible(),true);
   }
   await page.locator('#workspace-stitch-plan').evaluate(e=>e.open=false);await page.locator('#workspace-session-review').evaluate(e=>e.open=false);
-  await page.getByRole('button',{name:'Start guided pass'}).click();
+  await page.getByRole('button',{name:'Start guided exercise'}).click();
   if(process.env.SUTURE_TEST_TRACTION){
     await page.locator('#position-forceps').click();await page.keyboard.down('z');
     await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Skin edge held'));await page.keyboard.up('z');
@@ -113,7 +114,7 @@ try {
     assert.equal(await page.locator('#free-tying').isDisabled(),true);
     for(const width of [320,390,1440]){await page.setViewportSize({width,height:1180});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert(await page.locator('.version').isVisible());}
     if(process.env.SUTURE_SCREENSHOT)await page.locator('#viewport').screenshot({path:process.env.SUTURE_SCREENSHOT});
-    await page.getByRole('button',{name:'Start guided pass',exact:true}).click();await prepareEversion(page);
+    await page.getByRole('button',{name:'Start guided exercise',exact:true}).click();await prepareEversion(page);
     await advanceGuidedPass(page);
     assert.equal(await page.locator('#course-review li').count(),1);
     await page.locator('#reset').click();await page.waitForFunction(()=>document.querySelector('#course-status').textContent==='One-stitch practice');

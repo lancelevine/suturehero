@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {chromium} from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 try {
- for(const setup of ['', '?environment=microsurgery&target=small-artery&needle=bv1']){
+ // Since build 0.160 the practice opens in the Sandbox (button: Start guided exercise); load the standard PS-2 so it does not reload with it (0.163).
+ for(const setup of ['?needle=ps2', '?environment=microsurgery&target=small-artery&needle=bv1']){
   const page=await browser.newPage({viewport:{width:1440,height:1180},deviceScaleFactor:.5}),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(new URL(setup,process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href,{waitUntil:'domcontentloaded'});
@@ -11,7 +12,7 @@ try {
   await page.locator('#graphics-quality').selectOption('low');
   await page.locator('#workspace-practice-setup').evaluate(e=>e.open=false);
   for(const width of [320,375,1440]){await page.setViewportSize({width,height:1180});assert(await page.locator('.version').isVisible());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
-  await page.getByRole('button',{name:'Start guided pass',exact:true}).click();await prepareEversion(page);
+  await page.getByRole('button',{name:'Start guided exercise',exact:true}).click();await prepareEversion(page);
   await advanceGuidedPass(page);
   await page.locator('#workspace-practice-setup').evaluate(e=>e.open=true);
   await page.locator('#graphics-quality').selectOption('standard');await page.locator('#graphics-quality').selectOption('low');

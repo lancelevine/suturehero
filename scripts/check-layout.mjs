@@ -24,9 +24,10 @@ try {
   for(const scale of [1,1.25,2]) {
     const context=await browser.newContext({viewport:{width:1440,height:1000},deviceScaleFactor:scale});
     const page=await context.newPage(); const errors=[]; page.on('pageerror',error=>errors.push(error.message));
-    await page.goto('http://127.0.0.1:4178/',{waitUntil:'domcontentloaded'});
+    // Since build 0.160 the practice opens in the Sandbox (button: Start guided exercise); load the standard PS-2 so it does not reload with it (0.163).
+    await page.goto('http://127.0.0.1:4178/?needle=ps2',{waitUntil:'domcontentloaded'});
     await page.locator('#viewport > canvas').waitFor();
-    await page.getByRole('button',{name:'Start guided pass',exact:true}).click();
+    await page.getByRole('button',{name:'Start guided exercise',exact:true}).click();
     await page.getByRole('button',{name:'Close-up view',exact:true}).click();
     for(const width of [1440,900,768,1024,800,390,1920,980,1440]) {
       await page.setViewportSize({width,height:1000}); await page.waitForTimeout(200);

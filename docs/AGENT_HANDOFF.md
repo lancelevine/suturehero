@@ -109,8 +109,9 @@ entry when finishing.
   2 dermal bites, anchors at entry/exit, assessment past the pass stages.
 - check-free-tying had been failing since 0.160 (button renamed to "Start
   guided exercise"); updated (loads ?needle=ps2, new label). It passes.
-  check-guided-thread, check-knot, check-layout still use the old label:
-  fixed in the next commit.
+  check-guided-thread, check-knot, check-layout also used the old label;
+  updated in the next commit (load ?needle=ps2, click "Start guided
+  exercise"); all three pass.
 - Tests: gameplay/suture/tissue/setup/scene (276) pass; tsc;
   check-production-mode passes.
 
