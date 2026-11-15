@@ -6,7 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none.
+- **In progress:** Claude Code (in parallel with Codex, per Lance 2026-11-15) —
+  knot physics speed-up, a knot engine switch, and Claude's own knot engine.
+  Claude owns `src/knot/` (except `src/knot/codex/`), `src/gameplay/FreeKnotPractice.ts`
+  performance work, `src/suture/ThreadStrand.ts`, `src/suture/StrandPairContact.ts`,
+  `src/suture/InstrumentThreadContact.ts`. Codex: put your engine in `src/knot/codex/`;
+  the switch will be `src/knot/engines.ts` (Claude adds it; register yours there).
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
