@@ -112,7 +112,7 @@ entry when finishing.
 
 ## Log
 
-### 2026-11-15 — Claude — Faster knot physics, same result (build 0.192)
+### 2026-11-15 — Claude — Faster knot physics, same result (build 0.193)
 
 - Behaviour-identical knot physics speed-up (part 1 of Lance's 'fix the lag'):
   `InstrumentThreadContact.ts` box tests without allocating (spanOverlapsBox)

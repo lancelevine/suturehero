@@ -5,7 +5,7 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
-## Build 0.192 — Faster knot physics, same result
+## Build 0.193 — Faster knot physics, same result
 
 Free tying (and the demo's knot) runs faster: the same knot takes about 46%
 less computer time, with exactly the same result (thread positions
