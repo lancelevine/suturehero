@@ -95,6 +95,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox: thread drag and cut-through (build 0.173)
+
+- `FreeThreadGuide`: drag (MAX_SLIDE_SPEED, DRAG_TRACT_UNITS), `tension`,
+  eye-jump guard; `FreeNeedlePass.cutThrough()`; session CUT_TENSION 1.35
+  for CUT_SECONDS 0.5; message in `main.ts`.
+- Checked: tsc; gameplay/suture/tissue tests (280 pass).
+- Lance: after a pass, pull the needle away fast vs slowly.
+
 ### 2026-11-15 — Claude — Sandbox: needle loading check, tear limits in mm (build 0.172)
 
 - `src/suture/needleLoading.ts` (new, tested); messages in `main.ts`.

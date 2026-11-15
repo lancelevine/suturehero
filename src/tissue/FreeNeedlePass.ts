@@ -72,6 +72,8 @@ export interface FreePassRecord {
   crossesWound: boolean;
   /** The needle was forced out of the tissue (torn) instead of completing the pass. */
   torn?: boolean;
+  /** The thread was pulled so hard it cut through the tissue (cheese-wiring). */
+  cutThrough?: boolean;
   /** Sequence number among passes and tears (for undo). */
   order?: number;
   /** The path through the tissue (Stage B2 thread): the needle's circle from the entry. */
@@ -354,6 +356,26 @@ export class FreeNeedlePass {
     if (this.engagement) chain.push({ tract: this.engagement.record.tract, eyeAngle: this.engagement.angle - this.arc });
     for (let i = this.passes.length - 1; i >= this.threadStart; i--) chain.push({ tract: this.passes[i].tract, eyeAngle: Infinity });
     return chain;
+  }
+
+  /**
+   * Thread cut-through (2026-11-15): the newest threaded completed pass tears out
+   * through the skin toward the wound (a rent from its exit to the wound edge) and no
+   * longer holds the thread. Returns the pass, or null if there is none.
+   */
+  cutThrough(): FreePassRecord | null {
+    if (this.passes.length <= this.threadStart) return null;
+    const record = this.passes.pop()!;
+    if (!record.exit) return null;
+    record.torn = true;
+    record.cutThrough = true;
+    this.torn.push(record);
+    const from = record.exit.clone();
+    const side = Math.sign(from.x - WOUND_X) || 1;
+    const to = new THREE.Vector3(WOUND_X + side * this.halfGapAt(from.z), from.y, from.z);
+    if (from.distanceTo(to) < RENT_MIN) to.copy(from).add(new THREE.Vector3(-side * RENT_MIN, 0, 0));
+    this.rents.push({ from, to });
+    return record;
   }
 
   /** Takes the thread out of every completed pass (they keep their marks and feedback). */

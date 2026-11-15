@@ -75,3 +75,23 @@ describe('thread through free passes', () => {
     expect(pinAt(pins, tractPoint(passes[3].tract, 0))).toBeUndefined();
   });
 });
+
+describe('thread drag through the tissue', () => {
+  it('slides the thread through at a limited speed, so a fast pull makes it taut; a slow pull does not', async () => {
+    const { tractPoint } = await import('../tissue/FreeNeedlePass');
+    const tract = { centre: new THREE.Vector3(0, 0.61, 0.2), axis: new THREE.Vector3(0, 0, 1), start: new THREE.Vector3(-0.2, -0.2, 0).normalize().multiplyScalar(0.3), exitAngle: 1.6 };
+    const exit = tractPoint(tract, tract.exitAngle);
+    const pull = (speed: number) => {
+      const strand = new ThreadStrand();
+      const guide = new FreeThreadGuide();
+      let peak = 0;
+      for (let t = 0; t < 1; t += 1 / 60) {
+        guide.anchors(strand, exit.clone().add(new THREE.Vector3(0.05 + speed * t, 0.1, 0)), [{ tract, eyeAngle: Infinity }], 1 / 60);
+        peak = Math.max(peak, guide.tension);
+      }
+      return peak;
+    };
+    expect(pull(0.2)).toBeLessThan(1.35);
+    expect(pull(3)).toBeGreaterThan(1.35);
+  });
+});

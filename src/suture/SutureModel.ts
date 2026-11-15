@@ -52,7 +52,7 @@ export class SutureModel {
     this.root.updateWorldMatrix(true,false);
     const eye=this.points[0].clone().applyMatrix4(this.root.matrixWorld);
     this.strand.tissueContact=tissueContact;
-    const pins=guide.anchors(this.strand,eye,passes);
+    const pins=guide.anchors(this.strand,eye,passes,dt);
     // Thread held by an instrument (suture/ThreadGrasp.ts) follows the jaw; thread in the tissue stays put.
     if(held){held.grasp.update(held.jaws,this.strand.points,new Set(pins.keys()));for(const [i,p] of held.grasp.pins(held.jaws))if(!pins.has(i))pins.set(i,p);}
     this.strand.advance(dt,pins,surfaceAt);

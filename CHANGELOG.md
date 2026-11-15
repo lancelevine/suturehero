@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.173 — Sandbox: thread drag and cut-through
+
+Thread now drags through the tissue in the Sandbox: it slides through at a
+limited speed (slower through longer tracts), so pulling the suture fast
+makes it taut. Keeping it that taut for half a second cuts the thread
+through the skin: the newest pass tears out toward the wound (dark red
+split) and stops holding the thread. Pull the suture slowly along its path.
+Approximate: thread tension is geometric, not a measured force.
+
 ## Build 0.172 — Sandbox: needle loading check, tear limits in mm
 
 - Needle loading check: while the driver holds the needle in the Sandbox, the

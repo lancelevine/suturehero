@@ -148,6 +148,13 @@ export class PracticeSession {
   readonly freeThread=new FreeThreadGuide();
   /** Sandbox: either instrument can hold the suture outside knot tying (suture/ThreadGrasp.ts). */
   readonly threadGrasp=new ThreadGrasp();
+  /** How long the thread has been pulled too hard through the newest pass (s); see CUT_TENSION. */
+  private cutTime=0;
+  /** Passes the thread has cut through, for the message. */
+  cutThroughs=0;
+  /** Pulling the thread this much past straight (suture/FreeThreadGuide.ts tension) for CUT_SECONDS cuts it through the skin. */
+  static readonly CUT_TENSION=1.35;
+  static readonly CUT_SECONDS=0.5;
   private threadJaws():JawState[]{
     return this.instruments.map(tool=>{tool.root.updateWorldMatrix(true,false);
       return {id:tool.id,openness:tool.openness,tip:tool.root.localToWorld(new THREE.Vector3(0,0,0.05)),busy:this.grasp?.holder===tool||(tool.kind==='forceps'&&this.eversion.held)};});
@@ -441,11 +448,16 @@ export class PracticeSession {
       const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
       // Sandbox: the thread runs through every threaded free pass, newest first (suture/FreeThreadGuide.ts).
       if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.threadedPasses(),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact,{grasp:this.threadGrasp,jaws:this.threadJaws()});
+      if(this.sandbox){
+        // Yanking the thread cuts it through the newest completed pass (approximate: thread tension is geometric, not a force).
+        this.cutTime=this.freeThread.tension>PracticeSession.CUT_TENSION&&!this.freePass.inTissue?this.cutTime+step:0;
+        if(this.cutTime>=PracticeSession.CUT_SECONDS){this.cutTime=0;if(this.freePass.cutThrough()){this.cutThroughs++;this.freeThread.reset();}}
+      }
       else{this.threadGrasp.reset();this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);}
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset(){this.freeKnotAnchors=null;this.sandboxStitchZ=null;this.freePass.reset();this.freeThread.reset();this.threadGrasp.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
+  reset(){this.cutThroughs=0;this.cutTime=0;this.freeKnotAnchors=null;this.sandboxStitchZ=null;this.freePass.reset();this.freeThread.reset();this.threadGrasp.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
   private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.oppositeEdgeRequired=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }

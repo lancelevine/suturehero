@@ -247,3 +247,20 @@ describe('tissue shape, jitter, skin tears and undo', () => {
     expect(fragile.torn).toHaveLength(1);
   });
 });
+
+describe('thread cut-through', () => {
+  it('tears the newest threaded pass out toward the wound and stops threading it', () => {
+    const pass = new FreeNeedlePass(RADIUS, ARC);
+    pass.halfGapAt = () => 0.05;
+    const centre = new THREE.Vector3(0, SKIN_SURFACE_Y + 0.15, 0.2);
+    for (let turn = 0; turn <= Math.PI * 1.9 && pass.passes.length === 0; turn += 0.01) pass.update(pose(centre, turn), true, true);
+    const record = pass.cutThrough()!;
+    expect(record.cutThrough).toBe(true);
+    expect(pass.passes).toHaveLength(0);
+    expect(pass.threadedPasses()).toHaveLength(0);
+    const rent = pass.rents[0];
+    expect(rent.from.distanceTo(record.exit!)).toBeLessThan(1e-9);
+    expect(Math.abs(rent.to.x)).toBeCloseTo(0.05, 6);
+    expect(pass.cutThrough()).toBeNull();
+  });
+});
