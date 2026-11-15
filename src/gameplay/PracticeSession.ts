@@ -1,3 +1,4 @@
+import {createKnotEngine,type KnotEngine} from '../knot/engines';
 import {assessEdges,assessKnot,SLIP_CLOSURE_LOSS} from './stitchOutcome';
 import {ThreadGrasp,type JawState} from '../suture/ThreadGrasp';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
@@ -49,7 +50,8 @@ export class PracticeSession {
   private syncBitePlan(){this.placement.target.copy(this.pass.entry);this.placement.direction.set(-Math.sin(this.pass.startAngle),-Math.cos(this.pass.startAngle),0);this.freeKnot.tractHalfWidth=this.pass.halfWidth;this.wound.tractBottom=this.environment.id==='skin'?this.pass.center.y-this.pass.radius:undefined;}
 
   readonly tissueResponse=new StitchTissueResponse();
-  readonly freeKnot=new FreeKnotPractice();
+  /** Free tying, on the knot engine chosen in Practice setup (src/knot/engines.ts). */
+  readonly freeKnot:KnotEngine=createKnotEngine(PRACTICE_SETUP.knotEngine);
   private freeFromPass=false;
   private freeReleaseTime=0;
   get freeReleaseProgress(){return this.freeReleaseTime/1.5;}

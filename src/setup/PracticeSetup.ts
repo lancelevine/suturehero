@@ -24,7 +24,7 @@ export function resolveSetup(search='',options:{trainerDefault?:boolean}={}){
  const params=new URLSearchParams(search);
  const microsurgery=params.get('environment')==='microsurgery';
  const fallback=options.trainerDefault&&!microsurgery?NEEDLES.find(p=>p.id==='trainer')!:NEEDLES[0];
- return {environment:microsurgery?'microsurgery':'skin',skin:SKIN_TYPES.find(p=>p.id===params.get('skin'))??SKIN_TYPES[1],needle:NEEDLES.find(p=>p.id===params.get('needle'))??fallback,suture:SUTURES.find(p=>p.id===params.get('suture'))??SUTURES[0]};
+ return {environment:microsurgery?'microsurgery':'skin',skin:SKIN_TYPES.find(p=>p.id===params.get('skin'))??SKIN_TYPES[1],needle:NEEDLES.find(p=>p.id===params.get('needle'))??fallback,suture:SUTURES.find(p=>p.id===params.get('suture'))??SUTURES[0],knotEngine:params.get('knot')??'classic'};
 }
 // A setup change reloads the practice so every module receives one consistent profile.
 // In the browser the skin Sandbox defaults to the short trainer needle; tests and microsurgery keep the PS-2.

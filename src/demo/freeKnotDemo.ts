@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { FreeKnotPractice } from '../gameplay/FreeKnotPractice';
+import type { KnotEngine } from '../knot/engines';
 import type { Instrument } from '../instruments/Instrument';
 import { ease, type Segment } from './choreography';
 
@@ -93,7 +93,7 @@ function gripEnd(tool: Instrument, end: () => THREE.Vector3, gripped: () => bool
 }
 
 /** Both tools to the ends of the thread: forceps the long strand, driver the short tail. */
-function regraspEnds(model: FreeKnotPractice, { left, right }: Tools): Segment[] {
+function regraspEnds(model: KnotEngine, { left, right }: Tools): Segment[] {
   // Look the strands up each frame: FreeKnotPractice.begin replaces them when tying starts.
   const end = (strand: () => { points: THREE.Vector3[] }) => () => strand().points.at(-1)!.clone();
   return [
@@ -113,7 +113,7 @@ function regraspEnds(model: FreeKnotPractice, { left, right }: Tools): Segment[]
 }
 
 /** One throw: position, wrap the long strand around the driver, pull the tail through, pull the ends apart. */
-function throwSegments(model: FreeKnotPractice, { left, right }: Tools, wraps: number, direction: number, first: boolean, title?: string): Segment[] {
+function throwSegments(model: KnotEngine, { left, right }: Tools, wraps: number, direction: number, first: boolean, title?: string): Segment[] {
   const base = new THREE.Vector3();
   const offset = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyQuaternion(right.root.quaternion);
   const radius = first ? 0.5 : 0.25;
@@ -153,7 +153,7 @@ function throwSegments(model: FreeKnotPractice, { left, right }: Tools, wraps: n
 }
 
 /** Lower both hands to the skin and pull to seat the knot. */
-function lowerAndPull(model: FreeKnotPractice, { left, right }: Tools, seconds = 3): Segment {
+function lowerAndPull(model: KnotEngine, { left, right }: Tools, seconds = 3): Segment {
   let starts: THREE.Vector3[] = [];
   return {
     caption: 'Lower the hands and tighten the knot down onto the skin',
@@ -174,7 +174,7 @@ function lowerAndPull(model: FreeKnotPractice, { left, right }: Tools, seconds =
  * The whole tie, starting from free tying just begun after a pass (the forceps
  * hold the long strand; see FreeKnotPractice.begin).
  */
-export function freeKnotSegments(model: FreeKnotPractice, tools: Tools): Segment[] {
+export function freeKnotSegments(model: KnotEngine, tools: Tools): Segment[] {
   const { right } = tools;
   return [
     pause(0.5, 'Free instrument tie · real thread physics'),

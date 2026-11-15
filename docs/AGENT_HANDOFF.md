@@ -112,6 +112,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Knot engine switch (build 0.194)
+
+- New `src/knot/engines.ts` (+ test): `KnotEngine` (the FreeKnotPractice
+  members the app reads), `KNOT_ENGINES` registry, `createKnotEngine`.
+  PracticeSession.freeKnot is a KnotEngine; PracticeSetup.knotEngine from
+  ?knot=; selector #knot-engine in Practice setup; FreeKnotView and demo take
+  KnotEngine.
+- **Codex:** register your engine in `KNOT_ENGINES` (id, label, create).
+  It must provide every member listed in `KnotEngine`.
+- Checked: tsc; knot/PracticeSession/setup tests; check-layout,
+  check-free-tying, check-sandbox.
+
 ### 2026-11-15 — Claude — Faster knot physics, same result (build 0.193)
 
 - Behaviour-identical knot physics speed-up (part 1 of Lance's 'fix the lag'):

@@ -2,7 +2,7 @@ import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {tissueTractPoints} from '../tissue/sutureTract';
 import * as THREE from 'three';
 import { StrandMesh } from './StrandMesh';
-import type { FreeKnotPractice } from '../gameplay/FreeKnotPractice';
+import type { KnotEngine } from '../knot/engines';
 export class FreeKnotView {
   readonly root=new THREE.Group();
   private long=new StrandMesh(64);
@@ -10,12 +10,12 @@ export class FreeKnotView {
   private buried!:THREE.Mesh<THREE.TubeGeometry,THREE.MeshStandardMaterial>;
   private route='';
   private tip=new THREE.Mesh(new THREE.SphereGeometry(0.026,12,8),new THREE.MeshStandardMaterial({color:0xffcc55,roughness:0.5}));
-  constructor(model:FreeKnotPractice) {
+  constructor(model:KnotEngine) {
     this.tip.name='short-tip-marker';
     const path=new THREE.CatmullRomCurve3(tissueTractPoints(model.entry,model.exit,33,model.tractHalfWidth));
     this.buried=new THREE.Mesh(new THREE.TubeGeometry(path,32,0.009,6),new THREE.MeshStandardMaterial({color:PRACTICE_SETUP.suture.color,roughness:.75}));this.root.add(this.tip,this.long,this.short,this.buried);
   }
-  update(model:FreeKnotPractice) {
+  update(model:KnotEngine) {
     this.root.visible=model.active;if(!model.active)return;
     if(this.long.geometry.getAttribute('position').count!==model.long.count*6){
       this.root.remove(this.long);this.long.geometry.dispose();this.long.material.dispose();this.long=new StrandMesh(model.long.count);this.root.add(this.long);

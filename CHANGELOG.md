@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.194 — Knot engine switch
+
+New Practice setup option: Knot engine. Free tying can run on different
+knot implementations so they can be compared; for now only "Classic" (the
+current one). Claude's and Codex's engines will appear here. Also settable
+with ?knot=<id> in the link.
+
 ## Build 0.193 — Faster knot physics, same result
 
 Free tying (and the demo's knot) runs faster: the same knot takes about 46%
