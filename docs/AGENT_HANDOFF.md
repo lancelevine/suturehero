@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox: several separate stitches, each tied (open-ended records at their own position).
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,24 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — several tied Sandbox stitches (build 0.167)
+
+- `StitchCourse.recordSandbox(site, review, strands)` (+ test): any number
+  of records outside a guided course, each at its own `site.siteZ`,
+  strands in world coordinates (Sandbox keeps the current site at z 0).
+- PracticeSession: `sandboxStitchZ` (pass entry/exit midpoint) set on tie;
+  `tissueField` centres the active site there; `fieldInUse` applies the
+  field (tissuePoint) in a course or with Sandbox stitches;
+  `canFinishSandboxStitch` (knot seated) / `finishSandboxStitch()` record
+  the site + strands, resetCurrent, unthread passes, show the thread.
+  main.ts: the tying button reads "Finish stitch · next" and retains the
+  knot meshes via CompletedStitchesView.retain(…, 0).
+- Fixes the 0.166 gap: the live knot closed the wound at z 0, not at the
+  pass.
+- Session test: two stitches at z ±0.5 (knot seated stubbed), recorded at
+  their positions, two field sites, back in the Sandbox. Tests (278) pass;
+  check-production-mode, -free-tying, -knot pass.
 
 ### 2026-11-15 — Claude — knots on free passes, B3 (build 0.166)
 

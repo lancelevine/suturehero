@@ -75,6 +75,27 @@ export class PracticeSession {
    * free pass's entry and exit (kept each frame instead of the guided pass's).
    */
   private freeKnotAnchors:{entry:THREE.Vector3;exit:THREE.Vector3}|null=null;
+  /** Position along the wound (z) of the Sandbox stitch being tied: its closure is centred here. */
+  private sandboxStitchZ:number|null=null;
+  /** The tissue field (several closure sites) applies in a guided course or once there are Sandbox stitches. */
+  private get fieldInUse(){return this.environment.id==='skin'&&(this.course.active||this.sandboxStitchZ!==null||this.course.tissueSites.length>0);}
+  /** The Sandbox knot is tied and seated: the stitch can be finished and a new one started. */
+  get canFinishSandboxStitch(){return !!this.freeKnotAnchors&&this.freeKnot.active&&this.freeKnot.lockSeated;}
+  /**
+   * Keeps the tied Sandbox stitch (closure at its own position, frozen strands)
+   * and returns to the Sandbox with a fresh needle and thread.
+   */
+  finishSandboxStitch(){
+    if(!this.canFinishSandboxStitch||this.sandboxStitchZ===null)return false;
+    const site={siteZ:this.sandboxStitchZ,closure:this.wound.closure,initialGap:this.wound.initialGap,tractBottom:this.wound.tractBottom,eversion:this.tissueResponse.eversion,pucker:this.tissueResponse.pucker,compression:this.tissueResponse.compression,mismatch:this.wound.edgeMismatch};
+    if(!this.course.recordSandbox(site,this.stitchAssessment.feedback,[this.freeKnot.long.points,this.freeKnot.short.points]))return false;
+    this.resetCurrent();
+    this.freeKnotAnchors=null;this.sandboxStitchZ=null;
+    this.freePass.abortCurrent();this.freePass.unthreadAll();this.freeThread.reset();
+    this.grasp?.needle.setThreadVisible(true);
+    this.configureTissueResponse();
+    return true;
+  }
   /** A completed, threaded free pass can be tied (needle out of the skin). */
   get canTieFreePass(){return this.sandbox&&!this.freePass.inTissue&&this.freePass.threadedPasses().length>0;}
   tieFreePass(){
@@ -84,6 +105,7 @@ export class PracticeSession {
     this.grasp.release();this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,.1,1.2);
     this.eversion.reset();
     this.freeKnotAnchors={entry:pass.entry.clone(),exit:pass.exit.clone()};
+    this.sandboxStitchZ=(pass.entry.z+pass.exit.z)/2;
     this.freeKnot.entry.copy(this.tissuePoint(pass.entry));this.freeKnot.exit.copy(this.tissuePoint(pass.exit));
     this.wound.setDermalBites(...freePassBites(pass.tract));
     this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;
@@ -141,7 +163,7 @@ export class PracticeSession {
   readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
   private tissuePoint(p:THREE.Vector3){
-    if(this.environment.id!=='skin'||!this.course.active)return this.wound.deformPoint(p);
+    if(!this.fieldInUse)return this.wound.deformPoint(p);
     const z=p.z+this.course.siteZ,sites=this.tissueField;
     return new THREE.Vector3(p.x-Math.sign(p.x)*fieldShift(p.x,z,sites,p.y),p.y+fieldLift(p.x,p.y,z,sites),p.z);
   }
@@ -151,7 +173,7 @@ export class PracticeSession {
   private fieldSaved:readonly TissueSite[]|undefined;
   /** A stable snapshot shared by rendering and thread contact in pad coordinates. */
   get tissueField(){
-    const saved=this.course.tissueSites,z=this.course.siteZ,r=this.tissueResponse;
+    const saved=this.course.tissueSites,z=this.sandboxStitchZ??this.course.siteZ,r=this.tissueResponse;
     const previous=this.fieldActive,mismatch=this.wound.edgeMismatch;
     if(this.fieldSaved!==saved||!previous||previous.siteZ!==z||previous.closure!==this.wound.closure||this.fieldRevision!==r.revision||previous.mismatch!==mismatch||previous.initialGap!==this.wound.initialGap||previous.tractBottom!==this.wound.tractBottom){
       this.fieldSaved=saved;this.fieldRevision=r.revision;
@@ -402,6 +424,6 @@ export class PracticeSession {
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset(){this.freeKnotAnchors=null;this.freePass.reset();this.freeThread.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
+  reset(){this.freeKnotAnchors=null;this.sandboxStitchZ=null;this.freePass.reset();this.freeThread.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
   private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.oppositeEdgeRequired=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }

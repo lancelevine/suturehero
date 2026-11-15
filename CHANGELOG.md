@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.167 — Sandbox: several separate stitches, each tied
+
+After tying a knot on a Sandbox stitch, the main button reads "Finish stitch
+· next" once the knot is seated: the stitch is kept (knot and thread frozen
+in place, wound closed at that stitch's own position along the wound) and
+you get a fresh needle and thread to place the next one, as many as you
+like. Each stitch now closes the wound where you actually placed it (before,
+the live knot closed it at the middle of the pad). Reset practice clears
+all stitches.
+
 ## Build 0.166 — Sandbox: tie a knot on your stitch (Stage B3)
 
 After a free pass in the Sandbox, the "Free tying lab" button becomes "Tie

@@ -39,3 +39,12 @@ it('reviews residual opening between saved stitches and clears on reset',()=>{
  expect(c.closureReview).toContain('visible opening');expect(c.spacingReview).toContain('Uneven');
  c.reset();expect(c.closureReview).toContain('Save two');
 });
+it('records any number of Sandbox stitches at their own positions, outside a guided course',()=>{
+ const c=new StitchCourse(),site=(z:number)=>({siteZ:z,closure:1,initialGap:.1,eversion:0,pucker:0});
+ const strands=[[new THREE.Vector3(0,.4,.5),new THREE.Vector3(.1,.4,.5)]];
+ for(const z of [.5,-.6,.1,.9])expect(c.recordSandbox(site(z),['ok'],strands)).toBe(true);
+ expect(c.completed.map(r=>r.site.siteZ)).toEqual([.5,-.6,.1,.9]);expect(c.tissueSites).toHaveLength(4);
+ expect(c.completed[0].strands[0][0].z).toBe(.5);
+ expect(c.recordSandbox(site(Number.NaN),['x'],strands)).toBe(false);
+ c.begin();expect(c.recordSandbox(site(.2),['x'],strands)).toBe(false);
+});

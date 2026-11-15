@@ -46,5 +46,18 @@ export class StitchCourse {
   this.records=Object.freeze([...this.records,saved]);this.sites=Object.freeze(this.records.map(r=>r.site));this.revision++;return true;
  }
  advance(){if(!this.active||this.finished||this.records.length!==this.index+1)return false;this.index++;this.revision++;return true;}
+ /**
+  * Sandbox stitches (2026-11-15): any number, each recorded at its own
+  * position along the wound (`site.siteZ`), with strands already in world
+  * coordinates (the Sandbox keeps the current site at z = 0). Only outside a
+  * guided course; Reset clears them with everything else.
+  */
+ recordSandbox(site:TissueSite,review:readonly string[],strands:readonly (readonly THREE.Vector3[])[]){
+  if(this.active||!Number.isFinite(site.siteZ))return false;
+  if(!strands.length||strands.some(s=>s.length<2||s.some(p=>!p.toArray().every(Number.isFinite))))return false;
+  const saved=Object.freeze({number:this.records.length+1,site:Object.freeze({...site}),review:Object.freeze([...review]),
+   strands:Object.freeze(strands.map(s=>Object.freeze(s.map(p=>Object.freeze(p.clone())))))});
+  this.records=Object.freeze([...this.records,saved]);this.sites=Object.freeze(this.records.map(r=>r.site));this.revision++;return true;
+ }
  reset(){this.stations=Object.freeze([-.75,0,.75]);this.singleSite=0;this.active=false;this.index=0;this.records=[];this.sites=[];this.revision++;}
 }

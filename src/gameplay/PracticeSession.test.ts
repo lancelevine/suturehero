@@ -308,3 +308,33 @@ it('ties a knot on a free sandbox pass across the wound (Stage B3)',()=>{
  session.reset();
  expect(session.sandbox).toBe(true);
 });
+it('keeps several tied sandbox stitches, each closing the wound at its own position',()=>{
+ const needle=new SutureModel(),left=new Instrument('left',0),right=new Instrument('right',0);
+ const scene=new THREE.Scene();scene.add(needle.root,left.root,right.root);
+ const session=new PracticeSession({sample:()=>({translation:[0,0,0],rotation:[0,0,0],jaw:0}),dispose:()=>{}},[left,right],new NeedleGrasp(needle));
+ const step=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),.01);
+ const seated=vi.spyOn(session.freeKnot,'lockSeated','get');
+ for(const z of [-.5,.5]){
+  left.root.position.set(3,3,3);
+  const centre=new THREE.Vector3(0,.41+.18,z),before=session.freePass.passes.length;
+  session.grasp!.release();
+  needle.root.position.copy(centre);needle.root.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);needle.root.updateWorldMatrix(true,false);
+  right.root.position.set(.5,1,z);right.root.quaternion.identity();right.root.updateWorldMatrix(true,false);right.openness=.1;
+  session.grasp!.attach(right);
+  for(let i=0;i<600&&session.freePass.passes.length===before;i++){
+   right.root.position.sub(centre).applyQuaternion(step).add(centre);right.root.quaternion.premultiply(step);right.root.updateWorldMatrix(true,false);
+   session.update(1/60);
+  }
+  expect(session.tieFreePass()).toBe(true);
+  session.update(1/60);
+  seated.mockReturnValue(false);expect(session.canFinishSandboxStitch).toBe(false);
+  seated.mockReturnValue(true);expect(session.canFinishSandboxStitch).toBe(true);
+  expect(session.finishSandboxStitch()).toBe(true);
+  seated.mockReturnValue(false);
+  expect(session.sandbox).toBe(true);
+ }
+ expect(session.course.completed.map(r=>r.site.siteZ)).toEqual([-.5,.5].map(z=>expect.closeTo(z,1)));
+ expect(session.tissueField.filter(s=>Math.abs(s.siteZ)>.3)).toHaveLength(2);
+ seated.mockRestore();
+ session.reset();expect(session.course.completed).toHaveLength(0);
+});
