@@ -6,8 +6,8 @@
  */
 
 export interface Segment {
-  /** Caption shown while this segment runs (kept until the next caption). */
-  caption?: string;
+  /** Caption shown while this segment runs (kept until the next caption); a function is read after `start`. */
+  caption?: string | (() => string);
   /** Duration (s). */
   seconds: number;
   /** Called once when the segment starts (record start poses here). */
@@ -56,8 +56,9 @@ export class Choreography {
     this.elapsed = 0;
     const segment = this.segments[index];
     if (!segment) return;
-    if (segment.caption) this.caption = segment.caption;
     segment.start?.();
+    const caption = typeof segment.caption === 'function' ? segment.caption() : segment.caption;
+    if (caption) this.caption = caption;
   }
 }
 

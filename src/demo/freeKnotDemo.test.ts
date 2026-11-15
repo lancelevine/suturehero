@@ -5,7 +5,7 @@ import { Instrument } from '../instruments/Instrument';
 import { NeedleGrasp } from '../suture/NeedleGrasp';
 import { SutureModel } from '../suture/SutureModel';
 import { Choreography } from './choreography';
-import { physicsDemoSegments } from './physicsDemo';
+import { physicsDemoSegments, stitchSummary } from './physicsDemo';
 
 it('performs a free pass and ties a locked, seated surgeon’s knot by thread physics at the app frame rate, then keeps the stitch', async () => {
   const needle = new SutureModel(), left = new Instrument('left', 0), right = new Instrument('right', 0);
@@ -48,6 +48,7 @@ it('performs a free pass and ties a locked, seated surgeon’s knot by thread ph
   const review = session.course.completed[0].review.join(' | ');
   expect(review, review).toMatch(/Knot: secure/);
   expect(session.sandbox).toBe(true);
+  expect(stitchSummary(session)).toMatch(/^Stitch complete · bites \d+\.\d mm \/ \d+\.\d mm from the edge · \d+\.\d mm deep \(dermis\) · knot secure$/);
   // A bite that reaches the dermis from about 6 mm out.
   const bite = session.freePass.passes[0];
   expect(bite.deepestLayer).toBe('dermis');

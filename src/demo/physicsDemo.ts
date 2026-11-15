@@ -5,6 +5,7 @@ import type { NeedleGrasp } from '../suture/NeedleGrasp';
 import type { SutureModel } from '../suture/SutureModel';
 import { ease, type Segment } from './choreography';
 import { freeKnotSegments } from './freeKnotDemo';
+import { formatMm } from '../setup/sceneScale';
 
 /**
  * The demo's simple interrupted suture with free (physics) handling
@@ -159,7 +160,7 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
     { seconds: 0.8, start: () => (right.openness = 0.1), done: () => grasp.holder === right },
     poseMove(right, () => above(pickupPose)(), 1.2, 'Lift the needle and bring it to the wound'),
     poseMove(right, liftedPassPose, 2.5),
-    poseMove(right, () => passDriverPose(needle), 1.5, 'Enter the skin about 6–7 mm from the edge'),
+    poseMove(right, () => passDriverPose(needle), 1.5, 'Enter the skin about 5 mm from the wound edge'),
     drive('Drive the needle through the skin along its curve', () => {
       // Until the tip is well out on the far side: then let go and regrasp the tip.
       const tip = needle.getTipPose().position;
@@ -184,8 +185,8 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
     ...freeKnotSegments(session.freeKnot, { left, right }),
     ...trimSegments(scene),
     {
-      caption: 'Stitch kept · simple interrupted suture complete',
-      seconds: 2,
+      caption: () => stitchSummary(session),
+      seconds: 5,
       start: () => {
         if (session.canFinishSandboxStitch) session.finishSandboxStitch();
       },
@@ -218,4 +219,14 @@ function trimSegments({ scissors, left, right }: DemoScene): Segment[] {
     // The scissors come from the page; unit tests have none and skip the cutting.
     ...(scissors ? [...cut('long'), ...cut('short'), { seconds: 0.6, start: () => scissors.putAway() }] : []),
   ];
+}
+
+/** Closing caption from the simulation itself: the bite and the knot grade of the stitch just kept. */
+export function stitchSummary(session: PracticeSession): string {
+  const pass = session.freePass.passes[session.freePass.passes.length - 1];
+  const stitch = session.course.completed[session.course.completed.length - 1];
+  if (!pass || !stitch) return 'Simple interrupted suture complete';
+  const knot = stitch.review.find((line) => line.startsWith('Knot: '))?.replace(/^Knot: (\S+(?: \S+)?) ·.*$/, '$1') ?? 'tied';
+  const exit = pass.exitEdge !== null ? ` / ${formatMm(pass.exitEdge)}` : '';
+  return `Stitch complete · bites ${formatMm(pass.entryEdge)}${exit} from the edge · ${formatMm(pass.depth)} deep (${pass.deepestLayer}) · knot ${knot}`;
 }

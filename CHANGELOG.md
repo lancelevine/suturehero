@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.189 — Demo ends on a measured stitch summary
+
+Demo, iteration 4: it ends on a summary measured from the simulation,
+e.g. "Stitch complete · bites 5.1 mm / 5.2 mm from the edge · 2.9 mm deep
+(dermis) · knot secure". The entry caption now says about 5 mm from the
+wound edge (measured).
+
 ## Build 0.188 — Demo: natural needle pickup, drive and regrasp; seated knots hold
 
 Demo, iteration 3 (more natural needle handling):

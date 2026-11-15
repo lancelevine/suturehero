@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Demo with free (physics) tying instead of the scripted knot; several releases.
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -106,6 +106,16 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Demo ends on a measured stitch summary (build 0.189)
+
+- `physicsDemo.ts`: `stitchSummary` closing caption; `choreography.ts`:
+  caption may be a function read after start (test added).
+- Free-tying demo done (builds 0.186–0.189): pickup, free pass with
+  regrasp, three-throw instrument tie by thread physics, release, cut both
+  tails, keep stitch. Runs ~3 min on a normal computer (12 min here).
+- Checked: tsc; demo tests; check-demo passes (summary shown).
+- Lance: run ▶ Demo on the presentation machine; check timing and camera.
 
 ### 2026-11-15 — Claude — Demo: natural needle pickup, drive and regrasp; seated knots hold (build 0.188)
 

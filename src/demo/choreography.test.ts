@@ -21,3 +21,10 @@ it('ends a segment early when it is done', () => {
   for (let i = 0; i < 3; i++) c.step(0.1);
   expect(c.caption).toBe('next');
 });
+
+it('reads a caption function after the segment starts', () => {
+  let n = 0;
+  const c = new Choreography([{ seconds: 1, start: () => (n = 7), caption: () => `n=${n}` }]);
+  c.step(0.1);
+  expect(c.caption).toBe('n=7');
+});
