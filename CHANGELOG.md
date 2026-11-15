@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.181 — Hint when markers are too far from the camera
+
+With one camera, the status strip now says when an instrument is too far
+from the camera for its 12 mm markers (over 40 cm): "about 55 cm from the
+camera · markers too small · move the camera closer (25–35 cm)". From
+Lance's iPhone profile, where the markers were 36–55 cm away and the phone
+was upright. Approximate guidance.
+
 ## Build 0.180 — iPhone camera mode
 
 New camera type: iPhone in Safari (Camera controls → Camera type). It is

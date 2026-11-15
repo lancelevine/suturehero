@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — "too far from the camera" hint for small markers (iPhone profile).
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -104,6 +104,16 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Hint when markers are too far from the camera (build 0.181)
+
+- `trackingHealth.ts`: FAR_CAMERA_MM 400, `distanceMm` on InstrumentHealth,
+  holding reason (single camera only); `tracking.ts` passes rawZ.
+- iPhone profile (build 0.179, Chrome on iOS): 1080×1920 portrait, 30 fps,
+  needle driver 36 cm, forceps 55 cm ("too tilted or small"); decode runs at
+  native pixels (only flow is ≤960 px), so resolution was not cut.
+- Checked: tsc; trackingHealth tests; check-status-strip.
+- Lance: with 0.180+ hold the iPhone sideways, 25–35 cm away; new profile.
 
 ### 2026-11-15 — Claude — iPhone camera mode (build 0.180)
 

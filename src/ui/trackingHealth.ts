@@ -18,6 +18,8 @@ export interface InstrumentHealth {
   depthHeld: boolean;
   /** Why stereo was not used for it, when stereo is on. */
   stereoRejection: string | null;
+  /** Single-camera distance to the tracker (mm), when measured; undefined = not reported. */
+  distanceMm?: number | null;
   /** Stereo tip calibrated (src/input/stereoTipCalibration.ts); undefined = not reported. */
   tipCalibrated?: boolean;
 }
@@ -50,6 +52,15 @@ export interface ChecklistItem {
   /** What is missing, for the tooltip. */
   detail: string;
 }
+
+/**
+ * Beyond this camera distance (mm) the 12 mm ring markers cover too few pixels to
+ * decode reliably (a 2026-11-15 iPhone profile at 36–55 cm tracked poorly); the
+ * strip suggests moving the camera closer. Approximate guidance.
+ */
+export const FAR_CAMERA_MM = 400;
+/** Suggested working distance shown with the hint. */
+export const SUGGESTED_DISTANCE = '25–35 cm';
 
 /** After this long without markers an instrument is holding its last pose (matches tracking's 650 ms hold). */
 export const HOLD_AFTER_MS = 650;
@@ -137,6 +148,9 @@ export function holdingReasons(input: HealthInput): string[] {
       continue;
     }
     if (instrument.depthHeld) reasons.push(`${instrument.label}: depth held · marker too tilted or small`);
+    if (!input.stereoMode && instrument.distanceMm != null && instrument.distanceMm > FAR_CAMERA_MM) {
+      reasons.push(`${instrument.label}: about ${Math.round(instrument.distanceMm / 10)} cm from the camera · markers too small · move the camera closer (${SUGGESTED_DISTANCE})`);
+    }
     if (input.stereoMode && instrument.stereoRejection) reasons.push(`${instrument.label}: one camera only · ${instrument.stereoRejection}`);
   }
   return reasons;
