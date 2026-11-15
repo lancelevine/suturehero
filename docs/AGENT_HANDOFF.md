@@ -107,6 +107,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Knot topology shadow project, step 2: Gauss code simplification (no build change)
+
+- New `src/knot/gaussCode.ts` (+ test): Gauss code from a crossing diagram;
+  `simplify` removes twists (R1) and single overlaps (R2) until none remain.
+  Tested: trefoil keeps 3; twists and overlap pairs removed, also inside a
+  trefoil; a 3D curled loop goes to 0. Not used by the app.
+
 ### 2026-11-15 — Claude — Knot topology shadow project, step 1: crossing diagram (no build change)
 
 - New `src/knot/crossingDiagram.ts` (+ test): crossings of a closed 3D
