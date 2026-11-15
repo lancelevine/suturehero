@@ -95,6 +95,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Sandbox browser check (no build change)
+
+- `scripts/check-sandbox.mjs` (new): free pass with feedback and marks,
+  forced tear splits the skin, Undo pass, replay, session summary. Drives the
+  driver through a dev-only `window.__sutureHeroSandbox` hook in `main.ts`.
+- Checked: passed 3/3 in this sandbox; tsc clean. Listed in AGENTS.md.
+
 ### 2026-11-15 — Claude — Sandbox: forceps eversion and counter-traction count (build 0.177)
 
 - `FreePassRecord.entryLift`; `describeEversion` in `freePassFeedback.ts`;

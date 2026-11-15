@@ -185,6 +185,8 @@ try {
   const passGuide=new PassGuide(session.pass); view.scene.add(passGuide.root);
   // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
   view.scene.add(replay.paths);
+  // Development only: lets browser checks (scripts/check-sandbox.mjs) drive the Sandbox directly.
+  if((import.meta as ImportMeta&{env?:{DEV?:boolean}}).env?.DEV)(window as unknown as {__sutureHeroSandbox?:object}).__sutureHeroSandbox={session,needle,tools,grasp,heldDisplay,scene:view.scene};
   document.querySelector('#replay')?.addEventListener('click',()=>{if(replay.replaying)replay.stop();else replay.start();});
   document.querySelector('#reset')?.addEventListener('click',()=>replay.clear());
   document.querySelector('#undo-pass')?.addEventListener('click',()=>{if(!session.sandbox)return;const wasIn=session.freePass.inTissue;if(session.freePass.undoLast()){if(wasIn)grasp.reset();session.freeThread.reset();session.freePass.rejection=null;}});
