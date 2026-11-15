@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Demo button: automatic simple interrupted suture for presentations.
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -101,6 +101,15 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Demo button: automatic simple interrupted suture (build 0.178)
+
+- `src/demo/demoRunner.ts` (new, tested), `src/demo/interruptedSutureDemo.ts`
+  (script, mirrors check-knot), `src/ui/demoControl.ts` (button, captions,
+  ?demo=1 auto-start), CSS; mounted in `main.ts`.
+- `scripts/check-demo.mjs` (new): full demo to trimmed tails.
+- Checked: tsc; demo tests; check-demo, check-layout, check-sandbox pass.
+- Lance: try ▶ Demo on the presentation machine (and in Production mode).
 
 ### 2026-11-15 — Claude — Sandbox batch finished (builds 0.170–0.177)
 

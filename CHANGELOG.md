@@ -5,6 +5,18 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.178 — Demo button: automatic simple interrupted suture
+
+New ▶ Demo button (top right of the 3D view): the instruments perform a
+simple interrupted suture by themselves, with large captions for
+presentations: evert the edge, drive the needle, support the opposite edge,
+transfer and extract, surgeon's knot (double then opposing throw), release,
+pull check, trim both tails. About 3 minutes. Click ■ Stop demo to stop.
+It plays the guided exercise with the same keys and buttons a learner uses
+(guided motions are assisted). From the Sandbox it reloads with the PS-2
+needle and starts by itself. The view buttons now wrap instead of covering
+the scene title.
+
 ## Build 0.177 — Sandbox: forceps eversion and counter-traction count
 
 Forceps technique counts in the Sandbox: the pass feedback credits an
