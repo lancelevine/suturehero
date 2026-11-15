@@ -5,6 +5,21 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.190 — Demo: right-to-left pass with forceps eversion, natural speed
+
+Demo changes from Lance's review:
+- The needle now goes right to left: in through the right edge, out the
+  left.
+- The forceps grasp the right skin edge beside the bite and lift it to
+  evert it while the needle enters, then let go.
+- Everything moves at a more natural pace: the demo takes about 1½
+  minutes instead of 2½–3 (faster handling, 57°/s needle drive, 3.2 s per
+  wrap).
+- Tightening is one continuous pull down and apart, then a short hold
+  (longer for the last throw), instead of a slow move and a long pause.
+- Grips on the thread ends retry if they miss, so the tie is reliable in
+  the browser.
+
 ## Build 0.189 — Demo ends on a measured stitch summary
 
 Demo, iteration 4: it ends on a summary measured from the simulation,

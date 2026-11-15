@@ -14,9 +14,10 @@ it('performs a free pass and ties a locked, seated surgeon’s knot by thread ph
   const grasp = new NeedleGrasp(needle);
   const session = new PracticeSession({ sample: () => ({ translation: [0, 0, 0], rotation: [0, 0, 0], jaw: 0 }), dispose: () => {} }, [left, right], grasp);
   const dance = new Choreography(physicsDemoSegments({ session, needle, grasp, left, right }));
-  let frames = 0, seated = false, technique: string | undefined, locked = false, picked = false, gap = Infinity, lowestShaft = Infinity;
+  let everted = false, frames = 0, seated = false, technique: string | undefined, locked = false, picked = false, gap = Infinity, lowestShaft = Infinity;
   while (dance.step(1 / 60)) {
     session.update(1 / 60);
+    everted ||= session.eversion.held && session.eversion.anchor.x > 0;
     if (session.freePass.passes.length === 0) {
       // The driver's jaws and shaft stay above the skin while loading and driving the needle.
       right.root.updateWorldMatrix(true, false);
@@ -37,6 +38,7 @@ it('performs a free pass and ties a locked, seated surgeon’s knot by thread ph
     }
     if (++frames % 120 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
   }
+  expect(everted).toBe(true);
   expect(picked).toBe(true);
   expect(gap).toBeLessThan(0.03);
   expect(lowestShaft).toBeGreaterThan(0.41);
@@ -54,6 +56,9 @@ it('performs a free pass and ties a locked, seated surgeon’s knot by thread ph
   expect(bite.deepestLayer).toBe('dermis');
   expect(bite.entryEdge * 27).toBeGreaterThan(4.5);
   expect(bite.crossesWound).toBe(true);
-  // About two and a half minutes of demo at 60 fps.
-  expect(frames / 60).toBeLessThan(200);
+  // Right to left: in through the right edge, out through the left.
+  expect(bite.entry.x).toBeGreaterThan(0);
+  expect(bite.exit!.x).toBeLessThan(0);
+  // About a minute and a half of demo at 60 fps.
+  expect(frames / 60).toBeLessThan(110);
 }, 400000);

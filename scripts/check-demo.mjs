@@ -11,7 +11,7 @@ try{
   await page.locator('#demo').click();
   await page.waitForURL(/needle=ps2/,{timeout:20000});
   // Watch for both tails being cut (the free-tying readout says "Tails trimmed: 2/2").
-  await page.evaluate(()=>{window.__trimmed=false;let last='';setInterval(()=>{if(/Tails trimmed: 2\/2/.test(document.body.innerText))window.__trimmed=true;const c=document.querySelector('.demo-caption')?.textContent??'';if(c!==last){last=c;console.log('DEMO '+Math.round(performance.now()/1000)+'s '+c);}},250);});
+  await page.evaluate(()=>{window.__trimmed=false;let last='';setInterval(()=>{if(/Tails trimmed: 2\/2/.test(document.body.innerText))window.__trimmed=true;const c=document.querySelector('.demo-caption')?.textContent??'';if(c!==last){last=c;const k=window.__sutureHeroSandbox?.session?.freeKnot;console.log('DEMO '+Math.round(performance.now()/1000)+'s '+c+(k?.active?' | '+(k.sequence?.throws?.length??0)+' throws · locked '+!!k.sequence?.locked+' · lockSeated '+k.lockSeated:''));}},250);});
   await page.waitForFunction(()=>/Demo (complete|paused|stopped)/.test(document.querySelector('.demo-caption')?.textContent??''),{},{timeout:1500000,polling:500});
   assert.match(await page.locator('.demo-caption').textContent(),/Demo complete/);
   assert.match(await page.locator('.sandbox-summary-line').textContent(),/1 tied \(1 secure\)/);

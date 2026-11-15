@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Demo: right-to-left pass with forceps eversion, faster natural motion, cleaner tightening.
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -106,6 +106,17 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Demo: right-to-left pass with forceps eversion, natural speed (build 0.190)
+
+- `physicsDemo.ts`: mirrored needle pose (enters right), DRIVE_AXIS −Z,
+  forceps eversion segments (EVERT_Z 0.35, EVERT_LIFT 0.12), shorter
+  durations, DRIVE_RATE 1 rad/s, scissors close 0.9 s.
+- `freeKnotDemo.ts`: SECONDS_PER_WRAP 3.2 (2.5 failed to lock), shorter
+  moves, continuous spread, lowerAndPull with TIGHTEN_PULL_SHARE hold (4.5 s
+  for the last throw), `gripEnd` retry after each reach-and-close.
+- Test: right-to-left, eversion held, < 110 s; passes (≈ 85 s at 60 fps).
+- Checked: tsc; demo tests; check-demo passes (secure knot, tails cut).
 
 ### 2026-11-15 — Claude — Demo ends on a measured stitch summary (build 0.189)
 

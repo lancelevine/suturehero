@@ -6,6 +6,7 @@ import type { SutureModel } from '../suture/SutureModel';
 import { ease, type Segment } from './choreography';
 import { freeKnotSegments } from './freeKnotDemo';
 import { formatMm } from '../setup/sceneScale';
+import { TISSUE_LAYERS } from '../tissue/anatomy';
 
 /**
  * The demo's simple interrupted suture with free (physics) handling
@@ -40,8 +41,8 @@ export interface DemoScene {
  * its 135° arc in the skin, so the driver grips near the back to stay out of the skin.
  */
 const PASS_CENTRE = new THREE.Vector3(0, 0.41 + 0.18, 0);
-/** Driver turn rate while driving the needle (rad/s), about a wrist's pronation speed. */
-const DRIVE_RATE = 0.6;
+/** Driver turn rate while driving the needle (rad/s, ≈ 57°/s), a steady wrist pronation. */
+const DRIVE_RATE = 1;
 /** Longest a drive may take (s); each drive ends earlier on its own condition. */
 const DRIVE_SECONDS = 20;
 /** Skin surface height (scene units). */
@@ -63,7 +64,21 @@ const APPROACH_HEIGHT = 0.4;
 const matrixOf = (position: THREE.Vector3, quaternion: THREE.Quaternion) => new THREE.Matrix4().compose(position, quaternion, new THREE.Vector3(1, 1, 1));
 
 /** Needle pose at the start of the bite: circle in the world XY plane around PASS_CENTRE. */
-const passNeedlePose = () => matrixOf(PASS_CENTRE, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2));
+/**
+ * Needle pose at the start of the bite: the needle's circle in the world XY plane around
+ * PASS_CENTRE, mirrored (turned 180° about vertical) so it enters the right edge and exits
+ * the left (right-to-left, as a right-handed surgeon throws). It then advances about −Z.
+ */
+const passNeedlePose = () =>
+  matrixOf(PASS_CENTRE, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2)));
+/** Axis the driver turns about to advance the needle (pronation). */
+const DRIVE_AXIS = new THREE.Vector3(0, 0, -1);
+/** The needle exits on this side of the wound (x < 0: left). */
+const EXIT_SIDE = -1;
+/** Where the forceps grasp the right (entry) skin edge: beside the bite along the wound (scene units, ≈ 9 mm). */
+const EVERT_Z = 0.35;
+/** How far the forceps lift the grasped edge to evert it (scene units, ≈ 3 mm). */
+const EVERT_LIFT = 0.12;
 
 /**
  * Driver pose holding the needle at the start of the bite: jaws on the needle at
@@ -108,7 +123,7 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
       start: () => (driven = 0),
       apply: (t) => {
         const target = t * DRIVE_SECONDS * DRIVE_RATE;
-        const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), target - driven);
+        const turn = new THREE.Quaternion().setFromAxisAngle(DRIVE_AXIS, target - driven);
         driven = target;
         right.root.position.sub(PASS_CENTRE).applyQuaternion(turn).add(PASS_CENTRE);
         right.root.quaternion.premultiply(turn);
@@ -141,12 +156,14 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
     const relative = passNeedlePose().invert().multiply(passDriverPose(needle));
     return needle.root.matrixWorld.clone().multiply(relative);
   };
+  /** The right (entry) skin edge where the forceps grasp it: at the wound edge, mid-epidermis. */
+  const evertJaw = () => new THREE.Vector3(session.wound.initialGap / 2, (TISSUE_LAYERS.epidermis.bottom + TISSUE_LAYERS.epidermis.top) / 2, EVERT_Z);
   const above = (pose: () => THREE.Matrix4) => () => pose().premultiply(new THREE.Matrix4().makeTranslation(0, APPROACH_HEIGHT, 0));
   const liftedPassPose = above(() => passDriverPose(needle));
   return [
     {
       caption: 'Simple interrupted suture · automatic demonstration (free physics)',
-      seconds: 2,
+      seconds: 1.2,
       start: () => {
         // The needle settles on the pad (it was just reset); the forceps move out of the way.
         forcepsStart.copy(left.root.position);
@@ -155,26 +172,32 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
       },
       apply: (t) => left.root.position.copy(forcepsStart).lerp(FORCEPS_REST, ease(t)),
     },
-    poseMove(right, above(pickupPose), 2.5, 'Load the needle in the needle driver, near its back'),
-    poseMove(right, pickupPose, 1.2),
-    { seconds: 0.8, start: () => (right.openness = 0.1), done: () => grasp.holder === right },
-    poseMove(right, () => above(pickupPose)(), 1.2, 'Lift the needle and bring it to the wound'),
-    poseMove(right, liftedPassPose, 2.5),
-    poseMove(right, () => passDriverPose(needle), 1.5, 'Enter the skin about 5 mm from the wound edge'),
+    poseMove(right, above(pickupPose), 1.5, 'Load the needle in the needle driver, near its back'),
+    poseMove(right, pickupPose, 0.7),
+    { seconds: 0.5, start: () => (right.openness = 0.1), done: () => grasp.holder === right },
+    poseMove(right, () => above(pickupPose)(), 0.8, 'Lift the needle and bring it to the wound'),
+    poseMove(right, liftedPassPose, 1.5),
+    // Forceps grasp the right skin edge beside the bite and lift it gently to evert it.
+    poseMove(left, () => matrixOf(evertJaw().add(new THREE.Vector3(0, APPROACH_HEIGHT, 0)).sub(JAW_LOCAL), new THREE.Quaternion()), 1, 'Forceps grasp the right skin edge'),
+    poseMove(left, () => matrixOf(evertJaw().sub(JAW_LOCAL), new THREE.Quaternion()), 0.5),
+    { seconds: 0.4, start: () => (left.openness = 0.1), done: () => session.eversion.held },
+    poseMove(left, () => matrixOf(left.root.position.clone().add(new THREE.Vector3(0, EVERT_LIFT, 0)), new THREE.Quaternion()), 1, 'Lift gently to evert the edge'),
+    poseMove(right, () => passDriverPose(needle), 1, 'Enter the everted edge about 5 mm out, right to left'),
     drive('Drive the needle through the skin along its curve', () => {
       // Until the tip is well out on the far side: then let go and regrasp the tip.
       const tip = needle.getTipPose().position;
       return !!session.freePass.current?.exit && tip.y > SKIN_Y + TIP_OUT;
     }),
-    { caption: 'Tip out through the far edge · let go of the needle', seconds: 0.6, start: () => (right.openness = 0.65) },
-    poseMove(right, () => regripPose().premultiply(new THREE.Matrix4().makeTranslation(0.15, APPROACH_HEIGHT, 0)), 1.5),
-    poseMove(right, () => regripPose().premultiply(new THREE.Matrix4().makeTranslation(0, APPROACH_HEIGHT * 0.5, 0)), 1.2, 'Regrasp the needle near its tip'),
-    poseMove(right, () => regripPose(), 1),
-    { seconds: 0.8, start: () => (right.openness = 0.1), done: () => grasp.holder === right },
+    { caption: 'Tip out through the far edge · let go of the needle and the skin', seconds: 0.6, start: () => { right.openness = 0.65; left.openness = 0.65; } },
+    poseMove(left, () => matrixOf(FORCEPS_REST, new THREE.Quaternion()), 0.8),
+    poseMove(right, () => regripPose().premultiply(new THREE.Matrix4().makeTranslation(0.15 * EXIT_SIDE, APPROACH_HEIGHT, 0)), 0.9),
+    poseMove(right, () => regripPose().premultiply(new THREE.Matrix4().makeTranslation(0, APPROACH_HEIGHT * 0.5, 0)), 0.7, 'Regrasp the needle near its tip'),
+    poseMove(right, () => regripPose(), 0.6),
+    { seconds: 0.5, start: () => (right.openness = 0.1), done: () => grasp.holder === right },
     drive('Pull the needle out along its curve · the thread follows', () => session.freePass.passes.length > 0),
     {
       caption: 'Needle through both edges · the thread follows',
-      seconds: 1.5,
+      seconds: 0.8,
       done: () => {
         if (!session.canTieFreePass) return false;
         return session.tieFreePass();
@@ -186,7 +209,7 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
     ...trimSegments(scene),
     {
       caption: () => stitchSummary(session),
-      seconds: 5,
+      seconds: 4,
       start: () => {
         if (session.canFinishSandboxStitch) session.finishSandboxStitch();
       },
@@ -198,14 +221,15 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
 function trimSegments({ scissors, left, right }: DemoScene): Segment[] {
   let lifts: THREE.Vector3[] = [];
   const cut = (which: string): Segment[] => [
-    { caption: `Cut the ${which} tail, leaving a short end`, seconds: 0.8, start: () => void scissors?.position() },
-    { seconds: 0.8, start: () => scissors?.close(true) },
-    { seconds: 0.6, start: () => scissors?.close(false) },
+    { caption: `Cut the ${which} tail, leaving a short end`, seconds: 0.6, start: () => void scissors?.position() },
+    // The scissors close from the key at the instrument's jaw speed: about 0.8 s from open to cut.
+    { seconds: 0.9, start: () => scissors?.close(true) },
+    { seconds: 0.4, start: () => scissors?.close(false) },
   ];
   return [
     {
       caption: 'Release the thread and lift the instruments clear',
-      seconds: 2,
+      seconds: 1.2,
       start: () => {
         left.openness = 0.7;
         right.openness = 0.7;
@@ -217,7 +241,7 @@ function trimSegments({ scissors, left, right }: DemoScene): Segment[] {
       },
     },
     // The scissors come from the page; unit tests have none and skip the cutting.
-    ...(scissors ? [...cut('long'), ...cut('short'), { seconds: 0.6, start: () => scissors.putAway() }] : []),
+    ...(scissors ? [...cut('long'), ...cut('short'), { seconds: 0.4, start: () => scissors.putAway() }] : []),
   ];
 }
 
