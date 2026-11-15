@@ -107,6 +107,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Knot topology shadow project, step 1: crossing diagram (no build change)
+
+- New \`src/knot/crossingDiagram.ts\` (+ test): crossings of a closed 3D
+  polyline seen along a view direction, with over/under and sign. Tested on
+  ideal curves: loop 0 crossings, trefoil 3 (writhe ±3, mirrored), figure-eight
+  4 (writhe 0), alternating over/under. Not used by the app.
+- Plan: 2 simplify (remove crossings undone by a tug), 3 invariants (Seifert
+  matrix, signature: square 0 vs granny ±4), 4 run on fixture knots vs current
+  recognition, 5 shadow logging in the app (session export).
+
 ### 2026-11-15 — Claude — Shape-based knot recognition: experiment, not adopted (no build change)
 
 - Idea: recognise throws from the thread's final shape instead of the event
