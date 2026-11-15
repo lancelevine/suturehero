@@ -1,38 +1,28 @@
-import { DemoRunner, type DemoEnvironment } from '../demo/demoRunner';
-import { interruptedSutureDemo, type DemoPage } from '../demo/interruptedSutureDemo';
+import { Choreography } from '../demo/choreography';
+import { physicsDemoSegments, type DemoScene } from '../demo/physicsDemo';
 
 /**
- * "Demo" button (2026-11-15): plays the simple interrupted suture by itself
- * for presentations, with large captions over the 3D view. The demo needs
- * the PS-2 needle (the guided bite); with the Sandbox trainer needle it
- * reloads with the PS-2 and starts automatically.
+ * "Demo" button (2026-11-15): the instruments perform a simple interrupted
+ * suture by themselves for presentations, with large captions over the 3D
+ * view. Since build 0.186 everything is free physics: a free Sandbox pass and
+ * an instrument tie by thread contact (src/demo/physicsDemo.ts), not the
+ * scripted guided exercise. The demo bite is sized for the PS-2 needle; with
+ * the Sandbox trainer needle the page reloads with the PS-2 and starts by itself.
  */
 
 const DEMO_PARAM = 'demo';
 /** Delay before an automatic start after a reload (ms), so the scene has settled. */
 const AUTO_START_MS = 1500;
+/** How long the closing caption stays (ms). */
+const CLOSING_CAPTION_MS = 6000;
 
-const pageAdapter: DemoPage = {
-  text: (selector) => document.querySelector(selector)?.textContent ?? '',
-  attribute: (selector, name) => document.querySelector(selector)?.getAttribute(name) ?? null,
-  enabled: (selector) => {
-    const element = document.querySelector<HTMLButtonElement>(selector);
-    return !!element && !element.disabled;
-  },
-  setRange: (selector, value) => {
-    const input = document.querySelector<HTMLInputElement>(selector);
-    if (!input) return;
-    input.value = String(value);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  },
-};
-
-function findButton(label: string): HTMLButtonElement | null {
-  if (label.startsWith('#')) return document.querySelector<HTMLButtonElement>(label);
-  return Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === label) ?? null;
+export interface DemoControl {
+  /** Called by the animation loop before the simulation step; true while the demo is driving the instruments. */
+  step(dt: number): boolean;
+  readonly running: boolean;
 }
 
-export function mountDemoControl(host: HTMLElement, viewport: HTMLElement, needsReload: () => boolean) {
+export function mountDemoControl(host: HTMLElement, viewport: HTMLElement, scene: DemoScene, needsReload: () => boolean, reset: () => void): DemoControl {
   const button = document.createElement('button');
   button.type = 'button';
   button.id = 'demo';
@@ -44,25 +34,22 @@ export function mountDemoControl(host: HTMLElement, viewport: HTMLElement, needs
   caption.setAttribute('role', 'status');
   caption.hidden = true;
   viewport.append(caption);
-  const env: DemoEnvironment = {
-    keyDown: (code) => window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true })),
-    keyUp: (code) => window.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true })),
-    click: (label) => {
-      const target = findButton(label);
-      if (!target || target.disabled) return false;
-      target.click();
-      return true;
-    },
-    caption: (text) => {
-      caption.textContent = text;
-      caption.hidden = false;
-    },
-    wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    now: () => performance.now(),
+  let dance: Choreography | null = null;
+  const say = (text: string) => {
+    if (caption.textContent !== text) caption.textContent = text;
+    caption.hidden = false;
   };
-  const runner = new DemoRunner(env);
-  const start = async () => {
-    if (runner.running) return;
+  const end = (message: string) => {
+    dance = null;
+    document.body.classList.remove('demo-running');
+    button.textContent = '▶ Demo';
+    say(message);
+    setTimeout(() => {
+      if (!dance) caption.hidden = true;
+    }, CLOSING_CAPTION_MS);
+  };
+  const start = () => {
+    if (dance) return;
     if (needsReload()) {
       const url = new URL(window.location.href);
       url.searchParams.set('needle', 'ps2');
@@ -70,29 +57,33 @@ export function mountDemoControl(host: HTMLElement, viewport: HTMLElement, needs
       window.location.assign(url.href);
       return;
     }
-    // Start from a clean practice, in the close-up view.
-    findButton('#reset')?.click();
-    const closeUp = findButton('#close-up');
-    if (closeUp?.getAttribute('aria-pressed') === 'false') closeUp.click();
-    button.textContent = '■ Stop demo';
+    reset();
+    dance = new Choreography(physicsDemoSegments(scene));
     document.body.classList.add('demo-running');
-    const result = await runner.run(interruptedSutureDemo(pageAdapter));
-    document.body.classList.remove('demo-running');
-    button.textContent = '▶ Demo';
-    env.caption(result.finished ? 'Demo complete · Reset practice to try it yourself' : result.reason === 'stopped' ? 'Demo stopped' : `Demo paused: ${result.reason}`);
-    setTimeout(() => {
-      if (!runner.running) caption.hidden = true;
-    }, 6000);
+    button.textContent = '■ Stop demo';
   };
   button.addEventListener('click', () => {
-    if (runner.running) runner.cancel();
-    else void start();
+    if (dance) end('Demo stopped');
+    else start();
   });
   const url = new URL(window.location.href);
   if (url.searchParams.get(DEMO_PARAM) === '1') {
     url.searchParams.delete(DEMO_PARAM);
     window.history.replaceState(null, '', url.href);
-    setTimeout(() => void start(), AUTO_START_MS);
+    setTimeout(start, AUTO_START_MS);
   }
-  return { runner, button };
+  return {
+    get running() {
+      return !!dance;
+    },
+    step(dt) {
+      if (!dance) return false;
+      if (!dance.step(dt)) {
+        end('Demo complete · Reset practice to try it yourself');
+        return false;
+      }
+      say(dance.caption);
+      return true;
+    },
+  };
 }

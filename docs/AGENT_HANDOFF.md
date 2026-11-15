@@ -107,6 +107,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Demo by free physics: free pass and real instrument tie (build 0.186)
+
+- New `src/demo/choreography.ts` (timed segments, tested),
+  `src/demo/freeKnotDemo.ts` (tie motions from the free-tying unit test
+  fixture), `src/demo/physicsDemo.ts` (pass + tie + keep). Test
+  `freeKnotDemo.test.ts`: PracticeSession at 1/60 s → surgeon, locked, seated
+  (closure ~0.97), stitch kept. Removed the scripted demo (demoRunner,
+  interruptedSutureDemo). `demoControl.ts` rewritten; `main.ts` steps the
+  demo in 1/60 s slices before session.update.
+- Checked: tsc; demo tests; check-demo passes (7¾ min in this software-
+  rendered sandbox).
+
 ### 2026-11-15 — Claude — iPhone: outlines sit on the markers (build 0.185)
 
 - `src/input/videoSnapshot.ts`: `frameMatchesVideo` (new test); VideoFrame or

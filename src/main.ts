@@ -1,6 +1,6 @@
 import {mountIphoneStart} from './ui/iphoneStart';
 import {cameraMode as deviceCameraMode} from './input/cameraDevices';
-import {mountDemoControl} from './ui/demoControl';
+import {mountDemoControl,type DemoControl} from './ui/demoControl';
 import {ReplayController} from './scene/ReplayController';
 import {describeSpacing,summarizeSandbox} from './gameplay/sandboxSummary';
 import {mountSandboxSummaryPanel} from './ui/SandboxSummaryPanel';
@@ -54,7 +54,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.185 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.186 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -188,9 +188,14 @@ try {
   const passGuide=new PassGuide(session.pass); view.scene.add(passGuide.root);
   // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
   view.scene.add(replay.paths);
+  let demo:DemoControl|null=null;
   // Demo button: the instruments perform a simple interrupted suture by themselves (ui/demoControl.ts).
   {const viewTools=document.querySelector<HTMLElement>('.workspace-view-tools'),viewport=document.querySelector<HTMLElement>('#viewport');
-   if(viewTools&&viewport)mountDemoControl(viewTools,viewport,()=>PRACTICE_SETUP.needle.id==='trainer');}
+   if(viewTools&&viewport)demo=mountDemoControl(viewTools,viewport,{session,needle,grasp,left:tools[0],right:tools[1]},()=>PRACTICE_SETUP.needle.id==='trainer',()=>{
+    // Start from a clean practice in the close-up view.
+    document.querySelector<HTMLButtonElement>('#reset')?.click();
+    const closeUpButton=document.querySelector<HTMLButtonElement>('#close-up');if(closeUpButton?.getAttribute('aria-pressed')==='false')closeUpButton.click();
+   });}
   // Development only: lets browser checks (scripts/check-sandbox.mjs) drive the Sandbox directly.
   if((import.meta as ImportMeta&{env?:{DEV?:boolean}}).env?.DEV)(window as unknown as {__sutureHeroSandbox?:object}).__sutureHeroSandbox={session,needle,tools,grasp,heldDisplay,scene:view.scene};
   document.querySelector('#replay')?.addEventListener('click',()=>{if(replay.replaying)replay.stop();else replay.start();});
@@ -302,7 +307,7 @@ try {
     object.quaternion.slerp(desiredRotation,1-Math.exp(-Math.min(frameDt,.05)*50));
   };
   let last=performance.now();
-  view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
+  view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){if(demo?.running){/* The demo's knot physics is tuned at 1/60 s steps (src/demo/freeKnotDemo.test.ts): slice longer frames. */const slices=Math.max(1,Math.ceil(dt*60-1e-6));for(let i=0;i<slices;i++){demo.step(dt/slices);session.update(dt/slices);}}else session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){
      simulatorFrames++;
      if(time-lastSimulatorFps>=1000){

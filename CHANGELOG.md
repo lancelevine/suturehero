@@ -5,6 +5,16 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.186 — Demo by free physics: free pass and real instrument tie
+
+The ▶ Demo now performs the suture with free physics instead of the scripted
+guided exercise: the needle driver turns the needle through the skin as a
+free Sandbox pass, then a real instrument tie forms from thread contact
+(double wrap, pull through, lay flat and lower onto the skin; regrasp both
+ends; opposing wrap; tighten). The stitch is kept at the end. About 2
+minutes on a normal computer. More iterations follow (third throw, cutting
+the tails, smoother motion).
+
 ## Build 0.185 — iPhone: outlines sit on the markers
 
 Fix: on the iPhone the marker outlines were drawn small and in the wrong
