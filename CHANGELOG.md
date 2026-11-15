@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.162 — the instrument stays on the needle while it is in the skin
+
+In the Sandbox, while the needle is in the skin the instrument holding it is
+drawn gripping the needle, instead of following your hand off the needle.
+Your hand still drives the needle along its curve, and twisting against the
+curve still shows the forcing warning (it compares against where your hand
+really is).
+
 ## Build 0.161 — Sandbox: free needle passes anywhere (Stage B1)
 
 In the Sandbox, push the needle tip into the skin anywhere on the pad while

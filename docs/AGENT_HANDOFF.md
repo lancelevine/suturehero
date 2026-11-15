@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox: keep the needle driver on the needle while it is in the skin.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,18 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — holder drawn on the needle in the skin (build 0.162)
+
+- Lance: the needle driver kept moving without the needle while the needle
+  was in the skin. New `src/scene/heldInstrumentDisplay.ts` (+ test):
+  after the camera poses are applied, if sandbox && freePass.inTissue &&
+  a holder, save its real pose and place it from the needle
+  (`NeedleGrasp.placeHeldNeedle`); `restore()` runs before
+  `session.update`, so the hand (camera or keyboard) still drives the
+  needle and forcing is measured against the real pose.
+- Checks: tsc; PracticeSession + scene tests; check-production-mode,
+  check-calibration-preview pass.
 
 ### 2026-11-15 — Claude — Sandbox Stage B1: free needle passes (build 0.161)
 
