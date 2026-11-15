@@ -246,5 +246,9 @@ it('makes a free needle pass in the sandbox when the driver turns the needle int
  expect(inSkin).toBe(true);
  expect(session.freePass.passes).toHaveLength(1);
  expect(session.freePass.passes[0].crossesWound).toBe(true);
+ // The thread now runs through the pass: a strand point lies on the path inside the tissue (Stage B2).
+ for(let i=0;i<30;i++)session.update(1/60);
+ const tract=session.freePass.passes[0].tract,middle=tract.start.clone().applyAxisAngle(tract.axis,tract.exitAngle!/2).add(tract.centre);
+ expect(Math.min(...needle.strand.points.map(p=>p.distanceTo(middle)))).toBeLessThan(.05);
  session.reset();expect(session.freePass.passes).toHaveLength(0);
 });

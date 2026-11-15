@@ -72,3 +72,18 @@ describe('free needle pass', () => {
     expect(offPad.inTissue).toBe(false);
   });
 });
+
+describe('free pass tract (thread path)', () => {
+  it('records the needle circle from the entry and where the tip came out', async () => {
+    const { tractPoint } = await import('./FreeNeedlePass');
+    const pass = new FreeNeedlePass(RADIUS, ARC);
+    const centre = new THREE.Vector3(0, SKIN_SURFACE_Y + 0.2, 0.2);
+    for (let turn = 0; turn <= Math.PI * 1.9 && pass.passes.length === 0; turn += 0.01) pass.update(pose(centre, turn), true, true);
+    const { tract, entry, exit } = pass.passes[0];
+    expect(tract.centre.distanceTo(centre)).toBeLessThan(1e-9);
+    expect(tractPoint(tract, 0).distanceTo(entry)).toBeLessThan(0.02);
+    expect(tractPoint(tract, tract.exitAngle!).distanceTo(exit!)).toBeLessThan(0.02);
+    // Every tract point is on the needle's circle.
+    expect(tractPoint(tract, tract.exitAngle! / 2).distanceTo(centre)).toBeCloseTo(RADIUS, 6);
+  });
+});

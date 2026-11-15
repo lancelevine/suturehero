@@ -36,6 +36,26 @@ export interface FreePassRecord {
   deepestLayer: PassLayer;
   /** Entry and exit on opposite sides of the wound. */
   crossesWound: boolean;
+  /** The path through the tissue (Stage B2 thread): the needle's circle from the entry. */
+  tract: FreeTract;
+}
+
+/**
+ * A pass's path through the tissue: the needle's circle (centre, advancing
+ * axis) starting at `start` (centre → tip at entry). A point `angle` along
+ * it is `start` turned by `angle` about `axis`, plus `centre`.
+ */
+export interface FreeTract {
+  centre: THREE.Vector3;
+  axis: THREE.Vector3;
+  start: THREE.Vector3;
+  /** Angle along the tract where the tip came out, or null before it has. */
+  exitAngle: number | null;
+}
+
+/** The point `angle` along a tract (world). */
+export function tractPoint(tract: FreeTract, angle: number): THREE.Vector3 {
+  return tract.start.clone().applyAxisAngle(tract.axis, angle).add(tract.centre);
 }
 
 export function layerAtDepth(depth: number): PassLayer {
@@ -74,6 +94,15 @@ export class FreeNeedlePass {
   /** The pass in progress, or null. */
   get current(): FreePassRecord | null {
     return this.engagement?.record ?? null;
+  }
+
+  /**
+   * Where the needle's eye is along the current pass's tract (the thread
+   * trails behind it): tip angle minus the needle's arc; negative while the
+   * eye is still outside the entry. Null when no pass is in progress.
+   */
+  get eyeAngle(): number | null {
+    return this.engagement ? this.engagement.angle - this.arc : null;
   }
 
   get forcingWarning() {
@@ -146,7 +175,8 @@ export class FreeNeedlePass {
       basePosition: wanted.position.clone(),
       angle: 0,
       exitAngle: null,
-      record: { entry, exit: null, depth: Math.max(0, SKIN_SURFACE_Y - below.y), deepestLayer: layerAtDepth(Math.max(0, SKIN_SURFACE_Y - below.y)), crossesWound: false },
+      record: { entry, exit: null, depth: Math.max(0, SKIN_SURFACE_Y - below.y), deepestLayer: layerAtDepth(Math.max(0, SKIN_SURFACE_Y - below.y)), crossesWound: false,
+        tract: { centre: wanted.position.clone(), axis: new THREE.Vector3(0, -1, 0).applyQuaternion(wanted.quaternion).normalize(), start: below.clone().sub(wanted.position), exitAngle: null } },
     };
   }
 
@@ -165,6 +195,7 @@ export class FreeNeedlePass {
       r.exit.y = SKIN_SURFACE_Y;
       r.crossesWound = Math.sign(r.entry.x - WOUND_X) !== Math.sign(r.exit.x - WOUND_X);
       e.exitAngle = e.angle;
+      r.tract.exitAngle = e.angle;
     }
   }
 

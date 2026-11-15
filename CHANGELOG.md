@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.164 — Sandbox: the thread follows free needle passes (Stage B2, part 1)
+
+In the Sandbox the suture now follows the needle through a free pass: it
+feeds in at the entry behind the needle's eye, runs along the needle's path
+through the tissue, and once the needle is through it stays threaded,
+sliding through the tissue as you pull. The thread stays in your most
+recent pass; keeping several passes threaded at once (a running stitch) and
+tying knots come next.
+
 ## Build 0.163 — glide back, Reset needle, shorter Sandbox needle
 
 - When the needle leaves the skin, the instrument glides from the needle

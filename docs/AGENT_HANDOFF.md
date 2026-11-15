@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — Sandbox Stage B2: thread through free passes.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,20 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — thread through free passes, B2 part 1 (build 0.164)
+
+- `FreeNeedlePass`: each record has a `tract` (centre, axis, start =
+  centre→tip at entry, exitAngle) + `tractPoint`; `eyeAngle` getter (tip
+  angle − arc). New `src/suture/FreeThreadGuide.ts` (+ tests): pins along
+  the tract behind the eye; once out, the exit with grow/shrink exterior
+  allocation (as TissueThreadGuide) and the whole tract.
+  `SutureModel.advanceFreeThread`; PracticeSession uses it in the sandbox
+  with the current pass or the last completed one (eyeAngle ∞).
+- Session test: after the pass the strand lies along the tract (< 0.05).
+  Gameplay/suture/tissue/setup/scene tests (268) pass; check-production-mode.
+- Next (B2 part 2): several passes threaded at once (running stitch); then
+  B3 knots. Known: Reset needle keeps the thread in the last pass.
 
 ### 2026-11-15 — Claude — glide back, Reset needle, trainer needle (build 0.163)
 

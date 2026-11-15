@@ -1,3 +1,4 @@
+import {FreeThreadGuide} from '../suture/FreeThreadGuide';
 import {NEEDLE_ARC,NEEDLE_RADIUS} from '../suture/needleGeometry';
 import {FreeNeedlePass} from '../tissue/FreeNeedlePass';
 import {settleNeedle} from './needleRest';
@@ -97,6 +98,8 @@ export class PracticeSession {
    */
   /** Sandbox needle passes (Stage B1). */
   readonly freePass=new FreeNeedlePass(NEEDLE_RADIUS,NEEDLE_ARC);
+  /** Thread pins for free passes (Stage B2). */
+  readonly freeThread=new FreeThreadGuide();
   get sandbox(){return !this.guidedEdge&&this.pass.phase==='idle'&&!this.freeKnot.active&&!this.knot.active&&!this.knotSlack.trimmed&&!this.course.finished;}
   get preparingEdge(){return this.guidedEdge && (this.pass.phase==='idle' || this.pass.phase==='interrupted');}
   private updateEversion(dt:number,allowGrasp=true){
@@ -369,11 +372,14 @@ export class PracticeSession {
     }
     if(this.grasp) {
       const threaded=this.pass.phase==='passing' || this.pass.phase==='complete';
-      this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);
+      // Sandbox: the thread follows free passes (suture/FreeThreadGuide.ts) through the current or last pass.
+      const lastPass=this.freePass.passes[this.freePass.passes.length-1];
+      if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.current?.tract??lastPass?.tract??null,this.freePass.eyeAngle??(lastPass?Infinity:null),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact);
+      else this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);
       const pose=this.grasp.needle.getTipPose();
       this.placement.update(pose.position,pose.tangent,this.grasp.holder?.kind==='needle-driver',step);
     }
   }
-  reset(){this.freePass.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
+  reset(){this.freePass.reset();this.freeThread.reset();this.pass.resetBites();this.bitePlanLimited=false;this.course.reset();this.resetCurrent();this.configureTissueResponse();}
   private resetCurrent() {this.handlingPeak=this.handlingSlips=0;this.observedSlipSerial=this.eversion.slipSerial;this.freeFromPass=false;this.freeReleaseTime=0; for(const tool of this.instruments) tool.reset(); this.grasp?.reset(); this.placement.reset(); this.pass.reset();this.guidedEdge=false;this.oppositeEdgeRequired=false;this.eversion.reset(); this.pull.reset(); this.knot.reset(); this.wound.reset();this.tissueResponse.reset(); this.knotSlack.reset(); this.releaseCheck.reset();this.loadTest.reset();this.freeKnot.reset(); }
 }
