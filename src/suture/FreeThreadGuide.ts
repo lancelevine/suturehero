@@ -42,38 +42,58 @@ export class FreeThreadGuide {
     const pins = new Map<number, THREE.Vector3>([[0, eye.clone()]]);
     const rest = strand.restLength;
     const last = strand.count - 1 - TAIL_RESERVE;
-    let index = 0;
-    let from = eye.clone();
-    let first = true;
-    for (const { tract, eyeAngle } of passes) {
-      // A pass the eye has not reached yet carries no thread: the thread runs on to the previous pass.
-      if (!(eyeAngle > 0)) continue;
-      const radius = tract.start.length();
+    // A pass the eye has not reached yet carries no thread: the thread runs on to the previous pass.
+    const threaded = passes.filter((p) => p.eyeAngle > 0);
+    if (!threaded.length) {
+      this.exteriorCount = 1;
+      return pins;
+    }
+    // Each pass's thread inside the tissue, and its exit if the eye is through.
+    const layout = threaded.map(({ tract, eyeAngle }) => {
       const exitAngle = tract.exitAngle;
       const insideEnd = exitAngle === null ? eyeAngle : Math.min(eyeAngle, exitAngle);
-      const arcCount = Math.max(1, Math.ceil((insideEnd * radius) / rest));
+      const arcCount = Math.max(1, Math.ceil((insideEnd * tract.start.length()) / rest));
+      const exit = exitAngle !== null && eyeAngle > exitAngle ? tractPoint(tract, exitAngle) : null;
+      return { tract, insideEnd, arcCount, exit, entry: tractPoint(tract, 0) };
+    });
+    // Older passes get their thread first: their path plus the loose span from the newer pass's entry.
+    // Pulling the needle further takes thread from the free tail, never out of earlier passes (2026-11-15:
+    // the needle-side thread used the whole strand first, so the thread jumped to the latest pass).
+    const olderCost = (k: number) => {
+      const loose = layout[k].exit ? Math.max(1, Math.ceil((layout[k - 1].entry.distanceTo(layout[k].exit!) * LOOSE_SLACK) / rest)) : 0;
+      return loose + layout[k].arcCount;
+    };
+    let keep = layout.length;
+    const firstMinimum = layout[0].arcCount + (layout[0].exit ? 1 : 0);
+    let olderTotal = 0;
+    for (let k = 1; k < layout.length; k++) olderTotal += olderCost(k);
+    while (keep > 1 && firstMinimum + olderTotal > last) {
+      keep--;
+      olderTotal -= olderCost(keep);
+    }
+    // Lay the thread out from the eye: the newest pass first (sliding exterior), then each kept older pass.
+    let index = 0;
+    for (let k = 0; k < keep; k++) {
+      const pass = layout[k];
       let start = index;
-      if (exitAngle !== null && eyeAngle > exitAngle) {
-        const exit = tractPoint(tract, exitAngle);
-        const distance = exit.distanceTo(from);
+      if (pass.exit) {
         let segments: number;
-        if (first) {
+        if (k === 0) {
+          const distance = pass.exit.distanceTo(eye);
           const needed = Math.max(1, Math.ceil(distance / rest));
           if (needed > this.exteriorCount) this.exteriorCount = needed;
           else if (distance < (this.exteriorCount - SHRINK_MARGIN) * rest) this.exteriorCount = needed;
-          segments = THREE.MathUtils.clamp(this.exteriorCount, 1, Math.max(1, last - index - arcCount));
-        } else segments = Math.max(1, Math.ceil((distance * LOOSE_SLACK) / rest));
-        if (index + segments + arcCount > last) break;
+          // Only the thread left after the earlier passes: beyond it the thread is taut.
+          segments = THREE.MathUtils.clamp(this.exteriorCount, 1, Math.max(1, last - pass.arcCount - olderTotal));
+        } else segments = olderCost(k) - pass.arcCount;
         start = index + segments;
-        pins.set(start, exit);
-      } else if (!first || index + arcCount > last) break;
-      const steps = Math.max(1, Math.min(arcCount, last - start));
-      for (let i = start === 0 ? 1 : 0; i <= steps; i++) pins.set(start + i, tractPoint(tract, insideEnd * (1 - i / steps)));
+        if (start + pass.arcCount > last) break;
+        pins.set(start, pass.exit);
+      } else if (k > 0) break;
+      const steps = Math.max(1, Math.min(pass.arcCount, last - start));
+      for (let i = start === 0 ? 1 : 0; i <= steps; i++) pins.set(start + i, tractPoint(pass.tract, pass.insideEnd * (1 - i / steps)));
       index = start + steps;
-      from = tractPoint(tract, 0);
-      first = false;
     }
-    if (first) this.exteriorCount = 1;
     return pins;
   }
 }

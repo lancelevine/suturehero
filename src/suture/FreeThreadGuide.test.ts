@@ -53,6 +53,20 @@ describe('thread through free passes', () => {
     expect(pinAt(pins, tractPoint(older, older.exitAngle!))).toBeDefined();
   });
 
+  it('keeps earlier passes threaded when the needle is pulled far away (the thread goes taut instead)', () => {
+    const strand = new ThreadStrand();
+    const older = tractAt(-0.3), newer = tractAt(0.2);
+    const guide = new FreeThreadGuide();
+    // Pull the needle further and further from the newest exit, up to about 25 cm (9 scene units).
+    for (let d = 0.2; d <= 9; d += 0.2) {
+      const eye = tractPoint(newer, newer.exitAngle!).add(new THREE.Vector3(d, d / 2, 0));
+      const pins = guide.anchors(strand, eye, [{ tract: newer, eyeAngle: Infinity }, { tract: older, eyeAngle: Infinity }]);
+      expect(pinAt(pins, tractPoint(older, older.exitAngle!))).toBeDefined();
+      expect(pinAt(pins, tractPoint(older, 0))).toBeDefined();
+      expect(Math.max(...pins.keys())).toBeLessThan(strand.count);
+    }
+  });
+
   it('leaves out passes that no longer fit on the strand', () => {
     const strand = new ThreadStrand(0.6, 20);
     const passes = [-1.2, -0.6, 0, 0.6].map((z) => ({ tract: tractAt(z), eyeAngle: Infinity }));

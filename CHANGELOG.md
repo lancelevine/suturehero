@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.168 — fix: running-stitch thread jumping to the latest pass
+
+With several passes, pulling the needle away after a pass made the thread
+jump out of the earlier passes and stay only in the latest one: the loose
+thread at the needle was allowed to use the whole strand first. Earlier
+passes now keep their thread; pulling the needle further takes thread from
+the free tail, and when the thread runs out it goes taut instead.
+
 ## Build 0.167 — Sandbox: several separate stitches, each tied
 
 After tying a knot on a Sandbox stitch, the main button reads "Finish stitch

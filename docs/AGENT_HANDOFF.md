@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — fix: running-stitch thread jumping to the latest pass.
+- **In progress:** none
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -94,6 +94,18 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — fix running-stitch thread jumping (build 0.168)
+
+- Lance: with several passes the suture jumps to the latest one. Cause:
+  `FreeThreadGuide` gave the first pass's sliding exterior up to the whole
+  strand, so pulling the needle away left no room for older passes and
+  they were dropped. Now older passes' thread (path + loose span) is laid
+  out first; passes are dropped only if they themselves do not fit; the
+  exterior gets the remainder (taut beyond it).
+- New test (two passes, needle pulled up to 9 units away: both stay
+  pinned) failed before the fix and passes after; all 7 guide tests and
+  the 279 gameplay/suture/tissue/setup/scene tests pass.
 
 ### 2026-11-15 — Claude — several tied Sandbox stitches (build 0.167)
 
