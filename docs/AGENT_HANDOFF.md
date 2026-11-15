@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Codex — strengthen stereo calibration identity and repair malformed CSS.
+- **In progress:** none.
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -106,6 +106,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Codex — Bind workspace alignment to complete stereo geometry (build 0.192)
+
+- Replaced the camera-ID/baseline workspace key with a stable identity covering
+  both cameras' intrinsics, distortion, image sizes, stereo rotation and
+  translation, and device IDs. A changed stereo calibration can no longer
+  silently reuse stale workspace or table alignment.
+- Repaired literal `\\n` text in `src/style.css`; the production CSS syntax
+  warning is gone and the branding/Sandbox selectors parse normally.
+- The stronger identity invalidates the old workspace/table alignment once;
+  Lance must repeat those alignment steps after build 0.192 loads.
+- Checked 9 focused tests (calibration identity, workspace, table height) and
+  `npm run build`; all passed.
 
 ### 2026-11-15 — Claude — Knot topology shadow project, step 4: thread closure, open question (no build change)
 
