@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none from Claude. Codex may be working on its knot engine Codex may be working on its knot engine
+- **In progress:** none from Claude. Codex may be working on its knot engine
   in `src/knot/codex/` (Lance asked both agents to work in parallel).
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
