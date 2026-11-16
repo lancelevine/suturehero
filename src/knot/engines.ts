@@ -1,24 +1,84 @@
+import type * as THREE from 'three';
 import { FreeKnotPractice } from '../gameplay/FreeKnotPractice';
+import type { Instrument } from '../instruments/Instrument';
+import type { KnotTechnique, ThrowRecord } from '../suture/KnotTechnique';
+import type { StrandObstacle, ThreadStrand } from '../suture/ThreadStrand';
+import type { KnotTissue } from './knotTissue';
+import { createKnotWorkerPort } from './worker/knotWorkerPort';
+import { WorkerKnotEngine } from './worker/WorkerKnotEngine';
 
 /**
  * Knot engine switch (2026-11-15). Free tying can run on different knot
  * implementations so they can be compared for reliability and speed:
  *  - `classic`: the event-based FreeKnotPractice (src/gameplay/FreeKnotPractice.ts);
- *  - Claude's engine (src/knot/claude/) and Codex's (src/knot/codex/) register here when ready.
+ *  - `classic-worker`: the same model in a Web Worker (src/knot/worker/);
+ *  - Codex's engine (src/knot/codex/) registers here when ready.
  * Chosen in Practice setup → Knot engine, or with ?knot=<id> in the link (reloads the practice).
  *
  * An engine provides everything the practice session, the scene and the demo read
  * from free tying: the members of FreeKnotPractice listed in KnotEngine.
  */
-export type KnotEngine = Pick<
-  FreeKnotPractice,
-  | 'active' | 'begin' | 'update' | 'reset'
-  | 'entry' | 'exit' | 'long' | 'short' | 'strands' | 'fragments'
-  | 'grips' | 'gripLabel' | 'sequence' | 'retainedThrow' | 'lockSeated' | 'seatedThrows' | 'closureLoad' | 'pullDemand'
-  | 'instruction' | 'handlingHint' | 'tensionHint' | 'tension' | 'reachLimited' | 'winding' | 'driverOnTissue'
-  | 'surfaceAt' | 'threadFloorAt' | 'tissueContact' | 'driverObstacle' | 'padOffsetZ' | 'tractHalfWidth'
-  | 'nextTrimTarget' | 'minimumCut' | 'cut' | 'cutMessage' | 'trimmedTails' | 'knotAtTissue' | 'passage'
->;
+/** Tension shown for one strand (meters in the free-tying panel). */
+export interface StrandTensionView {
+  readonly state: string;
+  readonly tautness: number;
+  readonly demand: number;
+  readonly peakDemand: number;
+}
+
+/** A thread grip by an instrument: which strand, at which point. */
+export interface KnotGrip {
+  strand: ThreadStrand;
+  index: number;
+}
+
+/**
+ * Everything the practice session, the scene and the demo use from a knot engine.
+ * The classic FreeKnotPractice satisfies it directly; other engines (or a stand-in for
+ * one running in a worker) provide the same members.
+ */
+export interface KnotEngine {
+  active: boolean;
+  begin(tools: readonly Instrument[], technique?: KnotTechnique | 'auto'): void;
+  update(dt: number, tools: readonly Instrument[], blockedGrips?: ReadonlySet<string>): void;
+  reset(): void;
+  /** Optional: the tissue as data, for engines that cannot call the session's surface functions. */
+  configureTissue?(tissue: KnotTissue): void;
+  readonly entry: THREE.Vector3;
+  readonly exit: THREE.Vector3;
+  readonly long: ThreadStrand;
+  readonly short: ThreadStrand;
+  readonly strands: ThreadStrand[];
+  readonly fragments: ThreadStrand[];
+  readonly grips: Map<string, KnotGrip>;
+  gripLabel(id: string): string;
+  readonly sequence?: { readonly throws: readonly ThrowRecord[]; readonly technique: string; readonly label: string; readonly locked: boolean; readonly sliding: boolean; readonly requiredWraps?: number };
+  readonly retainedThrow: { readonly active: boolean; readonly tightness: number; readonly phase: string };
+  readonly passage: { readonly hasOpening: boolean };
+  readonly lockSeated: boolean;
+  readonly seatedThrows: number;
+  readonly closureLoad: number;
+  readonly pullDemand: number;
+  readonly instruction: string;
+  readonly handlingHint: string;
+  readonly tensionHint: string;
+  readonly tension: Record<'long' | 'short', StrandTensionView>;
+  readonly reachLimited: boolean;
+  readonly winding: number;
+  readonly driverOnTissue: boolean;
+  readonly knotAtTissue: boolean;
+  readonly cutMessage: string;
+  readonly trimmedTails: ReadonlySet<ThreadStrand>;
+  readonly nextTrimTarget: ThreadStrand | undefined;
+  minimumCut(strand: ThreadStrand): number;
+  cut(strand: ThreadStrand, coordinate: number): boolean;
+  surfaceAt: (p: THREE.Vector3) => number;
+  threadFloorAt?: (p: THREE.Vector3) => number;
+  tissueContact?: StrandObstacle;
+  driverObstacle?: (radius: number) => StrandObstacle;
+  padOffsetZ: number;
+  tractHalfWidth: number;
+}
 
 export interface KnotEngineEntry {
   id: string;
@@ -30,6 +90,8 @@ export const DEFAULT_KNOT_ENGINE = 'classic';
 
 export const KNOT_ENGINES: KnotEngineEntry[] = [
   { id: 'classic', label: 'Classic (event-based)', create: () => new FreeKnotPractice() },
+  // The same model in a Web Worker: drawing is not held up by the thread physics; the knot state is a frame behind.
+  { id: 'classic-worker', label: 'Classic in a background thread (experimental)', create: () => new WorkerKnotEngine(createKnotWorkerPort()) },
 ];
 
 /** The engine for an id (unknown ids fall back to the default). */

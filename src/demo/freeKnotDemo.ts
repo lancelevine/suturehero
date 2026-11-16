@@ -57,6 +57,8 @@ const REACH_SPEED = 1.5;
 const CLOSE_WITHIN = 0.03;
 /** Frames the jaws stay open between grip attempts, so the next close counts as a new grasp. */
 const REOPEN_FRAMES = 3;
+/** Frames to wait after closing before judging the grip (a knot engine in a worker reports it late). */
+const GRIP_CONFIRM_FRAMES = 8;
 
 /**
  * Reaches for a thread end that may be moving, closes on it, and retries
@@ -65,12 +67,14 @@ const REOPEN_FRAMES = 3;
 function gripEnd(tool: Instrument, end: () => THREE.Vector3, gripped: () => boolean, caption?: string): Segment {
   let last = 0;
   let reopen = 0;
+  let closedFor = 0;
   return {
     caption,
     seconds: GRIP_TIMEOUT_S,
     start: () => {
       last = 0;
       reopen = 0;
+      closedFor = 0;
     },
     apply: (t) => {
       const now = t * GRIP_TIMEOUT_S;
@@ -79,16 +83,18 @@ function gripEnd(tool: Instrument, end: () => THREE.Vector3, gripped: () => bool
       const target = end().sub(TIP);
       const step = target.clone().sub(tool.root.position);
       tool.root.position.add(step.clampLength(0, REACH_SPEED * dt));
-      if (gripped()) return;
+      if (gripped() && tool.openness <= CLOSED) return;
       if (reopen > 0) {
         reopen--;
         tool.openness = OPEN;
+        closedFor = 0;
       } else if (step.length() < CLOSE_WITHIN) {
-        if (tool.openness <= CLOSED) reopen = REOPEN_FRAMES;
-        else tool.openness = CLOSED;
+        if (tool.openness > CLOSED) tool.openness = CLOSED;
+        // Closed but not (yet) reported as gripping: give the report time, then retry.
+        else if (++closedFor > GRIP_CONFIRM_FRAMES) reopen = REOPEN_FRAMES;
       }
     },
-    done: gripped,
+    done: () => gripped() && tool.openness <= CLOSED,
   };
 }
 

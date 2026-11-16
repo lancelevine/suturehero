@@ -112,6 +112,27 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Experimental knot engine in a background thread (build 0.196)
+
+- New `src/knot/worker/`: `protocol.ts`, `KnotHost.ts` (classic model on its own
+  instruments; long requests run in 1/60 s slices with instruments
+  interpolated), `knotWorker.ts`, `knotWorkerPort.ts` (worker named with the
+  page query so PRACTICE_SETUP matches), `WorkerKnotEngine.ts` (stand-in; up to
+  MAX_IN_FLIGHT 3 requests, then merges dt; tool corrections not fed back).
+- `engines.ts`: KnotEngine is now an explicit interface; `classic-worker`
+  registered. `knotTissue.ts`: tissue as data; PracticeSession calls
+  `configureTissue` before begin/update. PracticeSetup reads a worker's name.
+- `knotTrials.ts`: waits (≤ 4 s) for each throw to be recorded (timing-fair).
+  Demo `gripEnd` waits GRIP_CONFIRM_FRAMES before retrying.
+- Results: Node stand-in ties/locks (2× speed) and keeps the demo stitch when
+  the worker keeps up. With requests merging (worker behind) the demo knot
+  does not seat. In this sandbox (software rendering ~200 ms/frame) the
+  worker starves: check-knot-worker keeps no stitch; classic does. Frame time
+  here is rendering-bound, so the worker's benefit can't be measured here.
+- Checked: tsc; gameplay/demo/knot/setup tests (96); production build
+  (knotWorker chunk); check-knot-worker (SUTURE_SKIP_STITCH_CHECK=1 here).
+- Lance: try Knot engine → background thread on your PC; compare smoothness.
+
 ### 2026-11-15 — Claude — Knot physics about twice as fast overall (build 0.195)
 
 - `StrandContact.ts`: candidate pairs found with CANDIDATE_MARGIN (0.02) and

@@ -28,4 +28,7 @@ export function resolveSetup(search='',options:{trainerDefault?:boolean}={}){
 }
 // A setup change reloads the practice so every module receives one consistent profile.
 // In the browser the skin Sandbox defaults to the short trainer needle; tests and microsurgery keep the PS-2.
-export const PRACTICE_SETUP=resolveSetup(typeof window==='undefined'?'':window.location.search,{trainerDefault:typeof window!=='undefined'});
+// A knot-engine worker gets the page's query string as its name (src/knot/worker/knotWorkerPort.ts).
+const workerName=typeof window==='undefined'&&typeof self!=='undefined'?(self as {name?:string}).name:undefined;
+const pageSearch=typeof window!=='undefined'?window.location.search:workerName?.startsWith('?')?workerName:'';
+export const PRACTICE_SETUP=resolveSetup(pageSearch,{trainerDefault:typeof window!=='undefined'||pageSearch!==''});

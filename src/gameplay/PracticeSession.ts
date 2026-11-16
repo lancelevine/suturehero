@@ -72,12 +72,12 @@ export class PracticeSession {
     this.reset();
     if(this.grasp) {this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,0.1,1.2);}
     this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));
-    this.freeKnot.begin(this.instruments,technique);this.wound.setDermalBites(...this.pass.purchaseSites);
+    this.freeKnot.configureTissue?.(this.knotTissue);this.freeKnot.begin(this.instruments,technique);this.wound.setDermalBites(...this.pass.purchaseSites);
   }
   continueFreeTying(){
     if(!this.canBeginKnot||!this.grasp)return false;
     this.grasp.release();this.grasp.needle.setThreadVisible(false);this.grasp.needle.root.position.set(3.1,.1,1.2);
-    this.eversion.reset();this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
+    this.eversion.reset();this.freeKnot.entry.copy(this.tissuePoint(this.pass.entry));this.freeKnot.exit.copy(this.tissuePoint(this.pass.exit));this.freeKnot.configureTissue?.(this.knotTissue);this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
     return true;
   }
   /**
@@ -135,7 +135,7 @@ export class PracticeSession {
     this.sandboxStitchZ=(pass.entry.z+pass.exit.z)/2;
     this.freeKnot.entry.copy(this.tissuePoint(pass.entry));this.freeKnot.exit.copy(this.tissuePoint(pass.exit));
     this.wound.setDermalBites(...freePassBites(pass.tract));
-    this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
+    this.freeKnot.configureTissue?.(this.knotTissue);this.freeKnot.begin(this.instruments,'auto');this.freeFromPass=true;this.freeReleaseTime=0;this.freeLockClosure=null;this.freeSeatedThrows=0;
     return true;
   }
   readonly eversion=new EdgeEversion();
@@ -368,6 +368,7 @@ export class PracticeSession {
       for(const tool of this.instruments)tool.update(this.input.sample(tool.id),step);
       const anchors=this.freeKnotAnchors??{entry:this.pass.entry,exit:this.pass.exit};
       this.freeKnot.entry.copy(this.tissuePoint(anchors.entry));this.freeKnot.exit.copy(this.tissuePoint(anchors.exit));
+      this.freeKnot.configureTissue?.(this.knotTissue);
       this.freeKnot.update(step,this.instruments,this.eversion.held?new Set(['left']):undefined);
       if(this.freeKnot.lockSeated){this.freeLockClosure=Math.max(this.freeLockClosure??0,this.wound.closure);this.freeSeatedThrows=Math.max(this.freeSeatedThrows,this.freeKnot.seatedThrows);}
       this.wound.update(Math.max(this.freeKnot.closureLoad,this.freeLockClosure??0),step,this.freeKnot.pullDemand);

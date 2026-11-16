@@ -9,6 +9,9 @@ import type { KnotEngine } from '../../knot/engines';
  * (fewer turns around the driver than the forceps made) at 30 fps even at
  * normal speed, and from about 2.5× speed at any frame rate.
  */
+/** Longest wait for a throw to be recorded before the next one (s). */
+const RECORD_WAIT_S = 4;
+
 export async function tieKnot(model: KnotEngine, speed: number, fps: number, throws: Array<[number, number]>) {
   const tools = [new Instrument('left', 0), new Instrument('right', 0)];
   model.begin(tools, 'auto');
@@ -28,8 +31,13 @@ export async function tieKnot(model: KnotEngine, speed: number, fps: number, thr
   advance();
   right.openness = 0.1;
   advance();
+  let thrown = 0;
   for (const [wraps, direction] of throws) {
+    // Wait (up to RECORD_WAIT_S) for the previous throw to be recorded before the next one: the model
+    // records a throw shortly after the pull-apart, and engines in a worker report it a frame or two late.
+    for (let i = 0; i < RECORD_WAIT_S * fps && model.sequence!.throws.length < thrown; i++) advance();
     const subsequent = model.sequence!.throws.length > 0;
+    thrown++;
     if (subsequent) {
       tools.forEach((tool) => (tool.openness = 0.7));
       for (let i = 0; i < fps; i++) advance();
@@ -61,6 +69,8 @@ export async function tieKnot(model: KnotEngine, speed: number, fps: number, thr
       right.root.position.x += 0.65 * k;
     });
   }
+  // Give the last throw the same chance to be recorded.
+  for (let i = 0; i < RECORD_WAIT_S * fps && model.sequence!.throws.length < thrown; i++) advance();
   return model;
 }
 

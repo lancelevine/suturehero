@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.196 — Experimental knot engine in a background thread
+
+New knot engine option (Practice setup → Knot engine): "Classic in a
+background thread (experimental)". The same knot model runs in a Web Worker
+so its physics does not hold up drawing; the knot is shown a frame behind
+the instruments. Works when the computer keeps up; if the worker falls
+behind (very slow machines), knots may not seat. For the engine comparison.
+
 ## Build 0.195 — Knot physics about twice as fast overall
 
 Knot physics faster again (same results): thread self-contact reuses its
