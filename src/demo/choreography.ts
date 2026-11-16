@@ -64,3 +64,18 @@ export class Choreography {
 
 /** Smooth start and stop, like a hand. */
 export const ease = (t: number) => t * t * (3 - 2 * t);
+
+/** Minimum-jerk reach profile used by measured human point-to-point motion. */
+export const humanEase = (t: number) => {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * x * (10 + x * (-15 + 6 * x));
+};
+
+/**
+ * Monotonic progress with a restrained cadence change. It avoids the exact
+ * constant-speed circles that make a scripted wrap look motor-driven.
+ */
+export const humanCadence = (t: number) => {
+  const x = Math.max(0, Math.min(1, t));
+  return x - Math.sin(2 * Math.PI * x) * 0.045 / (2 * Math.PI);
+};

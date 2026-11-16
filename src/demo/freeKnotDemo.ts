@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { KnotEngine } from '../knot/engines';
 import type { Instrument } from '../instruments/Instrument';
-import { ease, type Segment } from './choreography';
+import { humanCadence, humanEase, type Segment } from './choreography';
 
 /**
  * Instrument tie by real thread physics for the demo (2026-11-15): the same
@@ -36,7 +36,13 @@ const moveTo = (tool: Instrument, target: () => THREE.Vector3, seconds: number, 
     start: () => {
       from = tool.root.position.clone();
     },
-    apply: (t) => tool.root.position.copy(from).lerp(target(), ease(t)),
+    apply: (t) => {
+      const k=humanEase(t),to=target();
+      tool.root.position.copy(from).lerp(to,k);
+      // A shallow lift-and-settle arc resembles a wrist-led reach while
+      // preserving the exact grasp target at both endpoints.
+      tool.root.position.y+=Math.sin(Math.PI*k)*Math.min(.07,from.distanceTo(to)*.035);
+    },
   };
 };
 
@@ -130,13 +136,22 @@ function throwSegments(model: KnotEngine, { left, right }: Tools, wraps: number,
       caption: wraps === 2 ? 'Wrap the long strand twice around the driver' : 'Wrap once around the driver, the other way from the last throw',
       seconds: turns * SECONDS_PER_WRAP,
       start: () => base.copy(right.root.position),
-      apply: (t) => left.root.position.copy(wrapAt(t * turns)),
+      apply: (t) => {
+        const turn=humanCadence(t)*turns;
+        left.root.position.copy(wrapAt(turn));
+        // Tiny axial variation prevents a mathematically perfect motor circle;
+        // it is well below the live opening's clearance.
+        left.root.position.add(offset(0,0,.01*Math.sin(turn*Math.PI*2)));
+      },
     },
     {
       caption: 'Grasp-side pull: draw the short tail through the loop',
       seconds: 2,
       start: () => (pullStart = right.root.position.clone()),
-      apply: (t) => right.root.position.copy(pullStart).add(offset(0, 0, ease(t) * (first ? 1.6 : 0.8))),
+      apply: (t) => {
+        const k=humanEase(t);
+        right.root.position.copy(pullStart).add(offset(.035*Math.sin(Math.PI*k),0,k*(first?1.6:.8)));
+      },
     },
     {
       caption: 'Pull the ends apart to lay the throw flat',
@@ -144,7 +159,7 @@ function throwSegments(model: KnotEngine, { left, right }: Tools, wraps: number,
       start: () => (spread = [left.root.position.clone(), right.root.position.clone()]),
       apply: (t) => {
         // One continuous pull (no long hold at the end).
-        const k = ease(t);
+        const k = humanEase(t);
         left.root.position.copy(spread[0]).add(new THREE.Vector3(-2.3 * k, 0, 0));
         right.root.position.copy(spread[1]).add(new THREE.Vector3(0.65 * k, 0, 0));
       },
@@ -161,7 +176,7 @@ function lowerAndPull(model: KnotEngine, { left, right }: Tools, seconds = 3): S
     start: () => (starts = [left.root.position.clone(), right.root.position.clone()]),
     apply: (t) => {
       // Pull down and apart, then keep the tension a moment so the throw seats.
-      const k = ease(Math.min(1, (t * seconds) / (3 * TIGHTEN_PULL_SHARE)));
+      const k = humanEase(Math.min(1, (t * seconds) / (3 * TIGHTEN_PULL_SHARE)));
       [left, right].forEach((tool, i) => {
         const target = new THREE.Vector3(starts[i].x + (i ? 0.5 : -0.8), model.entry.y + 0.05, model.entry.z + 0.05);
         tool.root.position.copy(starts[i]).lerp(target, k);
