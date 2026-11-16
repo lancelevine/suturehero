@@ -112,6 +112,21 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Claude's knot engine (robust free-end regrasp) (build 0.197)
+
+- New `src/knot/claude/ClaudeKnotEngine.ts` (+ test that fails on classic):
+  overrides FreeKnotPractice.grasp (made protected; no behaviour change) to
+  take the instrument's own free end when within reach. Registered as
+  `claude` in engines.ts.
+- Engine comparison (`KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`,
+  4 knots × 6 conditions; harness waits ≤ 8 s for each throw to record):
+  classic 19/24, claude 21/24, both ~470–480 ms CPU per second of tying (Node).
+  Remaining failures (both): square @ 2× 60fps (throw sits at 'reach limit'
+  ~13 s before tightening after a fast full pull), 3-throw @ 2× 120fps (loop
+  slips off the short strand on a fast tail pull), surgeon's @ 2× 30fps
+  jitter. Classic additionally misses two 3-throw cases (wrong-strand regrasp).
+- Checked: tsc; gameplay/demo/knot/setup/suture tests (244).
+
 ### 2026-11-15 — Claude — Experimental knot engine in a background thread (build 0.196)
 
 - New `src/knot/worker/`: `protocol.ts`, `KnotHost.ts` (classic model on its own

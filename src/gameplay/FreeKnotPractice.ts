@@ -161,7 +161,7 @@ export class FreeKnotPractice {
     }
     this.contact.configure(tools);
   }
-  private grasp(tool:Instrument) {
+  protected grasp(tool:Instrument) {
     const jaw=tool.root.localToWorld(new THREE.Vector3(0,0,0.05));
     let best:{strand:ThreadStrand;index:number;distance:number}|undefined;
     for(const strand of this.strands)for(let i=1;i<strand.count-1;i++) {

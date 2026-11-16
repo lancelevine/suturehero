@@ -10,7 +10,7 @@ import type { KnotEngine } from '../../knot/engines';
  * normal speed, and from about 2.5× speed at any frame rate.
  */
 /** Longest wait for a throw to be recorded before the next one (s). */
-const RECORD_WAIT_S = 4;
+const RECORD_WAIT_S = 8;
 
 /** Trial options: tracking-like jitter on the instrument positions (scene units, ≈ 27 mm each). */
 export interface TrialOptions {

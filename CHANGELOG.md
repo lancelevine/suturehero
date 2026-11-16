@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.197 — Claude's knot engine (robust free-end regrasp)
+
+New knot engine option: "Claude's (classic + robustness fixes)". Same
+thread physics and throw recognition as Classic, but when you close the
+needle driver right at the short tail's end (or the forceps at the long
+strand's end), it takes that end even if another stretch of thread lies
+closer; Classic could grab the wrong strand and lose the next throw.
+In the engine comparison it ties 21 of 24 test knots correctly vs 19.
+
 ## Build 0.196 — Experimental knot engine in a background thread
 
 New knot engine option (Practice setup → Knot engine): "Classic in a
