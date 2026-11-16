@@ -6,13 +6,13 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Codex — review Claude's knot work, register the Codex engine,
-  and merge the natural-motion demo. Claude's lock is released.
+- **In progress:** None.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
   (`KNOT_ENGINES=a,b` to pick; `KNOT_TRIALS=quick` for a short run).
-  Current: classic 19/24, claude 21/24, classic-worker (experimental).
+  Current: classic 19/24, claude 21/24, codex (quick matrix 8/8),
+  classic-worker (experimental).
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
@@ -112,6 +112,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-16 — Codex — Codex knot engine and natural demo (build 0.200)
+
+- Registered `codex`: Claude's reliable needle-driver tail grasp plus a stricter
+  physical-event ledger. A same-direction pair needs taut-post evidence to be
+  called sliding; a verified opposing throw locks even with an extra detected
+  turn. It is selectable independently from Classic and Claude.
+- Reworked demo choreography with deterministic minimum-jerk easing, curved
+  reaches, varied wrap cadence, and asymmetric releases.
+- The first adaptive-solver attempt was rejected after it missed a third throw
+  under 2× jitter. With shared optimized physics restored, Codex passed the
+  8/8 quick comparison (317 ms CPU per simulated second); type-check and focused
+  engine/choreography tests passed. Real interactive knot feel still needs Lance.
 
 ### 2026-11-15 — Claude — Claude engine: forceps use classic grasp (build 0.199)
 

@@ -21,7 +21,7 @@ export class InferredKnotSequence {
  get sliding(){return !this.locked&&(this.technique==='single'||this.technique==='sliding');}
  acceptsGeometry(wraps:number,direction:number){return Number.isInteger(wraps)&&wraps>=1&&(direction===1||direction===-1);}
  seat(record:ThrowRecord){if(!this.acceptsGeometry(record.wraps,record.direction))return false;this.throws.push({...record});return true;}
- get instruction(){
+ get instruction():string{
   if(!this.throws.length)return 'Wrap once or twice · The starting knot is detected from your thread';
   if(this.technique==='single')return 'Repeat the same direction for a sliding start, or reverse for a square throw';
   if(this.sliding)return 'Keep the post between knot and driver taut to advance · Reverse for a locking throw';

@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.200 — Codex knot mode and natural demo motion
+
+- Added a selectable Codex knot engine that combines Claude's reliable short-tail grasp with event-ledger classification. Same-direction throws only count as a sliding start when the short post was taut; a verified opposing throw counts as a lock even if rapid input leaves an extra detected turn.
+- Made the automated stitch-and-knot demo less robotic with smooth human-like acceleration, curved reaches, varied wrap cadence, and asymmetric releases.
+- The quick comparison passed 8/8 scenarios for Codex after rejecting an experimental solver reduction that missed a fast jittered third throw.
+
 ## Build 0.199 — Claude engine: forceps use classic grasp
 
 - Claude knot engine: the forceps go back to the classic grasp (nearest thread point). Only the needle driver's grasp is redirected to the short tail's end. Lance reported that in the demo the forceps did not take the strand again after the first throw. Synthetic tests only; not reproduced in this sandbox.

@@ -7,6 +7,7 @@ import type { KnotTissue } from './knotTissue';
 import { ClaudeKnotEngine } from './claude/ClaudeKnotEngine';
 import { createKnotWorkerPort } from './worker/knotWorkerPort';
 import { WorkerKnotEngine } from './worker/WorkerKnotEngine';
+import { CodexKnotEngine } from './codex/CodexKnotEngine';
 
 /**
  * Knot engine switch (2026-11-15). Free tying can run on different knot
@@ -14,7 +15,7 @@ import { WorkerKnotEngine } from './worker/WorkerKnotEngine';
  *  - `classic`: the event-based FreeKnotPractice (src/gameplay/FreeKnotPractice.ts);
  *  - `claude`: Claude's engine (src/knot/claude/): the classic model with robustness fixes;
  *  - `classic-worker`: the classic model in a Web Worker (src/knot/worker/);
- *  - Codex's engine (src/knot/codex/) registers here when ready.
+ *  - `codex`: Claude's robust grasp with stricter event-ledger classification.
  * Chosen in Practice setup → Knot engine, or with ?knot=<id> in the link (reloads the practice).
  *
  * An engine provides everything the practice session, the scene and the demo read
@@ -93,6 +94,7 @@ export const DEFAULT_KNOT_ENGINE = 'classic';
 export const KNOT_ENGINES: KnotEngineEntry[] = [
   { id: 'classic', label: 'Classic (event-based)', create: () => new FreeKnotPractice() },
   { id: 'claude', label: "Claude's (classic + robustness fixes)", create: () => new ClaudeKnotEngine() },
+  { id: 'codex', label: 'Codex (robust grasp + event ledger)', create: () => new CodexKnotEngine() },
   // The same model in a Web Worker: drawing is not held up by the thread physics; the knot state is a frame behind.
   { id: 'classic-worker', label: 'Classic in a background thread (experimental)', create: () => new WorkerKnotEngine(createKnotWorkerPort()) },
 ];
