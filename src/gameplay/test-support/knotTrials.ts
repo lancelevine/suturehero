@@ -12,11 +12,32 @@ import type { KnotEngine } from '../../knot/engines';
 /** Longest wait for a throw to be recorded before the next one (s). */
 const RECORD_WAIT_S = 4;
 
-export async function tieKnot(model: KnotEngine, speed: number, fps: number, throws: Array<[number, number]>) {
+/** Trial options: tracking-like jitter on the instrument positions (scene units, ≈ 27 mm each). */
+export interface TrialOptions {
+  /** Size of a smooth random wobble added to both instruments every frame (0 = none). */
+  jitter?: number;
+  /** Seed for the jitter. */
+  seed?: number;
+}
+
+export async function tieKnot(model: KnotEngine, speed: number, fps: number, throws: Array<[number, number]>, options: TrialOptions = {}) {
   const tools = [new Instrument('left', 0), new Instrument('right', 0)];
   model.begin(tools, 'auto');
   const [left, right] = tools;
-  const advance = () => model.update(1 / fps, tools);
+  // Tracking-like jitter: a smooth random wobble added for the update and removed after it,
+  // so it disturbs what the knot model sees without drifting the scripted motion.
+  let seed = options.seed ?? 1;
+  const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296) * 2 - 1;
+  const wobble = tools.map(() => new THREE.Vector3());
+  const advance = () => {
+    const jitter = options.jitter ?? 0;
+    if (jitter > 0) tools.forEach((tool, i) => {
+      wobble[i].multiplyScalar(0.7).add(new THREE.Vector3(random(), random(), random()).multiplyScalar(jitter * 0.3));
+      tool.root.position.add(wobble[i]);
+    });
+    model.update(1 / fps, tools);
+    if (jitter > 0) tools.forEach((tool, i) => tool.root.position.sub(wobble[i]));
+  };
   const segment = async (seconds: number, apply: (t: number) => void) => {
     const frames = Math.max(1, Math.round((seconds / speed) * fps));
     for (let i = 1; i <= frames; i++) {
