@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.199 — Claude engine: forceps use classic grasp
+
+- Claude knot engine: the forceps go back to the classic grasp (nearest thread point). Only the needle driver's grasp is redirected to the short tail's end. Lance reported that in the demo the forceps did not take the strand again after the first throw. Synthetic tests only; not reproduced in this sandbox.
+
 ## Build 0.198 — Knot physics about 30% faster again
 
 Knot physics faster again, same results (all engines): a knot takes about

@@ -113,6 +113,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-15 — Claude — Claude engine: forceps use classic grasp (build 0.199)
+
+- Lance reported that with the `claude` engine the demo forceps did not regrasp after the first throw. Not reproduced: the demo regrasped in Node at 60, 120 and 144 Hz and in the sandbox browser. Likely cause: the forceps grip was moved to the long strand's far end (index count-1, beside the needle), which the classic grasp never picks.
+- Fix: in `src/knot/claude/ClaudeKnotEngine.ts`, only the needle driver gets the free-end redirect.
+- Checks: `ClaudeKnotEngine.test.ts`, `freeKnotDemo.test.ts`, tsc.
+- Lance to test: run the demo with the Claude knot engine and check that all three throws happen.
+
 ### 2026-11-15 — Claude — Knot physics about 30% faster again (build 0.198)
 
 - Behaviour-identical (final thread checksum unchanged on the surgeon's

@@ -11,8 +11,8 @@ import type { ThreadStrand } from '../../suture/ThreadStrand';
  * - Regrasping a free end: the classic grasp takes the nearest thread point, so a needle
  *   driver closing on the short tail's end could take the long strand lying beside it
  *   (and a 3-throw knot then lost its third throw). Here, when the jaws close within reach
- *   of the free end that instrument works with (driver: short tail, forceps: long strand),
- *   that end is taken.
+ *   of the free end that instrument works with the needle driver takes the
+ *   short tail's end. The forceps keep the classic nearest-point grasp.
  */
 
 /** Grasp reach from the jaw surface (scene units), as the classic grasp. */
@@ -23,16 +23,19 @@ const JAW = new THREE.Vector3(0, 0, 0.05);
 export class ClaudeKnotEngine extends FreeKnotPractice {
   protected override grasp(tool: Instrument) {
     super.grasp(tool);
-    const strand: ThreadStrand = tool.kind === 'needle-driver' ? this.short : this.long;
+    // Forceps keep the classic pick: moving their grip to the long strand's far end
+    // (beside the needle) left the demo forceps without the strand after the first throw.
+    if (tool.kind !== 'needle-driver') return;
+    const strand: ThreadStrand = this.short;
     const end = strand.count - 1;
     const current = this.grips.get(tool.id);
     if (current?.strand === strand && current.index >= end - 3) return;
     const jaw = tool.root.localToWorld(JAW.clone());
-    const reach = Math.max(0, jaw.distanceTo(strand.points[end]) - (tool.kind === 'needle-driver' ? tool.jawRadius : 0));
+    const reach = Math.max(0, jaw.distanceTo(strand.points[end]) - (tool.jawRadius));
     if (reach > REACH) return;
     if ([...this.grips.values()].some((g) => g.strand === strand && g.index === end)) return;
     const local = tool.root.worldToLocal(strand.points[end].clone());
-    if (tool.kind === 'needle-driver') local.set(0, 0, THREE.MathUtils.clamp(local.z, JAW.z - 0.035, JAW.z + 0.035));
+    local.set(0, 0, THREE.MathUtils.clamp(local.z, JAW.z - 0.035, JAW.z + 0.035));
     this.grips.set(tool.id, { strand, index: end, local });
   }
 }
