@@ -3,7 +3,7 @@ import type { PracticeSession } from '../gameplay/PracticeSession';
 import type { Instrument } from '../instruments/Instrument';
 import type { NeedleGrasp } from '../suture/NeedleGrasp';
 import type { SutureModel } from '../suture/SutureModel';
-import { ease, type Segment } from './choreography';
+import { humanCadence, humanEase, type Segment } from './choreography';
 import { freeKnotSegments } from './freeKnotDemo';
 import { formatMm } from '../setup/sceneScale';
 import { TISSUE_LAYERS } from '../tissue/anatomy';
@@ -103,8 +103,11 @@ function poseMove(tool: Instrument, target: () => THREE.Matrix4, seconds: number
       target().decompose(to.p, to.q, new THREE.Vector3());
     },
     apply: (t) => {
-      const k = ease(t);
+      const k = humanEase(t);
       tool.root.position.copy(from.p).lerp(to.p, k);
+      const distance=from.p.distanceTo(to.p);
+      tool.root.position.y+=Math.sin(Math.PI*k)*Math.min(.065,distance*.04);
+      tool.root.position.x+=Math.sin(Math.PI*k)*Math.min(.025,distance*.012);
       tool.root.quaternion.copy(from.q).slerp(to.q, k);
       tool.root.updateWorldMatrix(true, false);
     },
@@ -122,7 +125,7 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
       seconds: DRIVE_SECONDS,
       start: () => (driven = 0),
       apply: (t) => {
-        const target = t * DRIVE_SECONDS * DRIVE_RATE;
+        const target = humanCadence(t) * DRIVE_SECONDS * DRIVE_RATE;
         const turn = new THREE.Quaternion().setFromAxisAngle(DRIVE_AXIS, target - driven);
         driven = target;
         right.root.position.sub(PASS_CENTRE).applyQuaternion(turn).add(PASS_CENTRE);
@@ -170,7 +173,7 @@ export function physicsDemoSegments(scene: DemoScene): Segment[] {
         left.openness = 0.65;
         right.openness = 0.65;
       },
-      apply: (t) => left.root.position.copy(forcepsStart).lerp(FORCEPS_REST, ease(t)),
+      apply: (t) => left.root.position.copy(forcepsStart).lerp(FORCEPS_REST, humanEase(t)),
     },
     poseMove(right, above(pickupPose), 1.5, 'Load the needle in the needle driver, near its back'),
     poseMove(right, pickupPose, 0.7),
@@ -236,8 +239,9 @@ function trimSegments({ scissors, left, right }: DemoScene): Segment[] {
         lifts = [left.root.position.clone(), right.root.position.clone()];
       },
       apply: (t) => {
-        left.root.position.copy(lifts[0]).add(new THREE.Vector3(-0.3, 0.6 * ease(t), 0.3));
-        right.root.position.copy(lifts[1]).add(new THREE.Vector3(0.3, 0.6 * ease(t), -0.3));
+        const leftProgress=humanEase(t),rightProgress=humanEase(Math.max(0,(t-.06)/.94));
+        left.root.position.copy(lifts[0]).add(new THREE.Vector3(-0.3*leftProgress,0.6*leftProgress,0.3*leftProgress));
+        right.root.position.copy(lifts[1]).add(new THREE.Vector3(0.3*rightProgress,0.6*rightProgress,-0.3*rightProgress));
       },
     },
     // The scissors come from the page; unit tests have none and skip the cutting.

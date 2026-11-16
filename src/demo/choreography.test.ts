@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { Choreography } from './choreography';
+import { Choreography, humanCadence, humanEase } from './choreography';
 
 it('runs segments in order over their durations with captions and start hooks', () => {
   const log: string[] = [];
@@ -27,4 +27,16 @@ it('reads a caption function after the segment starts', () => {
   const c = new Choreography([{ seconds: 1, start: () => (n = 7), caption: () => `n=${n}` }]);
   c.step(0.1);
   expect(c.caption).toBe('n=7');
+});
+
+it('uses deterministic human motion profiles with fixed endpoints and monotonic progress', () => {
+  for (const profile of [humanEase, humanCadence]) {
+    expect(profile(0)).toBe(0);
+    expect(profile(1)).toBe(1);
+    const samples = Array.from({ length: 101 }, (_, index) => profile(index / 100));
+    expect(samples.every((value, index) => index === 0 || value >= samples[index - 1])).toBe(true);
+  }
+  expect(humanEase(.25)).toBeLessThan(.25);
+  expect(humanEase(.75)).toBeGreaterThan(.75);
+  expect(humanCadence(.25)).not.toBeCloseTo(.25, 4);
 });
