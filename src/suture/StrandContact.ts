@@ -83,7 +83,10 @@ export class StrandContact {
     const count=points.length-1;let contacts=0;
     for(const pair of this.candidates(points)) {
       const i=Math.floor(pair/count),j=pair%count;
-      const result=closestSegments(points[i],points[i+1],points[j],points[j+1]);
+      // Boxes farther apart than the contact distance cannot touch: skipped as the exact test below would.
+      const a=points[i],b=points[i+1],c=points[j],d=points[j+1],gap=THREAD_CONTACT_DISTANCE;
+      if(Math.min(a.x,b.x)-Math.max(c.x,d.x)>gap||Math.min(c.x,d.x)-Math.max(a.x,b.x)>gap||Math.min(a.y,b.y)-Math.max(c.y,d.y)>gap||Math.min(c.y,d.y)-Math.max(a.y,b.y)>gap||Math.min(a.z,b.z)-Math.max(c.z,d.z)>gap||Math.min(c.z,d.z)-Math.max(a.z,b.z)>gap)continue;
+      const result=closestSegments(a,b,c,d);
       const normal=result.p.clone().sub(result.q),distance=normal.length();
       if(distance>=THREAD_CONTACT_DISTANCE)continue;
       if(distance>1e-8)normal.divideScalar(distance);

@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.198 — Knot physics about 30% faster again
+
+Knot physics faster again, same results (all engines): a knot takes about
+30% less computer time than in 0.197, and about 65% less than before 0.193.
+In the demo's tie, the median frame is now about 6 ms and only ~2% of
+frames go over 16 ms (was ~8%).
+
 ## Build 0.197 — Claude's knot engine (robust free-end regrasp)
 
 New knot engine option: "Claude's (classic + robustness fixes)". Same

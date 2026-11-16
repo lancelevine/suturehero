@@ -2,16 +2,25 @@ import * as THREE from 'three';
 import type {ThreadStrand} from './ThreadStrand';
 import {closestSegments} from './StrandContact';
 import {THREAD_CONTACT_DISTANCE} from './threadMaterial';
+/** Writes the box (min x,y,z, max x,y,z) around four points, grown by `pad`, at `out[at]`. */
+function spanBox(out:Float64Array,at:number,p:THREE.Vector3,q:THREE.Vector3,r:THREE.Vector3,s:THREE.Vector3,pad:number){
+  out[at]=Math.min(p.x,q.x,r.x,s.x)-pad;out[at+1]=Math.min(p.y,q.y,r.y,s.y)-pad;out[at+2]=Math.min(p.z,q.z,r.z,s.z)-pad;
+  out[at+3]=Math.max(p.x,q.x,r.x,s.x)+pad;out[at+4]=Math.max(p.y,q.y,r.y,s.y)+pad;out[at+5]=Math.max(p.z,q.z,r.z,s.z)+pad;
+}
 /** Swept segment contact between the two exterior strands; not a knot solver. */
 export function resolveStrandPair(a:ThreadStrand,b:ThreadStrand,pinsA:ReadonlyMap<number,THREE.Vector3>,pinsB:ReadonlyMap<number,THREE.Vector3>,startA?:readonly THREE.Vector3[],startB?:readonly THREE.Vector3[]) {
   const swept=!!(startA&&startB);startA??=a.points;startB??=b.points;
   const radius=THREAD_CONTACT_DISTANCE;
-  const boxes=b.points.slice(1).map((p,i)=>new THREE.Box3().setFromPoints([startB[i],startB[i+1],b.points[i],p]).expandByScalar(radius));
-  const bounds=new THREE.Box3();
+  // Swept boxes of b's segments (taken once, as before) and of each a segment, as flat numbers:
+  // the same overlap tests as Box3.setFromPoints(...).expandByScalar + intersectsBox, without allocating.
+  const boxes=new Float64Array((b.count-1)*6);
+  for(let j=0;j<b.count-1;j++)spanBox(boxes,j*6,startB[j],startB[j+1],b.points[j],b.points[j+1],radius);
+  const bounds=new Float64Array(6);
   for(let i=0;i<a.count-1;i++) {
-    bounds.setFromPoints([startA[i],startA[i+1],a.points[i],a.points[i+1]]).expandByScalar(radius);
+    spanBox(bounds,0,startA[i],startA[i+1],a.points[i],a.points[i+1],radius);
     for(let j=0;j<b.count-1;j++) {
-      if(!bounds.intersectsBox(boxes[j]))continue;
+      const k=j*6;
+      if(boxes[k+3]<bounds[0]||boxes[k]>bounds[3]||boxes[k+4]<bounds[1]||boxes[k+1]>bounds[4]||boxes[k+5]<bounds[2]||boxes[k+2]>bounds[5])continue;
       let hit=closestSegments(a.points[i],a.points[i+1],b.points[j],b.points[j+1]);
       let normal=hit.p.clone().sub(hit.q),distance=normal.length();
       if(swept){

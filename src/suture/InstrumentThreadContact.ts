@@ -4,19 +4,18 @@ import type { Instrument } from '../instruments/Instrument';
 import { closestSegments } from './StrandContact';
 import { THREAD_RADIUS } from './threadMaterial';
 import {MaterialOpening} from './MaterialOpening';
-/**
- * Whether the box spanning the given points overlaps `box` (same result as
- * new Box3().setFromPoints(points).intersectsBox(box), without allocating;
- * this runs for every thread point and instrument part at every step).
- */
-function spanOverlapsBox(box:THREE.Box3,p:THREE.Vector3,q:THREE.Vector3,r?:THREE.Vector3,s?:THREE.Vector3){
-  let minX=Math.min(p.x,q.x),maxX=Math.max(p.x,q.x),minY=Math.min(p.y,q.y),maxY=Math.max(p.y,q.y),minZ=Math.min(p.z,q.z),maxZ=Math.max(p.z,q.z);
+/** Writes the box (min x,y,z, max x,y,z) around the given points at `out[at]`. */
+function writeSpan(out:Float64Array,at:number,p:THREE.Vector3,q:THREE.Vector3,r?:THREE.Vector3,s?:THREE.Vector3){
+  out[at]=Math.min(p.x,q.x);out[at+1]=Math.min(p.y,q.y);out[at+2]=Math.min(p.z,q.z);
+  out[at+3]=Math.max(p.x,q.x);out[at+4]=Math.max(p.y,q.y);out[at+5]=Math.max(p.z,q.z);
   if(r&&s){
-    minX=Math.min(minX,r.x,s.x);maxX=Math.max(maxX,r.x,s.x);
-    minY=Math.min(minY,r.y,s.y);maxY=Math.max(maxY,r.y,s.y);
-    minZ=Math.min(minZ,r.z,s.z);maxZ=Math.max(maxZ,r.z,s.z);
+    out[at]=Math.min(out[at],r.x,s.x);out[at+1]=Math.min(out[at+1],r.y,s.y);out[at+2]=Math.min(out[at+2],r.z,s.z);
+    out[at+3]=Math.max(out[at+3],r.x,s.x);out[at+4]=Math.max(out[at+4],r.y,s.y);out[at+5]=Math.max(out[at+5],r.z,s.z);
   }
-  return !(maxX<box.min.x||minX>box.max.x||maxY<box.min.y||minY>box.max.y||maxZ<box.min.z||minZ>box.max.z);
+}
+/** Whether the box at `spans[at]` overlaps `box` (as Box3.intersectsBox). */
+function spanHits(spans:Float64Array,at:number,box:THREE.Box3){
+  return !(spans[at+3]<box.min.x||spans[at]>box.max.x||spans[at+4]<box.min.y||spans[at+1]>box.max.y||spans[at+5]<box.min.z||spans[at+2]>box.max.z);
 }
 interface Capsule {toolId:string;driver:boolean;a:THREE.Vector3;b:THREE.Vector3;oldA:THREE.Vector3;oldB:THREE.Vector3;radius:number;bounds:THREE.Box3}
 /** Substep-interpolated, conservatively sampled swept segment/capsule contact. Instrument bodies remain kinematic. */
@@ -97,6 +96,9 @@ export class InstrumentThreadContact {
     if(surface<0.4)return surface;
     for(const capsule of this.capsules){
       if(!capsule.driver)continue;
+      // Outside the part's footprint (its bounds already include its radius): the test below fails.
+      const box=capsule.bounds;
+      if(point.x<box.min.x-0.02||point.x>box.max.x+0.02||point.z<box.min.z-0.02||point.z>box.max.z+0.02)continue;
       const a=capsule.a,b=capsule.b,dx=b.x-a.x,dz=b.z-a.z;
       const t=THREE.MathUtils.clamp(((point.x-a.x)*dx+(point.z-a.z)*dz)/Math.max(1e-10,dx*dx+dz*dz),0,1);
       const x=a.x+t*dx,z=a.z+t*dz,y=a.y+t*(b.y-a.y);
@@ -113,11 +115,26 @@ export class InstrumentThreadContact {
   }
   resolve=(points:THREE.Vector3[],previous:THREE.Vector3[],pinned:ReadonlySet<number>,time:{from:number;to:number;start?:readonly THREE.Vector3[]}={from:0,to:1},gripExemptions?:ReadonlyMap<string,ReadonlySet<number>>)=>{
     const start=time.start??previous;
+    // Each point's and segment's swept box (now and at the step start), kept current as
+    // corrections move points: the same overlap tests as before, computed once per call
+    // instead of once per instrument part.
+    const count=points.length;
+    const pointSpans=new Float64Array(count*6),segmentSpans=new Float64Array(Math.max(0,count-1)*6);
+    const fillPoint=(i:number)=>writeSpan(pointSpans,i*6,start[i],points[i]);
+    const fillSegment=(i:number)=>writeSpan(segmentSpans,i*6,start[i],start[i+1],points[i],points[i+1]);
+    for(let i=0;i<count;i++)fillPoint(i);
+    for(let i=0;i<count-1;i++)fillSegment(i);
+    const refreshSpans=(index:number)=>{
+      fillPoint(index);
+      if(index>0)fillSegment(index-1);
+      if(index<count-1)fillSegment(index);
+    };
     const correct=(index:number,normal:THREE.Vector3,depth:number)=>{
       if(pinned.has(index) || depth<=0)return;
       const velocity=points[index].clone().sub(previous[index]);
       const correction=normal.clone().multiplyScalar(Math.min(0.5,depth));
       points[index].add(correction);previous[index].add(correction);
+      refreshSpans(index);
       // Remove inward velocity instead of letting it hammer the collider on
       // every subsequent substep. Preserve tangential motion along the shaft.
       const inward=velocity.dot(normal);if(inward<0)previous[index].addScaledVector(normal,inward);
@@ -137,7 +154,7 @@ export class InstrumentThreadContact {
       const center=(point:THREE.Vector3)=>a.clone().addScaledVector(axis,THREE.MathUtils.clamp(point.clone().sub(a).dot(axis)/Math.max(1e-10,axis.lengthSq()),0,1));
       for(let i=0;i<points.length;i++) {
         if(pinned.has(i) || exempt?.has(i))continue;
-        if(!spanOverlapsBox(capsule.bounds,start[i],points[i]))continue;
+        if(!spanHits(pointSpans,i*6,capsule.bounds))continue;
         let c=center(points[i]),normal=points[i].clone().sub(c),distance=normal.length();
         const oldAxis=oldB.clone().sub(oldA),fraction=THREE.MathUtils.clamp(start[i].clone().sub(oldA).dot(oldAxis)/Math.max(1e-10,oldAxis.lengthSq()),0,1);
         const oldCenter=oldA.clone().addScaledVector(oldAxis,fraction),oldNormal=start[i].clone().sub(oldCenter);
@@ -160,7 +177,7 @@ export class InstrumentThreadContact {
       // particles have enough radial clearance to keep their chords outside.
       for(let i=0;i<points.length-1;i++) {
         if(exempt?.has(i) || exempt?.has(i+1) || points[i].distanceTo(points[i+1])<capsule.radius*0.5)continue;
-        if(!spanOverlapsBox(capsule.bounds,start[i],start[i+1],points[i],points[i+1]))continue;
+        if(!spanHits(segmentSpans,i*6,capsule.bounds))continue;
         let hit=closestSegments(points[i],points[i+1],a,b),normal=hit.p.clone().sub(hit.q),distance=normal.length();
         const old=closestSegments(start[i],start[i+1],oldA,oldB),oldNormal=old.p.clone().sub(old.q);
         if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<capsule.radius*capsule.radius) {

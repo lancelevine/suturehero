@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude Code — knot physics speed-ups (thread contact code; behaviour-identical). Codex may be working on its knot engine
+- **In progress:** none from Claude. Codex may be working on its knot engine Codex may be working on its knot engine
   in `src/knot/codex/` (Lance asked both agents to work in parallel).
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
@@ -112,6 +112,19 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-15 — Claude — Knot physics about 30% faster again (build 0.198)
+
+- Behaviour-identical (final thread checksum unchanged on the surgeon's
+  double + opposing fixture: 18 s → 12.8 s; 36.2 s before 0.193):
+  `StrandContact.ts` box-gap early exit before the exact segment test;
+  `InstrumentThreadContact.ts` skin-support footprint early exit, per-call
+  point/segment swept boxes kept current by `correct` (writeSpan/spanHits);
+  `StrandPairContact.ts` flat-array boxes instead of Box3 per segment.
+- Demo tie frame cost (Node): median 6.0 ms, p95 14.2 ms, 2.2% > 16 ms.
+- Remaining profile: instrument contact ~18%, self-contact ~10%, strand pair
+  ~8%, core solver (bends/distances) ~10%: no single large target left.
+- Checked: tsc; gameplay/demo/knot/setup/suture/tissue tests (308).
 
 ### 2026-11-15 — Claude — Claude's knot engine (robust free-end regrasp) (build 0.197)
 
