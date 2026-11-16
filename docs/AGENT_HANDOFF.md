@@ -6,8 +6,8 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** none from Claude. Codex may be working on its knot engine
-  in `src/knot/codex/` (Lance asked both agents to work in parallel).
+- **In progress:** Codex — review Claude's knot work, register the Codex engine,
+  and merge the natural-motion demo. Claude's lock is released.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
