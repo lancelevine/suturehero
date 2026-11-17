@@ -48,8 +48,11 @@ export class CodexKnotEngine extends ClaudeKnotEngine {
     if(technique==='auto')this.sequence=new CodexEventLedger();
   }
   override get lockSeated(){
-    if(!this.sequence?.locked)return false;
-    const ledger=this.sequence as CodexEventLedger;
-    return this.sequence.throws.some((_,index)=>index<this.seatedThrows&&ledger.isLockThrow?.(index));
+    const ledger=this.sequence;
+    // A chosen technique uses the shared sequence, which has no isLockThrow:
+    // fall back to the classic check so its locks still seat.
+    if(!(ledger instanceof CodexEventLedger))return super.lockSeated;
+    if(!ledger.locked)return false;
+    return ledger.throws.some((_,index)=>index<this.seatedThrows&&ledger.isLockThrow(index));
   }
 }

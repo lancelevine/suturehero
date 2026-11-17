@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.202 — Fix Codex lock seating; full search back to 1 s
+
+- Codex knot engine: with a knot type chosen in Practice setup (not "auto"), an opposing lock now registers as seated. Before, it never did (no "lock seated" message, trim hint hidden, lower closure load).
+- Camera tracking: the full search for new instruments runs every 1 s again (0.201 had slowed it to 1.6 s).
+
 ## Build 0.201 — Tracking performance and fallback diagnostics
 
 - Reduced periodic ArUco discovery scanning by 38% while keeping a complete full-frame discovery pass every 1.6 seconds. Diagnostics now report searched-pixel load, decode latency, stale results, and stereo rejection reasons automatically.

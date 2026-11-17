@@ -4,10 +4,9 @@ export interface DecodeRegion {left:number;top:number;width:number;height:number
  * Periodic global scans discover instruments outside the current search region. */
 /** While instruments are tracked, scan the whole frame for new ones this often, ms.
  * Full 1080p scans take ~100 ms and delay the tracked instrument's own decodes. */
-// A complete tiled discovery pass every 1.6 s keeps new-instrument latency
-// bounded while cutting periodic searched pixels by about 38% versus the
-// former four tiles per second (the overlap made that cost exceed one frame).
-export const DISCOVERY_INTERVAL_MS=1600;
+// Full discovery pass every 1 s (build 0.201's 1.6 s was reverted at Lance's
+// request: new instruments must be found quickly).
+export const DISCOVERY_INTERVAL_MS=1000;
 /**
  * The periodic discovery scan is split into this many overlapping tiles (2×2),
  * one per DISCOVERY_INTERVAL_MS / DISCOVERY_TILES, so a whole-frame scan's

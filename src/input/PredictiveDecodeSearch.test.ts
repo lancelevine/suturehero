@@ -7,18 +7,18 @@ it('preserves native pixels, predicts motion and performs periodic full scans',(
  const a=s.plan([marker(0,920)],70,1920,1080,true,groups);expect(a.kind).toBe('predicted');expect(a.width*a.height).toBeLessThan(1920*1080*.2);expect(a.left+a.width).toBeGreaterThan(1040);
  expect(s.plan([marker()],200,1920,1080,true,groups).kind).toBe('predicted');s.result([marker()]);
  // Periodic discovery (build 0.124): a quarter-frame tile every 250 ms instead of one whole frame per second.
- const tile=s.plan([marker()],410,1920,1080,true,groups);expect(tile.kind).toBe('discovery');expect(tile.width*tile.height).toBeLessThan(1920*1080*.45);
+ const tile=s.plan([marker()],260,1920,1080,true,groups);expect(tile.kind).toBe('discovery');expect(tile.width*tile.height).toBeLessThan(1920*1080*.45);
 });
 it('covers the whole frame with overlapping discovery tiles, and a tile is never a miss',()=>{
  const s=new PredictiveDecodeSearch();s.plan([marker()],0,1920,1080,true,groups);s.result([marker()]);
- const tiles=[1,2,3,4].map(i=>{const r=s.plan([marker()],i*410,1920,1080,true,groups);s.result([]);return r;});
+ const tiles=[1,2,3,4].map(i=>{const r=s.plan([marker()],i*260,1920,1080,true,groups);s.result([]);return r;});
  expect(tiles.every(t=>t.kind==='discovery')).toBe(true);
  for(const [x,y] of [[0,0],[1919,0],[0,1079],[1919,1079],[960,540],[955,535]])expect(tiles.some(t=>x>=t.left&&x<t.left+t.width&&y>=t.top&&y<t.top+t.height)).toBe(true);
  // A marker straddling the centre lies wholly inside at least one tile.
  const box={x0:930,y0:520,x1:990,y1:580};
  expect(tiles.some(t=>box.x0>=t.left&&box.x1<t.left+t.width&&box.y0>=t.top&&box.y1<t.top+t.height)).toBe(true);
  // Empty tile results did not count as misses: the next plan is still a normal prediction.
- expect(s.plan([marker()],1700,1920,1080,true,groups).kind).toBe('predicted');
+ expect(s.plan([marker()],1100,1920,1080,true,groups).kind).toBe('predicted');
 });
 it('expands after a miss, then falls back to full scans until recovery',()=>{
  const s=new PredictiveDecodeSearch();s.plan([marker()],0,1920,1080,true,groups);s.result([marker()]);const a=s.plan([marker()],65,1920,1080,true,groups);s.result([]);const b=s.plan([],130,1920,1080,true,groups);expect(b.kind).toBe('expanded');expect(b.width).toBeGreaterThan(a.width);s.result([]);expect(s.plan([],195,1920,1080,true,groups).kind).toBe('full');s.result([]);expect(s.plan([],260,1920,1080,true,groups).kind).toBe('full');
@@ -31,7 +31,7 @@ it('bounds searches, expires old hints, and retains an explicit full-frame optio
 });
 it('tiles the OV9281 frame (1280×800) completely, each tile inside the frame',()=>{
  const s=new PredictiveDecodeSearch();s.plan([marker(0,600)],0,1280,800,true,groups);s.result([marker(0,600)]);
- const tiles=[1,2,3,4].map(i=>{const r=s.plan([marker(0,600)],i*410,1280,800,true,groups);s.result([]);return r;});
+ const tiles=[1,2,3,4].map(i=>{const r=s.plan([marker(0,600)],i*260,1280,800,true,groups);s.result([]);return r;});
  expect(tiles.every(t=>t.kind==='discovery'&&t.left>=0&&t.top>=0&&t.left+t.width<=1280&&t.top+t.height<=800)).toBe(true);
  for(let x=0;x<1280;x+=40)for(let y=0;y<800;y+=40)expect(tiles.some(t=>x>=t.left&&x<t.left+t.width&&y>=t.top&&y<t.top+t.height)).toBe(true);
 });

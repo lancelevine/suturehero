@@ -113,6 +113,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-17 — Claude — Fix Codex lock seating; full search back to 1 s (build 0.202)
+
+- Review of Codex's 0.200/0.201 found `CodexKnotEngine.lockSeated` relied on `CodexEventLedger.isLockThrow`, which exists only for technique "auto". With a chosen technique, `lockSeated` was always false. It now falls back to the classic check (`src/knot/codex/CodexKnotEngine.ts`; new test in `CodexKnotEngine.test.ts`).
+- `DISCOVERY_INTERVAL_MS` back to 1000 ms at Lance's request (`src/input/PredictiveDecodeSearch.ts`; test timings restored).
+- Other review notes, not changed: the Tracking Lab lazy import has no error handling (the tab silently never appears if the chunk fails), and `check-tracking-lab-layout` may need to wait for the tab. Neither was run.
+- Checks: tsc; Codex engine and PredictiveDecodeSearch tests.
+
 ### 2026-11-16 — Codex — Tracking performance and fallback batch (build 0.201)
 
 - Periodic tiled ArUco discovery is now one full-frame equivalent per 1.6 s

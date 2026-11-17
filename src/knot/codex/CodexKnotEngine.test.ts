@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { KnotTechniqueSequence } from '../../suture/KnotTechnique';
 import { CodexEventLedger, CodexKnotEngine } from './CodexKnotEngine';
 
 it('requires taut-post evidence before calling same-direction throws sliding',()=>{
@@ -15,4 +16,12 @@ it('accepts an extra-turn opposing throw as locking evidence',()=>{
 
 it('implements the shared engine through the optimized Claude base',()=>{
  const engine=new CodexKnotEngine();expect(engine).toBeInstanceOf(CodexKnotEngine);expect(engine.active).toBe(false);
+});
+
+it('seats the lock of a chosen technique (not only the auto ledger)',()=>{
+ const engine=new CodexKnotEngine();
+ const sequence=new KnotTechniqueSequence('surgeon');
+ sequence.seat({wraps:2,direction:1,postHeld:false});sequence.seat({wraps:1,direction:-1,postHeld:false});
+ Object.assign(engine,{sequence});Object.defineProperty(engine,'seatedThrowCount',{get:()=>2});
+ expect(sequence.locked).toBe(true);expect(engine.lockSeated).toBe(true);
 });
