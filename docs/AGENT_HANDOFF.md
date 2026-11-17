@@ -6,7 +6,8 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** None.
+- **In progress:** Codex — finish and merge the tracking performance,
+  diagnostics, stereo fallback, and Hall-input batch. Claude's lock is clear.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
