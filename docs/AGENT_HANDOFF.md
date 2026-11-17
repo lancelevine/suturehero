@@ -6,8 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Codex — finish and merge the tracking performance,
-  diagnostics, stereo fallback, and Hall-input batch. Claude's lock is clear.
+- **In progress:** None.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
@@ -113,6 +112,20 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-16 — Codex — Tracking performance and fallback batch (build 0.201)
+
+- Periodic tiled ArUco discovery is now one full-frame equivalent per 1.6 s
+  instead of 1.0 s; shared search accounting and automatic profiler findings
+  identify full-scan pressure, decode age, stale results, and stereo rejection.
+- Stereo fallback freezes the exact handoff frame, then follows new mono
+  lateral motion without transferring accumulated camera bias. Depth and
+  plausible rotation retain the last metric anchor. Added nine transition tests.
+- Added the transport-neutral Hall jaw mapper/input and deterministic synthetic
+  source. Tracking Lab UI now loads as a separate chunk; initial main JS fell
+  from 91.7 to 81.5 kB gzip. No real Hall device transport is implemented yet.
+- Checks: 37 focused tests, TypeScript/production build, and Tracking Lab
+  browser layout/navigation check. Stereo and Hall behavior need real hardware.
 
 ### 2026-11-16 — Codex — Codex knot engine and natural demo (build 0.200)
 

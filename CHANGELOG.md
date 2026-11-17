@@ -5,6 +5,13 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.201 — Tracking performance and fallback diagnostics
+
+- Reduced periodic ArUco discovery scanning by 38% while keeping a complete full-frame discovery pass every 1.6 seconds. Diagnostics now report searched-pixel load, decode latency, stale results, and stereo rejection reasons automatically.
+- Made stereo-to-single-camera fallback begin at the pose already on screen, then resume lateral movement without transferring accumulated camera bias. Approximate mono depth and plausible rotations continue from the last stereo anchor.
+- Added a calibrated Hall-sensor jaw input boundary and deterministic synthetic source for hardware and replay development. No physical Hall transport is selected yet.
+- Moved Tracking Lab recording and replay UI into a lazy-loaded chunk, reducing the initial simulator JavaScript by about 10% gzip.
+
 ## Build 0.200 — Codex knot mode and natural demo motion
 
 - Added a selectable Codex knot engine that combines Claude's reliable short-tail grasp with event-ledger classification. Same-direction throws only count as a sliding start when the short post was taut; a verified opposing throw counts as a lock even if rapid input leaves an extra detected turn.
