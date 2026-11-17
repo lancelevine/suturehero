@@ -24,6 +24,7 @@ export class StereoFallback {
  private source:number|'stereo'='stereo';
  private switchedAt=0;private lastAt=0;private lastStereo=-Infinity;
  private lastStereoSample=-Infinity;
+ private handoffLateral=new Vector3();
  private depth=0;private recovery:Vector3|undefined;private recoveryRotation:Quaternion|undefined;
  update(stereo:FallbackPose|undefined,views:MonoView[],now:number){
   const fresh=views.filter(v=>now-v.at<180);
@@ -38,7 +39,7 @@ export class StereoFallback {
     this.recovery=this.output.position.clone().sub(stereo.position);
     this.recoveryRotation=this.output.quaternion.clone().multiply(stereo.quaternion.clone().invert());
    }
-   this.source='stereo';this.lastStereo=stereo.at;
+   this.source='stereo';this.lastStereo=stereo.at;this.handoffLateral.set(0,0,0);
    this.recovery?.multiplyScalar(Math.exp(-dt/.18));
    this.recoveryRotation?.slerp(new Quaternion(),1-Math.exp(-dt/.18));
    this.output={position:stereo.position.clone().add(this.recovery??new Vector3()),quaternion:(this.recoveryRotation?.clone()??new Quaternion()).multiply(stereo.quaternion),at:stereo.at};
@@ -47,24 +48,39 @@ export class StereoFallback {
   }
   if(!this.output||!fresh.length)return null;
   const view=fresh.find(v=>v.camera===this.source)??fresh[0];
+  let justSwitched=false;
   if(this.source!==view.camera){
-   if(this.source!=='stereo'||!this.anchors.has(view.camera))this.anchors.set(view.camera,{view:this.cloneView(view),pose:this.clone(this.output)});
-   this.source=view.camera;this.switchedAt=now;this.depth=0;this.recovery=undefined;this.recoveryRotation=undefined;
+   // Remove the lateral motion accumulated before this source took over, so
+   // the handoff begins exactly at the pose already on screen. Keep the last
+   // stereo-time anchor for rotation and approximate depth: replacing it
+   // made the first fallback sample become a permanent depth/rotation bias.
+   const anchor=this.anchors.get(view.camera);
+   this.handoffLateral=anchor?view.position.clone().sub(anchor.view.position):new Vector3();
+   this.handoffLateral.addScaledVector(view.axis,-this.handoffLateral.dot(view.axis));
+   if(anchor){
+    const handoffTurn=view.quaternion.angleTo(anchor.view.quaternion);
+    if(handoffTurn>=MONO_ROTATION_DEADBAND_RADIANS&&handoffTurn<=MONO_MAX_TURN_RADIANS){
+     anchor.view.quaternion.copy(view.quaternion);
+     anchor.pose.quaternion.copy(this.output.quaternion);
+    }
+   }
+   if(!anchor)this.anchors.set(view.camera,{view:this.cloneView(view),pose:this.clone(this.output)});
+   this.source=view.camera;this.switchedAt=now;this.depth=0;this.recovery=undefined;this.recoveryRotation=undefined;justSwitched=true;
   }
   const anchor=this.anchors.get(view.camera)!;
-  const delta=view.position.clone().sub(anchor.view.position),along=delta.dot(view.axis);
+  const delta=view.position.clone().sub(anchor.view.position).sub(this.handoffLateral),along=view.position.clone().sub(anchor.view.position).dot(view.axis);
   // Within single-marker noise of the last stereo pose: hold it exactly
   // position (no sideways jitter, no drift toward marker-size depth).
   const sideways=delta.clone().addScaledVector(view.axis,-along).length();
-  if(sideways<MONO_STILL_MM&&Math.abs(along)<MONO_STILL_DEPTH_MM){
-   this.output={position:anchor.pose.position.clone(),quaternion:monoRotation(view,anchor),at:view.at};
+  if(sideways<=MONO_STILL_MM&&Math.abs(along)<MONO_STILL_DEPTH_MM){
+   this.output={position:anchor.pose.position.clone(),quaternion:justSwitched?anchor.pose.quaternion.clone():monoRotation(view,anchor),at:view.at};
    return {...this.clone(this.output),source:view.camera===0?'camera1' as const:'camera2' as const};
   }
   // Hold the last stereo distance briefly; then ease in marker-size depth.
   const approximate=now-Math.max(this.lastStereo,this.switchedAt)>350;
   this.depth+=( (approximate?along:0)-this.depth)*(1-Math.exp(-dt/.3));
   delta.addScaledVector(view.axis,this.depth-along);
-  this.output={position:anchor.pose.position.clone().add(delta),quaternion:monoRotation(view,anchor),at:view.at};
+  this.output={position:anchor.pose.position.clone().add(delta),quaternion:justSwitched?anchor.pose.quaternion.clone():monoRotation(view,anchor),at:view.at};
   return {...this.clone(this.output),source:view.camera===0?'camera1' as const:'camera2' as const};
  }
  private clone(p:FallbackPose):FallbackPose{return {position:p.position.clone(),quaternion:p.quaternion.clone(),at:p.at};}

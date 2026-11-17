@@ -56,6 +56,7 @@ import {LiveProfiler} from './diagnostics/LiveProfiler';
 import {mountProfilerPanel} from './ui/ProfilerPanel';
 import {videoSnapshot} from './input/videoSnapshot';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
+import {recordDecodeSearch} from './diagnostics/DecodeSearchMetrics';
 import {mountPerformancePanel} from './ui/PerformancePanel';
 import {loadJawTracking,saveJawTracking,type SavedJawTracking} from './input/jawTrackingStorage';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
@@ -579,7 +580,7 @@ async function detectSecondFrame(now:number){
   processing2=true;lastSlowFrame2=now;
   const flowSeedFrame=preparedSeed??readFrame(context2,'Camera 2 flow readback',0,0,w,h);
   const region=secondarySearch.plan(toNative(liveSecondMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,decodeSearchGroups());
-  const {left,top,width:regionW,height:regionH}=region;perf.count('Camera 2 search '+region.kind);if(region.kind==='full')perf.count('Camera 2 full reason: '+region.reason);perf.count('Camera 2 searched pixels',regionW*regionH);
+  const {left,top,width:regionW,height:regionH}=region;recordDecodeSearch(perf,2,region);
   if(decodeCanvas2.width!==regionW||decodeCanvas2.height!==regionH){decodeCanvas2.width=regionW;decodeCanvas2.height=regionH;}
   const decodeRequest2=useBitmapFlow()&&flowFrameSettings.useDecodeBitmaps
    ?decodeViaBitmap(detector2,'Camera 2',snapshot!.source,left,top,regionW,regionH)
@@ -1587,7 +1588,7 @@ async function detectFrame(now:number){
   const flowSeedFrame=preparedSeed??readFrame(frameContext,'Camera 1 flow readback',0,0,w,h);
   const region=primarySearch.plan(toNative(liveMarkers()),now,nativeW,nativeH,roiDecodeToggle.checked,decodeSearchGroups());
   const {left,top,width:regionW,height:regionH}=region,cropped=region.kind!=='full';
-  perf.count('Camera 1 search '+region.kind);if(region.kind==='full')perf.count('Camera 1 full reason: '+region.reason);perf.count('Camera 1 searched pixels',regionW*regionH);
+  recordDecodeSearch(perf,1,region);
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
   const capturedAt=frameCapturedAt;
   const decodeRequest=useBitmapFlow()&&flowFrameSettings.useDecodeBitmaps&&!thresholdToggle.checked&&!cropToggle.checked

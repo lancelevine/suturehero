@@ -6,17 +6,17 @@ const view=(camera:0|1,z:number,at:number,x=0):MonoView=>({...pose(z,at,x),camer
 it('continues lateral movement while holding depth, then introduces approximate depth',()=>{
  const f=new StereoFallback();f.update(pose(800,0),[view(0,700,0)],0);
  const a=f.update(undefined,[view(0,750,120,30)],120)!;
- expect(a.position.toArray()).toEqual([30,0,800]);expect(a.source).toBe('camera1');
+ expect(a.position.toArray()).toEqual([0,0,800]);expect(a.source).toBe('camera1');
  let b=a;for(let t=220;t<1600;t+=100)b=f.update(undefined,[view(0,750,t,50)],t)!;
- expect(b.position.x).toBe(50);expect(b.position.z).toBeGreaterThan(848);
+ expect(b.position.x).toBe(20);expect(b.position.z).toBeGreaterThan(848);
 });
 it('hands off between cameras without transferring their pose bias',()=>{
  const f=new StereoFallback();f.update(pose(800,0),[view(0,700,0),view(1,1100,0)],0);
  const a=f.update(undefined,[view(1,1100,120,20)],120)!;
- expect(a.source).toBe('camera2');expect(a.position.toArray()).toEqual([20,0,800]);
+ expect(a.source).toBe('camera2');expect(a.position.toArray()).toEqual([0,0,800]);
  const b=f.update(undefined,[view(0,720,240,70)],240)!;
  expect(b.position.distanceTo(a.position)).toBeLessThan(1e-8);
- const c=f.update(undefined,[view(0,720,280,90)],280)!;expect(c.position.x).toBe(40);
+ const c=f.update(undefined,[view(0,720,280,90)],280)!;expect(c.position.x).toBe(20);
 });
 it('blends stereo recovery and never publishes when both cameras are lost',()=>{
  const f=new StereoFallback();f.update(pose(800,0),[view(0,700,0)],0);
@@ -31,7 +31,9 @@ it('holds depth along the remaining camera axis and maintains rotation continuit
  const f=new StereoFallback(),v=view(1,1000,0);v.axis.set(1,0,0);v.quaternion.setFromAxisAngle(new Vector3(0,1,0),1);
  f.update(pose(800,0),[v],0);
  const changed={...v,position:new Vector3(30,20,1000),at:120,quaternion:v.quaternion.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),.2))};
- const a=f.update(undefined,[changed],120)!;expect(a.position.toArray()).toEqual([0,20,800]);expect(a.quaternion.angleTo(new Quaternion())).toBeCloseTo(.2);
+ const a=f.update(undefined,[changed],120)!;expect(a.position.toArray()).toEqual([0,0,800]);expect(a.quaternion.angleTo(new Quaternion())).toBe(0);
+ const continued={...changed,position:new Vector3(30,35,1000),at:160,quaternion:v.quaternion.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),.35))};
+ const b=f.update(undefined,[continued],160)!;expect(b.position.toArray()).toEqual([0,15,800]);expect(b.quaternion.angleTo(new Quaternion())).toBeCloseTo(.15);
 });
 
 it('takes each new stereo sample once and holds it until the next',()=>{
@@ -62,4 +64,13 @@ it('holds the stereo pose between stereo samples',()=>{
  f.update(stereo,[view(0,700,0)],0);
  expect(f.update(stereo,[view(0,700,40,3)],40)!.position.x).toBe(0);
  expect(f.update(stereo,[view(0,700,80,30)],80)!.position.x).toBe(0);
+});
+
+it('enters monocular fallback without applying accumulated motion as a one-frame jump',()=>{
+ const f=new StereoFallback();f.update(pose(800,0),[view(0,700,0)],0);
+ const handoff=f.update(undefined,[view(0,760,120,90)],120)!;
+ expect(handoff.source).toBe('camera1');
+ expect(handoff.position.toArray()).toEqual([0,0,800]);
+ const moving=f.update(undefined,[view(0,760,160,110)],160)!;
+ expect(moving.position.x).toBe(20);
 });
