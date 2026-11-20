@@ -8,7 +8,8 @@ function worstWhere(result:AccuracyResult):string{
  const parts=[Math.abs(dx)>20?(dx>0?'right':'left'):'',Math.abs(dz)>20?(dz>0?'far from Camera 1':'near Camera 1'):''].filter(Boolean);
  return parts.length?` (touch ${result.worstIndex+1}, toward the ${parts.join(', ')})`:` (touch ${result.worstIndex+1})`;
 }
-import {parseTrackerType,readStored,TRACKING_STORAGE_KEYS} from '../input/trackingStorage';
+import {parseTrackerType,readStored,trackerTypeStorageKey} from '../input/trackingStorage';
+import {cameraMode} from '../input/cameraDevices';
 import {GuidedCalibration,guidedDirections,solveGuidedRotation} from '../input/GuidedCalibration';
 import {CalibrationPreview} from './CalibrationPreview';
 import {instrumentCalibration,type Axis} from '../input/InstrumentCalibration';
@@ -19,7 +20,7 @@ const mounted=new WeakMap<HTMLElement,InstrumentCalibrationPanel>();
 export function mountCalibrationPanel(host:HTMLElement){let p=mounted.get(host);if(!p){p=new InstrumentCalibrationPanel(host);mounted.set(host,p);}return p;}
 /** The tracking page's jaw-tracking state (hidden checkbox; shown to users as the Jaws tab switch). */
 /** The selected marker tracker (tips are saved per tracker type). */
-const currentTrackerType=()=>parseTrackerType(readStored(TRACKING_STORAGE_KEYS.trackerType));
+const currentTrackerType=()=>parseTrackerType(readStored(trackerTypeStorageKey(cameraMode())));
 function jawTrackingCheckbox(){return document.querySelector<HTMLInputElement>('#ball-enable');}
 export class InstrumentCalibrationPanel {
  private preview=new CalibrationPreview();

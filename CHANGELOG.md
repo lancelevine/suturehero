@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.203 — iPhone mode defaults to the 8-face ring
+
+- iPhone mode always starts on the 8-face ring. It keeps its own tracker choice, so an older "prism" or "6-face" setting saved in the browser no longer overrides it. A tracker picked while in iPhone mode is still remembered for iPhone mode. Switching the camera type also switches to the tracker saved for that type.
+
 ## Build 0.202 — Fix Codex lock seating; full search back to 1 s
 
 - Codex knot engine: with a knot type chosen in Practice setup (not "auto"), an opposing lock now registers as seated. Before, it never did (no "lock seated" message, trim hint hidden, lower closure load).

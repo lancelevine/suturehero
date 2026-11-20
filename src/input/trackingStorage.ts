@@ -13,6 +13,8 @@ import type { TrackerType } from './prismPose';
  */
 export const TRACKING_STORAGE_KEYS = {
   trackerType: 'suturehero.trackerType',
+  /** Tracker chosen while in iPhone camera mode; unset means the 8-face ring. */
+  iphoneTrackerType: 'suturehero.iphoneTrackerType.v1',
   stereoCalibration: 'suturehero.stereoCalibration.v1',
   depthCalibration: 'suturehero.depthCalibration.v2',
   needleJawPattern: 'suturehero.needleJawPattern.v1',
@@ -80,6 +82,14 @@ export function readStoredJson(key: string, storage = browserStorage()): unknown
 /** Unknown or unset values fall back to the 8-face ring, the tracker in use (default since 2026-11-15; was the prism). */
 export function parseTrackerType(value: unknown): TrackerType {
   return value === 'prism' || value === 'ring6' ? value : 'ring8';
+}
+
+/**
+ * Storage key for the tracker choice in a camera mode. iPhone mode keeps its own
+ * choice so an older saved prism/6-face setting does not override its 8-face default.
+ */
+export function trackerTypeStorageKey(mode: string): string {
+  return mode === 'iphone' ? TRACKING_STORAGE_KEYS.iphoneTrackerType : TRACKING_STORAGE_KEYS.trackerType;
 }
 
 // --- Needle-driver jaw ball pattern -----------------------------------------

@@ -17,7 +17,10 @@ try{
   await start.click();
   await page.waitForFunction(()=>!document.querySelector('.iphone-start'),{},{timeout:20000});
   await page.waitForFunction(()=>document.querySelector('#stop-camera')&&!document.querySelector('#stop-camera').disabled,{},{timeout:20000});
-  assert.equal(await page.locator('#tracker-type').inputValue(),'prism','synthetic scenes pin the prism (the app default is the 8-face ring)');
+  // The synthetic camera saves 'prism' as the general tracker choice; iPhone mode keeps
+  // its own choice (build 0.203) and so still starts on the 8-face ring.
+  assert.equal(await page.evaluate(()=>localStorage.getItem('suturehero.trackerType')),'prism');
+  assert.equal(await page.locator('#tracker-type').inputValue(),'ring8','iPhone mode defaults to the 8-face ring even with a saved prism choice');
   assert.deepEqual(errors,[]);
   console.log('iPhone start: Production mode opens and one tap starts the back camera.');
 }finally{await browser.close();}

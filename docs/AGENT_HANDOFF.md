@@ -113,6 +113,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-20 — Claude — iPhone mode defaults to the 8-face ring (build 0.203)
+
+- iPhone mode stores its tracker choice under the new key `suturehero.iphoneTrackerType.v1`; unset means `ring8`. Other camera types keep `suturehero.trackerType`. The helper is `trackerTypeStorageKey(mode)` in `src/input/trackingStorage.ts`, used by `src/tracking.ts` and `InstrumentCalibrationPanel` (tips are per tracker type).
+- `CameraSettingsPanel` dispatches `suturehero:camera-mode-changed`; tracking.ts then loads that mode's saved tracker.
+- `check-iphone-start` now expects `ring8` despite the synthetic camera's saved `prism`. That was the bug scenario, not a weaker limit.
+- Checks: tsc; trackingStorage and ui tests; `check-iphone-start` passes.
+- Lance to test: on the iPhone, the Marker tracker should read "8-face ring" after loading.
+
 ### 2026-11-17 — Claude — Fix Codex lock seating; full search back to 1 s (build 0.202)
 
 - Review of Codex's 0.200/0.201 found `CodexKnotEngine.lockSeated` relied on `CodexEventLedger.isLockThrow`, which exists only for technique "auto". With a chosen technique, `lockSeated` was always false. It now falls back to the classic check (`src/knot/codex/CodexKnotEngine.ts`; new test in `CodexKnotEngine.test.ts`).

@@ -4,6 +4,7 @@ import {
   parseDepthCalibration,
   parseNeedleJawPattern,
   parseTrackerType,
+  trackerTypeStorageKey,
   patternJawStorageKey,
   readStored,
   readStoredJson,
@@ -103,5 +104,12 @@ describe('saved depth calibration', () => {
   it('returns nothing for non-object data', () => {
     expect(parseDepthCalibration(null)).toEqual({});
     expect(parseDepthCalibration(5)).toEqual({});
+  });
+});
+
+describe('trackerTypeStorageKey', () => {
+  it('keeps a separate choice for iPhone mode so it defaults to the 8-face ring', () => {
+    expect(trackerTypeStorageKey('iphone')).toBe('suturehero.iphoneTrackerType.v1');
+    expect(trackerTypeStorageKey('webcam')).toBe('suturehero.trackerType');
   });
 });

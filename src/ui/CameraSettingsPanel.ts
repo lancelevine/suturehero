@@ -49,6 +49,8 @@ export function createCameraSettingsPanel(container: HTMLElement, cameras: () =>
     };
     select.addEventListener('change', () => {
       setCameraMode(select.value as CameraModeId);
+      // The tracking page reloads the tracker choice saved for this mode (iPhone: 8-face ring).
+      window.dispatchEvent(new CustomEvent('suturehero:camera-mode-changed'));
       describe();
     });
     describe();
