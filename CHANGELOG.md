@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.204 — Bluetooth Hall-sensor jaw input
+
+- Bluetooth jaw sensor: Instrument calibration → Jaws → Jaw sensor (Bluetooth). It connects the Hall-sensor board (Seeed XIAO nRF52840 + OH49E, firmware in `firmware/hall-jaw/`), lets you pick the instrument it is on, and calibrates with "Set closed" and "Set open". The opening then drives that instrument's jaws in the practice scene. It needs Chrome or Edge on a computer; the iPhone's Safari has no Bluetooth support. Tested with a simulated sensor only.
+
 ## Build 0.203 — iPhone mode defaults to the 8-face ring
 
 - iPhone mode always starts on the 8-face ring. It keeps its own tracker choice, so an older "prism" or "6-face" setting saved in the browser no longer overrides it. A tracker picked while in iPhone mode is still remembered for iPhone mode. Switching the camera type also switches to the tracker saved for that type.

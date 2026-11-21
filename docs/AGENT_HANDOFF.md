@@ -113,6 +113,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-21 — Claude — Bluetooth Hall-sensor jaw input (build 0.204)
+
+- Web Bluetooth source `src/input/BleHallSensorSource.ts`, with a packet parser test. It implements Codex's `HallSensorSource`.
+- Panel `src/ui/HallSensorPanel.ts`, with a settings test. It is mounted inside the jaw tracking `<details>` (Instrument calibration → Jaws); mounting beside it was lost when the pane re-rendered. Settings are saved in `suturehero.hallJaw.v1`.
+- It uses `HallJawMapper` (rebuilt on each connect because board time restarts) and sends through the new `sendJawOpening` in tracking.ts, the same message as camera jaws (`cameras: []`).
+- Firmware: `firmware/hall-jaw/hall-jaw.ino` (mbed package + ArduinoBLE; the non-mbed Bluefruit package would not link on Lance's PC). The sensor is powered from D1 only while reading.
+- New check `scripts/check-hall-sensor.mjs` (fake Bluetooth device): passes. Also tsc and unit tests.
+- Lance to test: Chrome on Windows → Jaws tab → Connect sensor → Set closed / Set open → the jaws in the scene should follow. Note the closed/open values.
+
 ### 2026-11-20 — Claude — iPhone mode defaults to the 8-face ring (build 0.203)
 
 - iPhone mode stores its tracker choice under the new key `suturehero.iphoneTrackerType.v1`; unset means `ring8`. Other camera types keep `suturehero.trackerType`. The helper is `trackerTypeStorageKey(mode)` in `src/input/trackingStorage.ts`, used by `src/tracking.ts` and `InstrumentCalibrationPanel` (tips are per tracker type).
