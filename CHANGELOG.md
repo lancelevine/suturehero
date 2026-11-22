@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.206 — Second Bluetooth jaw sensor (forceps)
+
+- Two Bluetooth jaw sensors. Instrument calibration → Jaws → Jaw sensors now has Sensor 1 and Sensor 2, each with its own Connect button, instrument (defaults: needle driver, forceps) and closed/open calibration. Both can run at once. A warning appears if both are set to the same instrument. The existing single-sensor calibration becomes Sensor 1.
+- Firmware (`firmware/hall-jaw/hall-jaw.ino`) is now the version for Lance's board (pins 0.02 and 1.15, LED flash every 5 s), with a `DEVICE_NAME` setting. Give the second board a different name, e.g. "SutureHero Jaw 2".
+
 ## Build 0.205 — Remove camera jaw tracking (Hall sensor only)
 
 - Camera jaw tracking is removed. Jaws now come only from the Bluetooth Hall-sensor board. Removed: coloured, striped and solid-white ball tracking; the marker-relative jaw tracker; and handle-prism jaws. That is about 5,300 lines of code.

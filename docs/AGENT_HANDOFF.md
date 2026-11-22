@@ -95,9 +95,8 @@ entry when finishing.
   - `src/tracking.ts` (~150 KB) and `src/main.ts` (~57 KB) are monolithic and
     are the most likely place for merge conflicts.
 - **Next up (proposed, not started):**
-  1. Jaw sensor follow-ups: a second board for the forceps, auto-reconnect,
-     battery level, jaws in Sandbox mode without camera tracking, and the
-     firmware variant for Lance's Pro Micro-style board (pins 0.02/1.15).
+  1. Jaw sensor follow-ups: auto-reconnect, battery level, jaws in Sandbox
+     mode without camera tracking.
   2. Optional clean-up: the Tracking Lab still has empty ball fields
      (`balls`, `ballSupported`) and "Classic jaw pairs" summary lines.
   3. Continue splitting `src/tracking.ts`; next candidate: stereo
@@ -110,6 +109,13 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-22 — Claude — Second Bluetooth jaw sensor (forceps) (build 0.206)
+
+- `src/ui/HallSensorPanel.ts` now has two slots (`HALL_SENSOR_SLOTS`), each with its own `BleHallSensorSource` and `HallJawMapper`. Settings key `suturehero.hallJaw.v2` `{sensors:[…]}`; v1 (one sensor) migrates into slot 1 (`parseAllHallSettings`). `duplicateInstruments` drives the warning. Tests updated.
+- `scripts/check-hall-sensor.mjs` rewritten for two fake boards: migration, both slots streaming to their own instruments, inverted calibration, duplicate warning, independent disconnect, persistence across reload. It passes. tsc and HallSensorPanel tests pass.
+- Firmware now matches Lance's Pro Micro-style board (0.02/1.15, LED 0.15) and has `DEVICE_NAME`.
+- Lance to test: flash the second board with `DEVICE_NAME` "SutureHero Jaw 2", connect both and calibrate the forceps.
 
 ### 2026-11-22 — Claude — Remove camera jaw tracking (Hall sensor only) (build 0.205)
 
