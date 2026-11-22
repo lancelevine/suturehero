@@ -11,7 +11,7 @@ entry when finishing.
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
   (`KNOT_ENGINES=a,b` to pick; `KNOT_TRIALS=quick` for a short run).
-  Current (full run 2026-11-22): claude 21/24 (default), codex 21/24, classic 19/24,
+  Current (full run 2026-11-22, build 0.209): claude 22/24 (default), codex 22/24, classic 20/24,
   classic-worker (experimental).
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
@@ -109,6 +109,13 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-22 — Claude — Fast-pulled throws count as tightened (build 0.209)
+
+- Cause of square @ 2× 60 fps: the loop was fully fed (6/6 segments) and small (radius 0.065 < 0.08), but with both tools at their reach limit the crossing ends stayed 0.051 apart, over `assessSeating`'s 0.04. It seated only when the next throw's motion relaxed the arms, about 10 s later, after the trial's 8 s wait.
+- Fix in `src/suture/FreeThrow.ts`: `tautHoldTime` counts time with the loop fully fed and the arms taut (`separation >= heldMaterial*.97`). After `TAUT_SEAT_HOLD_S` (0.5 s), ends up to `TAUT_SEAT_ENDS` (0.06) are accepted. The slack-free rule (0.04) is unchanged.
+- Full trials after: claude 22/24, codex 22/24, classic 20/24. Remaining for claude/codex: surgeon's @ 2× 30 fps jitter (second throw missing) and 3-throw @ 2× 120 fps (third missing).
+- Checks: suture, gameplay and knot unit tests (240 pass).
 
 ### 2026-11-22 — Claude — Claude knot engine is the default (build 0.208)
 

@@ -5,6 +5,11 @@ import {ThreadStrand} from './ThreadStrand';
 import type {TailPassage} from './TailPassage';
 import {MaterialOpening} from './MaterialOpening';
 
+/** Hold under full tension after which a fully fed loop counts as tightened (s). */
+const TAUT_SEAT_HOLD_S=0.5;
+/** Largest gap between the loop's crossing ends accepted under that tension (scene units; the slack-free limit is 0.04). */
+const TAUT_SEAT_ENDS=0.06;
+
 /** Material-space approximation of one retained instrument throw. No posed tools,
  * replacement thread mesh or calibrated knot-security/force claim. */
 export class FreeThrow {
@@ -32,6 +37,8 @@ export class FreeThrow {
   private passageAge=0;
   private pendingPost?:number;
   private crossingMissTime=0;
+  /** Seconds the fully fed loop has been held taut by both arms (see assessSeating). */
+  private tautHoldTime=0;
   private notice='';
   private captureHint='';
   seatingHint='Pull the two held ends apart to tighten';
@@ -56,7 +63,7 @@ export class FreeThrow {
     if(this.active)this.retentionAge+=Math.max(0,Math.min(dt,.05));
     if(this.phase==='passed')this.passageAge+=Math.max(0,Math.min(dt,.05));
   }
-  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.crossingMissTime=0;this.captureHint='';this.materialFrame=undefined;this.shaftFrame=false;this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;}
+  reset(reason=''){this.phase='idle';this.seatingRequested=false;this.first=this.last=this.initialSegments=0;this.pullDistance=undefined;this.pendingPost=undefined;this.feed=this.feedTime=this.retentionAge=this.passageAge=this.crossingMissTime=this.tautHoldTime=0;this.captureHint='';this.materialFrame=undefined;this.shaftFrame=false;this.seatingHint='Pull the two held ends apart to tighten';this.notice=reason;}
   private center(long:ThreadStrand){const center=new THREE.Vector3();for(let i=this.first;i<=this.last;i++)center.add(long.points[i]);return center.divideScalar(this.last-this.first+1);}
   update(dt:number,passage:TailPassage,long:ThreadStrand,short:ThreadStrand,driverSupportsLoop:(points:readonly THREE.Vector3[],normal:THREE.Vector3)=>boolean,longGrip:number|undefined,shortGrip:number|undefined,driverAxis?:THREE.Vector3){
     // Keep recovery instructions until a fresh opening or successful retry,
@@ -149,6 +156,8 @@ export class FreeThrow {
     const separation=long.points[longGrip].distanceTo(short.points[shortGrip]);
     const heldMaterial=long.materialLengthBetween(this.last,longGrip)+short.materialLengthBetween(this.shortCoordinate,shortGrip);
     if(this.pullDistance!==undefined)this.feed+=Math.max(0,separation-this.pullDistance)*(this.feedFromWorkingEnd?1.3:.8)/PRACTICE_SETUP.suture.friction;
+    const fullyFedAndTaut=this.phase==='retained'&&this.last-this.first<=this.minimumSegments&&separation>=heldMaterial*.97;
+    this.tautHoldTime=fullyFedAndTaut?this.tautHoldTime+Math.max(0,Math.min(dt,.05)):0;
     if(this.phase==='retained'&&separation>=heldMaterial*.97||this.seatingRequested){
       // Taut held arms can draw material from the loop even while reach
       // limits prevent further endpoint travel. Otherwise a valid crossing
@@ -182,7 +191,11 @@ export class FreeThrow {
     if(short&&short.pointAt(this.shortCoordinate).distanceTo(short.points[0])>short.materialLengthBetween(0,this.shortCoordinate)*1.05+.01){this.seatingHint='Ease the short-side pull; let the post settle';return;}
     const center=this.center(long);let radius=0;
     for(let i=this.first;i<=this.last;i++)radius=Math.max(radius,long.points[i].distanceTo(center));
-    if(radius<0.08&&long.points[this.first].distanceTo(long.points[this.last])<0.04)this.phase='seated';
+    const ends=long.points[this.first].distanceTo(long.points[this.last]);
+    // Held at full tension (fast pulls end with both tools at their reach limit), the
+    // crossing ends stay slightly apart; a fully fed loop held taut still counts as tightened.
+    const tautSeated=this.tautHoldTime>=TAUT_SEAT_HOLD_S&&ends<TAUT_SEAT_ENDS;
+    if(radius<0.08&&(ends<0.04||tautSeated))this.phase='seated';
     else this.seatingHint='Keep gentle opposing tension while the loop settles';
   }
   dampRetainedMotion(long:ThreadStrand,short:ThreadStrand){

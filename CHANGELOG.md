@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.209 — Fast-pulled throws count as tightened
+
+- Knot recognition with fast hands: a throw pulled tight quickly, with both hands at the end of the thread, now counts as tightened after half a second of tension. Before, the throw only counted once the hands relaxed, so a quick second throw was missed (square knot at 2× hand speed). Engine comparison: Claude 22/24 (was 21), Codex 22/24 (was 21), Classic 20/24 (was 19). Synthetic scripted hands.
+
 ## Build 0.208 — Claude knot engine is the default
 
 - The default knot engine is now **Claude**, chosen by the full engine comparison: Claude 21/24, Codex 21/24, Classic 19/24, all about 280 ms of computer time per second of tying (synthetic scripted hands). Classic and Codex stay available in Practice setup → Knot engine, or with `?knot=classic` / `?knot=codex`.
