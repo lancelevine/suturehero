@@ -1,3 +1,4 @@
+import {readFile} from 'node:fs/promises';
 // Sandbox browser check (2026-11-15): a free pass through the skin with feedback and marks,
 // a forced pass that tears the skin, no purchase in the tear, Undo pass, replay, and the session panel.
 // Needs `npm run dev` (uses the development-only window.__sutureHeroSandbox hook).
@@ -49,6 +50,28 @@ try{
   await page.locator('#replay').click();
   await page.waitForFunction(()=>/Replay/.test(document.querySelector('#replay').textContent)&&!/Stop/.test(document.querySelector('#replay').textContent),{},{timeout:5000});
   assert.match(await page.locator('.sandbox-summary-line').textContent(),/1 pass · 0 torn/);
+  // Results export (build 0.217): trainee name, saved progress and the CSV/JSON downloads.
+  const panel=page.locator('.sandbox-summary');
+  if(!await page.locator('#workspace-session-review').evaluate(e=>e.open))await page.locator('#workspace-session-review > summary').click();
+  await panel.locator('input[name="trainee"]').fill('Resident, A');
+  await panel.locator('input[name="trainee"]').dispatchEvent('change');
+  await panel.getByRole('button',{name:'Save session to progress'}).click();
+  const downloaded=async name=>{
+   const [download]=await Promise.all([page.waitForEvent('download'),panel.getByRole('button',{name}).click()]);
+   return {file:download.suggestedFilename(),text:await readFile(await download.path(),'utf8')};
+  };
+  const progress=await downloaded('Export progress CSV');
+  assert.match(progress.file,/^suturehero-progress-Resident_A-.*\.csv$/);
+  const progressRows=progress.text.trim().split('\r\n');
+  assert.equal(progressRows[0].split(',')[1],'trainee');
+  assert.match(progressRows.at(-1),/^[^,]+,"Resident, A",\d+,1,0,0,/);
+  const stitches=await downloaded('Export stitches CSV');
+  assert.match(stitches.text,/^trainee,build,stitch,completed_at/);
+  const json=JSON.parse((await downloaded('Export session JSON')).text);
+  assert.equal(json.trainee,'Resident, A');
+  assert.ok(Number.isFinite(json.sessionSeconds));
+  assert.ok(Array.isArray(json.stitchRecords));
+  assert.equal(await page.evaluate(()=>localStorage.getItem('suturehero.trainee.v1')),'Resident, A');
   assert.deepEqual(errors,[]);
   console.log('Sandbox: free pass with feedback and marks, tear splits the skin, undo, replay and summary passed.');
 }finally{await browser.close();}

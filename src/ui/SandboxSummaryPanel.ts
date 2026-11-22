@@ -1,5 +1,6 @@
 import { appendProgress, checkTargets, describeSpacing, describeTrend, loadProgress, loadTargets, saveTargets, summarizeSandbox, type SandboxStitchInfo, type SandboxSummary, type SandboxTargets } from '../gameplay/sandboxSummary';
 import type { FreePassRecord } from '../tissue/FreeNeedlePass';
+import { sessionsCsv, stitchesCsv, type ExportStitch, type SavedSession } from '../gameplay/sessionRecord';
 
 /**
  * Sandbox session panel (2026-11-15): summary, instructor targets (editable,
@@ -12,7 +13,14 @@ export interface SandboxSource {
   torn(): readonly FreePassRecord[];
   stitches(): readonly SandboxStitchInfo[];
   build(): string;
+  /** Every completed stitch with its knot and timing, for the CSV export. */
+  stitchRecords(): readonly ExportStitch[];
+  /** Seconds since the practice session started. */
+  sessionSeconds(): number;
 }
+
+/** Trainee name or ID, kept in this browser and written into every export. */
+export const TRAINEE_STORAGE_KEY = 'suturehero.trainee.v1';
 
 const TARGET_FIELDS: { key: keyof SandboxTargets; label: string; step: number }[] = [
   { key: 'biteMinMm', label: 'Bite min (mm)', step: 0.5 },
@@ -42,7 +50,8 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
   panel.setAttribute('aria-label', 'Sandbox session summary');
   panel.innerHTML = `<h3>Sandbox session</h3><p class="sandbox-summary-line" role="status"></p><p class="sandbox-spacing"></p><ul class="sandbox-targets"></ul>
 <details><summary>Instructor targets</summary><form class="sandbox-target-form">${TARGET_FIELDS.map((f) => `<label>${f.label} <input type="number" name="${f.key}" step="${f.step}" min="0"></label>`).join('')}<button type="button" data-action="defaults">Defaults</button></form></details>
-<div class="sandbox-summary-actions"><button type="button" data-action="save">Save session to progress</button><button type="button" data-action="export">Export session JSON</button></div><p class="sandbox-trend"></p>
+<label class="sandbox-trainee">Trainee name or ID <input type="text" name="trainee" maxlength="80" autocomplete="off"></label>
+<div class="sandbox-summary-actions"><button type="button" data-action="save">Save session to progress</button><button type="button" data-action="export">Export session JSON</button><button type="button" data-action="stitches-csv">Export stitches CSV</button><button type="button" data-action="progress-csv">Export progress CSV</button></div><p class="sandbox-trend"></p>
 <small>Approximate practice measures (mm on the practice scale); not a validated assessment.</small>`;
   host.append(panel);
   const form = panel.querySelector<HTMLFormElement>('.sandbox-target-form')!;
@@ -58,7 +67,31 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     saveTargets(storage, targets);
     render(true);
   });
+  const traineeInput = panel.querySelector<HTMLInputElement>('input[name="trainee"]')!;
+  try {
+    traineeInput.value = storage?.getItem(TRAINEE_STORAGE_KEY) ?? '';
+  } catch {
+    // Storage blocked: start empty.
+  }
+  traineeInput.addEventListener('change', () => {
+    try {
+      storage?.setItem(TRAINEE_STORAGE_KEY, traineeInput.value.trim());
+    } catch {
+      // Storage blocked: the name still goes into exports from this page.
+    }
+  });
+  const trainee = () => traineeInput.value.trim();
+  const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
+  const fileName = (kind: string, extension: string) => `suturehero-${kind}${trainee() ? '-' + trainee().replace(/[^\w-]+/g, '_') : ''}-${stamp()}.${extension}`;
+  const download = (text: string, type: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([text], { type }));
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  };
   const current = (): SandboxSummary => summarizeSandbox(source.passes(), source.torn(), source.stitches());
+  const saved = (): SavedSession => ({ ...current(), trainee: trainee() || undefined, durationSeconds: Math.round(source.sessionSeconds()) });
   panel.addEventListener('click', (event) => {
     const action = (event.target as HTMLElement).closest('button')?.dataset.action;
     if (action === 'defaults') {
@@ -67,15 +100,15 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
       fillForm();
       render(true);
     } else if (action === 'save') {
-      appendProgress(storage, current());
+      appendProgress(storage, saved());
       render(true);
     } else if (action === 'export') {
-      const data = { build: source.build(), summary: current(), targets, targetResults: checkTargets(current(), targets), passes: source.passes(), torn: source.torn(), stitches: source.stitches(), progress: loadProgress(storage) };
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-      link.download = `suturehero-sandbox-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      const data = { build: source.build(), trainee: trainee() || null, sessionSeconds: Math.round(source.sessionSeconds()), summary: current(), targets, targetResults: checkTargets(current(), targets), passes: source.passes(), torn: source.torn(), stitches: source.stitches(), stitchRecords: source.stitchRecords(), progress: loadProgress(storage) };
+      download(JSON.stringify(data, null, 2), 'application/json', fileName('session', 'json'));
+    } else if (action === 'stitches-csv') {
+      download(stitchesCsv(source.stitchRecords(), trainee(), source.build()), 'text/csv', fileName('stitches', 'csv'));
+    } else if (action === 'progress-csv') {
+      download(sessionsCsv(loadProgress(storage)), 'text/csv', fileName('progress', 'csv'));
     }
   });
   let key = '';

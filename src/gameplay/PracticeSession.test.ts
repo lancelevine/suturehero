@@ -334,6 +334,12 @@ it('keeps several tied sandbox stitches, each closing the wound at its own posit
   expect(session.sandbox).toBe(true);
  }
  expect(session.course.completed.map(r=>r.site.siteZ)).toEqual([-.5,.5].map(z=>expect.closeTo(z,1)));
+ // Results export (build 0.217): each kept stitch carries its timing (and knot, once throws were made).
+ for(const record of session.course.completed){
+  expect(record.meta?.completedAt).toMatch(/^\d{4}-\d\d-\d\dT/);
+  expect(record.meta!.secondsForStitch).toBeGreaterThanOrEqual(0);
+  expect(record.meta!.secondsFromStart).toBeGreaterThanOrEqual(record.meta!.secondsForStitch);
+ }
  expect(session.tissueField.filter(s=>Math.abs(s.siteZ)>.3)).toHaveLength(2);
  seated.mockRestore();
  session.reset();expect(session.course.completed).toHaveLength(0);

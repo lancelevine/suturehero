@@ -96,6 +96,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-23 — Claude — Session results export (trainee, knots, timing, CSV) (build 0.217)
+
+- New `src/gameplay/sessionRecord.ts`: `KnotSummary`/`knotSummary`, `SessionClock` (wall clock, restarted by `PracticeSession.reset`), `StitchMeta`, RFC 4180 CSV helpers, `stitchesCsv` and `sessionsCsv`. Tests in `sessionRecord.test.ts`.
+- `StitchCourse.CompletedStitch.meta?` is set by `record` and `recordSandbox` (optional parameter). `PracticeSession` passes `clock.stitchDone(knotSummary(freeKnot.sequence, engine id, security))`; the guided, non-free knot has `knot: null`. The PracticeSession sandbox test asserts timing on kept stitches.
+- `SandboxSummaryPanel`: trainee input (`suturehero.trainee.v1`), the two CSV buttons, and trainee/duration in saved progress and the JSON export. `SandboxSource` has `stitchRecords()` and `sessionSeconds()` (wired in `main.ts`).
+- `check-sandbox` now fills the trainee, saves, and checks all three downloads; passes. check-layout passes; tsc passes.
+- Lance to test: tie a stitch in Sandbox, click Finish stitch, then open Export stitches CSV in Excel. Check the knot type, throws and seconds look right.
+
 ### 2026-11-23 — Claude — Stereo calibration import moved out of tracking.ts (no build change)
 
 - New `src/input/stereoCalibrationImport.ts`: `acceptStereoCalibration` (two distinct cameras, same order as the captures, bound to the selected cameras; restore accepts as saved) and `stereoCalibrationSummary`. Moved from `loadStereoCalibration` in `src/tracking.ts`, same behaviour and messages. Tests in `stereoCalibrationImport.test.ts`.

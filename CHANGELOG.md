@@ -5,6 +5,15 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.217 — Session results export (trainee, knots, timing, CSV)
+
+- Session results export, for teaching and research (Session review → Sandbox session):
+  - **Trainee name or ID** field, remembered in this browser and written into every export and saved session.
+  - **Export stitches CSV**: one row per completed stitch, with completion time, seconds for that stitch and since the session start, recognised knot technique, throws (wraps and direction), locked, knot security, knot engine and the stitch review.
+  - **Export progress CSV**: one row per saved session (trainee, duration, passes, tears, bites, depth, entry angle, spacing, secure knots), to track progress over time in a spreadsheet.
+  - The session JSON export also includes the trainee, session duration and the per-stitch records.
+- Practice measures from the simulation: approximate, not a validated assessment. Exports stay on this computer.
+
 ## Build 0.216 — OV9281 recognised automatically
 
 - OV9281 cameras are recognised by name: starting a camera whose name contains "OV9281" (or "B0332") switches the Camera type to OV9281 and reopens it at 1280×800 / 120 fps, so it doesn't run at the 1080p/30 webcam setting. Other cameras are unaffected. Synthetic test only; the real camera's name on Windows may differ.
