@@ -48,6 +48,8 @@ try{
  await slot(2).getByRole('button',{name:'Disconnect sensor 2'}).waitFor();
  // Calibrate sensor 2 (forceps), inverted direction.
  await emit(1,3000);
+ // The hand-set buttons sit in a collapsed section since build 0.218.
+ await slot(2).locator('details > summary').click();
  await slot(2).getByRole('button',{name:/Set closed/}).click();
  await emit(1,2000);
  await slot(2).getByRole('button',{name:/Set open/}).click();
@@ -74,7 +76,7 @@ try{
  await page.locator('[data-calibration-pane=jaws]').click();
  // Same instrument on both sensors is flagged.
  await slot(2).getByLabel('Sensor is on').selectOption('needleDriver');
- assert.match(await panel.locator('[data-hall-warning]').textContent(),/Both sensors are set to Needle driver/);
+ assert.match(await panel.locator('[data-hall-warning]').textContent(),/Two sensors are set to Needle driver/);
  await slot(2).getByLabel('Sensor is on').selectOption('forceps');
  assert.equal(await panel.locator('[data-hall-warning]').isHidden(),true);
  await slot(1).getByRole('button',{name:'Disconnect sensor 1'}).click();
@@ -100,6 +102,25 @@ try{
  assert.match(await slot(2).locator('[data-hall-calibration]').textContent(),/Calibrated · closed 3000 · open 2000/);
  await slot(1).getByRole('button',{name:'Disconnect sensor 1'}).waitFor({timeout:10000});
  await slot(2).getByRole('button',{name:'Disconnect sensor 2'}).waitFor({timeout:10000});
+ // Guided calibration (build 0.218): hold closed, then open and close fully a few times.
+ await slot(1).getByRole('button',{name:'Calibrate (guided)'}).click();
+ const sweepStarted=Date.now();
+ while(Date.now()-sweepStarted<5600){
+  const t=(Date.now()-sweepStarted)/5000;
+  const opening=t<.2?0:.5-.5*Math.cos((t-.2)/.8*3*2*Math.PI);
+  await page.evaluate(r=>{for(let i=0;i<5;i++)window.__hallEmit(0,r);},Math.round(2000+800*opening));
+  await page.waitForTimeout(40);
+ }
+ await page.waitForFunction(()=>/Calibrated · closed/.test(document.querySelector('[data-hall-slot="1"] [data-hall-calibration]').textContent),null,{timeout:5000});
+ const swept=(await slot(1).locator('[data-hall-calibration]').textContent()).match(/closed (\d+) · open (\d+)/).slice(1).map(Number);
+ assert.ok(Math.abs(swept[0]-2000)<=20&&Math.abs(swept[1]-2800)<=40,`guided calibration found closed/open (got ${swept})`);
+ // The graph shows the recent readings.
+ assert.ok(await slot(1).locator('[data-hall-graph]').evaluate(c=>c.getContext('2d').getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0)),'graph drawn');
+ // A third sensor slot can be added (scissors by default) and is remembered.
+ await panel.getByRole('button',{name:'Add a third sensor'}).click();
+ assert.equal(await slot(3).getByLabel('Sensor is on').inputValue(),'scissors');
+ assert.equal(await panel.getByRole('button',{name:'Add a third sensor'}).isHidden(),true);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('suturehero.hallJaw.v2')).sensors.length),3);
  assert.deepEqual(errors,[]);
  console.log('Hall sensors: two boards connect, calibrate and drive their own instruments; settings migrate and persist (fake Bluetooth devices).');
 }finally{await browser.close();}

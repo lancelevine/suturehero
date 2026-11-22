@@ -96,6 +96,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-23 — Claude — Jaw sensor guided calibration, live graph, third slot (build 0.218)
+
+- New `src/input/hallCalibrationSweep.ts` (`sweepCalibration`): closed is the median of the first 15 % of the sweep; open is whichever of the 5th/95th percentiles lies farther from closed; rejected below `MIN_CALIBRATION_SPAN` or under 30 readings. Tests included.
+- `HallSensorPanel`: the guided sweep (`CALIBRATION_SWEEP_MS` 5 s, prompts in the calibration note), a per-slot canvas graph (5 s), and the manual buttons moved into a `<details>`. Slots: 2 by default, up to `MAX_HALL_SENSOR_SLOTS` 3 via "Add a third sensor"; `parseAllHallSettings` keeps 2–3 saved slots. The duplicate warning reads "Two sensors are set to…".
+- `check-hall-sensor` extended (guided sweep finds about 2000/2800, graph drawn, third slot added and saved) and passes. Panel tests pass. Screenshot checked.
+- Lance to test: run Calibrate (guided) on each instrument and see whether the jaws then track well. Watch the graph while moving the magnet.
+
 ### 2026-11-23 — Claude — Session results export (trainee, knots, timing, CSV) (build 0.217)
 
 - New `src/gameplay/sessionRecord.ts`: `KnotSummary`/`knotSummary`, `SessionClock` (wall clock, restarted by `PracticeSession.reset`), `StitchMeta`, RFC 4180 CSV helpers, `stitchesCsv` and `sessionsCsv`. Tests in `sessionRecord.test.ts`.

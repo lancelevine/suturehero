@@ -1,6 +1,7 @@
 import { BleHallSensorSource, knownHallDevice, webBluetooth, type BluetoothDeviceLike } from '../input/BleHallSensorSource';
 import { HallJawMapper, type HallCalibration, type HallInstrument } from '../input/HallJawInput';
 import { readStoredJson, writeStored } from '../input/trackingStorage';
+import { sweepCalibration } from '../input/hallCalibrationSweep';
 
 /**
  * Bluetooth jaw sensor panel (2026-11-21; two sensors since 2026-11-22). Each slot
@@ -13,6 +14,12 @@ export const HALL_SETTINGS_KEY = 'suturehero.hallJaw.v2';
 export const LEGACY_HALL_SETTINGS_KEY = 'suturehero.hallJaw.v1';
 /** How many sensor boards the panel can use at once. */
 export const HALL_SENSOR_SLOTS = 2;
+/** With "Add a third sensor" (scissors or a spare board). */
+export const MAX_HALL_SENSOR_SLOTS = 3;
+/** Length of the guided calibration sweep (ms). */
+export const CALIBRATION_SWEEP_MS = 5000;
+/** Seconds of readings shown in each sensor's graph. */
+const GRAPH_SECONDS = 5;
 /** Smallest closed–open raw difference accepted as a calibration (12-bit units). */
 export const MIN_CALIBRATION_SPAN = 40;
 /** How often the live reading text refreshes (ms). */
@@ -24,7 +31,7 @@ const LOW_BATTERY_PERCENT = 15;
 
 const INSTRUMENTS: Array<[HallInstrument, string]> = [['needleDriver', 'Needle driver'], ['forceps', 'Forceps'], ['scissors', 'Scissors']];
 /** Instrument each slot starts on: the needle driver, then the forceps. */
-const DEFAULT_INSTRUMENTS: HallInstrument[] = ['needleDriver', 'forceps'];
+const DEFAULT_INSTRUMENTS: HallInstrument[] = ['needleDriver', 'forceps', 'scissors'];
 
 export interface HallSettings {
   instrument: HallInstrument;
@@ -58,7 +65,8 @@ export function parseAllHallSettings(current: unknown, legacy: unknown): HallSet
   const saved = current && typeof current === 'object' && Array.isArray((current as { sensors?: unknown }).sensors)
     ? (current as { sensors: unknown[] }).sensors
     : legacy ? [legacy] : [];
-  return DEFAULT_INSTRUMENTS.map((instrument, slot) => parseHallSettings(saved[slot], instrument));
+  const slots = Math.min(MAX_HALL_SENSOR_SLOTS, Math.max(HALL_SENSOR_SLOTS, saved.length));
+  return DEFAULT_INSTRUMENTS.slice(0, slots).map((instrument, slot) => parseHallSettings(saved[slot], instrument));
 }
 
 /** The calibration, or null until both readings are set and far enough apart. */
@@ -88,11 +96,24 @@ export function mountHallSensorPanel(host: HTMLElement, onOpening: (instrument: 
   const checkDuplicates = () => {
     const duplicates = duplicateInstruments(all);
     warning.hidden = !duplicates.length;
-    warning.textContent = duplicates.length ? `Both sensors are set to ${duplicates.map(instrumentLabel).join(', ')} · choose a different instrument for one of them` : '';
+    warning.textContent = duplicates.length ? `Two sensors are set to ${duplicates.map(instrumentLabel).join(', ')} · choose a different instrument for one of them` : '';
   };
-  for (let slot = 0; slot < HALL_SENSOR_SLOTS; slot++) {
-    body.append(mountSensorSlot(slot, all[slot], () => { save(); checkDuplicates(); }, onOpening));
-  }
+  const changed = () => { save(); checkDuplicates(); };
+  const addButton = document.createElement('button');
+  addButton.type = 'button';
+  addButton.textContent = 'Add a third sensor';
+  addButton.dataset.hallAdd = '';
+  for (let slot = 0; slot < all.length; slot++) body.append(mountSensorSlot(slot, all[slot], changed, onOpening));
+  addButton.hidden = all.length >= MAX_HALL_SENSOR_SLOTS;
+  addButton.addEventListener('click', () => {
+    if (all.length >= MAX_HALL_SENSOR_SLOTS) return;
+    const slot = all.length;
+    all.push(parseHallSettings(undefined, DEFAULT_INSTRUMENTS[slot]));
+    addButton.before(mountSensorSlot(slot, all[slot], changed, onOpening));
+    addButton.hidden = all.length >= MAX_HALL_SENSOR_SLOTS;
+    changed();
+  });
+  body.append(addButton);
   checkDuplicates();
   return panel;
 }
@@ -105,7 +126,9 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
 <label>Sensor is on <select data-hall-instrument>${INSTRUMENTS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('')}</select></label>
 <p><button type="button" data-hall-connect>Connect sensor ${slot + 1}</button></p>
 <p data-hall-reading role="status">Not connected</p>
-<p><button type="button" data-hall-closed disabled>Set closed (jaws shut)</button> <button type="button" data-hall-open disabled>Set open (jaws fully open)</button></p>
+<p><button type="button" data-hall-sweep disabled>Calibrate (guided)</button></p>
+<canvas data-hall-graph width="320" height="70" aria-label="Sensor ${slot + 1} readings, last ${GRAPH_SECONDS} seconds"></canvas>
+<details><summary>Set closed and open by hand</summary><p><button type="button" data-hall-closed disabled>Set closed (jaws shut)</button> <button type="button" data-hall-open disabled>Set open (jaws fully open)</button></p></details>
 <p data-hall-calibration></p>`;
   const instrumentSelect = section.querySelector<HTMLSelectElement>('[data-hall-instrument]')!;
   const connectButton = section.querySelector<HTMLButtonElement>('[data-hall-connect]')!;
@@ -113,6 +136,8 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
   const closedButton = section.querySelector<HTMLButtonElement>('[data-hall-closed]')!;
   const openButton = section.querySelector<HTMLButtonElement>('[data-hall-open]')!;
   const calibrationNote = section.querySelector<HTMLElement>('[data-hall-calibration]')!;
+  const sweepButton = section.querySelector<HTMLButtonElement>('[data-hall-sweep]')!;
+  const graph = section.querySelector<HTMLCanvasElement>('[data-hall-graph]')!;
   instrumentSelect.value = settings.instrument;
 
   let latestRaw: number | null = null;
@@ -142,6 +167,7 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
     connectButton.textContent = connected ? `Disconnect sensor ${slot + 1}` : wanted ? `Stop reconnecting sensor ${slot + 1}` : `Connect sensor ${slot + 1}`;
     closedButton.disabled = !connected;
     openButton.disabled = !connected;
+    sweepButton.disabled = !connected;
     if (!connected) {
       latestRaw = null;
       reading.textContent = 'Not connected';
@@ -163,12 +189,84 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
   closedButton.addEventListener('click', () => calibrate('closed'));
   openButton.addEventListener('click', () => calibrate('open'));
 
+  // Recent readings for the graph, and the guided sweep's readings while it runs.
+  const history: { at: number; raw: number }[] = [];
+  let sweep: number[] | null = null;
+  const drawGraph = () => {
+    const context = graph.getContext('2d');
+    if (!context) return;
+    const now = performance.now();
+    while (history.length && now - history[0].at > GRAPH_SECONDS * 1000) history.shift();
+    const { width, height } = graph;
+    context.clearRect(0, 0, width, height);
+    const calibration = hallCalibration(settings);
+    const values = [...history.map((h) => h.raw), ...(calibration ? [calibration.closed, calibration.open] : [])];
+    if (!values.length) return;
+    const pad = 30;
+    const low = Math.min(...values) - pad, high = Math.max(...values) + pad;
+    const y = (raw: number) => height - ((raw - low) / (high - low)) * height;
+    if (calibration) {
+      for (const [raw, label] of [[calibration.closed, 'closed'], [calibration.open, 'open']] as const) {
+        context.strokeStyle = '#8a8f98';
+        context.setLineDash([4, 4]);
+        context.beginPath();
+        context.moveTo(0, y(raw));
+        context.lineTo(width, y(raw));
+        context.stroke();
+        context.setLineDash([]);
+        context.fillStyle = '#8a8f98';
+        context.fillText(label, 4, Math.min(height - 2, Math.max(10, y(raw) - 3)));
+      }
+    }
+    context.strokeStyle = '#2f9e6f';
+    context.lineWidth = 2;
+    context.beginPath();
+    history.forEach((h, i) => {
+      const x = width - ((now - h.at) / (GRAPH_SECONDS * 1000)) * width;
+      if (i) context.lineTo(x, y(h.raw)); else context.moveTo(x, y(h.raw));
+    });
+    context.stroke();
+  };
+  sweepButton.addEventListener('click', () => {
+    if (sweep) return;
+    sweep = [];
+    sweepButton.disabled = true;
+    const started = performance.now();
+    const prompt = () => {
+      if (!sweep) return;
+      const elapsed = performance.now() - started;
+      if (elapsed >= CALIBRATION_SWEEP_MS) {
+        const result = sweepCalibration(sweep, MIN_CALIBRATION_SPAN);
+        sweep = null;
+        sweepButton.disabled = !source;
+        if (result.ok) {
+          settings.closed = result.calibration.closed;
+          settings.open = result.calibration.open;
+          saved();
+          rebuildMapper();
+          describeCalibration();
+        } else {
+          calibrationNote.textContent = `Calibration not changed · ${result.reason}`;
+        }
+        return;
+      }
+      const seconds = Math.ceil((CALIBRATION_SWEEP_MS - elapsed) / 1000);
+      calibrationNote.textContent = elapsed < CALIBRATION_SWEEP_MS * 0.15
+        ? 'Hold the jaws fully closed…'
+        : `Now open and close the jaws fully, 2–3 times · ${seconds} s`;
+      window.setTimeout(prompt, 100);
+    };
+    prompt();
+  });
+
   let wanted = false;
   /** The board last connected in this slot this session (reconnects even where Chrome cannot list remembered devices). */
   let lastDevice: BluetoothDeviceLike | null = null;
   let reconnectTimer: number | undefined;
   const onSample = (sample: { instrument: HallInstrument; raw: number; at: number }) => {
     latestRaw = sample.raw;
+    history.push({ at: performance.now(), raw: sample.raw });
+    sweep?.push(sample.raw);
     const value = mapper?.update(sample);
     if (value) {
       latestOpening = value.openness;
@@ -177,6 +275,7 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
     if (performance.now() - lastDisplay > DISPLAY_INTERVAL_MS) {
       lastDisplay = performance.now();
       showReading();
+      drawGraph();
     }
   };
   const scheduleReconnect = () => {

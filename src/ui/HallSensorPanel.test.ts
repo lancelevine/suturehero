@@ -43,3 +43,9 @@ it('remembers the board id per slot, ignoring invalid ids', () => {
   expect(parseHallSettings({ instrument: 'forceps', deviceId: 7 }).deviceId).toBeUndefined();
   expect(parseHallSettings({ instrument: 'forceps', deviceId: '' }).deviceId).toBeUndefined();
 });
+
+it('keeps a third sensor slot once added (scissors by default), at most three', () => {
+  const three = parseAllHallSettings({ sensors: [{}, {}, {}] }, undefined);
+  expect(three.map((s) => s.instrument)).toEqual(['needleDriver', 'forceps', 'scissors']);
+  expect(parseAllHallSettings({ sensors: [{}, {}, {}, {}, {}] }, undefined)).toHaveLength(3);
+});

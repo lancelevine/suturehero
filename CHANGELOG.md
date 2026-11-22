@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.218 — Jaw sensor guided calibration, live graph, third slot
+
+- Jaw sensors, guided calibration: click **Calibrate (guided)**, hold the jaws closed, then open and close them fully 2–3 times over 5 seconds. Closed and open are taken from that sweep, either magnet direction, ignoring single noisy readings. The old Set closed / Set open buttons are under "Set closed and open by hand".
+- Each sensor shows a live graph of the last 5 seconds of readings, with the closed and open levels as dashed lines, to check the magnet gives a clean, wide signal.
+- **Add a third sensor**: a third slot (scissors by default), remembered once added.
+
 ## Build 0.217 — Session results export (trainee, knots, timing, CSV)
 
 - Session results export, for teaching and research (Session review → Sandbox session):
