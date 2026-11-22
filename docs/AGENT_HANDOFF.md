@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** None.
+- **In progress:** Claude — thread–instrument friction (coil creep round a jittering driver): src/suture/InstrumentThreadContact.ts.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
