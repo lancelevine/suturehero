@@ -60,15 +60,6 @@ entry when finishing.
     instrument and camera, then check the reading. Only synthetic-camera
     tested so far. If it doesn't work, the selector switches back to Classic.
 - **Known issues:**
-  - `check-ball-pairs` fails a colour assertion (rgb 225,53,63 vs
-    225,50,60), also on 0.181; not investigated.
-  - `check-tracking-storage` times out waiting for
-    `#camera-settings-controls > *` to be visible (also on 0.179); not
-    investigated.
-  - `check-practice-setup` times out waiting for a reload after a setup
-    change (`waitForNavigation`); same on build 0.169, so older than the
-    Sandbox batch. Not investigated. Its `canvas` selector was fixed (camera
-    lab canvases made it ambiguous).
   - Tracking Lab library can be clipped by camera setup's body overflow lock;
     browser zoom-out is the current workaround. A separate Lab scrolling fix
     is still needed.
@@ -104,6 +95,14 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-23 — Claude — Microsurgery heading fix; browser checks pass again (build 0.215)
+
+- App fix in `src/main.ts`: the per-frame heading update (Sandbox vs Simple interrupted suture) now keeps the microsurgery heading. Found by `check-practice-setup`.
+- `check-tracking-storage`: waits for the camera controls as attached (collapsed since 0.133); the storage-blocked default is `ring8` (since 0.182).
+- `check-practice-setup`: opens the collapsed Practice setup section (`openSetup`) before using its controls; reads `#right-tool-name` with textContent (innerText is empty inside a closed `<details>`); accepts "Tails trimmed" as the cut message.
+- With 0.214's Lab fix, all three long-failing checks pass. Also run: check-sandbox and check-layout pass.
+- Known issues cleared from Status.
 
 ### 2026-11-23 — Claude — Tracking Lab list fix and clean-up (build 0.214)
 

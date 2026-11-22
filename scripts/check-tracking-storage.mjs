@@ -39,7 +39,7 @@ try {
       localStorage.setItem('suturehero.stereoCalibration.v1', '{corrupt');
     });
     await page.reload();
-    await page.waitForSelector('#camera-settings-controls > *');
+    await page.waitForSelector('#camera-settings-controls > *', {state: 'attached'}); // collapsed by default since build 0.133
     const restored = await page.evaluate(() => ({
       tracker: document.querySelector('#tracker-type').value,
       depth: document.querySelector('#working-depth-mm').value,
@@ -59,8 +59,8 @@ try {
   }
   {
     const {page, errors} = await openTracking(true);
-    await page.waitForSelector('#camera-settings-controls > *', {timeout: 10000});
-    assert.equal(await page.evaluate(() => document.querySelector('#tracker-type').value), 'prism');
+    await page.waitForSelector('#camera-settings-controls > *', {state: 'attached', timeout: 10000});
+    assert.equal(await page.evaluate(() => document.querySelector('#tracker-type').value), 'ring8'); // default since build 0.182
     assert.deepEqual(errors, []);
     await page.close();
   }

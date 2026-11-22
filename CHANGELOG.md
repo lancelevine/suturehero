@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.215 — Microsurgery heading fix; browser checks pass again
+
+- Microsurgery: the title above the scene shows the procedure again (for example "Nerve anastomosis · one stitch"). Since the Sandbox work it had been overwritten every frame with "Sandbox" or "Simple interrupted suture".
+- Browser checks brought up to date: tracking storage, practice setup and Tracking Lab all pass again.
+
 ## Build 0.214 — Tracking Lab list fix and clean-up
 
 - Tracking Lab: recordings no longer appear twice in the list after a page reload. Two list refreshes ran at once and both added their rows.

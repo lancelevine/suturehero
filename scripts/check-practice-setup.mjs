@@ -9,18 +9,23 @@ try {
   await page.setViewportSize({width,height:1050});assert(await page.locator('.version').isVisible());
   assert(await page.evaluate(()=>{const r=document.querySelector('.version').getBoundingClientRect();return r.left>=document.querySelector('.brand').getBoundingClientRect().right&&r.right<=innerWidth&&document.documentElement.scrollWidth<=innerWidth+1;}),`Header or page overflow at ${width}px`);
  }
+ // Practice setup sits in a collapsed workspace section; open it as a user would.
+ const openSetup=async()=>{if(!await page.locator('#workspace-practice-setup').evaluate(e=>e.open))await page.locator('#workspace-practice-setup > summary').click();};
  const selectSetup=async(id,value)=>{
+  await openSetup();
   await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.locator(id).selectOption(value)]);await page.locator('#viewport canvas').first().waitFor();
  };
  await selectSetup('#skin-type','thick');assert.equal(await page.locator('#skin-type').inputValue(),'thick');
+ await openSetup();
  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.locator('#switch-environment').click()]);
+ await openSetup();
  assert.equal(await page.locator('#viewport').getAttribute('data-environment'),'microsurgery');assert(await page.locator('#micro-target-field').isVisible());assert(!(await page.locator('#skin-type-field').isVisible()));
  await page.locator('#micro-target').selectOption('nerve');assert.match(await page.locator('.scene-heading h2').innerText(),/Nerve/);
  await page.waitForTimeout(700);if(process.env.SUTURE_SCREENSHOT_DIR)await page.locator('#viewport').screenshot({path:`${process.env.SUTURE_SCREENSHOT_DIR}/nerve.png`});
  await page.locator('#micro-target').selectOption('small-artery');assert.match(await page.locator('.scene-heading h2').innerText(),/Small artery/);
  await selectSetup('#needle-type','bv1');await selectSetup('#suture-material','monocryl');await selectSetup('#knot-technique','sliding');
  assert.equal(await page.locator('#micro-target').inputValue(),'small-artery');assert.equal(await page.locator('#needle-type').inputValue(),'bv1');assert.equal(await page.locator('#skin-type').inputValue(),'thick');
- assert.match(await page.locator('#right-tool-name').innerText(),/Castroviejo/);
+ assert.match(await page.locator('#right-tool-name').textContent(),/Castroviejo/);
  await page.locator('#begin-pass').click();await prepareEversion(page);await page.keyboard.down('u');
  await page.waitForFunction(()=>document.querySelector('#exercise-title').textContent.includes('Needle emerged'),{},{timeout:45000});await page.keyboard.up('u');
  await page.locator('#free-tying').click();await page.locator('#knot-state').waitFor();
@@ -29,15 +34,16 @@ try {
  // Wait for simulated frames: software rendering and bounded catch-up can
  // advance less physics than a wall-clock delay implies.
  await page.evaluate(async()=>{for(let i=0;i<240;i++)await new Promise(requestAnimationFrame);});
- await page.locator('#select-scissors').click();assert.match(await page.locator('#right-tool-name').innerText(),/Westcott/);
+ await page.locator('#select-scissors').click();assert.match(await page.locator('#right-tool-name').textContent(),/Westcott/);
  await page.locator('#position-scissors').click();await page.keyboard.down(',');
- await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Suture cut'),{},{timeout:20000});await page.keyboard.up(',');
+ await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.match(/Suture cut|Tails trimmed: [12]\/2/),{},{timeout:20000});await page.keyboard.up(',');
  assert.doesNotMatch(await page.locator('#exercise-readout').innerText(),/NaN|Infinity/);
  await page.locator('#reset').click();assert(!(await page.locator('#knot-state').isVisible()));
+ await openSetup();
  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.locator('#switch-environment').click()]);
- assert.equal(await page.locator('#viewport').getAttribute('data-environment'),'skin');assert.match(await page.locator('#right-tool-name').innerText(),/needle driver/);
+ assert.equal(await page.locator('#viewport').getAttribute('data-environment'),'skin');assert.match(await page.locator('#right-tool-name').textContent(),/needle driver/);
  await selectSetup('#skin-type','thin');assert.equal(await page.locator('#skin-type').inputValue(),'thin');
- await page.locator('#free-tying').click();await page.waitForTimeout(1500);await page.locator('#select-scissors').click();assert.match(await page.locator('#right-tool-name').innerText(),/Mayo/);
- await page.locator('#position-scissors').click();await page.keyboard.down(',');await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.includes('Suture cut'),{},{timeout:20000});await page.keyboard.up(',');
+ await page.locator('#free-tying').click();await page.waitForTimeout(1500);await page.locator('#select-scissors').click();assert.match(await page.locator('#right-tool-name').textContent(),/Mayo/);
+ await page.locator('#position-scissors').click();await page.keyboard.down(',');await page.waitForFunction(()=>document.querySelector('#exercise-readout').textContent.match(/Suture cut|Tails trimmed: [12]\/2/),{},{timeout:20000});await page.keyboard.up(',');
  assert.deepEqual(errors,[]);console.log('Mobile build label, environment and target switching, setup persistence, free-tying status, Mayo and Westcott cutting passed.');
 }finally{await browser.close();}
