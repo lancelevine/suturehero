@@ -110,6 +110,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-22 — Claude — Production tab restored (build 0.207)
+
+- Regression from 0.201's lazy-loaded Tracking Lab: `mountProductionMode` ran before `.workspace-lab-tabs` existed, so its tab was never added. `src/ui/productionMode.ts` now waits for the bar with a MutationObserver and looks it up when opening.
+- Checks: tsc; `check-production-mode` and `check-iphone-start` pass.
+- Follow-up idea: other code that expects Lab DOM at start-up may have the same problem; none found so far.
+
 ### 2026-11-22 — Claude — Second Bluetooth jaw sensor (forceps) (build 0.206)
 
 - `src/ui/HallSensorPanel.ts` now has two slots (`HALL_SENSOR_SLOTS`), each with its own `BleHallSensorSource` and `HallJawMapper`. Settings key `suturehero.hallJaw.v2` `{sensors:[…]}`; v1 (one sensor) migrates into slot 1 (`parseAllHallSettings`). `duplicateInstruments` drives the warning. Tests updated.

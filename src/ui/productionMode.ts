@@ -48,14 +48,26 @@ export function mountProductionMode(app: HTMLElement) {
   tab.setAttribute('role', 'tab');
   tab.setAttribute('aria-selected', 'false');
   tab.setAttribute('aria-controls', pane.id);
-  const tabs = app.querySelector('.workspace-lab-tabs');
-  tabs?.append(tab);
+  // The tab bar is created by Tracking Lab, which loads after the page (build 0.201),
+  // so add the tab as soon as the bar exists.
+  const tabBar = () => app.querySelector('.workspace-lab-tabs');
+  const placeTab = () => {
+    const bar = tabBar();
+    if (bar && tab.parentElement !== bar) bar.append(tab);
+    return !!bar;
+  };
+  if (!placeTab()) {
+    const waitForTabBar = new MutationObserver(() => {
+      if (placeTab()) waitForTabBar.disconnect();
+    });
+    waitForTabBar.observe(app, { childList: true, subtree: true });
+  }
 
   const setOpen = (open: boolean) => {
     if (open === !pane.hidden) return;
     if (open) {
       // Leave Tracking Lab first so the 3D view is back in the simulator before it moves here.
-      const simulatorTab = Array.from(tabs?.querySelectorAll<HTMLButtonElement>('.lab-tab') ?? []).find((b) => b.textContent === 'Simulator');
+      const simulatorTab = Array.from(tabBar()?.querySelectorAll<HTMLButtonElement>('.lab-tab') ?? []).find((b) => b.textContent === 'Simulator');
       if (document.body.classList.contains('tracking-lab-active')) simulatorTab?.click();
       for (const selector of Object.values(MIRRORED)) {
         const source = document.querySelector(selector);

@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.207 — Production tab restored
+
+- The **Production** tab (the clean full-screen presentation view) is back. Since build 0.201 it was silently missing: Tracking Lab, which creates the tab bar, now loads after the page, so the Production tab had nowhere to go. It is now added as soon as the tab bar appears.
+
 ## Build 0.206 — Second Bluetooth jaw sensor (forceps)
 
 - Two Bluetooth jaw sensors. Instrument calibration → Jaws → Jaw sensors now has Sensor 1 and Sensor 2, each with its own Connect button, instrument (defaults: needle driver, forceps) and closed/open calibration. Both can run at once. A warning appears if both are set to the same instrument. The existing single-sensor calibration becomes Sensor 1.
