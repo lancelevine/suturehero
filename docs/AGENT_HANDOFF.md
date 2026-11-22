@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — knot recognition at 2× hand speed (src/gameplay/FreeKnotPractice.ts, src/knot/claude/).
+- **In progress:** None.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
@@ -112,6 +112,8 @@ entry when finishing.
 
 ### 2026-11-22 — Claude — Fast-pulled throws count as tightened (build 0.209)
 
+- Investigated after shipping (no code change): 3-throw @ 2× 120 fps loses the third throw in `FreeThrow` 'passed'. The tail is pulled fast, its crossing coordinate moves about 18 segments/s, `MaterialOpening.crossingCoordinate` stops finding it inside the projected loop polygon, `containsPost` fails within the 0.1 s grace, and on 'clear' it resets ("Loop slipped off the short strand"). A real fix would physically hold the post inside the loop during 'passed' (core physics), not just a longer grace. Paused to ask Lance.
+- Not yet looked at: surgeon's @ 2× 30 fps with jitter (second throw missing).
 - Cause of square @ 2× 60 fps: the loop was fully fed (6/6 segments) and small (radius 0.065 < 0.08), but with both tools at their reach limit the crossing ends stayed 0.051 apart, over `assessSeating`'s 0.04. It seated only when the next throw's motion relaxed the arms, about 10 s later, after the trial's 8 s wait.
 - Fix in `src/suture/FreeThrow.ts`: `tautHoldTime` counts time with the loop fully fed and the arms taut (`separation >= heldMaterial*.97`). After `TAUT_SEAT_HOLD_S` (0.5 s), ends up to `TAUT_SEAT_ENDS` (0.06) are accepted. The slack-free rule (0.04) is unchanged.
 - Full trials after: claude 22/24, codex 22/24, classic 20/24. Remaining for claude/codex: surgeon's @ 2× 30 fps jitter (second throw missing) and 3-throw @ 2× 120 fps (third missing).
