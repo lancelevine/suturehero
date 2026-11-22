@@ -72,14 +72,13 @@ export function mountTrackingLab(app: HTMLElement) {
     const fail = (e: unknown) => { console.error('Tracking Lab', e); q('message').textContent = e instanceof Error ? e.message : String(e); playing = false; buttons(); };
     const time = () => cursor && cursor.position >= 0 ? frames[cursor.position].at : 0;
     function buttons() { const recording = !!recorder && recorder.session.status === 'recording'; q<HTMLButtonElement>('record').disabled = recording || busy; q<HTMLButtonElement>('stop').disabled = !recording && !playing && !(cursor && busy); q<HTMLButtonElement>('replay').disabled = recording || busy || !session?.frames; q<HTMLButtonElement>('pause').disabled = !cursor || busy; q<HTMLButtonElement>('back').disabled = !cursor || busy || cursor.position < 0; q<HTMLButtonElement>('next').disabled = !cursor || busy || cursor.complete; q<HTMLInputElement>('seek').disabled = !cursor || busy; q<HTMLButtonElement>('stationary-start').disabled = !cursor || busy; q<HTMLButtonElement>('stationary-end').disabled = stationaryStart === undefined || busy; q<HTMLButtonElement>('import').disabled = recording || busy; q('pause').textContent = playing ? 'Pause' : 'Resume'; q('stop').textContent = recording ? 'Stop' : 'Stop replay'; }
-    function confidenceLabel(d?:Diagnostics){return d?.confidence==null?'Detection confidence: Unavailable':`Jaw visibility confidence: ${(d.confidence*100).toFixed(0)}% of measurable balls · ArUco confidence: Unavailable`;}
     function diagnostics() {
         if (!cursor || !session)
             return;
         q('diagnostics-title').textContent = 'Reprocessed tracking diagnostics';
-        const lines = metrics(frames, cursor.results).filter(m => m.frames).map(m => `Camera ${m.camera + 1}: ${m.fps.toFixed(1)} recorded FPS · ${m.processed}/${m.frames} frames reprocessed\nMarkers ${m.markers}/${m.processed} (${m.processed ? (m.markers / m.processed * 100).toFixed(1) : '0'}%) · Balls ${m.ballsSupported?`${m.balls}/${m.processed} (${m.processed?(m.balls/m.processed*100).toFixed(1):'0'}%)`:'Unavailable (marker-relative jaws use Camera 1)'}\nMarker tracking-loss events ${m.losses} · Mean reacquisition ${m.reacquisitionMs === null ? 'Unavailable' : (m.reacquisitionMs / 1000).toFixed(2) + ' s'}\nClassic jaw pairs ${m.pairsSupported?`${m.pairs}/${m.processed}`:'Unavailable (marker-relative engine)'} · Pair-loss events ${m.pairLosses} · Mean reacquisition ${m.pairReacquisitionMs === null ? 'Unavailable' : (m.pairReacquisitionMs / 1000).toFixed(2) + ' s'}`);
+        const lines = metrics(frames, cursor.results).filter(m => m.frames).map(m => `Camera ${m.camera + 1}: ${m.fps.toFixed(1)} recorded FPS · ${m.processed}/${m.frames} frames reprocessed\nMarkers ${m.markers}/${m.processed} (${m.processed ? (m.markers / m.processed * 100).toFixed(1) : '0'}%)\nMarker tracking-loss events ${m.losses} · Mean reacquisition ${m.reacquisitionMs === null ? 'Unavailable' : (m.reacquisitionMs / 1000).toFixed(2) + ' s'}`);
         const latest = cursor.position >= 0 ? cursor.results.get(frames[cursor.position].index) : undefined;
-        q('diagnostics').textContent = `${latest?.status ?? 'Waiting for frames'}\n${confidenceLabel(latest)}\n${lines.join('\n')}\nDropped during recording: ${session.dropped.join(' / ')} · Algorithm ${__SUTUREHERO_REVISION__}`;
+        q('diagnostics').textContent = `${latest?.status ?? 'Waiting for frames'}\n${lines.join('\n')}\nDropped during recording: ${session.dropped.join(' / ')} · Algorithm ${__SUTUREHERO_REVISION__}`;
         q<HTMLOutputElement>('time').value = `${(time() / 1000).toFixed(3)} / ${(session.duration / 1000).toFixed(3)} s · Frame ${cursor.position+1}/${frames.length}`;
         q<HTMLInputElement>('seek').value = String(time());
     }
@@ -185,7 +184,10 @@ export function mountTrackingLab(app: HTMLElement) {
         fail(e);
     } }
     async function select(s: Session) {q('message').textContent=''; playing = false; epoch++; cursor?.dispose(); session = s; frames = orderedFrames(await store.frames(s.id)); cursor = new ReplayCursor(frames, new RecordedFrameProcessor(s)); q<HTMLInputElement>('seek').max = String(s.duration); stationaryStart = undefined; images.forEach(c => c.hidden = true); overlays.forEach(c => c.getContext('2d')!.clearRect(0, 0, c.width, c.height)); videos.forEach(v => { v.srcObject = null; v.hidden = true; }); q('mode').textContent = s.name; await seek(-1); }
-    async function library() { const list = q('library-list'); list.replaceChildren(); for (const s of await store.list()) {
+    // Overlapping refreshes (start-up plus a save) each appended every row, so recordings
+    // appeared twice; only the newest refresh draws (2026-11-23).
+    let libraryGeneration = 0;
+    async function library() { const generation = ++libraryGeneration; const sessions = await store.list(); if (generation !== libraryGeneration) return; const list = q('library-list'); list.replaceChildren(); for (const s of sessions) {
         const row = document.createElement('div');
         row.className = 'lab-session';
         const title = document.createElement('div');
@@ -313,6 +315,6 @@ export function mountTrackingLab(app: HTMLElement) {
                 stats.at = now;
                 stats.count = count;
             }
-        } q('diagnostics-title').textContent = 'Live tracking diagnostics'; q('diagnostics').textContent = snapshots[0].status+'\n'+confidenceLabel(snapshots[0])+'\n' + snapshots.map((s, c) => `Camera ${c + 1}: ${videos[c].srcObject ? liveStats[c].fps.toFixed(1) + ' FPS' : 'off'} · ${s.markers.length} marker(s) · ${s.balls.filter(b => b.state === 'detected').length} currently detected ball(s)`).join('\n'); }); setTimeout(livePreview, 150); };
+        } q('diagnostics-title').textContent = 'Live tracking diagnostics'; q('diagnostics').textContent = snapshots[0].status+''+'\n' + snapshots.map((s, c) => `Camera ${c + 1}: ${videos[c].srcObject ? liveStats[c].fps.toFixed(1) + ' FPS' : 'off'} · ${s.markers.length} marker(s)`).join('\n'); }); setTimeout(livePreview, 150); };
     livePreview();
 }

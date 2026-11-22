@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.214 — Tracking Lab list fix and clean-up
+
+- Tracking Lab: recordings no longer appear twice in the list after a page reload. Two list refreshes ran at once and both added their rows.
+- Tracking Lab: the leftover "Balls", "Classic jaw pairs" and jaw-confidence lines from the removed camera jaw tracking are gone.
+
 ## Build 0.213 — Jaw sensor battery level
 
 - Jaw sensor battery level: each connected sensor shows its battery percentage, with "low · charge soon" at 15 % or less. It needs the updated firmware (`firmware/hall-jaw/hall-jaw.ino`, upload it to both boards), which reads the battery through the chip's own supply measurement. Untested on the real boards. Each board must be chosen once more with Connect so Chrome allows battery access.

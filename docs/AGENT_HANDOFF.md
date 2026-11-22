@@ -69,9 +69,6 @@ entry when finishing.
     change (`waitForNavigation`); same on build 0.169, so older than the
     Sandbox batch. Not investigated. Its `canvas` selector was fixed (camera
     lab canvases made it ambiguous).
-  - `check-tracking-lab` fails with a strict-mode error (two "Replay"
-    buttons in `.lab-session`); same on build 0.204, so not caused by the
-    jaw removal. Not investigated.
   - Tracking Lab library can be clipped by camera setup's body overflow lock;
     browser zoom-out is the current workaround. A separate Lab scrolling fix
     is still needed.
@@ -97,8 +94,6 @@ entry when finishing.
 - **Next up (proposed, not started):**
   1. Jaw sensor follow-ups: auto-reconnect, battery level, jaws in Sandbox
      mode without camera tracking.
-  2. Optional clean-up: the Tracking Lab still has empty ball fields
-     (`balls`, `ballSupported`) and "Classic jaw pairs" summary lines.
   3. Continue splitting `src/tracking.ts`; next candidate: stereo
      calibration import/status panel.
   4. Add a code formatter in one dedicated commit (agree with Lance first).
@@ -109,6 +104,12 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-23 — Claude — Tracking Lab list fix and clean-up (build 0.214)
+
+- `src/trackingLab/ui.ts` `library()`: a generation counter, so overlapping refreshes (start-up plus save) no longer both append rows. That duplication was why `check-tracking-lab` failed with two "Replay" buttons (known issue since 0.204 at least).
+- Removed the Balls / Classic jaw pairs / confidence summary text and the now-unused `confidenceLabel`. Recorded sessions keep their ball fields (empty), so old recordings still load.
+- Checks: tsc; trackingLab unit tests (29); `check-tracking-lab` passes again.
 
 ### 2026-11-23 — Claude — Jaw sensor battery level (build 0.213)
 
