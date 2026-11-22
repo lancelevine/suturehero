@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** None.
+- **In progress:** Claude — fast-hand knot fixes (wrap count at 30 fps; tail held in loop during passage): src/suture/TailPassage.ts, FreeThrow.ts, src/gameplay/FreeKnotPractice.ts.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
