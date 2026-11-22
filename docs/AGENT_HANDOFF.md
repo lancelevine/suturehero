@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — thread–instrument friction (coil creep round a jittering driver): src/suture/InstrumentThreadContact.ts.
+- **In progress:** None.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
@@ -112,6 +112,10 @@ entry when finishing.
 
 ### 2026-11-22 — Claude — Fast pull keeps the tail in the loop (build 0.211)
 
+- Follow-up attempt, not shipped: thread–driver contact changes in `InstrumentThreadContact.resolve` `correct()` to stop the coil creeping round a jittering, pulling driver (surgeon's @ 2× 30 fps jitter).
+  (a) Friction around the shaft relative to shaft motion: 0.2 and 0.05 stopped the deliberate double first wrap from forming; 0.02 fixed the case but broke 4 normal tests (demo, FreeKnotTechniques surgeon, FreeSlipSeating, the 3-throw regression).
+  (b) Carrying contacting points with the shaft's sideways motion: 1.0 stopped any throw forming; 0.3 fixed the case but broke 5 tests (resting tail, surgeon technique, sliding seating, Claude grasp tests); 0.1 did not fix it.
+  Conclusion: any contact change strong enough to stop the creep alters normal tying. Left as a known limit (needs 2× hand speed, 30 fps and jitter together).
 - `src/suture/FreeThrow.ts` `resolve`: while 'passed' (pending), the post-in-bight containment correction is exempt from the engagement ramp and the 0.15 pending step budget. It now uses `PENDING_CONTAINMENT_BUDGET` 0.6 rest lengths, `PENDING_POST_CORRECTION` 0.9 and `PENDING_POST_STEP_LIMIT` 0.02. The retained values are unchanged as named constants (0.4, 0.004). Before, the fast pull carried the tail out of the third loop within the 0.4 s ramp and the throw reset.
 - New test in `ClaudeKnotEngine.test.ts`: the 3-throw knot at 2× 120 fps keeps 3 throws and locks.
 - Full trials: claude 23/24, codex 23/24, classic 21/24. The only remaining failure for claude/codex is surgeon's @ 2× 30 fps with jitter: the simulated thread creeps round the moving driver and forms a real second coil (trimmed coil about 1.95 turns from a 1.35-turn wrap). That needs thread–driver tangential friction work.
