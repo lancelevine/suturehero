@@ -6,12 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** None.
+- **In progress:** Claude — knot recognition at 2× hand speed (src/gameplay/FreeKnotPractice.ts, src/knot/claude/).
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
   (`KNOT_ENGINES=a,b` to pick; `KNOT_TRIALS=quick` for a short run).
-  Current: classic 19/24, claude 21/24, codex (quick matrix 8/8),
+  Current (full run 2026-11-22): claude 21/24 (default), codex 21/24, classic 19/24,
   classic-worker (experimental).
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
@@ -109,6 +109,13 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-22 — Claude — Claude knot engine is the default (build 0.208)
+
+- `DEFAULT_KNOT_ENGINE` is now `'claude'` (`src/knot/engines.ts`, test updated).
+- Full `KNOT_TRIALS=1` comparison run today: claude 21/24 (278 ms/s), codex 21/24 (280), classic 19/24 (284). Claude and Codex fail the same 3 cases, all at 2× hand speed: surgeon's @ 30 fps with jitter (second throw missing), square @ 60 fps (second throw missing), 3-throw @ 120 fps (third throw missing). Classic also misses the third throw in two more 3-throw cases.
+- Checks: tsc; knot, gameplay and demo unit tests (100 pass).
+- Next: investigate the 2× fast-hand failures (shared physics, not classification).
 
 ### 2026-11-22 — Claude — Production tab restored (build 0.207)
 

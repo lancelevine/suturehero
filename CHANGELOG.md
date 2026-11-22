@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.208 — Claude knot engine is the default
+
+- The default knot engine is now **Claude**, chosen by the full engine comparison: Claude 21/24, Codex 21/24, Classic 19/24, all about 280 ms of computer time per second of tying (synthetic scripted hands). Classic and Codex stay available in Practice setup → Knot engine, or with `?knot=classic` / `?knot=codex`.
+
 ## Build 0.207 — Production tab restored
 
 - The **Production** tab (the clean full-screen presentation view) is back. Since build 0.201 it was silently missing: Tracking Lab, which creates the tab bar, now loads after the page, so the Production tab had nowhere to go. It is now added as soon as the tab bar appears.

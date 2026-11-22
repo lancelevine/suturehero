@@ -89,7 +89,7 @@ export interface KnotEngineEntry {
   create(): KnotEngine;
 }
 
-export const DEFAULT_KNOT_ENGINE = 'classic';
+export const DEFAULT_KNOT_ENGINE = 'claude';
 
 export const KNOT_ENGINES: KnotEngineEntry[] = [
   { id: 'classic', label: 'Classic (event-based)', create: () => new FreeKnotPractice() },
