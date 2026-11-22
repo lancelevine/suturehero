@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** None.
+- **In progress:** Claude — jaw sensor battery level, then Tracking Lab clean-up, broken browser checks, OV9281 prep, tracking.ts split.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
@@ -109,6 +109,13 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-23 — Claude — Jaw sensor battery level (build 0.213)
+
+- Firmware: standard Battery Service (0x180F/0x2A19), percent from VDDH/5 read directly with SAADC channel 7 (12 bit, gain 1/6, internal reference; 3.3 V = 0 %, 4.2 V = 100 %, linear, approximate), every 30 s. `READ_BATTERY` turns it off. It also prints `battery_volts` to the Serial Plotter. Not compiled or tested here (no board or arduino-cli). It assumes the battery feeds VDDH as on nice!nano v2-style boards.
+- App: `BleHallSensorSource` requests `battery_service` as an optional service and watches `battery_level` (ignored if absent); the panel shows the percentage and a low warning at `LOW_BATTERY_PERCENT` 15.
+- `check-hall-sensor` asserts 83 % and 12 % (low) from fake boards, and passes. tsc passes.
+- Lance to test: upload the new firmware, click Connect for each board once, and compare the percentage with the `battery_volts` line in the Serial Plotter (a full battery reads about 4.1–4.2 V). If the value is nonsense, or the Hall readings misbehave, set `READ_BATTERY = false`.
 
 ### 2026-11-23 — Claude — Jaw sensors reconnect, work without camera (build 0.212)
 

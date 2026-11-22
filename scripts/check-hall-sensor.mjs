@@ -14,7 +14,8 @@ try{
   const boards=['SutureHero Jaw','SutureHero Jaw 2'].map((name,index)=>{
    const characteristic=new EventTarget();
    characteristic.startNotifications=async()=>characteristic;characteristic.stopNotifications=async()=>characteristic;
-   const server={connected:true,disconnect(){server.connected=false;},getPrimaryService:async()=>({getCharacteristic:async()=>characteristic})};
+   const battery=new EventTarget();battery.startNotifications=async()=>battery;battery.readValue=async()=>new DataView(new Uint8Array([index?12:83]).buffer);
+   const server={connected:true,disconnect(){server.connected=false;},getPrimaryService:async uuid=>({getCharacteristic:async()=>uuid==='battery_service'?battery:characteristic})};
    const device=new EventTarget();device.name=name;device.id='board-'+index;device.gatt={connect:async()=>{if(window.__hallOff?.[index])throw new Error('out of range');server.connected=true;return server;}};
    device.drop=()=>{server.connected=false;device.dispatchEvent(new Event('gattserverdisconnected'));};
    let boardMs=0;
@@ -58,7 +59,8 @@ try{
  const last=await page.evaluate(()=>{const latest={};for(const m of window.__jawMessages)latest[m.instrument]=m.opening;return latest;});
  assert.ok(Math.abs(last.needleDriver-.25)<.05,`needle driver about 25 % (got ${last.needleDriver})`);
  assert.ok(Math.abs(last.forceps-.75)<.05,`forceps about 75 % (got ${last.forceps})`);
- assert.match(await slot(1).locator('[data-hall-reading]').textContent(),/SutureHero Jaw · raw 2100/);
+ assert.match(await slot(1).locator('[data-hall-reading]').textContent(),/SutureHero Jaw · raw 2100 · opening 25% · battery 83%$/);
+ assert.match(await slot(2).locator('[data-hall-reading]').textContent(),/battery 12% \(low · charge soon\)/);
  assert.match(await slot(2).locator('[data-hall-reading]').textContent(),/SutureHero Jaw 2 · raw 2250/);
  // With camera tracking off (Sandbox only), the sensors still drive the instruments (build 0.212).
  await page.locator('#disable-camera-tracking').evaluate(e=>e.click());

@@ -15,6 +15,14 @@
 
 const char DEVICE_NAME[] = "SutureHero Jaw";  // change for the second board, e.g. "SutureHero Jaw 2"
 
+// Battery level (2026-11-23): on nice!nano-style boards the battery feeds the chip's VDDH
+// pin, which the chip can measure internally (no extra wiring). Set to false if the
+// reported percentage is nonsense or the Hall readings misbehave after this change.
+const bool READ_BATTERY = true;
+const uint32_t BATTERY_PERIOD_MS = 30000;    // read the battery every 30 s
+const float BATTERY_EMPTY_V = 3.3;           // LiPo voltage reported as 0 %
+const float BATTERY_FULL_V = 4.2;            // LiPo voltage reported as 100 %
+
 const int HALL_PIN = A0;                     // board pin 0.02
 const uint32_t HALL_POWER_NRF_PIN = 32 + 15; // board pin 1.15
 const uint32_t LED_NRF_PIN = 15;             // board pin 0.15: the blue LED on these boards (on when HIGH)
@@ -28,6 +36,42 @@ const uint32_t FLASH_GAP_MS = 150;           // gap between the two flashes whil
 // Each update is 6 bytes: raw value (uint16, 0-4095) + time since start in ms (uint32), little-endian.
 BLEService hallService("5a1e0001-8f6c-4b8e-9d2a-3c4b5e6f7a80");
 BLECharacteristic hallReading("5a1e0002-8f6c-4b8e-9d2a-3c4b5e6f7a80", BLERead | BLENotify, 6, true);
+// Standard Bluetooth battery service: level in percent.
+BLEService batteryService("180F");
+BLEUnsignedCharCharacteristic batteryLevel("2A19", BLERead | BLENotify);
+
+// Battery voltage from VDDH/5, read directly with the chip's ADC (SAADC), channel 7.
+float readBatteryVolts() {
+  volatile int16_t result = 0;
+  NRF_SAADC->ENABLE = SAADC_ENABLE_ENABLE_Enabled;
+  NRF_SAADC->RESOLUTION = SAADC_RESOLUTION_VAL_12bit;
+  NRF_SAADC->CH[7].PSELP = SAADC_CH_PSELP_PSELP_VDDHDIV5;
+  NRF_SAADC->CH[7].PSELN = SAADC_CH_PSELN_PSELN_NC;
+  NRF_SAADC->CH[7].CONFIG = (SAADC_CH_CONFIG_GAIN_Gain1_6 << SAADC_CH_CONFIG_GAIN_Pos)
+                          | (SAADC_CH_CONFIG_REFSEL_Internal << SAADC_CH_CONFIG_REFSEL_Pos)
+                          | (SAADC_CH_CONFIG_TACQ_10us << SAADC_CH_CONFIG_TACQ_Pos);
+  NRF_SAADC->RESULT.PTR = (uint32_t)&result;
+  NRF_SAADC->RESULT.MAXCNT = 1;
+  NRF_SAADC->EVENTS_STARTED = 0;
+  NRF_SAADC->TASKS_START = 1;
+  while (!NRF_SAADC->EVENTS_STARTED) {}
+  NRF_SAADC->EVENTS_END = 0;
+  NRF_SAADC->TASKS_SAMPLE = 1;
+  while (!NRF_SAADC->EVENTS_END) {}
+  NRF_SAADC->EVENTS_STOPPED = 0;
+  NRF_SAADC->TASKS_STOP = 1;
+  while (!NRF_SAADC->EVENTS_STOPPED) {}
+  NRF_SAADC->CH[7].PSELP = SAADC_CH_PSELP_PSELP_NC;  // free the channel again
+  // 12 bits over 0.6 V reference with gain 1/6 = 3.6 V full scale, times 5 for the VDDH divider.
+  return result < 0 ? 0 : result * 3.6f / 4096.0f * 5.0f;
+}
+
+uint8_t batteryPercent(float volts) {
+  float fraction = (volts - BATTERY_EMPTY_V) / (BATTERY_FULL_V - BATTERY_EMPTY_V);
+  if (fraction < 0) fraction = 0;
+  if (fraction > 1) fraction = 1;
+  return (uint8_t)(fraction * 100 + 0.5f);
+}
 
 uint16_t readHall() {
   nrf_gpio_pin_set(HALL_POWER_NRF_PIN);      // sensor on
@@ -69,6 +113,11 @@ void setup() {
   BLE.setAdvertisedService(hallService);
   hallService.addCharacteristic(hallReading);
   BLE.addService(hallService);
+  if (READ_BATTERY) {
+    batteryService.addCharacteristic(batteryLevel);
+    BLE.addService(batteryService);
+    batteryLevel.writeValue(batteryPercent(readBatteryVolts()));
+  }
   BLE.advertise();
 }
 
@@ -83,6 +132,15 @@ void loop() {
   nextSampleAt = now + SAMPLE_PERIOD_MS;
 
   uint16_t raw = readHall();
+
+  static uint32_t nextBatteryAt = BATTERY_PERIOD_MS;
+  if (READ_BATTERY && (int32_t)(now - nextBatteryAt) >= 0) {
+    nextBatteryAt = now + BATTERY_PERIOD_MS;
+    float volts = readBatteryVolts();
+    Serial.print("battery_volts:");
+    Serial.println(volts);
+    batteryLevel.writeValue(batteryPercent(volts));
+  }
 
   Serial.print("hall:");
   Serial.println(raw);                       // view in Tools -> Serial Plotter

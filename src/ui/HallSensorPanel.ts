@@ -19,6 +19,8 @@ export const MIN_CALIBRATION_SPAN = 40;
 const DISPLAY_INTERVAL_MS = 150;
 /** Wait between attempts to reconnect a remembered board that dropped out or is not in range yet (ms). */
 export const RECONNECT_INTERVAL_MS = 4000;
+/** Battery level at or below which the panel suggests charging (%). */
+const LOW_BATTERY_PERCENT = 15;
 
 const INSTRUMENTS: Array<[HallInstrument, string]> = [['needleDriver', 'Needle driver'], ['forceps', 'Forceps'], ['scissors', 'Scissors']];
 /** Instrument each slot starts on: the needle driver, then the forceps. */
@@ -133,7 +135,8 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
   const showReading = () => {
     if (latestRaw === null) return;
     const name = source ? `${source.deviceName} · ` : '';
-    reading.textContent = `Connected · ${name}raw ${latestRaw}` + (latestOpening === null ? '' : ` · opening ${Math.round(latestOpening * 100)}%`);
+    const battery = source?.batteryPercent ?? null;
+    reading.textContent = `Connected · ${name}raw ${latestRaw}` + (latestOpening === null ? '' : ` · opening ${Math.round(latestOpening * 100)}%`) + (battery === null ? '' : ` · battery ${battery}%${battery <= LOW_BATTERY_PERCENT ? ' (low · charge soon)' : ''}`);
   };
   const setConnected = (connected: boolean) => {
     connectButton.textContent = connected ? `Disconnect sensor ${slot + 1}` : wanted ? `Stop reconnecting sensor ${slot + 1}` : `Connect sensor ${slot + 1}`;

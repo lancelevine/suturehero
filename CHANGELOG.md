@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.213 — Jaw sensor battery level
+
+- Jaw sensor battery level: each connected sensor shows its battery percentage, with "low · charge soon" at 15 % or less. It needs the updated firmware (`firmware/hall-jaw/hall-jaw.ino`, upload it to both boards), which reads the battery through the chip's own supply measurement. Untested on the real boards. Each board must be chosen once more with Connect so Chrome allows battery access.
+
 ## Build 0.212 — Jaw sensors reconnect, work without camera
 
 - Jaw sensors reconnect by themselves: each sensor slot remembers its board. After an unexpected dropout (battery, out of range) it keeps trying every few seconds until the board is back; the button reads "Stop reconnecting" meanwhile. When the page opens, boards connected before reconnect without Chrome's device list where Chrome allows it; otherwise click Connect as before.

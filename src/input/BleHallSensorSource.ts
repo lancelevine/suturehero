@@ -12,6 +12,9 @@ export const HALL_DEVICE_NAME = 'SutureHero Jaw';
 export const HALL_PACKET_BYTES = 6;
 /** Highest raw value of the board's 12-bit analog input. */
 export const HALL_RAW_MAX = 4095;
+/** Standard Bluetooth battery service and level (percent) characteristic. */
+export const BATTERY_SERVICE = 'battery_service';
+export const BATTERY_LEVEL = 'battery_level';
 
 export interface HallPacket { raw: number; boardMs: number }
 
@@ -26,6 +29,7 @@ export function parseHallPacket(view: DataView): HallPacket | null {
 /** Minimal Web Bluetooth types (not in TypeScript's DOM library). */
 interface BluetoothCharacteristic extends EventTarget {
   value?: DataView;
+  readValue?(): Promise<DataView>;
   startNotifications(): Promise<BluetoothCharacteristic>;
   stopNotifications(): Promise<BluetoothCharacteristic>;
 }
@@ -87,7 +91,7 @@ export class BleHallSensorSource implements HallSensorSource {
   async start(listener: HallReadingListener) {
     const bluetooth = webBluetooth();
     if (!bluetooth) throw new Error('This browser has no Bluetooth support · use Chrome or Edge on a computer');
-    await this.startWith(await bluetooth.requestDevice({ filters: [{ services: [HALL_SERVICE_UUID] }] }), listener);
+    await this.startWith(await bluetooth.requestDevice({ filters: [{ services: [HALL_SERVICE_UUID] }], optionalServices: [BATTERY_SERVICE] }), listener);
   }
 
   /** Connect to a board the site may already use (from `knownHallDevice`), without the chooser. */
@@ -104,6 +108,27 @@ export class BleHallSensorSource implements HallSensorSource {
     this.characteristic = await service.getCharacteristic(HALL_READING_UUID);
     this.characteristic.addEventListener('characteristicvaluechanged', this.onValue);
     await this.characteristic.startNotifications();
+    void this.watchBattery(this.server);
+  }
+
+  /** Battery charge (0–100 %) when the board reports it (firmware since 2026-11-23), else null. */
+  batteryPercent: number | null = null;
+  /** Called when the battery level changes. */
+  onBattery?: (percent: number) => void;
+  private async watchBattery(server: BluetoothServer) {
+    try {
+      const level = await (await server.getPrimaryService(BATTERY_SERVICE)).getCharacteristic(BATTERY_LEVEL);
+      const update = (view?: DataView) => {
+        if (!view || view.byteLength < 1) return;
+        this.batteryPercent = Math.min(100, view.getUint8(0));
+        this.onBattery?.(this.batteryPercent);
+      };
+      level.addEventListener('characteristicvaluechanged', () => update(level.value));
+      if (level.readValue) update(await level.readValue());
+      await level.startNotifications();
+    } catch {
+      // Older firmware, or a board first allowed before battery access was requested: no level.
+    }
   }
 
   stop() {
