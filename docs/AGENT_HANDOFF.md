@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** None.
+- **In progress:** Claude — removing all camera jaw tracking (balls, marker-relative, handle prism); Hall sensor stays. Files: src/tracking.ts, src/jaw/, src/input/*ball*, jaw checks.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
