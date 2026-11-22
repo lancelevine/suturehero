@@ -61,7 +61,8 @@ import {mountTrackingLayout} from './ui/TrackingLayout';
 import './ui/workspace.css';
 import {trackedInstrumentRotation} from './input/trackingFrame';
 import * as THREE from 'three';
-import {parseCalibration,calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
+import {calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
+import {acceptStereoCalibration,stereoCalibrationSummary} from './input/stereoCalibrationImport';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
@@ -403,16 +404,11 @@ function updateStereoViewIndicator(now:number){
 stereoEnabled.addEventListener('change',resetTrackerPose);
 const stereoStorage=TRACKING_STORAGE_KEYS.stereoCalibration;
 function loadStereoCalibration(raw:unknown,restore=false){
- const parsed=parseCalibration(raw);
- if(!restore){
-  if(!select.value||!select2.value||select.value===select2.value)throw Error('Select two distinct, explicitly identified cameras before importing.');
-  if(parsed.cameraIds&&((parsed.cameraIds.first&&parsed.cameraIds.first!==select.value)||(parsed.cameraIds.second&&parsed.cameraIds.second!==select2.value)))throw Error('Select the same camera order used for the calibration captures.');
-  parsed.cameraIds={first:select.value,second:select2.value};
- }
+ const parsed=acceptStereoCalibration(raw,{first:select.value,second:select2.value},restore);
  stereoCalibration=parsed;stereoEnabled.checked=false;if(!restore)resetTrackerPose();else stereoPositions.clear();
  loadStereoWorkspace();workspacePanel.refresh();
  writeStored(stereoStorage,JSON.stringify(parsed));
- stereoGeometryStatus.textContent='Calibration loaded · '+Math.hypot(...parsed.stereo.translationMm).toFixed(1)+' mm baseline · stereo RMS '+(parsed.stereo.rmsPx?.toFixed(2)??'unknown')+' px. Enable metric 3D after checking camera setup.';
+ stereoGeometryStatus.textContent=stereoCalibrationSummary(parsed);
 }
 // A saved calibration that no longer parses is discarded. Storage access is
 // guarded: a browser that blocks storage must not stop the page loading.

@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — jaw sensor battery level, then Tracking Lab clean-up, broken browser checks, OV9281 prep, tracking.ts split.
+- **In progress:** None.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
@@ -85,8 +85,8 @@ entry when finishing.
 - **Next up (proposed, not started):**
   1. Jaw sensor follow-ups: auto-reconnect, battery level, jaws in Sandbox
      mode without camera tracking.
-  3. Continue splitting `src/tracking.ts`; next candidate: stereo
-     calibration import/status panel.
+  3. Continue splitting `src/tracking.ts`; next candidates: status-strip
+     health builder, `performanceContext`.
   4. Add a code formatter in one dedicated commit (agree with Lance first).
   5. When the OV9281 cameras arrive (monochrome, global shutter, 1280×800 @
      up to 120 fps): change `CAMERA_REQUEST` in `src/input/cameraDevices.ts`,
@@ -95,6 +95,12 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-23 — Claude — Stereo calibration import moved out of tracking.ts (no build change)
+
+- New `src/input/stereoCalibrationImport.ts`: `acceptStereoCalibration` (two distinct cameras, same order as the captures, bound to the selected cameras; restore accepts as saved) and `stereoCalibrationSummary`. Moved from `loadStereoCalibration` in `src/tracking.ts`, same behaviour and messages. Tests in `stereoCalibrationImport.test.ts`.
+- Checks: tsc, the new unit tests (4), and `check-tracking-storage` and `check-stereo-motion` (real import) pass.
+- Next candidates for the split: the status-strip health builder and `performanceContext` near the end of `tracking.ts`.
 
 ### 2026-11-23 — Claude — OV9281 recognised automatically (build 0.216)
 
