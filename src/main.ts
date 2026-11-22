@@ -54,7 +54,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
-<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.211 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
+<header><a class="brand" href="./"><img class="brand-logo" src="./suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">THE PRACTICE LAB</span><span class="version">BUILD 0.212 · ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><span class="status"><i></i> Sandbox active</span><button id="camera-tracking-toggle" type="button" aria-pressed="false">Camera</button></header>
 <div id="camera-tracking-panel" hidden style="position:fixed;right:12px;top:70px;width:min(480px,90vw);height:min(650px,75vh);z-index:100;background:#131820;border:1px solid #637080;border-radius:12px;box-shadow:0 8px 36px #0009;display:none;flex-direction:column;overflow:hidden">
 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;color:white"><strong>Camera tracking controls</strong><span id="camera-performance" style="font-size:11px">FPS: measuring…</span><span id="camera-tracking-status" role="status">Start a camera below</span><button id="camera-tracking-hide" type="button">Hide controls</button></div>
 <div id="tracking-app" data-embedded="true" style="flex:1;overflow:auto;min-height:0"></div>
@@ -290,7 +290,9 @@ try {
   window.setInterval(()=>{if(cameraEnabled&&performance.now()-lastTrackingStatusAt>2000)trackingBadge.waiting();},500);
   const jawTracking=new Map<CameraInstrument,{opening:number;seenAt:number}>();
   const onJawTracking=(data:unknown)=>{
-   const jaw=cameraEnabled?parseJawOpening(data):null;if(!jaw)return;
+   // Jaw openings now come only from the Bluetooth jaw sensors (build 0.205), which keep
+   // working with camera tracking off, so they are not gated on camera mode (build 0.212).
+   const jaw=parseJawOpening(data);if(!jaw)return;
    jawTracking.set(jaw.instrument,{opening:jaw.opening,seenAt:performance.now()});
   };
   window.addEventListener(TRACKING_MESSAGE.jawOpening,(event)=>onJawTracking((event as CustomEvent).detail));
@@ -323,10 +325,8 @@ try {
       cameraPerformance.textContent='Simulator '+simulatorFps+' FPS · Tracking loop '+trackingLoopFps+' FPS';
      }
     }
-    if(cameraEnabled){
-     for(const [name,model] of [['forceps',tools[0]],['needleDriver',tools[1]]] as const){
-      const jaw=jawTracking.get(name);if(jaw&&time-jaw.seenAt<350)model.setTrackedOpening(jaw.opening);
-     }
+    for(const [name,model] of [['forceps',tools[0]],['needleDriver',tools[1]]] as const){
+     const jaw=jawTracking.get(name);if(jaw&&time-jaw.seenAt<350)model.setTrackedOpening(jaw.opening);
     }
     if(cameraEnabled){
      applyCameraPose('forceps',tools[0].root);
@@ -342,7 +342,7 @@ try {
     if(!canUseScissors())input.scissorsActive=false;
     scissors.update(input.sampleScissors(),dt);
     const scissorsJaw=jawTracking.get('scissors');
-    if(cameraEnabled&&scissorsJaw&&time-scissorsJaw.seenAt<350)scissors.setTrackedOpening(scissorsJaw.opening);
+    if(scissorsJaw&&time-scissorsJaw.seenAt<350)scissors.setTrackedOpening(scissorsJaw.opening);
     if(cameraEnabled)applyCameraPose('scissors',scissors.root);
     const cuttingButton=document.querySelector('#select-scissors') as HTMLButtonElement;
     cuttingButton.disabled=!canUseScissors();cuttingButton.textContent=input.scissorsActive?'Use needle driver':'Use scissors';cuttingButton.setAttribute('aria-pressed',String(input.scissorsActive));

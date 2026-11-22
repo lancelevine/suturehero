@@ -1,4 +1,4 @@
-import { BleHallSensorSource, webBluetooth } from '../input/BleHallSensorSource';
+import { BleHallSensorSource, knownHallDevice, webBluetooth, type BluetoothDeviceLike } from '../input/BleHallSensorSource';
 import { HallJawMapper, type HallCalibration, type HallInstrument } from '../input/HallJawInput';
 import { readStoredJson, writeStored } from '../input/trackingStorage';
 
@@ -17,12 +17,20 @@ export const HALL_SENSOR_SLOTS = 2;
 export const MIN_CALIBRATION_SPAN = 40;
 /** How often the live reading text refreshes (ms). */
 const DISPLAY_INTERVAL_MS = 150;
+/** Wait between attempts to reconnect a remembered board that dropped out or is not in range yet (ms). */
+export const RECONNECT_INTERVAL_MS = 4000;
 
 const INSTRUMENTS: Array<[HallInstrument, string]> = [['needleDriver', 'Needle driver'], ['forceps', 'Forceps'], ['scissors', 'Scissors']];
 /** Instrument each slot starts on: the needle driver, then the forceps. */
 const DEFAULT_INSTRUMENTS: HallInstrument[] = ['needleDriver', 'forceps'];
 
-export interface HallSettings { instrument: HallInstrument; closed: number | null; open: number | null }
+export interface HallSettings {
+  instrument: HallInstrument;
+  closed: number | null;
+  open: number | null;
+  /** Chrome's id for the board last connected in this slot, to reconnect without the chooser. */
+  deviceId?: string;
+}
 
 const isInstrument = (value: unknown): value is HallInstrument => INSTRUMENTS.some(([id]) => id === value);
 const rawOrNull = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -31,11 +39,13 @@ const instrumentLabel = (instrument: HallInstrument) => INSTRUMENTS.find(([id]) 
 /** One slot's saved settings, with defaults for anything missing or invalid. */
 export function parseHallSettings(data: unknown, defaultInstrument: HallInstrument = 'needleDriver'): HallSettings {
   const record = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
-  return {
+  const settings: HallSettings = {
     instrument: isInstrument(record.instrument) ? record.instrument : defaultInstrument,
     closed: rawOrNull(record.closed),
     open: rawOrNull(record.open),
   };
+  if (typeof record.deviceId === 'string' && record.deviceId) settings.deviceId = record.deviceId;
+  return settings;
 }
 
 /**
@@ -126,7 +136,7 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
     reading.textContent = `Connected · ${name}raw ${latestRaw}` + (latestOpening === null ? '' : ` · opening ${Math.round(latestOpening * 100)}%`);
   };
   const setConnected = (connected: boolean) => {
-    connectButton.textContent = connected ? `Disconnect sensor ${slot + 1}` : `Connect sensor ${slot + 1}`;
+    connectButton.textContent = connected ? `Disconnect sensor ${slot + 1}` : wanted ? `Stop reconnecting sensor ${slot + 1}` : `Connect sensor ${slot + 1}`;
     closedButton.disabled = !connected;
     openButton.disabled = !connected;
     if (!connected) {
@@ -150,9 +160,77 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
   closedButton.addEventListener('click', () => calibrate('closed'));
   openButton.addEventListener('click', () => calibrate('open'));
 
+  let wanted = false;
+  /** The board last connected in this slot this session (reconnects even where Chrome cannot list remembered devices). */
+  let lastDevice: BluetoothDeviceLike | null = null;
+  let reconnectTimer: number | undefined;
+  const onSample = (sample: { instrument: HallInstrument; raw: number; at: number }) => {
+    latestRaw = sample.raw;
+    const value = mapper?.update(sample);
+    if (value) {
+      latestOpening = value.openness;
+      onOpening(value.instrument, value.openness);
+    }
+    if (performance.now() - lastDisplay > DISPLAY_INTERVAL_MS) {
+      lastDisplay = performance.now();
+      showReading();
+    }
+  };
+  const scheduleReconnect = () => {
+    window.clearTimeout(reconnectTimer);
+    if (wanted && !source) reconnectTimer = window.setTimeout(() => void reconnect(), RECONNECT_INTERVAL_MS);
+  };
+  /** Connect to `device`, or let the user choose one when it is not given. */
+  const connect = async (device?: BluetoothDeviceLike) => {
+    const next = new BleHallSensorSource(() => settings.instrument, () => {
+      if (source !== next) return;
+      source = null;
+      setConnected(false);
+      reading.textContent = `Sensor ${slot + 1} dropped out · reconnecting when it is back (check its battery)`;
+      scheduleReconnect();
+    });
+    // Board time restarts when it resets, so each connection gets a fresh filter.
+    rebuildMapper();
+    try {
+      if (device) await next.startWith(device, onSample);
+      else await next.start(onSample);
+    } catch (error) {
+      next.stop();
+      throw error;
+    }
+    source = next;
+    wanted = true;
+    lastDevice = device ?? next.device;
+    setConnected(true);
+    reading.textContent = `Connected · ${next.deviceName} · waiting for readings…`;
+    if (next.deviceId && next.deviceId !== settings.deviceId) {
+      settings.deviceId = next.deviceId;
+      saved();
+    }
+  };
+  /** Quietly reconnect to the remembered board; keep trying while it is wanted. */
+  const reconnect = async () => {
+    if (source || !wanted) return;
+    const device = lastDevice ?? await knownHallDevice(settings.deviceId);
+    if (!device) {
+      reading.textContent = `Sensor ${slot + 1} not remembered by this browser · click Connect sensor ${slot + 1}`;
+      wanted = false;
+      return;
+    }
+    reading.textContent = `Reconnecting to ${device.name ?? 'the jaw sensor'}…`;
+    try {
+      await connect(device);
+    } catch {
+      reading.textContent = `Waiting for ${device.name ?? 'the jaw sensor'} · switched on and in range?`;
+      scheduleReconnect();
+    }
+  };
+
   connectButton.addEventListener('click', async () => {
-    if (source) {
-      source.stop();
+    window.clearTimeout(reconnectTimer);
+    if (source || wanted) {
+      wanted = false;
+      source?.stop();
       source = null;
       setConnected(false);
       return;
@@ -161,40 +239,24 @@ function mountSensorSlot(slot: number, settings: HallSettings, saved: () => void
       reading.textContent = 'This browser has no Bluetooth support · use Chrome or Edge on a computer';
       return;
     }
-    const next = new BleHallSensorSource(() => settings.instrument, () => {
-      if (source !== next) return;
-      source = null;
-      setConnected(false);
-      reading.textContent = 'Sensor disconnected · check its battery, then connect again';
-    });
     connectButton.disabled = true;
     reading.textContent = `Choose the board for sensor ${slot + 1} in the Chrome window…`;
     try {
-      // Board time restarts when it resets, so each connection gets a fresh filter.
-      rebuildMapper();
-      await next.start((sample) => {
-        latestRaw = sample.raw;
-        const value = mapper?.update(sample);
-        if (value) {
-          latestOpening = value.openness;
-          onOpening(value.instrument, value.openness);
-        }
-        if (performance.now() - lastDisplay > DISPLAY_INTERVAL_MS) {
-          lastDisplay = performance.now();
-          showReading();
-        }
-      });
-      source = next;
-      setConnected(true);
-      reading.textContent = `Connected · ${next.deviceName} · waiting for readings…`;
+      await connect();
     } catch (error) {
-      next.stop();
       const message = error instanceof Error ? error.message : String(error);
       reading.textContent = /cancel/i.test(message) ? 'Not connected' : `Could not connect: ${message}`;
     } finally {
       connectButton.disabled = false;
     }
   });
+
+  // A board connected here before reconnects by itself when the page opens.
+  if (settings.deviceId && webBluetooth()?.getDevices) {
+    wanted = true;
+    setConnected(false);
+    void reconnect();
+  }
 
   rebuildMapper();
   describeCalibration();

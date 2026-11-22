@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.212 — Jaw sensors reconnect, work without camera
+
+- Jaw sensors reconnect by themselves: each sensor slot remembers its board. After an unexpected dropout (battery, out of range) it keeps trying every few seconds until the board is back; the button reads "Stop reconnecting" meanwhile. When the page opens, boards connected before reconnect without Chrome's device list where Chrome allows it; otherwise click Connect as before.
+- Jaw sensors now also work with camera tracking turned off (Sandbox only). Connect the sensors in the camera setup first, then turn camera tracking off.
+
 ## Build 0.211 — Fast pull keeps the tail in the loop
 
 - Knot recognition with fast hands: while the tail is being pulled through the loop, it is now held inside the loop firmly enough that a quick pull no longer makes it slip out and lose the throw. A 3-throw knot tied at 2× hand speed now keeps its third throw. Engine comparison: Claude 23/24, Codex 23/24, Classic 21/24 (synthetic scripted hands).

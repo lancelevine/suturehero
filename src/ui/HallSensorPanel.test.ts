@@ -37,3 +37,9 @@ it('flags two sensors on the same instrument', () => {
   expect(duplicateInstruments([slot('needleDriver'), slot('forceps')])).toEqual([]);
   expect(duplicateInstruments([slot('forceps'), slot('forceps')])).toEqual(['forceps']);
 });
+
+it('remembers the board id per slot, ignoring invalid ids', () => {
+  expect(parseHallSettings({ instrument: 'forceps', closed: 1, open: 900, deviceId: 'abc' }).deviceId).toBe('abc');
+  expect(parseHallSettings({ instrument: 'forceps', deviceId: 7 }).deviceId).toBeUndefined();
+  expect(parseHallSettings({ instrument: 'forceps', deviceId: '' }).deviceId).toBeUndefined();
+});

@@ -34,23 +34,41 @@ interface BluetoothServer {
   getPrimaryService(uuid: string): Promise<{ getCharacteristic(uuid: string): Promise<BluetoothCharacteristic> }>;
   disconnect(): void;
 }
-interface BluetoothDeviceLike extends EventTarget {
+export interface BluetoothDeviceLike extends EventTarget {
+  id?: string;
   name?: string;
   gatt?: { connect(): Promise<BluetoothServer> };
+  /** Chrome: report advertisements from an already permitted device (used to reconnect when it is back in range). */
+  watchAdvertisements?(): Promise<void>;
 }
 interface BluetoothLike {
   requestDevice(options: { filters: Array<{ services: string[] }>; optionalServices?: string[] }): Promise<BluetoothDeviceLike>;
+  /** Chrome: devices this site was already allowed to use (no device chooser needed). */
+  getDevices?(): Promise<BluetoothDeviceLike[]>;
 }
 
 export function webBluetooth(): BluetoothLike | null {
   return (navigator as Navigator & { bluetooth?: BluetoothLike }).bluetooth ?? null;
 }
 
+/** A board this site was allowed to use before, by Chrome's device id, or null (not remembered, or the browser cannot list devices). */
+export async function knownHallDevice(id: string | undefined): Promise<BluetoothDeviceLike | null> {
+  const bluetooth = webBluetooth();
+  if (!id || !bluetooth?.getDevices) return null;
+  try {
+    return (await bluetooth.getDevices()).find((device) => device.id === id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Streams one sensor's readings for one instrument. `start` must run from a click (browser rule). */
 export class BleHallSensorSource implements HallSensorSource {
   private server: BluetoothServer | null = null;
   private characteristic: BluetoothCharacteristic | null = null;
-  private device: BluetoothDeviceLike | null = null;
+  private _device: BluetoothDeviceLike | null = null;
+  /** The board this source was last connected to. */
+  get device() { return this._device; }
   private readonly onValue = () => {
     const view = this.characteristic?.value;
     const packet = view ? parseHallPacket(view) : null;
@@ -61,16 +79,27 @@ export class BleHallSensorSource implements HallSensorSource {
 
   constructor(private readonly instrument: () => HallInstrument, private readonly disconnected?: () => void) {}
 
-  get deviceName() { return this.device?.name ?? HALL_DEVICE_NAME; }
+  get deviceName() { return this._device?.name ?? HALL_DEVICE_NAME; }
+  /** Chrome's id for the connected board, remembered to reconnect to it later. */
+  get deviceId() { return this._device?.id; }
 
+  /** Ask the user to choose a board (must run from a click), then connect. */
   async start(listener: HallReadingListener) {
     const bluetooth = webBluetooth();
     if (!bluetooth) throw new Error('This browser has no Bluetooth support · use Chrome or Edge on a computer');
+    await this.startWith(await bluetooth.requestDevice({ filters: [{ services: [HALL_SERVICE_UUID] }] }), listener);
+  }
+
+  /** Connect to a board the site may already use (from `knownHallDevice`), without the chooser. */
+  async startWith(device: BluetoothDeviceLike, listener: HallReadingListener) {
     this.listener = listener;
-    this.device = await bluetooth.requestDevice({ filters: [{ services: [HALL_SERVICE_UUID] }] });
-    this.device.addEventListener('gattserverdisconnected', this.onDisconnect);
-    if (!this.device.gatt) throw new Error('The sensor offers no Bluetooth services');
-    this.server = await this.device.gatt.connect();
+    if (this._device !== device) {
+      this._device?.removeEventListener('gattserverdisconnected', this.onDisconnect);
+      this._device = device;
+      this._device.addEventListener('gattserverdisconnected', this.onDisconnect);
+    }
+    if (!this._device.gatt) throw new Error('The sensor offers no Bluetooth services');
+    this.server = await this._device.gatt.connect();
     const service = await this.server.getPrimaryService(HALL_SERVICE_UUID);
     this.characteristic = await service.getCharacteristic(HALL_READING_UUID);
     this.characteristic.addEventListener('characteristicvaluechanged', this.onValue);
@@ -79,7 +108,7 @@ export class BleHallSensorSource implements HallSensorSource {
 
   stop() {
     this.characteristic?.removeEventListener('characteristicvaluechanged', this.onValue);
-    this.device?.removeEventListener('gattserverdisconnected', this.onDisconnect);
+    this._device?.removeEventListener('gattserverdisconnected', this.onDisconnect);
     if (this.server?.connected) this.server.disconnect();
     this.characteristic = null;
     this.server = null;

@@ -110,6 +110,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-23 — Claude — Jaw sensors reconnect, work without camera (build 0.212)
+
+- `BleHallSensorSource`: `startWith(device)` connects without the chooser; `knownHallDevice(id)` uses `navigator.bluetooth.getDevices()` when the browser has it; `device`/`deviceId` getters added.
+- `HallSensorPanel`: per-slot `deviceId` in `suturehero.hallJaw.v2`, `wanted` flag and `lastDevice`. On an unexpected disconnect it retries every `RECONNECT_INTERVAL_MS` (4 s) until connected or the user stops it. On load, saved boards reconnect when `getDevices` exists. Settings test extended.
+- `main.ts`: jaw-opening messages and their application are no longer gated on `cameraEnabled`. Camera jaw tracking is gone (0.205), so only the sensors send them.
+- `check-hall-sensor` extended (camera off, dropout and reconnect, reload reconnect) and passes. tsc and panel/source tests pass.
+- Lance to test: reload the page and watch both sensors reconnect. If they don't, Chrome may not support remembered Bluetooth devices on that PC; Connect still works. Switch one board off and on and watch it come back. Turn camera tracking off and check the jaws still move.
+
 ### 2026-11-22 — Claude — Fast pull keeps the tail in the loop (build 0.211)
 
 - Follow-up attempt, not shipped: thread–driver contact changes in `InstrumentThreadContact.resolve` `correct()` to stop the coil creeping round a jittering, pulling driver (surgeon's @ 2× 30 fps jitter).
