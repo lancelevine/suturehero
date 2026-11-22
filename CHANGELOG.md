@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.211 — Fast pull keeps the tail in the loop
+
+- Knot recognition with fast hands: while the tail is being pulled through the loop, it is now held inside the loop firmly enough that a quick pull no longer makes it slip out and lose the throw. A 3-throw knot tied at 2× hand speed now keeps its third throw. Engine comparison: Claude 23/24, Codex 23/24, Classic 21/24 (synthetic scripted hands).
+
 ## Build 0.210 — Fast throws at 30 fps recognised correctly
 
 - Knot recognition at a low frame rate (30 fps) with fast hands:

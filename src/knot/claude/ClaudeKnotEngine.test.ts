@@ -32,3 +32,11 @@ it('locks a surgeon’s knot at 2× hand speed and 30 fps', async () => {
   expect(model.sequence!.throws.map((t) => t.wraps), model.instruction).toEqual([2, 1]);
   expect(model.sequence!.locked, model.instruction).toBe(true);
 }, 300000);
+
+it('keeps the third throw of a 3-throw knot at 2× hand speed and 120 fps', async () => {
+  // The fast pull carried the provisionally threaded tail out of the third loop before
+  // the gentle containment correction could hold it, so the throw was discarded (build 0.211).
+  const model = await tieKnot(new ClaudeKnotEngine(), 2, 120, [[2, 1], [1, -1], [1, 1]]);
+  expect(model.sequence!.throws, model.instruction).toHaveLength(3);
+  expect(model.sequence!.locked, model.instruction).toBe(true);
+}, 300000);

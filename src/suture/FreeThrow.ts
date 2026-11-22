@@ -5,6 +5,14 @@ import {ThreadStrand} from './ThreadStrand';
 import type {TailPassage} from './TailPassage';
 import {MaterialOpening} from './MaterialOpening';
 
+/** Share of the post-in-bight error corrected per step once retained, and while only provisionally threaded. */
+const POST_CORRECTION=0.4;
+const PENDING_POST_CORRECTION=0.9;
+/** Largest such correction per particle and step (scene units). */
+const POST_STEP_LIMIT=0.004;
+const PENDING_POST_STEP_LIMIT=0.02;
+/** Correction budget per particle and physics step for that containment, in rest lengths. */
+const PENDING_CONTAINMENT_BUDGET=0.6;
 /** Hold under full tension after which a fully fed loop counts as tightened (s). */
 const TAUT_SEAT_HOLD_S=0.5;
 /** Largest gap between the loop's crossing ends accepted under that tension (scene units; the slack-free limit is 0.04). */
@@ -214,14 +222,17 @@ export class FreeThrow {
     const settling=THREE.MathUtils.smoothstep(this.retentionAge,0,.6),stepBudget=pending?.15:.25+.75*settling*settling;
     if(!this.longCorrections||this.longCorrections.length<long.count)this.longCorrections=new Float64Array(long.count);
     if(!this.shortCorrections||this.shortCorrections.length<short.count)this.shortCorrections=new Float64Array(short.count);
-    const move=(strand:ThreadStrand,index:number,delta:THREE.Vector3,pins:ReadonlyMap<number,THREE.Vector3>,limit=0.004)=>{
+    const move=(strand:ThreadStrand,index:number,delta:THREE.Vector3,pins:ReadonlyMap<number,THREE.Vector3>,limit=0.004,containment=false)=>{
       // Engage a newly captured crossing over several physics steps rather
       // than snapping its neck and collar together in the first contact solve.
-      const spent=strand===long?this.longCorrections!:this.shortCorrections!,available=strand.restLength*stepBudget-spent[index];
+      // Keeping a provisionally threaded post inside the bight is exempt: a fast pull
+      // can carry it out within that ramp (lost third throw at 2× hand speed, 2026-11-22).
+      const budget=containment?PENDING_CONTAINMENT_BUDGET:stepBudget;
+      const spent=strand===long?this.longCorrections!:this.shortCorrections!,available=strand.restLength*budget-spent[index];
       if(pins.has(index)||available<=0)return;
       // A per-iteration cap multiplies into a large impulse across contact
       // sweeps. Share one correction budget across the entire physics step.
-      delta.clampLength(0,Math.min(limit,available)).multiplyScalar(engagement);
+      delta.clampLength(0,Math.min(limit,available)).multiplyScalar(containment?1:engagement);
       spent[index]+=delta.length();strand.applyContactCorrection(index,delta);
     };
     // The neck is a persistent material crossing, rather than an animated ring.
@@ -242,8 +253,13 @@ export class FreeThrow {
     let denominator=0;for(let i=this.first;i<=this.last;i++)if(!pinsLong.has(i))denominator+=w*w;
     for(let k=0;k<2;k++)if(!pinsShort.has(index+k))denominator+=weights[k]*weights[k];
     if(denominator<1e-9)return;
-    for(let i=this.first;i<=this.last;i++)move(long,i,error.clone().multiplyScalar(w/denominator*0.4),pinsLong);
-    for(let k=0;k<2;k++)move(short,index+k,error.clone().multiplyScalar(-weights[k]/denominator*0.4),pinsShort);
+    // While the tail is only provisionally threaded, a fast pull can carry it out of the
+    // bight faster than a partial correction restores it (lost third throw at 2× hand
+    // speed, 2026-11-22), so keep it in with a firmer correction.
+    const share=pending?PENDING_POST_CORRECTION:POST_CORRECTION;
+    const stepLimit=pending?PENDING_POST_STEP_LIMIT:POST_STEP_LIMIT;
+    for(let i=this.first;i<=this.last;i++)move(long,i,error.clone().multiplyScalar(w/denominator*share),pinsLong,stepLimit,pending);
+    for(let k=0;k<2;k++)move(short,index+k,error.clone().multiplyScalar(-weights[k]/denominator*share),pinsShort,stepLimit,pending);
     if(pending)return;
     if(this.phase==='seated'||pinsLong.size>1&&pinsShort.size>1){
       // Retained turns tighten around the post as material leaves the loop.

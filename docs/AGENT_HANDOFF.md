@@ -6,12 +6,12 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — fast-hand knot fixes (wrap count at 30 fps; tail held in loop during passage): src/suture/TailPassage.ts, FreeThrow.ts, src/gameplay/FreeKnotPractice.ts.
+- **In progress:** None.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
   (`KNOT_ENGINES=a,b` to pick; `KNOT_TRIALS=quick` for a short run).
-  Current (full run 2026-11-22, build 0.209): claude 22/24 (default), codex 22/24, classic 20/24,
+  Current (full run 2026-11-22, build 0.211): claude 23/24 (default), codex 23/24, classic 21/24,
   classic-worker (experimental).
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
@@ -109,6 +109,13 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-22 — Claude — Fast pull keeps the tail in the loop (build 0.211)
+
+- `src/suture/FreeThrow.ts` `resolve`: while 'passed' (pending), the post-in-bight containment correction is exempt from the engagement ramp and the 0.15 pending step budget. It now uses `PENDING_CONTAINMENT_BUDGET` 0.6 rest lengths, `PENDING_POST_CORRECTION` 0.9 and `PENDING_POST_STEP_LIMIT` 0.02. The retained values are unchanged as named constants (0.4, 0.004). Before, the fast pull carried the tail out of the third loop within the 0.4 s ramp and the throw reset.
+- New test in `ClaudeKnotEngine.test.ts`: the 3-throw knot at 2× 120 fps keeps 3 throws and locks.
+- Full trials: claude 23/24, codex 23/24, classic 21/24. The only remaining failure for claude/codex is surgeon's @ 2× 30 fps with jitter: the simulated thread creeps round the moving driver and forms a real second coil (trimmed coil about 1.95 turns from a 1.35-turn wrap). That needs thread–driver tangential friction work.
+- Checks: suture, gameplay, knot and demo unit tests (250 pass).
 
 ### 2026-11-22 — Claude — Fast throws at 30 fps recognised correctly (build 0.210)
 
