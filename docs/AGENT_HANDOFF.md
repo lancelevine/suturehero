@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — removing all camera jaw tracking (balls, marker-relative, handle prism); Hall sensor stays. Files: src/tracking.ts, src/jaw/, src/input/*ball*, jaw checks.
+- **In progress:** None.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
@@ -69,9 +69,9 @@ entry when finishing.
     change (`waitForNavigation`); same on build 0.169, so older than the
     Sandbox batch. Not investigated. Its `canvas` selector was fixed (camera
     lab canvases made it ambiguous).
-  - Legacy classic-ball jaw code in `src/tracking.ts` was NOT removed: it
-    still carries the colored and striped modes, which AGENTS.md says
-    remain supported. Removing it needs Lance's decision on those modes.
+  - `check-tracking-lab` fails with a strict-mode error (two "Replay"
+    buttons in `.lab-session`); same on build 0.204, so not caused by the
+    jaw removal. Not investigated.
   - Tracking Lab library can be clipped by camera setup's body overflow lock;
     browser zoom-out is the current workaround. A separate Lab scrolling fix
     is still needed.
@@ -95,13 +95,11 @@ entry when finishing.
   - `src/tracking.ts` (~150 KB) and `src/main.ts` (~57 KB) are monolithic and
     are the most likely place for merge conflicts.
 - **Next up (proposed, not started):**
-  1. After Lance confirms the new jaw tracker on hardware: delete the
-     classic jaw tracker (~70 KB: ball code in `src/tracking.ts`,
-     `colorBallSearch`, `stripedBallSearch`, `ballPairTracking`,
-     `BallMotionTracker`, `JawCalibration`, `JawViewFusion`, the striped
-     worker, and their checks) in its own commit.
-  2. New jaw tracker follow-ups: second camera (stereo), forceps balls,
-     reduce frame lag by reading balls from the same frame as the markers.
+  1. Jaw sensor follow-ups: a second board for the forceps, auto-reconnect,
+     battery level, jaws in Sandbox mode without camera tracking, and the
+     firmware variant for Lance's Pro Micro-style board (pins 0.02/1.15).
+  2. Optional clean-up: the Tracking Lab still has empty ball fields
+     (`balls`, `ballSupported`) and "Classic jaw pairs" summary lines.
   3. Continue splitting `src/tracking.ts`; next candidate: stereo
      calibration import/status panel.
   4. Add a code formatter in one dedicated commit (agree with Lance first).
@@ -112,6 +110,18 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-22 — Claude — Remove camera jaw tracking (Hall sensor only) (build 0.205)
+
+- At Lance's request, removed all camera jaw tracking. The Hall sensor is the only jaw input.
+- Deleted: `src/jaw/` (except `jawGeometry`, moved to `src/input/bodyGeometry.ts` for the ring-axis overlay), `src/input/{BallMotionTracker,JawCalibration,JawViewFusion,ballPairTracking,colorBallSearch,jawCameraMode,jawTrackingStorage,stripedBallSearch,sphereSilhouette,stripedReacquireWorker}`, and `src/trackingLab/markerJawDiagnostics`.
+- Deleted checks: ball-pairs, striped-jaws, striped-lifecycle, marker-jaws, handle-jaws, handle-jaws-stereo, tracking-lab-marker-jaws.
+- In `tracking.ts`: removed the ball state/UI/scan/overlay block, the markerJaws wiring, handle-prism IDs in decode search and `markerImageAt`. `sendJawOpening` is kept for the Hall sensor. The jaw markup is now `#jaw-sensor-controls`, which TrackingLayout passes to the calibration panel's Jaws tab.
+- Storage helpers for the jaw keys were removed. Old saved values are left orphaned and unused.
+- Kept: `ballTrackingSlots` (only its `BallInstrumentName` type is used) and `jawRoll` (virtual jaw orientation, not tracking). The `jawInverted` profile field is kept for saved-data compatibility but has no UI.
+- The Tracking Lab snapshot keeps its ball fields, empty.
+- Checks: tsc; full unit suite 690/690 (Node 24); production build; browser checks hall-sensor, iphone-start, camera-controls and layout pass. tracking-lab fails as on 0.204 (see Known issues).
+- Lance to test: camera tracking still follows the instruments as before, and the Jaws tab shows the jaw sensor panel and works.
 
 ### 2026-11-21 — Claude — Bluetooth Hall-sensor jaw input (build 0.204)
 

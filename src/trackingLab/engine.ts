@@ -20,7 +20,6 @@ window.sutureLabEngine = {
         // No replay configuration or pose events escape into the live simulator.
         const storage = Object.assign(Object.create(null), session.configuration.storage) as Storage;
         Object.defineProperties(storage, { getItem: { value: (k: string) => storage[k] ?? null }, setItem: { value: (k: string, v: string) => { storage[k] = String(v); } }, removeItem: { value: (k: string) => { delete storage[k]; } }, clear: { value: () => { Object.keys(storage).forEach(k => delete storage[k]); } }, key: { value: (i: number) => Object.keys(storage)[i] ?? null }, length: { get: () => Object.keys(storage).length } });
-        if(!storage.getItem('suturehero.jawEngine.v1'))storage.setItem('suturehero.jawEngine.v1','classic');
         Object.defineProperty(window, 'localStorage', { value: storage });
         Object.defineProperty(performance, 'now', { value: () => clock });
         const cameraFor = (video: HTMLVideoElement) => video.id === 'camera-video-2' ? 1 : 0;
@@ -53,7 +52,7 @@ window.sutureLabEngine = {
                 element.checked = setting.checked;
         }
         // Apply only mode changes whose handlers establish essential derived state.
-        for (const id of ['tracker-type', 'tracking-mode', 'needle-ball-pattern'])
+        for (const id of ['tracker-type', 'tracking-mode'])
             document.getElementById(id)?.dispatchEvent(new Event('change'));
         for (const camera of session.cameras) {
             const select = document.getElementById(camera.index ? 'camera-select-2' : 'camera-select') as HTMLSelectElement;

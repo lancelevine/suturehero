@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { localCorners, solvePrismPose } from '../input/prismPose';
+import { localCorners, solvePrismPose } from './prismPose';
 import {
   bodyRay,
   defaultIntrinsics,
@@ -8,7 +8,7 @@ import {
   pathPosition,
   projectBodyPoint,
   type BodyPose,
-} from './jawGeometry';
+} from './bodyGeometry';
 
 const k = defaultIntrinsics(960, 540);
 const pose = (eulerDeg: [number, number, number], translation: [number, number, number]): BodyPose => ({

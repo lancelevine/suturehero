@@ -80,9 +80,8 @@ area they cover; they are not run by CI.
   folder), then `ARUCO_LIBRARY_DIR=<that folder>/package/src`.
 - Useful set for tracking changes: `check-tracking-storage`,
   `check-camera-controls`, `check-tracking-motion`, `check-driver-depth`,
-  `check-ring-handoffs`, `check-ball-pairs`, `check-striped-jaws`,
-  `check-striped-lifecycle`, `check-calibration-preview`, `check-marker-jaws`,
-  `check-handle-jaws`, `check-handle-jaws-stereo`, `check-profiler`.
+  `check-ring-handoffs`, `check-calibration-preview`, `check-profiler`.
+  (The camera jaw checks were removed with camera jaw tracking in build 0.205.)
 - iPhone start-up (`src/ui/iphoneStart.ts`, iPhone camera mode): run
   `check-iphone-start`.
 - Demo button (`src/demo/`): run `src/demo/freeKnotDemo.test.ts` (about a
@@ -101,13 +100,10 @@ area they cover; they are not run by CI.
   the preset size); with it `check-stereo-motion` passes and
   `check-stereo-rig-faces` exceeds its 3 px fit limit (upscaled 2D scene).
   In this sandbox (software rendering) two 1280×800 synthetic cameras deliver
-  frames 150–240 ms apart, so stereo pairing (limit 120 ms) drops out and
-  `check-handle-jaws-stereo` fails there; a sandbox limit, not a tracking bug.
+  frames 150–240 ms apart, so stereo pairing (limit 120 ms) drops out there;
+  a sandbox limit, not a tracking bug.
 - Flaky: `check-depth-stability` (~40–60% pass in this sandbox, also on
-  build 0.132; the 6/6 after the sub-pixel corner fix did not hold up),
-  `check-handle-jaws` (single-camera prism; since 0.138 face offsets are
-  no longer snapped to the ideal prism, so ~5° synthetic alignment noise
-  fails it at −15,60,0)
+  build 0.132; the 6/6 after the sub-pixel corner fix did not hold up)
   (see handoff log).
 
 Never weaken a test threshold just to make it pass. If a limit is genuinely
@@ -128,8 +124,7 @@ wrong, say why in the commit message and the handoff entry.
   not yet track well. Do not break the single-camera path while working on
   stereo.
 - **Upcoming cameras:** two OV9281 USB 2.0 webcams — **monochrome**, global
-  shutter, 1280×800 at up to 120 fps (MJPEG). Implications: colored-ball jaw
-  tracking cannot work with them (use white or striped balls); the camera
+  shutter, 1280×800 at up to 120 fps (MJPEG). Implications: the camera
   request (`CAMERA_REQUEST` in `src/input/cameraDevices.ts`) must ask for
   1280×800 and a high frame rate instead of 1080p/30 fps; markers cover fewer pixels than at
   1080p; the two cameras are not hardware-synchronized. Keep current cameras
@@ -139,9 +134,11 @@ wrong, say why in the commit message and the handoff entry.
   white label, not the detected black-square edge. The physical pads remain
   19 mm. The prism and
   6-face paths still exist; don't remove them without asking.
-- **Jaw markers:** needle driver uses **solid white** balls (new, untested on
-  real hardware). Forceps marker choice is still undecided. Colored and
-  striped modes remain supported.
+- **Jaws:** measured only by the **Bluetooth Hall-sensor board** (nRF52840 +
+  OH49E, firmware in `firmware/hall-jaw/`, app side `src/ui/HallSensorPanel.ts`).
+  All camera jaw tracking (coloured/striped/white balls, marker-relative
+  tracker, handle prism) was removed in build 0.205 at Lance's request; do not
+  re-add it without asking.
 - **Purpose:** intended for training medical students/residents in standard
   suturing and microsurgery, and for research. Be accurate about what is
   validated: say "approximate" or "synthetic test only" when that's the truth.
@@ -157,9 +154,6 @@ wrong, say why in the commit message and the handoff entry.
 - `src/input/`: tracking, calibration, marker/ball detection, workers.
   Camera device handling (requested resolution/frame rate, device lists,
   remembered cameras) is in `src/input/cameraDevices.ts`.
-- `src/jaw/`: the new marker-relative white-ball jaw tracker (see the 2026-11-08
-  handoff entry). The classic ball code in `src/tracking.ts` is legacy and
-  slated for removal; don't extend it.
 - `src/suture/`, `src/tissue/`, `src/gameplay/`: thread/knot physics, tissue,
   practice-session logic. These are well unit-tested; keep it that way.
 - `src/scene/`, `src/visuals/`, `src/ui/`: rendering and UI.

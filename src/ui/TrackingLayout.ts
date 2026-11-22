@@ -110,7 +110,7 @@ export function mountTrackingLayout(root:HTMLElement){
  const simulation=section(diagnostics,'Simulated input');simulation.append(group('simulation','.tracking-actions'));
  const expand=root.querySelector('#camera-expand');if(expand)head.append(expand);
  head.append(fullViewButton);
- const jaws=group('ball-enable','details');
+ const jaws=root.querySelector<HTMLElement>('#jaw-sensor-controls')!;
  let host=document.querySelector<HTMLElement>('#instrument-calibration');
  if(!host){host=document.createElement('aside');host.className='tracking-calibration-card';layout.append(host);}
  mountCalibrationPanel(host).attachJawControls(jaws);

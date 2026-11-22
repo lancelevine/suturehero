@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  jawStorageKey,
   parseDepthCalibration,
-  parseNeedleJawPattern,
   parseTrackerType,
   trackerTypeStorageKey,
-  patternJawStorageKey,
   readStored,
   readStoredJson,
   removeStored,
@@ -60,21 +57,6 @@ describe('saved choices', () => {
     expect(parseTrackerType('prism')).toBe('prism');
     expect(parseTrackerType(null)).toBe('ring8');
     expect(parseTrackerType('ring12')).toBe('ring8');
-  });
-
-  it('accepts known needle-driver ball patterns and falls back to color', () => {
-    expect(parseNeedleJawPattern('white10')).toBe('white10');
-    expect(parseNeedleJawPattern('striped10')).toBe('striped10');
-    expect(parseNeedleJawPattern('color')).toBe('color');
-    expect(parseNeedleJawPattern(null)).toBe('color');
-    expect(parseNeedleJawPattern('neon')).toBe('color');
-  });
-
-  it('keeps the existing jaw storage key names', () => {
-    expect(jawStorageKey(0)).toBe('suturehero.jaw-tracking.v1');
-    expect(jawStorageKey(1)).toBe('suturehero.jaw-tracking.camera2.v1');
-    expect(patternJawStorageKey(0, 'white10')).toBe('suturehero.jaw-tracking.v1.white10');
-    expect(patternJawStorageKey(1, 'striped10')).toBe('suturehero.jaw-tracking.camera2.v1.striped10');
   });
 });
 

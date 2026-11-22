@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { expect, it } from 'vitest';
 import { localCorners } from '../input/prismPose';
-import { defaultIntrinsics, projectBodyPoint, type BodyPose } from '../jaw/jawGeometry';
+import { defaultIntrinsics, projectBodyPoint, type BodyPose } from '../input/bodyGeometry';
 import { lineIntersection, ringAxisSegment, RING_AXIS_HALF_LENGTH_MM } from './ringAxisOverlay';
 
 it('draws the ring shaft axis through the projected ring centre', () => {

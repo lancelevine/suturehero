@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.205 — Remove camera jaw tracking (Hall sensor only)
+
+- Camera jaw tracking is removed. Jaws now come only from the Bluetooth Hall-sensor board. Removed: coloured, striped and solid-white ball tracking; the marker-relative jaw tracker; and handle-prism jaws. That is about 5,300 lines of code.
+- Instrument calibration → Jaws now shows only the jaw sensor panel. The old "Jaw tracking" switch, ball assignment, closed/open capture and "Reverse jaw opening" controls are gone. The sensor's own closed/open calibration handles the direction.
+- Camera tracking does a little less work per frame: no ball scans, and no decoding of handle-prism markers.
+
 ## Build 0.204 — Bluetooth Hall-sensor jaw input
 
 - Bluetooth jaw sensor: Instrument calibration → Jaws → Jaw sensor (Bluetooth). It connects the Hall-sensor board (Seeed XIAO nRF52840 + OH49E, firmware in `firmware/hall-jaw/`), lets you pick the instrument it is on, and calibrates with "Set closed" and "Set open". The opening then drives that instrument's jaws in the practice scene. It needs Chrome or Edge on a computer; the iPhone's Safari has no Bluetooth support. Tested with a simulated sensor only.

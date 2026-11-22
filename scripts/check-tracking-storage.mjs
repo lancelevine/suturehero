@@ -35,7 +35,6 @@ try {
     await page.evaluate(() => {
       localStorage.clear();
       localStorage.setItem('suturehero.trackerType', 'ring8');
-      localStorage.setItem('suturehero.needleJawPattern.v1', 'white10');
       localStorage.setItem('suturehero.depthCalibration.v2', JSON.stringify({near: null, far: null, range: 600, size: {}}));
       localStorage.setItem('suturehero.stereoCalibration.v1', '{corrupt');
     });
@@ -43,11 +42,10 @@ try {
     await page.waitForSelector('#camera-settings-controls > *');
     const restored = await page.evaluate(() => ({
       tracker: document.querySelector('#tracker-type').value,
-      pattern: document.querySelector('#needle-ball-pattern').value,
       depth: document.querySelector('#working-depth-mm').value,
       stereo: localStorage.getItem('suturehero.stereoCalibration.v1'),
     }));
-    assert.deepEqual(restored, {tracker: 'ring8', pattern: 'white10', depth: '600', stereo: null});
+    assert.deepEqual(restored, {tracker: 'ring8', depth: '600', stereo: null});
 
     await page.evaluate(() => {
       const select = document.querySelector('#tracker-type');

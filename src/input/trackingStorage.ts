@@ -17,13 +17,6 @@ export const TRACKING_STORAGE_KEYS = {
   iphoneTrackerType: 'suturehero.iphoneTrackerType.v1',
   stereoCalibration: 'suturehero.stereoCalibration.v1',
   depthCalibration: 'suturehero.depthCalibration.v2',
-  needleJawPattern: 'suturehero.needleJawPattern.v1',
-  jawTrackingCamera1: 'suturehero.jaw-tracking.v1',
-  jawTrackingCamera2: 'suturehero.jaw-tracking.camera2.v1',
-  /** Which jaw tracker runs: 'marker' (white balls, marker-relative) or 'classic'. */
-  jawEngine: 'suturehero.jawEngine.v1',
-  /** Marker-relative jaw models per instrument (src/jaw/JawTracker.ts). */
-  markerJawModels: 'suturehero.markerJawModels.v1',
   /** Stereo workspace axes and scale (src/input/stereoWorkspace.ts). */
   stereoWorkspace: 'suturehero.stereoWorkspace.v1',
 } as const;
@@ -90,25 +83,6 @@ export function parseTrackerType(value: unknown): TrackerType {
  */
 export function trackerTypeStorageKey(mode: string): string {
   return mode === 'iphone' ? TRACKING_STORAGE_KEYS.iphoneTrackerType : TRACKING_STORAGE_KEYS.trackerType;
-}
-
-// --- Needle-driver jaw ball pattern -----------------------------------------
-
-export const NEEDLE_JAW_PATTERNS = ['color', 'striped10', 'white10'] as const;
-export type NeedleJawPattern = (typeof NEEDLE_JAW_PATTERNS)[number];
-
-export function parseNeedleJawPattern(value: unknown): NeedleJawPattern {
-  return (NEEDLE_JAW_PATTERNS as readonly unknown[]).includes(value) ? (value as NeedleJawPattern) : 'color';
-}
-
-/** Saved colored-ball jaw setup for camera 0 (first) or 1 (second). */
-export function jawStorageKey(camera: number): string {
-  return camera ? TRACKING_STORAGE_KEYS.jawTrackingCamera2 : TRACKING_STORAGE_KEYS.jawTrackingCamera1;
-}
-
-/** Saved needle-driver setup for the white or striped ball patterns. */
-export function patternJawStorageKey(camera: number, pattern: NeedleJawPattern): string {
-  return jawStorageKey(camera) + (pattern === 'white10' ? '.white10' : '.striped10');
 }
 
 // --- Single-camera depth calibration ----------------------------------------
