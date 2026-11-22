@@ -8,7 +8,7 @@ try{
  if(process.env.ARUCO_LIBRARY_DIR)await context.route('https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/*',async route=>route.fulfill({contentType:'application/javascript',body:await readFile(join(process.env.ARUCO_LIBRARY_DIR,new URL(route.request().url()).pathname.split('/').at(-1)))}));
  const page=await context.newPage();await page.route('**/recognition-check',r=>r.fulfill({contentType:'text/html',body:'<!doctype html>'}));
  await page.context().route('**/scripts/fixtures/aruco-4x4-50.png',async r=>r.fulfill({contentType:'image/png',body:await readFile(new URL('./fixtures/aruco-4x4-50.png',import.meta.url))}));
- await page.goto(new URL('recognition-check',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5175/').href);
+ await page.goto(new URL('recognition-check',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  const result=await page.evaluate(async path=>{
   const worker=new Worker(path);let sequence=0;
   const request=message=>new Promise((resolve,reject)=>{const id=++sequence,timer=setTimeout(()=>reject(Error('Worker timed out')),15000);worker.onmessage=({data})=>{if(data.type==='error'){clearTimeout(timer);reject(Error(data.message));}else if(data.type==='ready'||data.id===id){clearTimeout(timer);resolve(data);}};worker.onerror=e=>reject(Error(e.message));worker.postMessage({...message,id});});

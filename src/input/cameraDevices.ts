@@ -73,9 +73,24 @@ export function cameraConstraints(deviceId?: string, request: { width: number; h
   };
 }
 
+/** A camera type recognised from the camera's name, when it is unambiguous (labels are only known after permission). */
+export function cameraModeForLabel(label: string): CameraModeId | null {
+  return /ov9281|b0332/i.test(label) ? 'ov9281' : null;
+}
+
 export async function openCamera(deviceId?: string): Promise<MediaStream> {
   if(recordedInput())return recordedInput()!.open(deviceId);
-  if (cameraMode() !== 'iphone') return navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId));
+  if (cameraMode() !== 'iphone') {
+    const stream = await navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId));
+    // An OV9281 opened with another camera type would run at 1080p/30 or be refused a
+    // monochrome-correct setup: switch the type and reopen at 1280×800 / 120 fps (2026-11-23).
+    const recognised = cameraModeForLabel(stream.getVideoTracks()[0]?.label ?? '');
+    if (!recognised || recognised === cameraMode()) return stream;
+    setCameraMode(recognised);
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('suturehero:camera-mode-changed', { detail: { mode: recognised, automatic: true } }));
+    for (const track of stream.getTracks()) track.stop();
+    return navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId));
+  }
   const stream = await navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId, cameraRequest(), true));
   // A lens-switching camera ("Back Dual Wide Camera") jumps between lenses at close range:
   // reopen with the single 1× "Back Camera" (labels are only known once permission is given).

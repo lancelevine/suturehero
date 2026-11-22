@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cameraModeForLabel,
   CAMERA_REQUEST,
   cameraConstraints,
   cameraControlScale,
@@ -145,5 +146,14 @@ describe('iPhone camera mode', () => {
       if (original) Object.defineProperty(globalThis, 'navigator', original);
       else delete (globalThis as { navigator?: unknown }).navigator;
     }
+  });
+});
+
+describe('camera type from the camera name', () => {
+  it('recognises the OV9281 and leaves other cameras alone', () => {
+    expect(cameraModeForLabel('Arducam OV9281 USB Camera (0c45:6366)')).toBe('ov9281');
+    expect(cameraModeForLabel('B0332 global shutter')).toBe('ov9281');
+    expect(cameraModeForLabel('Logitech BRIO')).toBeNull();
+    expect(cameraModeForLabel('')).toBeNull();
   });
 });

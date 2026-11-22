@@ -5,7 +5,7 @@ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'
 try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/src/main.ts*',async route=>{const response=await route.fetch(),body=await response.text(),patched=body.replace(/const scissors = new Scissors\(\);/,'window.__neutralCheckTools = tools; const scissors = new Scissors();');assert.notEqual(body,patched,'test must locate tool initialization');await route.fulfill({response,body:patched});});
- await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5178/').href);await page.waitForFunction(()=>window.__neutralCheckTools?.length===2);
+ await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);await page.waitForFunction(()=>window.__neutralCheckTools?.length===2);
  const initial=await page.evaluate(()=>window.__neutralCheckTools.map(t=>t.root.position.toArray()));
  await page.locator('[data-calibration-tool=forceps]').click();
  await page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts'),T=await import('/node_modules/.vite/deps/three.js');window.source=[.9,2.3,1.7];window.feed=setInterval(()=>{const pose=c.transform('forceps',new T.Vector3(...window.source),new T.Quaternion());window.dispatchEvent(new CustomEvent('suturehero:tracking-pose',{detail:{type:'suturehero:tracking-pose',instrument:'forceps',position:pose.position.toArray(),quaternion:pose.quaternion.toArray()}}));},50);});

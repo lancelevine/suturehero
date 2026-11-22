@@ -4,7 +4,7 @@ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'
 try{
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/marker-motion-check',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Marker motion regression</title>'}));
- await page.goto(new URL('marker-motion-check',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5175/').href,{waitUntil:'domcontentloaded'});
+ await page.goto(new URL('marker-motion-check',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href,{waitUntil:'domcontentloaded'});
  const result=await page.evaluate(async path=>{
   const worker=new Worker(path,{type:'module'});let sequence=0;
   const request=message=>new Promise((resolve,reject)=>{const id=++sequence,timer=setTimeout(()=>reject(Error('Flow worker timed out')),10000);worker.onmessage=({data})=>{if(data.type==='error'){clearTimeout(timer);reject(Error(data.message));}else if(data.type==='ready'||data.id===id){clearTimeout(timer);resolve(data);}};worker.onerror=e=>reject(Error(e.message));worker.postMessage({...message,id});});

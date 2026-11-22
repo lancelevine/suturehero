@@ -96,6 +96,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-23 — Claude — OV9281 recognised automatically (build 0.216)
+
+- `src/input/cameraDevices.ts`: `cameraModeForLabel` (/ov9281|b0332/i). `openCamera`, for non-iPhone modes, reopens with the OV9281 request when the opened track's label matches and the mode differs, and dispatches `suturehero:camera-mode-changed`. `CameraSettingsPanel` follows that event. Unit test added; new `scripts/check-ov9281-detect.mjs` passes.
+- OV9281 rehearsal (`SUTURE_CAMERA_PRESET=ov9281`) after the 0.205 jaw removal: tracking-motion, ring-handoffs, driver-depth, calibration-preview and camera-controls pass. check-profiler fails on Camera 2 fps (two synthetic 1280×800 cameras in software rendering; the documented sandbox limit).
+- Twelve check scripts defaulted to ports 5174–5176; all now default to 5173, as AGENTS.md says.
+- Lance to check when the cameras arrive: the camera's name under Camera settings. If it doesn't contain "OV9281", tell an agent the name so it can be added.
+
 ### 2026-11-23 — Claude — Microsurgery heading fix; browser checks pass again (build 0.215)
 
 - App fix in `src/main.ts`: the per-frame heading update (Sandbox vs Simple interrupted suture) now keeps the microsurgery heading. Found by `check-practice-setup`.

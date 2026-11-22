@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {chromium} from 'playwright-core';
 import {installSyntheticCamera} from './synthetic-camera.mjs';
-const base=process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/';
+const base=process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 try{
  const context=await browser.newContext({viewport:{width:1440,height:1000}});

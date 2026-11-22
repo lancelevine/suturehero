@@ -4,7 +4,7 @@ import {chromium} from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
 try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5175/').href);
+ await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  await page.locator('[data-calibration-tool=forceps]').click();
  await page.evaluate(async()=>{const {instrumentCalibration:c}=await import('/src/input/InstrumentCalibration.ts'),T=await import('/node_modules/.vite/deps/three.js');window.rotation=[0,0,0];window.feed=setInterval(()=>{const axis=new T.Vector3(...window.rotation),angle=axis.length();c.transform('forceps',new T.Vector3(),angle?new T.Quaternion().setFromAxisAngle(axis.normalize(),angle):new T.Quaternion());},50);});
  await page.waitForFunction(()=>!document.querySelector('[data-neutral]').disabled);await page.locator('[data-neutral]').click();

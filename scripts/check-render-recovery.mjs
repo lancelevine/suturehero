@@ -12,7 +12,7 @@ try{
   const original=HTMLCanvasElement.prototype.getContext;window.__gpu=[];
   HTMLCanvasElement.prototype.getContext=function(type,...args){const gl=original.call(this,type,...args);if(gl&&(type==='webgl'||type==='webgl2')&&!window.__gpu.some(v=>v.gl===gl)){const item={gl,canvas:this,draws:0};window.__gpu.push(item);for(const name of ['drawElements','drawArrays']){const draw=gl[name].bind(gl);gl[name]=(...args)=>{item.draws++;return draw(...args);};}}return gl;};
  });
- await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/',{waitUntil:'domcontentloaded'});
+ await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>window.__gpu[0]?.draws>0);
  assert.equal(await page.evaluate(()=>window.__gpu.length),1);
  await page.locator('#begin-pass').click();const maneuver=await page.locator('#exercise-title').textContent();

@@ -54,6 +54,12 @@ export function createCameraSettingsPanel(container: HTMLElement, cameras: () =>
       describe();
     });
     describe();
+    // An OV9281 recognised when it starts switches the camera type by itself (cameraDevices.openCamera).
+    window.addEventListener('suturehero:camera-mode-changed', () => {
+      if (select.value === cameraMode()) return;
+      select.value = cameraMode();
+      describe();
+    });
     label.append(select);
     row.append(label);
     return [row, note];

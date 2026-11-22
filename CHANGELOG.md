@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.216 — OV9281 recognised automatically
+
+- OV9281 cameras are recognised by name: starting a camera whose name contains "OV9281" (or "B0332") switches the Camera type to OV9281 and reopens it at 1280×800 / 120 fps, so it doesn't run at the 1080p/30 webcam setting. Other cameras are unaffected. Synthetic test only; the real camera's name on Windows may differ.
+
 ## Build 0.215 — Microsurgery heading fix; browser checks pass again
 
 - Microsurgery: the title above the scene shows the procedure again (for example "Nerve anastomosis · one stitch"). Since the Sandbox work it had been overwritten every frame with "Sandbox" or "Simple interrupted suture".

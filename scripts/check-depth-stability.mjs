@@ -8,7 +8,7 @@ try{
  const context=await browser.newContext({viewport:{width:1440,height:1000}});
  if(process.env.ARUCO_LIBRARY_DIR)await context.route('https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/*',async route=>route.fulfill({contentType:'application/javascript',body:await readFile(join(process.env.ARUCO_LIBRARY_DIR,new URL(route.request().url()).pathname.split('/').at(-1)))}));
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await installSyntheticCamera(page);
- await page.goto(new URL('tracking.html',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/').href);await page.locator('#start-camera').click();
+ await page.goto(new URL('tracking.html',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);await page.locator('#start-camera').click();
  await page.waitForFunction(()=>document.querySelector('#tracking-filter-diagnostics').textContent.includes('forceps: distance'),{},{timeout:30000});
  await page.locator('[data-calibration-tool=forceps]').click();
  // Default span is deliberately left unchanged: the synthetic marker is beyond it.

@@ -3,7 +3,7 @@ import {chromium} from 'playwright-core';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'/usr/bin/chromium',args:['--no-sandbox','--enable-unsafe-swiftshader']});
 try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5176/').href);await page.locator('#tracker-type').waitFor({state:'attached'});
+ await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);await page.locator('#tracker-type').waitFor({state:'attached'});
  await page.getByRole('button',{name:'Tracking setup',exact:true}).click();
  // Ring black squares are 12 mm (measured; build 0.85).
  for(const [type,spacing,size,count] of [['ring6','60','12','6'],['prism','120','12','3'],['ring8','60','12','8'],['ring6','60','12','6']]){
