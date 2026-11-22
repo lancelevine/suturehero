@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.210 — Fast throws at 30 fps recognised correctly
+
+- Knot recognition at a low frame rate (30 fps) with fast hands:
+  - A single throw is no longer counted as a double wrap when the thread running to the forceps passes close to the needle driver.
+  - A fully pulled-through throw held at full tension for a second now counts as tightened even if the loop stays slightly open under the pull.
+  - A surgeon's knot tied at 2× hand speed at 30 fps now locks. New test; synthetic scripted hands.
+- The engine comparison is unchanged (Claude 22/24); this case is not part of it.
+
 ## Build 0.209 — Fast-pulled throws count as tightened
 
 - Knot recognition with fast hands: a throw pulled tight quickly, with both hands at the end of the thread, now counts as tightened after half a second of tension. Before, the throw only counted once the hands relaxed, so a quick second throw was missed (square knot at 2× hand speed). Engine comparison: Claude 22/24 (was 21), Codex 22/24 (was 21), Classic 20/24 (was 19). Synthetic scripted hands.

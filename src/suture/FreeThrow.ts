@@ -9,6 +9,10 @@ import {MaterialOpening} from './MaterialOpening';
 const TAUT_SEAT_HOLD_S=0.5;
 /** Largest gap between the loop's crossing ends accepted under that tension (scene units; the slack-free limit is 0.04). */
 const TAUT_SEAT_ENDS=0.06;
+/** After a longer hold at full tension (s), a wider gap is accepted: at 30 fps with fast pulls the
+ * fully fed loop stays about 0.09 open under the reach-limited tools (2026-11-22). */
+const TAUT_SEAT_LONG_HOLD_S=1;
+const TAUT_SEAT_LONG_ENDS=0.1;
 
 /** Material-space approximation of one retained instrument throw. No posed tools,
  * replacement thread mesh or calibrated knot-security/force claim. */
@@ -194,7 +198,7 @@ export class FreeThrow {
     const ends=long.points[this.first].distanceTo(long.points[this.last]);
     // Held at full tension (fast pulls end with both tools at their reach limit), the
     // crossing ends stay slightly apart; a fully fed loop held taut still counts as tightened.
-    const tautSeated=this.tautHoldTime>=TAUT_SEAT_HOLD_S&&ends<TAUT_SEAT_ENDS;
+    const tautSeated=this.tautHoldTime>=TAUT_SEAT_HOLD_S&&ends<TAUT_SEAT_ENDS||this.tautHoldTime>=TAUT_SEAT_LONG_HOLD_S&&ends<TAUT_SEAT_LONG_ENDS;
     if(radius<0.08&&(ends<0.04||tautSeated))this.phase='seated';
     else this.seatingHint='Keep gentle opposing tension while the loop settles';
   }

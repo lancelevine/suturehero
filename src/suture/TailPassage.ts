@@ -2,6 +2,37 @@ import {THREAD_RADIUS} from './threadMaterial';
 import * as THREE from 'three';
 
 /** Observes a live material opening. This is passage feedback, not knot topology. */
+/** One long-strand point near the driver shaft, in the driver's frame. */
+interface ShaftPoint {index:number;radius:number;angle:number}
+/** A point this many times farther from the shaft than the run's tight coils (25th percentile) is outside the coil. */
+const COIL_EXCURSION_RATIO=3;
+/** ...but never closer than this to the shaft (scene units), so a tight coil next to a looser one is not split. */
+const COIL_EXCURSION_MIN_RADIUS=0.25;
+
+/**
+ * Split a run of shaft-side material where it swings well away from the shaft and comes
+ * back. That is two separate stretches near the driver (the coil, and the arm towards the
+ * forceps passing close to it), not one coil. Counting them together turned a single
+ * fast-pulled throw into two wraps at 30 fps (2026-11-22). Arms that leave and do not
+ * return are left alone; loose loops (all far out) never split.
+ */
+export function splitAtExcursions(run:readonly ShaftPoint[]):ShaftPoint[][]{
+  if(run.length<4)return [run.slice()];
+  const sorted=run.map(q=>q.radius).sort((a,b)=>a-b);
+  const limit=Math.max(COIL_EXCURSION_MIN_RADIUS,sorted[Math.floor(sorted.length/4)]*COIL_EXCURSION_RATIO);
+  const inside=run.map(q=>q.radius<=limit);
+  const firstInside=inside.indexOf(true),lastInside=inside.lastIndexOf(true);
+  if(firstInside<0)return [run.slice()];
+  const pieces:ShaftPoint[][]=[];let piece:ShaftPoint[]=[];
+  for(let k=0;k<run.length;k++){
+    const interiorExcursion=!inside[k]&&k>firstInside&&k<lastInside;
+    if(interiorExcursion){if(piece.length)pieces.push(piece);piece=[];continue;}
+    piece.push(run[k]);
+  }
+  if(piece.length)pieces.push(piece);
+  return pieces;
+}
+
 export class TailPassage {
   state='Form a wrap around the driver';
   private indices:number[]=[];
@@ -21,18 +52,23 @@ export class TailPassage {
     if(this.crossed&&requiredWraps!==0){this.state='Short tip passed through the opening · Knot not assessed';return;}
     let shaftOpening=false;
     if(!this.crossed||requiredWraps===0){
-      const inverse=driver.clone().invert();let run:number[]=[],angle=0,last=0;
+      const inverse=driver.clone().invert();
       let best:number[]=[],bestAngle=0;
-      const consider=()=>{if(Math.abs(angle)>Math.abs(bestAngle)&&Math.abs(angle)>=Math.PI*2*(Math.max(1,requiredWraps)-.2)){best=run.slice();bestAngle=angle;}};
+      const consider=(run:readonly ShaftPoint[])=>{
+        let angle=0;
+        for(let k=1;k<run.length;k++)angle+=Math.atan2(Math.sin(run[k].angle-run[k-1].angle),Math.cos(run[k].angle-run[k-1].angle));
+        if(Math.abs(angle)>Math.abs(bestAngle)&&Math.abs(angle)>=Math.PI*2*(Math.max(1,requiredWraps)-.2)){best=run.map(q=>q.index);bestAngle=angle;}
+      };
+      const runs:ShaftPoint[][]=[];let run:ShaftPoint[]=[];
       for(let i=minimumIndex;i<=Math.min(maximumIndex,points.length-1);i++){
         const p=points[i].clone().applyMatrix4(inverse),r=Math.hypot(p.x,p.y),a=Math.atan2(p.y,p.x);
         // The working jaws extend forward of the shaft. Fine jaw wraps
         // and loose loops around that metal are still valid openings.
-        if(r>0.4||r<0.025||p.z<-.07||p.z>2.9){consider();run=[];angle=0;continue;}
-        if(run.length)angle+=Math.atan2(Math.sin(a-last),Math.cos(a-last));
-        run.push(i);last=a;
+        if(r>0.4||r<0.025||p.z<-.07||p.z>2.9){if(run.length)runs.push(run);run=[];continue;}
+        run.push({index:i,radius:r,angle:a});
       }
-      consider();
+      if(run.length)runs.push(run);
+      for(const piece of runs.flatMap(splitAtExcursions))consider(piece);
       const observedWraps=Math.max(1,Math.floor(Math.abs(bestAngle)/(Math.PI*2)+.2));
       shaftOpening=best.length>0;
       if(best.length&&(!this.crossed||observedWraps>this.wraps)){

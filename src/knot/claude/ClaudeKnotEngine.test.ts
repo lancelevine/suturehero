@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { tieKnot } from '../../gameplay/test-support/knotTrials';
 import { expect, it } from 'vitest';
 import { Instrument } from '../../instruments/Instrument';
 import { ClaudeKnotEngine } from './ClaudeKnotEngine';
@@ -22,3 +23,12 @@ it('gives a closing needle driver the short tail’s end even with the long stra
   engine.update(1 / 120, tools);
   expect(engine.gripLabel('right')).toBe('short tail');
 });
+
+it('locks a surgeon’s knot at 2× hand speed and 30 fps', async () => {
+  // The arm to the forceps passing the shaft used to merge with the coil, so the
+  // single second throw counted as two wraps and never tightened (build 0.210).
+  const model = await tieKnot(new ClaudeKnotEngine(), 2, 30, [[2, 1], [1, -1]]);
+  expect(model.sequence!.technique, model.instruction).toBe('surgeon');
+  expect(model.sequence!.throws.map((t) => t.wraps), model.instruction).toEqual([2, 1]);
+  expect(model.sequence!.locked, model.instruction).toBe(true);
+}, 300000);

@@ -110,6 +110,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-22 — Claude — Fast throws at 30 fps recognised correctly (build 0.210)
+
+- `src/suture/TailPassage.ts`: runs of shaft-side material are now collected first, then split by `splitAtExcursions`. Points beyond max(0.25, 3× the run's 25th-percentile radius) that have tight-coil points on both sides are dropped and the run is split there. At 2× 30 fps the coil (0.84 turns) used to merge with the forceps arm passing the shaft and read 1.98 turns. Exit/entry arms and loose loops are unchanged. Test in `TailPassage.test.ts`.
+- `src/suture/FreeThrow.ts`: a second taut-seat tier. After `TAUT_SEAT_LONG_HOLD_S` (1 s) fully fed and taut, crossing ends up to `TAUT_SEAT_LONG_ENDS` (0.10) are accepted; at 30 fps the loop held about 0.09 open under the reach-limited tools.
+- New test: `ClaudeKnotEngine.test.ts` locks a surgeon's knot at 2× and 30 fps. The classic engine still fails this case (its regrasp problem), so it is not asserted there.
+- Checks: suture, gameplay, knot and demo unit tests (249 pass); full trials unchanged: claude 22, codex 22, classic 20.
+- Still failing: surgeon's @ 2× 30 fps with jitter (the coil itself measures about 1.8 turns before passage) and 3-throw @ 2× 120 fps (crossing lost during the fast pull).
+
 ### 2026-11-22 — Claude — Fast-pulled throws count as tightened (build 0.209)
 
 - Investigated after shipping (no code change): 3-throw @ 2× 120 fps loses the third throw in `FreeThrow` 'passed'. The tail is pulled fast, its crossing coordinate moves about 18 segments/s, `MaterialOpening.crossingCoordinate` stops finding it inside the projected loop polygon, `containsPost` fails within the 0.1 s grace, and on 'clear' it resets ("Loop slipped off the short strand"). A real fix would physically hold the post inside the loop during 'passed' (core physics), not just a longer grace. Paused to ask Lance.

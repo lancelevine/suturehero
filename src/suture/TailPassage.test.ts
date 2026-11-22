@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import * as THREE from 'three';
-import {TailPassage} from './TailPassage';
+import {splitAtExcursions,TailPassage} from './TailPassage';
 const matrix=new THREE.Matrix4();
 const wrap=()=>Array.from({length:48},(_,i)=>{const a=i/47*Math.PI*1.9;return new THREE.Vector3(Math.cos(a)*0.12,Math.sin(a)*0.12,1);});
 it('observes the held short tip crossing a live opening, then resets',()=>{
@@ -190,4 +190,15 @@ it('rejects an outside tail during driver departure and material-frame rotation'
  const pose=new THREE.Matrix4().makeTranslation(.7,0,1).multiply(new THREE.Matrix4().makeRotationY(.8)).multiply(new THREE.Matrix4().makeTranslation(0,0,-1));
  observer.update(points.map(p=>p.clone().applyMatrix4(pose)),tip(1.1).applyMatrix4(pose),matrix,true,0,0);
  expect(observer.hasOpening).toBe(true);expect(observer.passage).toBeUndefined();
+});
+
+
+it('splits shaft-side material that swings out and comes back, but not arms or loose loops', () => {
+  const run = (radii: number[]) => radii.map((radius, index) => ({ index, radius, angle: index * 0.3 }));
+  const coilThenArm = run([0.08, 0.07, 0.08, 0.09, 0.2, 0.3, 0.38, 0.3, 0.09, 0.09, 0.08, 0.09]);
+  expect(splitAtExcursions(coilThenArm).map((piece) => piece.map((q) => q.index))).toEqual([[0, 1, 2, 3, 4], [8, 9, 10, 11]]);
+  const coilWithExitArm = run([0.08, 0.07, 0.08, 0.09, 0.2, 0.3, 0.38]);
+  expect(splitAtExcursions(coilWithExitArm)).toHaveLength(1);
+  const looseLoop = run([0.3, 0.32, 0.35, 0.38, 0.36, 0.33, 0.31]);
+  expect(splitAtExcursions(looseLoop)).toHaveLength(1);
 });
