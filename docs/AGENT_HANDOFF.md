@@ -11,7 +11,7 @@ entry when finishing.
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
   (`KNOT_ENGINES=a,b` to pick; `KNOT_TRIALS=quick` for a short run).
-  Current (full run 2026-11-22, build 0.211): claude 23/24 (default), codex 23/24, classic 21/24,
+  Current (full run 2026-11-26, build 0.219): claude 24/24 (default), codex 24/24, classic 23/24,
   classic-worker (experimental).
 - **Needs Lance to test by hand:**
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
@@ -95,6 +95,15 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-26 — Claude — Thread keeps real time at 30 fps (knots 24/24) (build 0.219)
+
+- Root cause of the last failing trial (surgeon's @ 2× 30 fps with jitter), found by measuring rather than tuning: `MAX_TIME_STEPS` = 2 steps of 1/120 s per update made physics run at half real time at 30 fps, so the thread lagged the hands and a 1.35-turn wrap wound about 1.8 turns on the shaft (26 points close to the shaft at 30 fps, against 12 at 60 fps). The earlier friction/carry attempts treated a symptom. There was no contact creep: the contact resolve added no winding.
+- Fix in `src/gameplay/FreeKnotPractice.ts`: `MAX_TIME_STEPS` = 4 (covers a 30 fps frame). `FreeTyingBudget.test.ts` now expects `MAX_TIME_STEPS` steps per slow frame, still bounded; that limit changed on purpose, not to pass a test.
+- Full trials: claude 24/24, codex 24/24, classic 23/24 (only the 3-throw @ 1× 60 fps jitter, its old regrasp problem). Computer time per second of tying rose from about 265 to 375 ms under the same parallel load, because the 30 fps cases now step in real time.
+- Checks: suture, gameplay, knot and demo unit tests (255 pass).
+- Lance to feel-test: knot tying on the laptop at its normal frame rate; check that it doesn't feel slower or laggier.
+- Done on branch `friction-model`, merged; the friction model itself turned out to be unnecessary.
 
 ### 2026-11-26 — Claude — Splitting tracking.ts and main.ts: summary of this phase
 

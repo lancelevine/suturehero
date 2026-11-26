@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.219 — Thread keeps real time at 30 fps (knots 24/24)
+
+- Knot tying at a low frame rate: at 30 fps the thread simulation now keeps up with real time (it previously ran at half speed, so with quick hands the thread lagged and wound round the needle driver, and a single throw could be counted as a double that never locked). Engine comparison: Claude 24/24, Codex 24/24, Classic 23/24 (synthetic scripted hands). At 30 fps the physics now does the same work per second as at 60 fps; at 60 fps and above nothing changes.
+
 ## Build 0.218 — Jaw sensor guided calibration, live graph, third slot
 
 - Jaw sensors, guided calibration: click **Calibrate (guided)**, hold the jaws closed, then open and close them fully 2–3 times over 5 seconds. Closed and open are taken from that sweep, either magnet direction, ignoring single noisy readings. The old Set closed / Set open buttons are under "Set closed and open by hand".
