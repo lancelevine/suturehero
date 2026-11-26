@@ -96,6 +96,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Background knot engines apply instrument corrections (build 0.221)
+
+- `WorkerKnotEngine.applyCorrections` (default true): each snapshot's `corrections` are added to the drawn tools. The old comment's concern (late corrections double-counting with absolute poses) doesn't hold: the next absolute pose replaces the corrected one, and the worker's copies are overwritten from the drawn tools each frame.
+- Trials: claude-worker 22/24 (left: surgeon's @ 2× 30 fps jitter, 3-throw @ 2× 30 fps jitter), classic-worker 18/24. Knot and demo unit tests pass.
+
 ### 2026-11-26 — Claude — Background knot engine replays missed frames (build 0.220)
 
 - `src/knot/worker/`: an update request can carry `backlog` (`BacklogFrame[]`: dt and tool states per missed frame, oldest first, at most `MAX_BACKLOG` 60, then the oldest two are merged). `KnotHost` replays the backlog, then the current frame. `begin` can name the model (`WorkerModel` 'classic' | 'claude'); the host switches to `ClaudeKnotEngine` for 'claude'. New engine `claude-worker`.

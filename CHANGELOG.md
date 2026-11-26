@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.221 — Background knot engines apply instrument corrections
+
+- Background-thread knot engines: the knot model's small instrument corrections (keeping the driver off the skin and the thread) now move the drawn instruments, a frame late, as the main-thread engines do at once. Engine comparison: Claude in a background thread 22/24 (was 17), Classic in a background thread 18/24 (was 14); main-thread Claude stays at 24/24 and remains the default (synthetic scripted hands).
+
 ## Build 0.220 — Background knot engine replays missed frames
 
 - Background-thread knot engines: when the background thread falls behind the display, the frames it missed are now replayed in order, each with its own instrument positions and jaw openings, instead of being merged. Before, a grasp made while it was behind could be lost, and a worker 2–3× slower than the display formed no throw at all; now a surgeon's knot locks. New option **Claude in a background thread (experimental)** in Practice setup → Knot engine. The default stays Claude's engine on the main thread, which is still more reliable (synthetic tests).

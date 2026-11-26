@@ -78,6 +78,13 @@ export class WorkerKnotEngine implements KnotEngine {
    * instrument poses (the remote model sees exactly what the classic engine would); beyond
    * that, frames add their time to the next update instead of queueing behind a slow model.
    */
+  /**
+   * Move the drawn instruments by the remote model's corrections (driver kept off the skin and
+   * thread), a frame late, as the direct engines move them at once (2026-11-26). Without this the
+   * corrections were lost each frame: Claude-in-a-worker scored 17/24 in the engine trials, with it 22/24.
+   * With absolute poses (camera tracking, the demo) the next pose replaces the corrected one anyway.
+   */
+  applyCorrections = true;
   private inFlight = 0;
   /** Frames not yet sent while the worker is behind, each with its own instruments (replayed in order). */
   private backlog: BacklogFrame[] = [];
@@ -128,10 +135,13 @@ export class WorkerKnotEngine implements KnotEngine {
       const snapshot = this.latest;
       this.latest = null;
       this.apply(snapshot);
-      // Tool corrections (driver kept off the skin and thread) are not fed back to the instruments:
-      // a correction a frame late double-counts when instruments are placed at absolute poses (demo,
-      // tests), and the remote model applies them to its own copies every frame, as the classic does.
       this.lastCorrections = snapshot.corrections;
+      if (this.applyCorrections) {
+        for (const correction of snapshot.corrections) {
+          const tool = tools.find((t) => t.id === correction.id);
+          if (tool) tool.root.position.add(new THREE.Vector3(...correction.delta));
+        }
+      }
     }
     if (!this.active) return;
     // Never queue requests behind a slow model: keep this frame and send it with the next request.
