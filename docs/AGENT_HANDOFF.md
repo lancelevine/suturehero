@@ -77,20 +77,16 @@ entry when finishing.
     comments say 70°. Instrument tracking is self-consistent with it; mm
     distances in mono mode are scaled by this guess. Don't change it without
     re-checking depth calibration; new code must use the same model
-    (`defaultIntrinsics` in `src/jaw/jawGeometry.ts`).
-  - `src/tracking.ts` (~150 KB) and `src/main.ts` (~57 KB) are monolithic and
-    are the most likely place for merge conflicts.
+    (`defaultIntrinsics` in `src/input/bodyGeometry.ts`).
+  - `src/tracking.ts` (~98 KB) and `src/main.ts` (~51 KB) are still large
+    (split partly on 2026-11-26) and the most likely place for merge conflicts.
 - **Next up (proposed, not started):**
-  1. Jaw sensor follow-ups: auto-reconnect, battery level, jaws in Sandbox
-     mode without camera tracking.
   3. Continue splitting `src/tracking.ts`: a shared tracking-state object, then
      merge the camera 1 / camera 2 detect paths (needs real-camera testing after).
   4. Add a code formatter in one dedicated commit (agree with Lance first).
-  5. When the OV9281 cameras arrive (monochrome, global shutter, 1280×800 @
-     up to 120 fps): change `CAMERA_REQUEST` in `src/input/cameraDevices.ts`,
-     use white/striped jaw balls for the forceps, then recalibrate and retest
-     stereo. Needs real-camera testing by Lance. Lance asked to wait until
-     the cameras arrive.
+  5. When the OV9281 cameras arrive: the OV9281 camera type (1280×800 @ 120
+     fps) is chosen automatically by name (build 0.216); recalibrate and retest
+     stereo with them. Needs real-camera testing by Lance.
 
 ## Log
 
