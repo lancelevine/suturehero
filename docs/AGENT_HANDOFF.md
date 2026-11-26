@@ -96,6 +96,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Split tracking.ts, step 1: markup and WorkerDetector (no build change)
+
+- `src/ui/trackingPageMarkup.ts`: the tracking page HTML (byte-identical output, checked against the old template), with a test of the ids tracking.ts relies on.
+- `src/input/WorkerDetector.ts`: the decode/flow worker wrapper and its replay queue, code unchanged; worker URLs now relative to `src/input/`.
+- Browser checks that inject fake markers by patching the served source (`check-ring-handoffs`, `check-stereo-rig-faces`) now patch `src/input/WorkerDetector.ts`. Other checks still patch functions in `src/tracking.ts` (`check-stereo-motion`: `stereoPrismRotation`; `check-driver-depth` with env flags: `poseDepthValid`); keep them pointed at wherever those functions live.
+- Checks: tsc, vite build (both workers emitted), tracking-motion, ring-handoffs, stereo-rig-faces, tracking-lab, camera-controls, tracking-storage.
+
 ### 2026-11-26 — Claude — Browser checks in CI (no build change)
 
 - New `scripts/ci-browser-checks.mjs`: starts its own Vite server on 5173, runs `DEFAULT_CHECKS` one at a time (6 min limit each, one retry, a pass on retry reported as flaky), and exits non-zero on failure. Eleven checks, about 7.5 min in this sandbox: ov9281-detect, tracking-storage, iphone-start, camera-controls, production-mode, hall-sensor, layout, tracking-lab, free-tying, sandbox, practice-setup.

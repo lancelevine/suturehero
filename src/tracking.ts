@@ -12,8 +12,6 @@ import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
 import {FlowBudget} from './input/flowBudget';
-import {ReplayWorkQueue} from './trackingLab/ReplayWorkQueue';
-import {ARUCO_LIBRARY_URLS} from './input/arucoLibraryUrls';
 import {snapshotTrackingStorage} from './trackingLab/configuration';
 import {cameraImage,recordedInput} from './trackingLab/runtime';
 import {solveStereoRigPose,type StereoRigDiagnostics,type StereoRigPose} from './input/stereoRigPose';
@@ -22,13 +20,15 @@ import {RingPoseTracker} from './input/RingPoseTracker';
 import {StereoFrames} from './input/StereoFrames';
 import {StereoFallback,type MonoView} from './input/StereoFallback';
 import {stereoBoard} from './input/stereoBoard';
+import {trackingPageMarkup} from './ui/trackingPageMarkup';
+import {WorkerDetector} from './input/WorkerDetector';
 import {stereoPracticePosition} from './input/stereoTrackingPose';
 import {parseWorkspace,practiceUnitsPerMm,serializeWorkspace,workspacePracticePosition,type StereoWorkspace} from './input/stereoWorkspace';
 import {stereoCalibrationIdentity} from './input/stereoCalibrationIdentity';
 import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
 import {cameraPlaneXY,depthRange,desiredDepthZ,filteredDepthZ,LOCKED_DEPTH_Z} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
-import {flowBitmapsSupported,flowFrameSettings,isFlowSeedRef,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
+import {flowBitmapsSupported,flowFrameSettings,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
 import {captureSettings,FLOW_MIN_INTERVAL_MS,frameDrivenEnabled} from './input/captureScheduling';
 import {trackProcessor} from './input/trackFrames';
@@ -69,7 +69,6 @@ import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,
 import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
 import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from './input/trackingMessages';
 import {TRACKING_STORAGE_KEYS,readStored,readStoredJson,writeStored,removeStored,parseTrackerType,trackerTypeStorageKey,parseDepthCalibration,DEFAULT_WORKING_DEPTH_MM,type SavedDepthCalibration} from './input/trackingStorage';
-import type {DetectorDiagnostics} from './input/arucoDetector';
 import {estimateMarkerPose} from './input/markerPose';
 import {RING_LAYOUT_REVISION,solvePrismPose,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
@@ -80,36 +79,7 @@ import './tracking.css';
 declare const __SUTUREHERO_BUILD__: string;
 declare const __SUTUREHERO_REVISION__: string;
 const root=document.querySelector<HTMLDivElement>('#tracking-app')!;
-root.innerHTML=`<header><a class="brand" href="./"><img class="brand-logo" src="/suturehero-emblem.svg" alt="" aria-hidden="true"><span class="brand-name">Suture<span class="muted">Hero</span></span></a><span class="lab">INSTRUMENT TRACKING LAB · BUILD ${__SUTUREHERO_BUILD__} (${__SUTUREHERO_REVISION__})</span><a href="./">← Return to practice</a></header>
-<main class="tracking-layout"><section class="tracking-panel"><div class="eyebrow">01 / CAMERA</div><h1>Instrument tracking</h1><p class="intro">Start your webcam to detect ArUco markers. Outlines and IDs appear on the video.</p>
-<div class="tracking-actions"><label for="tracker-type">Marker tracker</label><select id="tracker-type"><option value="prism">3-face prism (legacy)</option><option value="ring6">6-face hexagonal ring</option><option value="ring8">8-face ring (6 sides + 2 angled)</option></select><span id="tracker-type-status" class="tracking-message" role="status"></span></div>
-<div class="tracking-actions"><button id="start-stereo-all" type="button">Start stereo + metric 3D (both cameras)</button><span id="stereo-quick-status" class="tracking-message" role="status"></span></div><div class="tracking-actions"><label for="tracking-mode">Tracking mode</label><select id="tracking-mode"><option value="mono">1 camera · 3D tracking</option><option value="stereo">2 cameras · experimental</option></select><label><input id="lock-depth" type="checkbox" checked> Lock depth</label><label><input id="flow-rotation" type="checkbox"> Experimental continuous flow rotation</label><label><input id="face-transition" type="checkbox"> Experimental immediate face transitions</label><label><input id="stable-depth" type="checkbox" checked> Stabilize unlocked depth (experimental)</label></div><p class="tracking-message" id="tracking-mode-info">1 camera: filtered approximate depth, with optional depth lock. Rotation is approximate. Two-camera stereo requires imported calibration.</p>
-<div class="tracking-actions"><label for="camera-select">Camera</label><select id="camera-select"><option value="">Default camera</option></select><button id="start-camera">Start camera 1</button><button id="stop-camera" disabled>Stop camera</button></div>
-<div class="tracking-actions"><button id="camera-expand" type="button">Enlarge camera preview</button></div><div class="tracking-actions"><label><input type="checkbox" id="aruco-correction" checked> Experimental ArUco corner correction</label></div><div class="tracking-actions"><label><input type="checkbox" id="corner-debug"> Compare marker corners (cyan = decoded, green = flow, yellow = solver input)</label><span id="corner-debug-status" class="tracking-message"></span></div><div class="tracking-video" id="primary-camera-preview"><video id="camera-video" autoplay playsinline muted></video><canvas id="camera-overlay"></canvas><span id="camera-placeholder">Camera is off</span></div><div id="jaw-sensor-controls" class="jaw-sensor-controls"></div>
-<div class="tracking-actions"><label for="camera-select-2">Second camera</label><select id="camera-select-2"><option value="">Choose second camera</option></select><button id="start-camera-2">Start second camera</button><button id="stop-camera-2" disabled>Stop second camera</button></div>
-<div class="tracking-video"><video id="camera-video-2" autoplay playsinline muted></video><canvas id="camera-overlay-2"></canvas><span id="camera-placeholder-2">Second camera is off</span></div>
-<details class="tracking-details"><summary>Diagnostics &amp; Calibration</summary><div class="tracking-details-body"><p class="tracking-message" id="camera-status-2">Second camera ready. Independent marker detection only; stereo fusion is not enabled yet.</p><p class="tracking-message" id="stereo-match-status">Stereo matching: waiting for both cameras.</p>
-<section class="tracking-panel" style="margin-top:12px;padding:14px">
- <div class="eyebrow">STEREO CALIBRATION · CAPTURE</div>
- <p class="tracking-message">Checkerboard: <strong>9 × 7 squares · 8 × 6 inner corners · 16 mm squares</strong>. Hold the entire board in view of both cameras, with the same checkerboard corner visible in both. Capture 20–30 varied poses, including corners of the workspace and tilted angles. Keep both cameras fixed.</p>
- <label>Checkerboard square size (mm) <input id="stereo-square-size-mm" type="number" min="1" max="100" step="0.1" value="${stereoBoard.squareSizeMm}"></label>
- <p class="tracking-message" id="checkerboard-quality">Capture guidance: keep the checkerboard sharp, flat, and fully visible in both cameras. Rotate and tilt it between captures.</p>
- <div class="tracking-actions"><button id="capture-stereo-pair">Capture checkerboard pair</button><button id="export-stereo-pairs" disabled>Export captures</button><button id="clear-stereo-pairs">Clear captures</button></div>
- <p class="tracking-message" id="stereo-calibration-status">0 pairs captured. This stage records paired images; calibration solving and triangulation are not enabled yet.</p>
-</section>
-<label class="tracking-message"><input id="show-threshold" type="checkbox"> Show thresholded camera image (diagnostic)</label><canvas id="threshold-preview" style="display:none;width:100%;aspect-ratio:16/9;background:#15242c;image-rendering:pixelated"></canvas><label class="tracking-message"><input id="roi-decode" type="checkbox" checked> Predictive region decode · full-frame fallback (uncheck for full-frame baseline)</label><label class="tracking-message"><input id="show-crop" type="checkbox"> Show center crop (place prism in center of camera)</label><div id="crop-views" style="display:none;grid-template-columns:1fr 1fr;gap:8px"><div><small>Original crop</small><canvas id="crop-original" style="width:100%;image-rendering:pixelated"></canvas></div><div><small>Adaptive threshold crop</small><canvas id="crop-adaptive" style="width:100%;image-rendering:pixelated"></canvas></div></div><p class="tracking-message"><span style="color:#179a68;font-weight:bold">Green</span> = decoded marker</p>
-<p class="tracking-message" id="camera-status" role="status">Ready. Camera permission requires localhost or HTTPS.</p>
-<details class="tracking-details"><summary>Camera Focus &amp; Exposure</summary><div class="tracking-details-body"><p class="tracking-message">Availability depends on camera and browser.</p><div id="camera-settings-controls"></div></div></details><section class="tracking-panel" style="padding:12px;margin:12px 0"><div class="eyebrow">WORKING DEPTH CALIBRATION</div><label>Working depth (mm) <input id="working-depth-mm" type="number" min="50" max="1500" step="10" value="400" style="width:90px"></label><div class="tracking-actions"><button id="set-depth-near" type="button">Set Near</button><button id="set-depth-far" type="button">Set Far</button><button id="reset-depth-range" type="button">Reset depth</button></div><p id="depth-range-status" class="tracking-message">Select the instrument in Calibrate, then hold a reasonably face-on marker steady to capture Near and Far.</p></section><div class="tracking-stats" aria-label="Live camera diagnostics">
-<div><strong>Camera resolution</strong><span id="diag-resolution">Not started</span></div>
-<div><strong>Frames analyzed</strong><span id="diag-frames">0</span></div><div><strong>Detection FPS</strong><span id="diag-detection-fps">0</span></div>
-<div><strong>Candidate squares</strong><span id="diag-candidates">—</span></div><div><strong>Outlines drawn</strong><span id="diag-outlines">—</span></div>
-<div><strong>Decoded markers</strong><span id="diag-decoded">—</span></div>
-<div><strong>Detection time</strong><span id="diag-time">—</span></div><div><strong>Detection pass</strong><span id="diag-pass">—</span></div><div><strong>Image contrast</strong><span id="diag-contrast">—</span></div>
-<div><strong>Detection status</strong><span id="diag-note">Waiting for camera</span></div>
-</div>
-</div></details><div class="tracking-actions"><label><input id="simulation" type="checkbox"> Simulated input</label><button id="reset-sim">Reset positions</button></div>
-<p class="tracking-message">Live mode: move the printed markers to move the virtual instruments. Simulation mode: needle driver arrow keys, forceps W/A/S/D, scissors I/J/K/L (Shift = faster).</p>
-</section><section class="tracking-panel"><div class="eyebrow">02 / VIRTUAL VIEW</div><h2>Instrument diagnostics</h2><div id="tracking-scene"></div><div id="stereo-view-indicator" role="status" aria-live="off" style="display:flex;align-items:center;gap:8px;margin:8px 0 12px;font-size:13px"><span id="stereo-view-dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#89939e"></span><span id="stereo-view-label">Stereo triangulation: off</span></div><details class="tracking-details"><summary>Virtual View Controls &amp; Diagnostics</summary><div class="tracking-details-body"><div class="tracking-actions"><button id="reset-view">Reset view</button><span class="tracking-message">Drag to rotate · Right-drag to pan · Scroll to zoom</span></div><div class="tracking-stats"><div><strong>Needle driver</strong><span id="driver-readout">Simulated · (0, 0)</span></div><div><strong>Forceps</strong><span id="forceps-readout">Simulated · (0, 0)</span></div><div><strong>Scissors</strong><span id="scissors-readout">Simulated · (0, 0)</span></div><div><strong>Rotation solver</strong><span id="rotation-solver-status">Waiting for markers</span></div><div><strong>Rotation stages (°)</strong><span id="rotation-stage-readout" style="white-space:pre-line;font-variant-numeric:tabular-nums">Waiting for markers</span></div><div><strong>Tracker faces</strong><span id="face-overlap-readout">Waiting for camera</span></div><div><strong>Detected markers</strong><span id="marker-readout">Waiting for camera</span></div></div><p class="tracking-message" id="tracker-geometry-description"></p><div class="tracking-tuning"><label>Rotation sensitivity <input id="rotation-sensitivity" type="range" min="0.5" max="8" step="0.5" value="3"><output id="rotation-sensitivity-value">3°</output></label><label>Rotation gain <input id="rotation-gain" type="range" min="0.1" max="1" step="0.05" value="0.1"><output id="rotation-gain-value">0.10×</output></label><label>Depth sensitivity <input id="depth-sensitivity" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="depth-sensitivity-value">1.5×</output></label><p class="tracking-message" id="tracking-filter-diagnostics">Raw and filtered depth/rotation diagnostics appear during tracking.</p></div></div></details></section></main>`;
+root.innerHTML=trackingPageMarkup({build:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__,squareSizeMm:stereoBoard.squareSizeMm});
 const video=document.querySelector<HTMLVideoElement>('#camera-video')!;
 const overlay=document.querySelector<HTMLCanvasElement>('#camera-overlay')!;
 const cameraExpand=document.querySelector<HTMLButtonElement>('#camera-expand')!;
@@ -152,64 +122,6 @@ const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
 const scissorsReadout=document.querySelector<HTMLElement>('#scissors-readout')!;
 const faceOverlapReadout=document.querySelector<HTMLElement>('#face-overlap-readout')!;
-const replayWorkQueue=new ReplayWorkQueue();
-class WorkerDetector {
- private worker:Worker|null=null;
- private pending=new Map<number,{resolve:(markers:MarkerObservation[])=>void;reject:(error:Error)=>void;started:number}>();
- constructor(private label:string){}
- lastFrameSize={width:0,height:0};
- lastDetectedIds:number[]=[];lastResultAt=-Infinity;
- get busy(){return this.pending.size>0;}
- private sequence=0;
- candidateCorners:Array<Array<{x:number;y:number}>>=[];
- diagnostics:DetectorDiagnostics={candidateCount:null,rawMarkerCount:0,recognizedCount:0,rejectedCount:0,durationMs:0,note:'Waiting',pass:'—',contrast:'—'};
- async initialize(flowOnly=false){
-  this.dispose();
-  const worker=flowOnly?new Worker(new URL('./input/arucoFlowWorker.ts',import.meta.url),{type:'module'}):new Worker(new URL('./input/arucoWorker.ts',import.meta.url));
-  this.worker=worker;
-  await new Promise<void>((resolve,reject)=>{
-   const timeout=window.setTimeout(()=>reject(new Error('Detector worker initialization timed out')),15000);
-   worker.onmessage=(event:MessageEvent<{type:string;id?:number;found?:MarkerObservation[];candidates?:Array<Array<{x:number;y:number}>>;diagnostics?:DetectorDiagnostics;message?:string}>)=>{
-    const data=event.data;
-    if(data.type==='ready'){clearTimeout(timeout);resolve();return;}
-    if(data.type==='error'&&data.id===undefined){clearTimeout(timeout);reject(new Error(data.message));return;}
-    if(data.id===undefined)return;
-    const pending=this.pending.get(data.id);if(!pending)return;
-    this.pending.delete(data.id);
-    if(data.type==='error'){perf.count(this.label+' errors');pending.reject(new Error(data.message));return;}
-    const elapsed=performance.now()-pending.started,worker=data.diagnostics?.durationMs??0;perf.sample(this.label+' round trip',elapsed);perf.sample(this.label+' worker',worker);perf.sample(this.label+' transfer/callback',Math.max(0,elapsed-worker));
-    for(const [stage,ms] of Object.entries(data.diagnostics?.timings??{}))perf.sample(this.label+' '+stage,ms);
-    this.candidateCorners=data.candidates??[];
-    if(data.diagnostics)this.diagnostics=data.diagnostics;
-    this.lastDetectedIds=(data.found??[]).map(m=>m.id);this.lastResultAt=pending.started;
-    pending.resolve(data.found??[]);
-   };
-   worker.onerror=()=>{clearTimeout(timeout);reject(new Error('Detector worker failed to load'));};
-   worker.postMessage({type:'init',flowOnly,libraries:ARUCO_LIBRARY_URLS});
-  });
- }
- confirm(markers:MarkerObservation[]){this.worker?.postMessage({type:'confirm',at:recordedInput()?performance.now():undefined,ids:markers.map(m=>m.id)});}
- seed(markers:MarkerObservation[],frame?:ImageData|FlowSeedRef){
-  // A kept frame (src/input/flowFrames.ts) is referenced by key once the message that stores it has been posted.
-  if(isFlowSeedRef(frame)){void frame.ready.then(()=>this.worker?.postMessage({type:'seed',at:recordedInput()?performance.now():undefined,markers,key:frame.key}));return;}
-  this.worker?.postMessage({type:'seed',at:recordedInput()?performance.now():undefined,markers,frame});
- }
- /** Flow from a transferred bitmap; `keep` asks the worker to keep this frame for a later seed. */
- detectBitmap(bitmap:ImageBitmap,keep?:number,origin?:{x:number;y:number}):Promise<MarkerObservation[]>{
-  if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
-  const id=++this.sequence;this.lastFrameSize={width:bitmap.width,height:bitmap.height};
-  return new Promise<MarkerObservation[]>((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',id,bitmap,keep,origin},[bitmap]);});
- }
- /** Keep a frame in the flow worker for a later seed, without running flow on it. */
- store(bitmap:ImageBitmap,keep:number){if(this.worker)this.worker.postMessage({type:'store',bitmap,keep},[bitmap]);else bitmap.close();}
- detect(frame:ImageData,origin={x:0,y:0}):Promise<MarkerObservation[]>{
-  if(!this.worker)return Promise.reject(new Error('Detector worker not initialized'));
-  const id=++this.sequence;this.lastFrameSize={width:frame.width,height:frame.height};
-  const request=()=>new Promise<MarkerObservation[]>((resolve,reject)=>{this.pending.set(id,{resolve,reject,started:performance.now()});this.worker!.postMessage({type:'detect',at:recordedInput()?performance.now():undefined,id,frame,origin},[frame.data.buffer]);});
-  return recordedInput()?replayWorkQueue.run(request):request();
- }
- dispose(){this.worker?.terminate();this.worker=null;for(const p of this.pending.values())p.reject(new Error('Worker stopped'));this.pending.clear();}
-}
 const detector=new WorkerDetector('Camera 1 decode');
 const fastTracker=new WorkerDetector('Camera 1 flow');
 let fastProcessing=false,lastFastFrame=0,lastSlowFrame=0,latestFlowAt=0,latestDecodeAt=0;

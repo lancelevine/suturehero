@@ -112,6 +112,10 @@ only if it passes reliably in a software-rendered browser.
   build 0.132; the 6/6 after the sub-pixel corner fix did not hold up)
   (see handoff log).
 
+Some browser checks inject test data by rewriting served source (`page.route`
+for `src/tracking.ts` or `src/input/WorkerDetector.ts`, matching exact
+compiled text). When you move or rename code they patch, update those checks.
+
 Never weaken a test threshold just to make it pass. If a limit is genuinely
 wrong, say why in the commit message and the handoff entry.
 

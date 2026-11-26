@@ -9,9 +9,9 @@ try{
  await context.route('https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/*',async r=>r.fulfill({contentType:'application/javascript',body:await readFile(join(process.env.ARUCO_LIBRARY_DIR??'/tmp/suturehero-aruco',new URL(r.request().url()).pathname.split('/').at(-1)))}));
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await installSyntheticCamera(page);
  await page.addInitScript(()=>localStorage.setItem('suturehero.trackerType','ring8'));
- // Inject decoded quadrilaterals to test pose application and the stationary
+ // Inject decoded quadrilaterals (src/input/WorkerDetector.ts since 2026-11-26) to test pose application and the stationary
  // latch independently of optical recognition (covered by decoder regressions).
- await page.route('**/src/tracking.ts*',async r=>{
+ await page.route('**/src/input/WorkerDetector.ts*',async r=>{
   const response=await r.fetch(),body=await response.text();// Both detect() and the flow-bitmap detectBitmap() (0.111) return the fixture; flow frames have no crop origin.
   let patched=body.replaceAll('const id = ++this.sequence;',"if(window.__ringFixture){const o=typeof origin==='object'&&origin?origin:{x:0,y:0};if(typeof bitmap!=='undefined')bitmap.close();return Promise.resolve(window.__ringFixture.map(m=>({...m,corners:m.corners.map(p=>({x:p.x-o.x,y:p.y-o.y}))})));}\nconst id = ++this.sequence;");
   assert.notEqual(patched,body);await r.fulfill({response,body:patched});
