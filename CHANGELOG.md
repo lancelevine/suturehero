@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.222 — Guided course results export
+
+- Guided course results export: the Stitch plan section shows **Export course stitches CSV** once a course stitch is saved, with the trainee name (the same name as in the Sandbox panel; editing it in one place updates the other). Same columns as the Sandbox stitches CSV: completion time, seconds, knot technique, throws, locked, security, engine, review. Approximate practice measures.
+
 ## Build 0.221 — Background knot engines apply instrument corrections
 
 - Background-thread knot engines: the knot model's small instrument corrections (keeping the driver off the skin and the thread) now move the drawn instruments, a frame late, as the main-thread engines do at once. Engine comparison: Claude in a background thread 22/24 (was 17), Classic in a background thread 18/24 (was 14); main-thread Claude stays at 24/24 and remains the default (synthetic scripted hands).

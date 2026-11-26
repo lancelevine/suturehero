@@ -55,6 +55,8 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
       (e.g. `2+ 1-`), locked, security and seconds.
 - [ ] **Progress CSV.** Save session to progress, then Export progress CSV: one row
       per saved session.
+- [ ] **Guided course CSV.** Start the 3-stitch course, save a stitch, open Stitch plan:
+      Export course stitches CSV gives one row per saved course stitch.
 
 ## 4. Cameras
 

@@ -49,10 +49,11 @@ import { SutureModel } from './suture/SutureModel';
 import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 import { practicePageMarkup } from './ui/practicePageMarkup';
+import { mountCourseExport } from './ui/courseExport';
 import { exerciseProgress, exerciseReadout, exerciseTitle, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
-const APP_BUILD='0.221';
+const APP_BUILD='0.222';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -102,6 +103,8 @@ try {
   const closeUpButton=document.querySelector('#close-up') as HTMLButtonElement;
   const freeTarget=()=>session.freeKnot.entry.clone().set(0,0.8,0.25);
   const courseStatus=document.querySelector('#course-status')!,courseReview=document.querySelector('#course-review') as HTMLOListElement;
+  // Guided course results export (src/ui/courseExport.ts).
+  mountCourseExport(courseReview,{active:()=>session.course.active,stitches:()=>session.course.completed.map(r=>({number:r.number,review:r.review,meta:r.meta})),build:()=>document.querySelector('.version')?.textContent??''});
   let courseRevision=-1;
   const rightBite=document.querySelector('#right-bite') as HTMLInputElement,leftBite=document.querySelector('#left-bite') as HTMLInputElement,stitchPosition=document.querySelector('#stitch-position') as HTMLInputElement;
   const setPlanText=(selector:string,text:string)=>{const element=document.querySelector(selector)!;if(element.textContent!==text)element.textContent=text;};

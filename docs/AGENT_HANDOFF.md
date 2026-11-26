@@ -94,6 +94,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Guided course results export (build 0.222)
+
+- `src/ui/courseExport.ts` (`mountCourseExport`, below `#course-review`; shown while a course is running and has a saved stitch). New `src/ui/traineeExport.ts`: the trainee key, `bindTraineeInput` (keeps every trainee field in step through a window event), `exportFileName`, `downloadText`. `SandboxSummaryPanel` now uses them; `TRAINEE_STORAGE_KEY` is re-exported there. Unit tests in `traineeExport.test.ts`.
+- New `scripts/check-course-export.mjs`: records a course stitch through the dev hook and checks the CSV row and trainee. Added to CI. check-sandbox and check-layout pass.
+- Hardware checklist updated (results export section).
+
 ### 2026-11-26 — Claude — Demo check, hardware checklist, Lab scrolling (no build change)
 
 - `check-demo` after the knot changes of 0.209–0.221: passes (three throws, locked and seated, both tails cut, secure stitch kept; 400 s of demo time, about 6.7 min here).

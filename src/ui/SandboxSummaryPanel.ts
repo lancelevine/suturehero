@@ -1,6 +1,7 @@
 import { appendProgress, checkTargets, describeSpacing, describeTrend, loadProgress, loadTargets, saveTargets, summarizeSandbox, type SandboxStitchInfo, type SandboxSummary, type SandboxTargets } from '../gameplay/sandboxSummary';
 import type { FreePassRecord } from '../tissue/FreeNeedlePass';
 import { sessionsCsv, stitchesCsv, type ExportStitch, type SavedSession } from '../gameplay/sessionRecord';
+import { bindTraineeInput, downloadText, exportFileName } from './traineeExport';
 
 /**
  * Sandbox session panel (2026-11-15): summary, instructor targets (editable,
@@ -19,8 +20,8 @@ export interface SandboxSource {
   sessionSeconds(): number;
 }
 
-/** Trainee name or ID, kept in this browser and written into every export. */
-export const TRAINEE_STORAGE_KEY = 'suturehero.trainee.v1';
+/** Trainee name or ID, kept in this browser and written into every export (traineeExport.ts). */
+export { TRAINEE_STORAGE_KEY } from './traineeExport';
 
 const TARGET_FIELDS: { key: keyof SandboxTargets; label: string; step: number }[] = [
   { key: 'biteMinMm', label: 'Bite min (mm)', step: 0.5 },
@@ -67,29 +68,9 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     saveTargets(storage, targets);
     render(true);
   });
-  const traineeInput = panel.querySelector<HTMLInputElement>('input[name="trainee"]')!;
-  try {
-    traineeInput.value = storage?.getItem(TRAINEE_STORAGE_KEY) ?? '';
-  } catch {
-    // Storage blocked: start empty.
-  }
-  traineeInput.addEventListener('change', () => {
-    try {
-      storage?.setItem(TRAINEE_STORAGE_KEY, traineeInput.value.trim());
-    } catch {
-      // Storage blocked: the name still goes into exports from this page.
-    }
-  });
-  const trainee = () => traineeInput.value.trim();
-  const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
-  const fileName = (kind: string, extension: string) => `suturehero-${kind}${trainee() ? '-' + trainee().replace(/[^\w-]+/g, '_') : ''}-${stamp()}.${extension}`;
-  const download = (text: string, type: string, name: string) => {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([text], { type }));
-    link.download = name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-  };
+  const trainee = bindTraineeInput(panel.querySelector<HTMLInputElement>('input[name="trainee"]')!, storage);
+  const fileName = (kind: string, extension: string) => exportFileName(kind, trainee(), extension);
+  const download = downloadText;
   const current = (): SandboxSummary => summarizeSandbox(source.passes(), source.torn(), source.stitches());
   const saved = (): SavedSession => ({ ...current(), trainee: trainee() || undefined, durationSeconds: Math.round(source.sessionSeconds()) });
   panel.addEventListener('click', (event) => {

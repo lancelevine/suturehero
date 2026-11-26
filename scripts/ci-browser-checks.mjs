@@ -19,6 +19,7 @@ const DEFAULT_CHECKS = [
   'check-tracking-lab-scroll',
   'check-free-tying',
   'check-sandbox',
+  'check-course-export',
   'check-practice-setup',
 ];
 const PORT = 5173;
