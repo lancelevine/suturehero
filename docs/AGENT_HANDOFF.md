@@ -96,6 +96,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Split main.ts, step 1: page markup; build number constant (no build change)
+
+- `src/ui/practicePageMarkup.ts` (`practicePageMarkup`): the practice page HTML (byte-identical output, checked by evaluating the old template), with a test of the ids main.ts relies on.
+- **The build number is now `APP_BUILD` in `src/main.ts`** (passed into the markup). AGENTS.md → Versioning updated. Bump `APP_BUILD` and `build` in `performanceContext` in tracking.ts.
+- Checks: tsc, markup tests, and the full CI browser set (12/12) locally.
+
 ### 2026-11-26 — Claude — Split tracking.ts, step 4: stereo calibration panel (no build change)
 
 - `src/input/stereoCalibrationPanel.ts` (`mountStereoCalibrationPanel`): the calibrated-stereo panel markup, calibration and workspace state, saving, import/remove, in-app solve event, workspace capture feed. tracking.ts uses `stereoSetup.calibration`, `.workspace`, `.enabled`, `.geometryStatus`, `.triangulationStatus`, `.feedWorkspace`, and calls `stereoSetup.restoreSaved()` at the same start-up point as before.

@@ -121,8 +121,9 @@ wrong, say why in the commit message and the handoff entry.
 
 ## Versioning
 
-- The user-facing build number is the `BUILD 0.xx` label in the header HTML in
-  `src/main.ts`. Bump it for each user-visible change. Also update `build` in
+- The user-facing build number is `APP_BUILD` in `src/main.ts` (shown as
+  `BUILD 0.xx` in the header, whose markup is in `src/ui/practicePageMarkup.ts`
+  since 2026-11-26). Bump it for each user-visible change. Also update `build` in
   `performanceContext` in `src/tracking.ts` (shown in exported profiles).
 - Describe the change for Lance in the handoff entry. (The README currently
   also contains per-build notes; that history is planned to move to
