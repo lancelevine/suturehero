@@ -98,6 +98,7 @@ entry when finishing.
 
 ### 2026-11-26 — Claude — Background knot engines apply instrument corrections (build 0.221)
 
+- Display-thread cost per frame while tying (Node, 1× 60 fps surgeon's knot): direct Claude engine 5.75 ms; Claude-in-a-worker 0.015 ms (posting and applying snapshots; the browser's transfer of the point arrays is not included). So the worker engines should remove nearly all knot-related stutter on slow machines.
 - `WorkerKnotEngine.applyCorrections` (default true): each snapshot's `corrections` are added to the drawn tools. The old comment's concern (late corrections double-counting with absolute poses) doesn't hold: the next absolute pose replaces the corrected one, and the worker's copies are overwritten from the drawn tools each frame.
 - Trials: claude-worker 22/24 (left: surgeon's @ 2× 30 fps jitter, 3-throw @ 2× 30 fps jitter), classic-worker 18/24. Knot and demo unit tests pass.
 
