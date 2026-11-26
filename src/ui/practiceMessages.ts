@@ -108,3 +108,96 @@ export function exerciseTitle(s: ExerciseTitleInput): string {
   if (passPhase === 'interrupted') return 'Pass interrupted · Click Start guided pass to restart';
   return 'Click Start guided pass · First grasp and evert the right skin edge';
 }
+
+export interface ProgressInput {
+  sandbox: boolean;
+  preparingEdge: boolean;
+  /** Skin edge lift (scene units); 0.09 is a full eversion. */
+  edgeLift: number;
+  freeKnotActive: boolean;
+  loadTest: { active: boolean; held: number };
+  releaseCheck: { state: string; elapsed: number; duration: number };
+  knot: { active: boolean; phase: string; progress: number };
+  pull: { phase: string; progress: number };
+  pass: { phase: string; progress: number };
+}
+
+/** Lift (scene units) that counts as a fully everted skin edge. */
+const FULL_EVERSION_LIFT = 0.09;
+/** Seconds the guided pull check must be held. */
+const LOAD_HOLD_SECONDS = 1.5;
+
+/** Label and value (0–1) of the progress bar under the exercise title. */
+export function exerciseProgress(s: ProgressInput): { label: string; value: number } {
+  const { knot, pull, pass } = s;
+  const passing = pass.phase === 'passing' || pass.phase === 'complete';
+  let label: string;
+  if (s.sandbox) label = 'Sandbox';
+  else if (s.preparingEdge) label = 'Skin edge eversion';
+  else if (s.freeKnotActive) label = 'Free thread handling';
+  else if (s.loadTest.active) label = 'Gentle load hold';
+  else if (knot.phase === 'complete') label = 'Release hold check';
+  else if (knot.active) label = knot.phase === 'wrapping' ? 'Loop progress' : knot.phase === 'seating' ? 'Seating progress' : 'Throw progress';
+  else if (pull.phase !== 'waiting') label = 'Needle & thread pull-through';
+  else label = passing ? 'Tissue pass progress' : 'Guided pass progress';
+  let value: number;
+  if (s.preparingEdge) value = Math.min(1, Math.max(0, s.edgeLift / FULL_EVERSION_LIFT));
+  else if (s.freeKnotActive) value = 0;
+  else if (s.loadTest.active) value = s.loadTest.held / LOAD_HOLD_SECONDS;
+  else if (knot.phase === 'complete') value = s.releaseCheck.state === 'waiting' ? 0 : s.releaseCheck.elapsed / s.releaseCheck.duration;
+  else if (knot.active) value = knot.progress;
+  else if (pull.phase !== 'waiting') value = pull.progress;
+  else value = passing ? pass.progress : 0;
+  return { label, value };
+}
+
+export interface KnotActionInput {
+  loadTestActive: boolean;
+  releaseCheckState: string;
+  knotPhase: string;
+  /** Recognised technique of the guided knot so far, and its throw count. */
+  technique: string | undefined;
+  throws: number;
+}
+
+/** Label of the guided knot's action button. */
+export function knotActionLabel(s: KnotActionInput): string {
+  if (s.loadTestActive) return 'Pull check active';
+  if (s.releaseCheckState === 'passed') return 'Position driver at released tail';
+  if (s.knotPhase === 'between') return s.technique === 'sliding' && s.throws === 1 ? 'Next same-direction throw' : 'Next opposing throw';
+  if (s.knotPhase === 'tail') return 'Position driver at tail';
+  return 'Begin knot tying';
+}
+
+export interface GraspStatusInput {
+  tractionAlert: boolean;
+  edge: { held: boolean; ready: boolean; instruction: string };
+  passPhase: string;
+  oppositeEdgeRequired: boolean;
+  oppositeEdgeInstruction: string;
+  preparingEdge: boolean;
+  freeKnotActive: boolean;
+  loadTestActive: boolean;
+  /** Needle-driver jaw opening (0 closed … 1 open). */
+  driverOpenness: number;
+  knot: { active: boolean; phase: string };
+  releaseCheck: { leftReleased: boolean; rightReleased: boolean };
+  /** The needle grasp's own status line, used when nothing more specific applies. */
+  graspStatus: string;
+}
+
+/** Jaw opening at or below which a jaw counts as holding. */
+const HOLDING_OPENNESS = 0.2;
+
+/** Status line about what each instrument is holding. */
+export function graspStatusText(s: GraspStatusInput): string {
+  const { edge } = s;
+  if (s.tractionAlert) return edge.instruction;
+  if (s.passPhase === 'passing' && s.oppositeEdgeRequired) return s.oppositeEdgeInstruction;
+  if (s.preparingEdge || edge.held) return `Forceps: ${edge.held ? 'holding skin edge' : 'ready to grasp skin'} · ${edge.ready ? 'Edge everted' : 'Lift E to evert · X releases'}`;
+  if (s.freeKnotActive) return 'Free movement · Start holds the long tail in the forceps · Driver can grasp nearby thread';
+  if (s.loadTestActive) return `Forceps: released · Driver: ${s.driverOpenness <= HOLDING_OPENNESS ? 'holding test tail' : 'open'} · Guided pull check`;
+  if (s.knot.phase === 'complete') return `Forceps: ${s.releaseCheck.leftReleased ? 'released' : 'holding'} · Driver: ${s.releaseCheck.rightReleased ? 'released' : 'holding'} · Release-and-hold check`;
+  if (s.knot.active) return 'Forceps: long strand · Driver: short tail · Follow the stage prompts';
+  return s.graspStatus;
+}

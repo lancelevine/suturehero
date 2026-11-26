@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { exerciseTitle, sandboxTitle, type ExerciseTitleInput, type SandboxTitleInput } from './practiceMessages';
+import { exerciseProgress, exerciseTitle, graspStatusText, knotActionLabel, sandboxTitle, type ExerciseTitleInput, type ProgressInput, type SandboxTitleInput } from './practiceMessages';
 
 const sandbox = (over: Partial<SandboxTitleInput> = {}): SandboxTitleInput => ({
   now: 1000, cutMessageUntil: 0, tornMessageUntil: 0, rejection: null, inSkin: null, forcingWarning: false,
@@ -52,5 +52,31 @@ describe('exercise title', () => {
     expect(exerciseTitle(guided({ freeKnotActive: true }))).toMatch(/^Free tying lab/);
     expect(exerciseTitle(guided({ tailsTrimmed: true, trimmedTails: 1 }))).toBe('Tails trimmed: 1/2 · Position scissors at the other tail');
     expect(exerciseTitle(guided({ tailsTrimmed: true, stitchComplete: true }))).toBe('Tails trimmed · Stitch exercise complete');
+  });
+});
+
+describe('progress, knot button and grasp status', () => {
+  const base: ProgressInput = { sandbox: false, preparingEdge: false, edgeLift: 0, freeKnotActive: false, loadTest: { active: false, held: 0 }, releaseCheck: { state: 'waiting', elapsed: 0, duration: 2 }, knot: { active: false, phase: 'idle', progress: 0 }, pull: { phase: 'waiting', progress: 0 }, pass: { phase: 'idle', progress: 0 } };
+  it('labels and fills the progress bar for each stage', () => {
+    expect(exerciseProgress(base)).toEqual({ label: 'Guided pass progress', value: 0 });
+    expect(exerciseProgress({ ...base, preparingEdge: true, edgeLift: 0.045 })).toEqual({ label: 'Skin edge eversion', value: 0.5 });
+    expect(exerciseProgress({ ...base, pass: { phase: 'passing', progress: 0.3 } })).toEqual({ label: 'Tissue pass progress', value: 0.3 });
+    expect(exerciseProgress({ ...base, knot: { active: true, phase: 'seating', progress: 0.6 } })).toEqual({ label: 'Seating progress', value: 0.6 });
+    expect(exerciseProgress({ ...base, loadTest: { active: true, held: 0.75 } })).toEqual({ label: 'Gentle load hold', value: 0.5 });
+    expect(exerciseProgress({ ...base, sandbox: true }).label).toBe('Sandbox');
+  });
+  it('names the next guided knot action', () => {
+    const knot = { loadTestActive: false, releaseCheckState: 'waiting', knotPhase: 'idle', technique: undefined, throws: 0 };
+    expect(knotActionLabel(knot)).toBe('Begin knot tying');
+    expect(knotActionLabel({ ...knot, knotPhase: 'between', technique: 'sliding', throws: 1 })).toBe('Next same-direction throw');
+    expect(knotActionLabel({ ...knot, knotPhase: 'between', technique: 'surgeon', throws: 1 })).toBe('Next opposing throw');
+    expect(knotActionLabel({ ...knot, releaseCheckState: 'passed' })).toBe('Position driver at released tail');
+  });
+  it('says what each instrument holds', () => {
+    const status = { tractionAlert: false, edge: { held: false, ready: false, instruction: 'EDGE' }, passPhase: 'idle', oppositeEdgeRequired: false, oppositeEdgeInstruction: 'OPP', preparingEdge: false, freeKnotActive: false, loadTestActive: false, driverOpenness: 0.1, knot: { active: false, phase: 'idle' }, releaseCheck: { leftReleased: false, rightReleased: true }, graspStatus: 'GRASP' };
+    expect(graspStatusText(status)).toBe('GRASP');
+    expect(graspStatusText({ ...status, edge: { held: true, ready: true, instruction: 'EDGE' } })).toBe('Forceps: holding skin edge · Edge everted');
+    expect(graspStatusText({ ...status, loadTestActive: true })).toBe('Forceps: released · Driver: holding test tail · Guided pull check');
+    expect(graspStatusText({ ...status, knot: { active: true, phase: 'complete' } })).toBe('Forceps: holding · Driver: released · Release-and-hold check');
   });
 });
