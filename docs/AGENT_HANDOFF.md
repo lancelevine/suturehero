@@ -96,6 +96,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Split main.ts, step 2: trainee titles (no build change)
+
+- `src/ui/practiceMessages.ts`: `sandboxTitle` and `exerciseTitle` (the #exercise-title text), rewritten from two long conditional expressions into ordered `if … return` steps. Same text: a temporary differential test matched the old expressions on 20,000 random states. Unit tests in `practiceMessages.test.ts`.
+- Checks: tsc, unit tests, check-guided-thread, check-knot, check-sandbox.
+
 ### 2026-11-26 — Claude — Split main.ts, step 1: page markup; build number constant (no build change)
 
 - `src/ui/practicePageMarkup.ts` (`practicePageMarkup`): the practice page HTML (byte-identical output, checked by evaluating the old template), with a test of the ids main.ts relies on.
