@@ -13,7 +13,8 @@ entry when finishing.
   (`KNOT_ENGINES=a,b` to pick; `KNOT_TRIALS=quick` for a short run).
   Current (full run 2026-11-26, build 0.219): claude 24/24 (default), codex 24/24, classic 23/24,
   classic-worker (experimental).
-- **Needs Lance to test by hand:**
+- **Needs Lance to test by hand:** start with `docs/HARDWARE_TEST_CHECKLIST.md`
+  (everything since build 0.205, in testing order). Older items:
   - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
     per instrument and check the virtual jaw plane matches while rolling;
     run the 6-touch accuracy check and note the average/worst; read the

@@ -23,7 +23,7 @@ changed. Every working session must:
 
 Keep entries short and factual: what changed, which files, how it was checked,
 and what Lance still needs to test by hand (especially anything needing a real
-camera, which agents cannot test).
+camera, which agents cannot test). Add those items to `docs/HARDWARE_TEST_CHECKLIST.md` too.
 
 ## Working on `main` without conflicts
 
