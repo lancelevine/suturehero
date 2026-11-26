@@ -10,7 +10,7 @@ try {
   assert(await page.evaluate(()=>{const r=document.querySelector('.version').getBoundingClientRect();return r.left>=document.querySelector('.brand').getBoundingClientRect().right&&r.right<=innerWidth&&document.documentElement.scrollWidth<=innerWidth+1;}),`Header or page overflow at ${width}px`);
  }
  // Practice setup sits in a collapsed workspace section; open it as a user would.
- const openSetup=async()=>{if(!await page.locator('#workspace-practice-setup').evaluate(e=>e.open))await page.locator('#workspace-practice-setup > summary').click();};
+ const openSetup=async()=>{if(!await page.locator('#workspace-practice-setup').evaluate(e=>e.open))await page.locator('#workspace-setup-toggle').click();};
  const selectSetup=async(id,value)=>{
   await openSetup();
   await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.locator(id).selectOption(value)]);await page.locator('#viewport canvas').first().waitFor();

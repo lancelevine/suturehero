@@ -102,3 +102,11 @@
 
 /* Motion metrics table (src/ui/MotionMetricsPanel.ts). */
 .motion-metrics-table{border-collapse:collapse;font-size:12px;margin:6px 0;width:100%}.motion-metrics-table th,.motion-metrics-table td{padding:4px 8px;border-bottom:1px solid #dce6d9;text-align:left}
+/* Side panel for setup / plan / review / guide, and the Tracking menu (2026-11-27). */
+.workspace-stage:has(.workspace-side-panel:not([hidden])){grid-template-columns:minmax(0,1fr) auto}
+.workspace-side-panel{width:380px}.workspace-side-panel>.workspace-drawer-bar{position:sticky;top:0;background:#fff;z-index:1;padding-bottom:6px}
+.workspace-side-panel .workspace-disclosure{border:0;background:transparent;padding:0 14px 14px}.workspace-side-panel .workspace-disclosure>summary{display:none}.workspace-side-panel .workspace-disclosure:not([open]){display:none}
+.workspace-menu{position:relative}.workspace-menu>summary{list-style:none;cursor:pointer;font-size:11px;padding:8px 10px;border:1px solid #cfdcd3;border-radius:6px;color:#4f6f5e;background:#fff}.workspace-menu>summary::-webkit-details-marker{display:none}
+.workspace-menu-items{position:absolute;right:0;top:calc(100% + 4px);z-index:30;display:flex;flex-direction:column;gap:4px;min-width:190px;padding:6px;background:#fff;border:1px solid #d9e4db;border-radius:8px;box-shadow:0 8px 24px #1b322a29}.workspace-menu-items button{text-align:left;width:100%}
+.workspace-coach{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;padding:8px 4px 0}.workspace-coach .exercise-feedback{flex:1 1 360px;min-width:0}.workspace-coach .toolbar{flex:0 1 auto;padding:0}.workspace-coach #skin-handling{flex:1 1 100%}
+@media(max-width:760px){.workspace-side-panel{width:auto;max-height:60dvh;grid-column:1/-1}.workspace-stage:has(.workspace-side-panel:not([hidden])){grid-template-columns:minmax(0,1fr);height:auto}.workspace-stage:has(.workspace-side-panel:not([hidden])) .workspace-visuals{height:40dvh;min-height:260px}.workspace-menu>summary{font-size:9px;padding:6px}}

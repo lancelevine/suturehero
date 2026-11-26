@@ -59,7 +59,8 @@ export function mountTrackingLayout(root:HTMLElement){
  stage.append(head,feeds,cameraRow,status);
  const feedResize=new ResizeObserver(fitFeeds);feedResize.observe(stage);feedResize.observe(head);feedResize.observe(fullViewBody);
  window.addEventListener('pagehide',()=>feedResize.disconnect(),{once:true});
- const navigation=embedded?document.querySelector('.workspace-header-actions')!:root.querySelector('header')!;
+ // Embedded: the practice page's Tracking menu (WorkspaceLayout), else its header actions.
+ const navigation=embedded?(document.querySelector('.workspace-menu-items')??document.querySelector('.workspace-header-actions'))!:root.querySelector('header')!;
  const panel=(id:string,title:string,description:string)=>{
   const dialog=document.createElement('dialog');dialog.id=id;dialog.className='tracking-tools-panel';dialog.setAttribute('aria-labelledby',id+'-title');
   dialog.innerHTML=`<div class="tracking-tools-heading"><div><div class="eyebrow">TRACKING</div><h2 id="${id}-title">${title}</h2></div><button type="button" aria-label="Close ${title.toLowerCase()}">✕</button></div><p class="tracking-message">${description}</p><div class="tracking-tools-body"></div>`;

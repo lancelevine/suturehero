@@ -87,6 +87,19 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.224: cleaner practice layout
+
+- Lance disliked the buttons under the scene. Setup, Stitch plan, Review and Guide are now header
+  buttons opening one side panel beside the scene (sections stay `<details>` with their IDs; opening
+  one closes the others and the calibration drawer). Tracking setup / Diagnostics / Start 2 cameras
+  moved into a "Tracking ▾" header menu. The coach area is one slim strip.
+- Files: `src/ui/WorkspaceLayout.ts`, `src/ui/TrackingLayout.ts` (embedded nav target),
+  `src/ui/workspace.css`; checks `check-sandbox`, `check-practice-setup` click the header buttons
+  now (section summaries are hidden).
+- Checked: tsc; layout, sandbox, practice-setup, production-mode, course-export, free-tying,
+  tracking-lab (tracking-lab failed once in a replay step unrelated to layout, passed on rerun).
+- Lance: checklist section 7.
+
 ### 2026-11-27 — Claude — Self-review fix: depth range reads the live working depth (no build change)
 
 - Review of the tracking.ts split found one behaviour difference: the depth range used the working depth saved by the module's own field events, while tracking.ts used to read `#working-depth-mm` live every frame (Tracking Lab replay restores that field's value directly, without events). `DepthRange.range(binding, workingMm)` now takes the live value from tracking.ts again. The stereo panel and the other moves were re-checked line by line against the old order of operations: no differences.

@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.224 — Cleaner layout: no more cards under the scene
+
+- Practice setup, Stitch plan, Review and Guide are now buttons in the header. Each opens in a panel beside the scene (one at a time; ✕ or Esc closes it) instead of the row of cards under the scene.
+- Tracking setup, Diagnostics and Start 2 cameras are grouped in a "Tracking ▾" menu in the header.
+- The instruction and action buttons under the scene are one slim strip.
+
 ## Build 0.223 — Knot physics about 8% faster
 
 - Knot physics about 8% faster (instrument–thread contact), with identical results: the same knot ends in exactly the same thread positions (checked by checksum).

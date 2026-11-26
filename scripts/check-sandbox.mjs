@@ -52,7 +52,7 @@ try{
   assert.match(await page.locator('.sandbox-summary-line').textContent(),/1 pass · 0 torn/);
   // Results export (build 0.217): trainee name, saved progress and the CSV/JSON downloads.
   const panel=page.locator('.sandbox-summary');
-  if(!await page.locator('#workspace-session-review').evaluate(e=>e.open))await page.locator('#workspace-session-review > summary').click();
+  if(!await page.locator('#workspace-session-review').evaluate(e=>e.open))await page.locator('#workspace-review-toggle').click();
   await panel.locator('input[name="trainee"]').fill('Resident, A');
   await panel.locator('input[name="trainee"]').dispatchEvent('change');
   await panel.getByRole('button',{name:'Save session to progress'}).click();

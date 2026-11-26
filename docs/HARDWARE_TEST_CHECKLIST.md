@@ -85,6 +85,14 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **Microsurgery title.** In Microsurgery, the title above the scene reads e.g.
       "Nerve anastomosis · one stitch" (not "Sandbox").
 
+## 7. Layout (build 0.224)
+
+- [ ] **Header buttons.** Setup, Stitch plan, Review and ? Guide each open a panel to the
+      right of the scene; ✕ or Esc closes it. Nothing is left under the scene but the
+      instruction strip.
+- [ ] **Tracking menu.** Tracking ▾ holds Tracking setup, Diagnostics and Start 2 cameras.
+- [ ] **Laptop screen.** On your laptop the scene is still big enough to practise.
+
 ## Known limits (not bugs to report)
 
 - The background-thread engines score below the default in synthetic trials
