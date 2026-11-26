@@ -10,14 +10,15 @@ try{
  if(process.env.ARUCO_LIBRARY_DIR)await context.route('https://cdn.jsdelivr.net/npm/js-aruco2@2.0.0/src/*',async route=>route.fulfill({contentType:'application/javascript',body:await readFile(join(process.env.ARUCO_LIBRARY_DIR,new URL(route.request().url()).pathname.split('/').at(-1)))}));
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await installSyntheticCamera(page);
  await page.goto(new URL('?graphics=low',base).href);
- const frame=await page.locator('#viewport').boundingBox();assert(frame.y<110&&frame.height>650,'suturing window should be large and at the top');
+ const frame=await page.locator('#viewport').boundingBox();// Two header rows (tabs, then actions) and the status chips sit above the scene since the workspace redesign.
+ assert(frame.y<190&&frame.height>650,'suturing window should be large and at the top');
  assert(await page.locator('#workspace-calibration-drawer').isVisible());await page.locator('#choose-primary-camera').waitFor();
  await page.locator('#choose-primary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic ball pair camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#marker-readout').textContent.includes('3'),{},{timeout:30000});
- await page.locator('#choose-secondary-camera').evaluate(e=>e.closest('details').open=true);
+ await page.locator('#choose-secondary-camera').evaluate(e=>{const d=e.closest('details');if(d)d.open=true;});
  await page.locator('#choose-secondary-camera').click();await page.locator('.camera-device-card').filter({hasText:'Synthetic second camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#camera-video-2').srcObject?.active&&!document.querySelector('#camera-video-2').closest('.tracking-video').hidden,{},{timeout:30000});
- await page.locator('#choose-secondary-camera').evaluate(e=>e.closest('details').open=false);
+ await page.locator('#choose-secondary-camera').evaluate(e=>{const d=e.closest('details');if(d)d.open=false;});
  await page.evaluate(()=>window.__originalCameraVideo=document.querySelector('#camera-video'));
  const visible=async()=>{
   assert(await page.locator('#camera-video').isVisible());assert(await page.locator('#camera-video-2').isVisible());assert(await page.locator('#viewport').isVisible());

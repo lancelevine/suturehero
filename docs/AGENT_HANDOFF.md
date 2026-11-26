@@ -100,7 +100,7 @@ entry when finishing.
 
 - `src/input/stereoCalibrationPanel.ts` (`mountStereoCalibrationPanel`): the calibrated-stereo panel markup, calibration and workspace state, saving, import/remove, in-app solve event, workspace capture feed. tracking.ts uses `stereoSetup.calibration`, `.workspace`, `.enabled`, `.geometryStatus`, `.triangulationStatus`, `.feedWorkspace`, and calls `stereoSetup.restoreSaved()` at the same start-up point as before.
 - Checks pass: tracking-storage, stereo-motion, stereo-rig-faces, tracking-panels, stereo-shortcut, stereo-capture-quality, status-strip.
-- Found, not caused by this: `check-calibration-ui` fails "suturing window should be large and at the top" also before the change.
+- `check-calibration-ui` was stale (failed before the change too): the scene now starts at about 163 px (two header rows and the status chips), so the top limit is 190 px instead of 110; the second-camera chooser is no longer inside a `<details>`. It passes.
 
 ### 2026-11-26 — Claude — Split tracking.ts, step 3: depth range controls (no build change)
 
