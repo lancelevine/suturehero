@@ -11,14 +11,19 @@ try{
  await installSyntheticCamera(page);
  await page.addInitScript(()=>localStorage.setItem('suturehero.trackerType','ring6'));
  await page.route('**/src/main.ts*',async r=>{const response=await r.fetch(),body=await response.text(),patched=body.replace(/const scissors = new Scissors\(\);/,'window.__depthTools = tools; const scissors = new Scissors();');assert.notEqual(patched,body);await r.fulfill({response,body:patched});});
- if(process.env.SUTURE_SIZE_DEPTH||process.env.SUTURE_DEPTH_NOISE)await page.route('**/src/tracking.ts*',async r=>{
+ // Depth fitting lives in src/input/trackerDistance.ts (moved out of tracking.ts); the rest latch is still in tracking.ts.
+ if(process.env.SUTURE_SIZE_DEPTH||process.env.SUTURE_DEPTH_NOISE)await page.route('**/src/input/trackerDistance.ts*',async r=>{
   const response=await r.fetch(),body=await response.text();let patched;
   if(process.env.SUTURE_DEPTH_NOISE){
-   patched=body.replace(/const poseDepthValid = ([^\n]+);/,'const poseDepthValid = ($1) && Math.floor(now / 160) % 2 === 0;')
-    .replace(/const bodyPose = [^\n]+;/,'$&\nbodyPose.translation.z *= 1.35;')
-    .replace(/const stationary = rest.observe[^\n]+;/,'const stationary = false;');
+   patched=body.replace(/const poseDepthValid = ([^\n]+);/,'const poseDepthValid = ($1) && Math.floor(input.now / 160) % 2 === 0;')
+    .replace(/const bodyPose = [^\n]+;/,'$&\nbodyPose.translation.z *= 1.35;');
   }else patched=body.replace(/const poseDepthValid = [^\n]+;/,'const poseDepthValid = false;');
   assert.notEqual(patched,body,'Test must exercise unreliable depth fitting');await r.fulfill({response,body:patched});
+ });
+ if(process.env.SUTURE_DEPTH_NOISE)await page.route('**/src/tracking.ts*',async r=>{
+  const response=await r.fetch(),body=await response.text();
+  const patched=body.replace(/const stationary = rest.observe[^\n]+;/,'const stationary = false;');
+  assert.notEqual(patched,body,'Test must disable the rest latch');await r.fulfill({response,body:patched});
  });
  await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  await page.locator('#start-camera').click();
@@ -39,7 +44,7 @@ try{
   assert(saved.size.near.normalizedSide>saved.size.far.normalizedSide);assert(saved.size.far.proxy>saved.size.near.proxy);
   await page.keyboard.press('Escape');await page.evaluate(()=>window.__ballScene.scale=1);await page.waitForTimeout(900);
  }
- const locked=await sample();if(process.env.SUTURE_SIZE_DEPTH)assert.match(locked.diagnostics,/depth from marker size/);
+ const locked=await sample();if(process.env.SUTURE_SIZE_DEPTH)assert.match(locked.diagnostics,/depth from (tilt-corrected )?marker size/);
  // Exercise the instrument calibration control rather than the global lock.
  await page.locator('[data-profile-check=depthLock]').uncheck();
  await page.waitForTimeout(800);const unlocked=await sample();

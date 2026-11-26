@@ -7,6 +7,7 @@ import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {mountDetectionPreviews} from './ui/detectionPreviews';
+import {mountDepthRangeControls} from './input/depthRangeControls';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
@@ -26,7 +27,7 @@ import {stereoPracticePosition} from './input/stereoTrackingPose';
 import {parseWorkspace,practiceUnitsPerMm,serializeWorkspace,workspacePracticePosition,type StereoWorkspace} from './input/stereoWorkspace';
 import {stereoCalibrationIdentity} from './input/stereoCalibrationIdentity';
 import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
-import {cameraPlaneXY,depthRange,desiredDepthZ,filteredDepthZ,LOCKED_DEPTH_Z} from './input/monocularDepthMapping';
+import {cameraPlaneXY,desiredDepthZ,filteredDepthZ,LOCKED_DEPTH_Z} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
 import {flowBitmapsSupported,flowFrameSettings,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
@@ -53,7 +54,6 @@ import {mountHallSensorPanel} from './ui/HallSensorPanel';
 import type {Diagnostics} from './trackingLab/model';
 import {mountPerformancePanel} from './ui/PerformancePanel';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
-import {SizeDepthCalibration} from './input/tiltSizeDepth';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
 import {TrackedPoseFilter} from './input/TrackedPoseFilter';
 import {instrumentCalibration} from './input/InstrumentCalibration';
@@ -68,7 +68,7 @@ import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
 import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
 import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from './input/trackingMessages';
-import {TRACKING_STORAGE_KEYS,readStored,readStoredJson,writeStored,removeStored,parseTrackerType,trackerTypeStorageKey,parseDepthCalibration,DEFAULT_WORKING_DEPTH_MM,type SavedDepthCalibration} from './input/trackingStorage';
+import {TRACKING_STORAGE_KEYS,readStored,readStoredJson,writeStored,removeStored,parseTrackerType,trackerTypeStorageKey} from './input/trackingStorage';
 import {estimateMarkerPose} from './input/markerPose';
 import {RING_LAYOUT_REVISION,solvePrismPose,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
@@ -103,7 +103,6 @@ const rotationSensitivityValue=document.querySelector<HTMLOutputElement>('#rotat
 const depthSensitivityValue=document.querySelector<HTMLOutputElement>('#depth-sensitivity-value')!;
 const filterDiagnostics=document.querySelector<HTMLElement>('#tracking-filter-diagnostics')!;
 const workingDepthInput=document.querySelector<HTMLInputElement>('#working-depth-mm')!;
-const depthRangeStatus=document.querySelector<HTMLElement>('#depth-range-status')!;
 rotationSensitivity.addEventListener('input',()=>{rotationSensitivityValue.textContent=`${rotationSensitivity.value}°`;});
 rotationGain.addEventListener('input',()=>{rotationGainValue.textContent=`${Number(rotationGain.value).toFixed(2)}×`;});
 depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent=`${depthSensitivity.value}×`;depthStates.clear();});
@@ -538,44 +537,24 @@ const faceTransitionStates=new Map<InstrumentName,FaceTransitionState>();
 const rigidBodyStates=new Map<InstrumentName,RigidBodyState>();
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
-const sizeDepthCalibration=new SizeDepthCalibration();
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
 stableDepth.addEventListener('change',()=>{monoDepthFilters.clear();depthStates.clear();});
-const DEPTH_STORAGE_KEY=TRACKING_STORAGE_KEYS.depthCalibration;
 const depthBinding=()=>`${stream?.getVideoTracks()[0]?.getSettings().deviceId??select.value}|${trackerType}${trackerType==='prism'?'':':marker'+trackerGeometry(trackerType).markerSizeMm+'mm:layout'+RING_LAYOUT_REVISION}|${video.videoWidth&&video.videoHeight?(video.videoWidth/video.videoHeight).toFixed(3):'off'}`;
-let depthNearMm:number|null=null,depthFarMm:number|null=null;
-function saveDepthCalibration(){
- const saved:SavedDepthCalibration={near:depthNearMm,far:depthFarMm,range:Number(workingDepthInput.value)||DEFAULT_WORKING_DEPTH_MM,size:sizeDepthCalibration};
- writeStored(DEPTH_STORAGE_KEY,JSON.stringify(saved));
-}
-function restoreDepthCalibration(){
- const saved=readStoredJson(DEPTH_STORAGE_KEY);if(saved===undefined)return;
- const value=parseDepthCalibration(saved);
- if(value.range!==undefined)workingDepthInput.value=String(value.range);
- // Near/Far are only meaningful with the size calibration they were captured with.
- if(!sizeDepthCalibration.restore(value.size))return;
- if(value.near!==undefined)depthNearMm=value.near;
- if(value.far!==undefined)depthFarMm=value.far;
-}
-restoreDepthCalibration();
 /** Distance state per instrument: recent distances, size-depth frames, last depth (src/input/trackerDistance.ts). */
 const distanceTracks=new DistanceTracks<InstrumentName>();
-function depthRangeLabel(){
- const ready=sizeDepthCalibration.near?.binding===depthBinding();
- depthRangeStatus.textContent=!sizeDepthCalibration.near?'Hold the selected instrument still at Near, then Far. A reasonably face-on marker is required.':!ready?'Start the same camera and tracker geometry, or capture Near/Far again.':!sizeDepthCalibration.far?'Near size captured. Move the same instrument farther away and capture Far.':'Near/Far tilt-corrected marker sizes calibrated. Edge-on markers hold the last depth.';
-}
 function resetDepthFilters(){depthStates.clear();monoDepthFilters.clear();stationaryStates.clear();distanceTracks.resetHistories();}
-function captureSizeDepth(){
- const name=(document.querySelector<HTMLElement>('[data-calibration-tool][aria-pressed="true"]')?.dataset.calibrationTool??'needleDriver') as InstrumentName;
- const frame=steadyCaptureFrame(distanceTracks.get(name).sizeEstimator.frames(),performance.now(),depthBinding());
- if(trackingMode.value!=='mono'||!filterMeasurements.get(name)?.valid||frame==='too-few'){depthRangeStatus.textContent=`Show a face-on ${name} marker in camera 1 and hold still before capturing.`;return null;}
- if(frame==='unsteady'){depthRangeStatus.textContent='Hold the instrument steady at this distance, then retry.';return null;}
- return frame;
-}
-workingDepthInput.addEventListener('change',()=>{sizeDepthCalibration.far=null;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
-document.querySelector('#set-depth-near')!.addEventListener('click',()=>{const sample=captureSizeDepth();if(!sample)return;sizeDepthCalibration.setNear(sample);depthNearMm=sample.distanceMm;depthFarMm=null;resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
-document.querySelector('#set-depth-far')!.addEventListener('click',()=>{const sample=captureSizeDepth();if(!sample)return;if(!sizeDepthCalibration.setFar(sample)){depthRangeStatus.textContent='Capture Near first, then move the same instrument clearly farther away using the same camera and tracker.';return;}depthFarMm=sample.distanceMm;workingDepthInput.value=String(Math.round(depthFarMm-depthNearMm!));resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
-document.querySelector('#reset-depth-range')!.addEventListener('click',()=>{sizeDepthCalibration.near=sizeDepthCalibration.far=null;depthNearMm=depthFarMm=null;workingDepthInput.value='400';resetDepthFilters();saveDepthCalibration();depthRangeLabel();});
+// Near/Far size-depth range, working depth and its saved copy (src/input/depthRangeControls.ts).
+const {range:depthRangeState,label:depthRangeLabel}=mountDepthRangeControls({
+ binding:depthBinding,
+ capture:()=>{
+  const name=(document.querySelector<HTMLElement>('[data-calibration-tool][aria-pressed="true"]')?.dataset.calibrationTool??'needleDriver') as InstrumentName;
+  const frame=steadyCaptureFrame(distanceTracks.get(name).sizeEstimator.frames(),performance.now(),depthBinding());
+  if(trackingMode.value!=='mono'||!filterMeasurements.get(name)?.valid||frame==='too-few')return `Show a face-on ${name} marker in camera 1 and hold still before capturing.`;
+  if(frame==='unsteady')return 'Hold the instrument steady at this distance, then retry.';
+  return frame;
+ },
+ changed:resetDepthFilters,
+});
 trackerTypeSelect.addEventListener('change',depthRangeLabel);
 /** Side (px) of each instrument's chosen marker, for the "move closer" hint (ui/trackingHealth.ts). */
 const markerSides=new Map<string,number>();
@@ -654,12 +633,12 @@ function updateLiveTargets(){
   if(!distance)continue;
   const {measuredDistance,depthDistance,source:depthSource,valid:depthInputValid}=distance;
   markerSides.set(name,markerSidePx(chosen.marker.corners));
-  const {near,span:range}=depthRange(sizeDepthCalibration.near?.binding===binding,depthNearMm,depthFarMm,Number(workingDepthInput.value));
+  const {near,span:range}=depthRangeState.range(binding);
 
   const previousZ=depthStates.get(name);
   const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
   const baseline=LOCKED_DEPTH_Z[name];
-  const fraction=sizeDepthCalibration.fraction(depthDistance/(focalPx/overlay.width),binding);
+  const fraction=depthRangeState.size.fraction(depthDistance/(focalPx/overlay.width),binding);
   const desiredZ=desiredDepthZ(depthDistance,near,range,Number(depthSensitivity.value),fraction);
   let filter=monoDepthFilters.get(name);if(!filter){filter=new MonocularDepthFilter();monoDepthFilters.set(name,filter);}
   const z=filteredDepthZ(filter,trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth),previousZ,desiredZ,now,lockedDepth,baseline,depthInputValid);
@@ -1220,7 +1199,7 @@ const {diagnosticsHost}=mountTrackingLayout(root);
 // Frame-driven capture (src/input/captureScheduling.ts): process each camera's frame as it arrives.
 observeCameraFrames(video,count=>{perf.tick('Camera 1 presented frames',count);if(frameDriven())void detectFrame(performance.now());},frameDriven);
 observeCameraFrames(video2,count=>{perf.tick('Camera 2 presented frames',count);if(frameDriven())void detectSecondFrame(performance.now());},frameDriven);
-const performanceContext=()=>({build:'0.218',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:DISCOVERY_INTERVAL_MS,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthNearMm,farMm:depthFarMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
+const performanceContext=()=>({build:'0.218',frameSource:trackFramesActive()?'camera track':frameDriven()?'video frame callback':'display',flowBackoff:{camera1:{costMs:flowBudget1.costMs??null,intervalMs:flowBudget1.intervalMs(flowMinIntervalMs())},camera2:{costMs:flowBudget2.costMs??null,intervalMs:flowBudget2.intervalMs(flowMinIntervalMs())}},revision:__SUTUREHERO_REVISION__,mode:embeddedTracking?'embedded':'standalone',userAgent:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,trackerType,graphics:document.querySelector<HTMLSelectElement>('#graphics-quality')?.value??'standalone',camera1:{width:video.videoWidth,height:video.videoHeight,requestedFps:video.srcObject?(video.srcObject as MediaStream).getVideoTracks()[0]?.getSettings().frameRate:null},camera2:{width:video2.videoWidth,height:video2.videoHeight},decode1:detector.lastFrameSize,flow1:fastTracker.lastFrameSize,decode2:detector2.lastFrameSize,flow2:fastTracker2.lastFrameSize,decodeIntervalMs:roiDecodeToggle.checked?65:110,recoveryIntervalMs:65,globalScanIntervalMs:DISCOVERY_INTERVAL_MS,snapshotBackend1,snapshotBackend2,depth:{nearMm:depthRangeState.nearMm,farMm:depthRangeState.farMm,spanMm:Number(workingDepthInput.value),sensitivity:Number(depthSensitivity.value),instruments:Object.fromEntries([...filterMeasurements].map(([name,m])=>[name,{distanceMm:m.rawZ,sourceZ:m.filteredZ,locked:m.locked,source:m.source,measurementValid:m.valid}]))},roiDecode:roiDecodeToggle.checked,stereoActive:stereoActive(),stereoSources:Object.fromEntries(stereoFallbackStatus),stereoRejections:Object.fromEntries(stereoRejections),staleDecodeDrops});
 mountPerformancePanel(diagnosticsHost,performanceContext);
 // Bluetooth Hall-sensor jaw (src/ui/HallSensorPanel.ts): the only jaw input (camera jaw tracking removed in build 0.205).
 mountHallSensorPanel(document.querySelector<HTMLElement>('#jaw-sensor-controls')!,(name,opening)=>sendJawOpening(name,opening,[]));

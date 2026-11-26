@@ -96,6 +96,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Split tracking.ts, step 3: depth range controls (no build change)
+
+- `src/input/depthRangeControls.ts`: `DepthRange` (Near/Far size-depth anchors, working depth, saved form, status text, `range(binding)`) and `mountDepthRangeControls` (Near/Far/Reset buttons, working-depth field, saving). Same messages and storage key; tests in `depthRangeControls.test.ts`. tracking.ts keeps `depthBinding`, the capture rules and `resetDepthFilters`.
+- `check-driver-depth`'s env modes were already broken by an earlier move: `SUTURE_SIZE_DEPTH`/`SUTURE_DEPTH_NOISE` now patch `src/input/trackerDistance.ts` (with `input.now`), the rest latch still in tracking.ts, and accept "depth from tilt-corrected marker size". All three modes pass, as do check-tracking-storage and check-tracking-panels.
+
 ### 2026-11-26 — Claude — Split tracking.ts, step 2: decode previews (no build change)
 
 - `src/ui/detectionPreviews.ts` (`mountDetectionPreviews`): threshold and centre-crop previews, moved from tracking.ts (`needsFrames`, `render`).
