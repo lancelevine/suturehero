@@ -6,7 +6,7 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** None.
+- **In progress:** Claude — autonomous work while Lance is away (to 2026-11-29): CI browser checks, then splitting src/tracking.ts and src/main.ts (Codex: please avoid those two files), then knot friction and worker engine on branches.
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
