@@ -11,6 +11,7 @@ const DEFAULT_CHECKS = [
   'check-tracking-storage',
   'check-iphone-start',
   'check-camera-controls',
+  'check-detection-previews',
   'check-production-mode',
   'check-hall-sensor',
   'check-layout',

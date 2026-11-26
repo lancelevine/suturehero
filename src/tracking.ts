@@ -6,7 +6,7 @@ import {flowFrameScale,mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
-import {adaptiveThresholdInPlace,otsuThresholdInPlace} from './ui/frameDiagnostics';
+import {mountDetectionPreviews} from './ui/detectionPreviews';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
@@ -128,35 +128,8 @@ let fastProcessing=false,lastFastFrame=0,lastSlowFrame=0,latestFlowAt=0,latestDe
 let lastAppliedFrameAt=0;
 let staleDecodeDrops=0;
 let fastFrames=0,slowFrames=0,fastWindow=performance.now();
-const thresholdToggle=document.querySelector<HTMLInputElement>('#show-threshold')!;
-const thresholdPreview=document.querySelector<HTMLCanvasElement>('#threshold-preview')!;
-const thresholdContext=thresholdPreview.getContext('2d')!;
-const cropToggle=document.querySelector<HTMLInputElement>('#show-crop')!;
-const cropViews=document.querySelector<HTMLElement>('#crop-views')!;
-const cropOriginal=document.querySelector<HTMLCanvasElement>('#crop-original')!;
-const cropAdaptive=document.querySelector<HTMLCanvasElement>('#crop-adaptive')!;
-cropToggle.addEventListener('change',()=>{cropViews.style.display=cropToggle.checked?'grid':'none';});
-function renderCrop(frame:ImageData){
- const side=Math.min(440,frame.width,frame.height),sx=Math.floor((frame.width-side)/2),sy=Math.floor((frame.height-side)/2);
- const original=cropOriginal.getContext('2d')!,adaptive=cropAdaptive.getContext('2d')!;
- cropOriginal.width=side;cropOriginal.height=side;cropAdaptive.width=side;cropAdaptive.height=side;
- const source=document.createElement('canvas');source.width=frame.width;source.height=frame.height;source.getContext('2d')!.putImageData(frame,0,0);
- original.drawImage(source,sx,sy,side,side,0,0,side,side);
- const data=original.getImageData(0,0,side,side);
- adaptiveThresholdInPlace(data);
- adaptive.putImageData(data,0,0);
-}
-
-thresholdToggle.addEventListener('change',()=>{thresholdPreview.style.display=thresholdToggle.checked?'block':'none';});
-function renderThreshold(frame:ImageData){
- const w=Math.max(1,Math.round(frame.width/2)),h=Math.max(1,Math.round(frame.height/2));
- thresholdPreview.width=w;thresholdPreview.height=h;
- const source=document.createElement('canvas');source.width=frame.width;source.height=frame.height;source.getContext('2d')!.putImageData(frame,0,0);
- thresholdContext.drawImage(source,0,0,w,h);
- const output=thresholdContext.getImageData(0,0,w,h);
- otsuThresholdInPlace(output);
- thresholdContext.putImageData(output,0,0);
-}
+// Threshold and crop decode previews (src/ui/detectionPreviews.ts).
+const detectionPreviews=mountDetectionPreviews();
 
 
 // Second independent USB camera for stereo setup validation (not yet fused into pose).
@@ -1023,13 +996,12 @@ async function detectFrame(now:number){
   recordDecodeSearch(perf,1,region);
   if(decodeCanvas.width!==regionW||decodeCanvas.height!==regionH){decodeCanvas.width=regionW;decodeCanvas.height=regionH;}
   const capturedAt=frameCapturedAt;
-  const decodeRequest=useBitmapFlow()&&flowFrameSettings.useDecodeBitmaps&&!thresholdToggle.checked&&!cropToggle.checked
+  const decodeRequest=useBitmapFlow()&&flowFrameSettings.useDecodeBitmaps&&!detectionPreviews.needsFrames
    ?decodeViaBitmap(detector,'Camera 1',snapshot!.source,left,top,regionW,regionH)
    :(()=>{
      perf.measure('Camera 1 decode crop',()=>decodeContext.drawImage(snapshot!.source,left,top,regionW,regionH,0,0,regionW,regionH));
      const frame=readFrame(decodeContext,'Camera 1 decode readback',0,0,regionW,regionH);
-     if(thresholdToggle.checked)renderThreshold(frame);
-     if(cropToggle.checked)renderCrop(frame);
+     detectionPreviews.render(frame);
      return detector.detect(frame,{x:left,y:top});
     })();
   void decodeRequest.then(nativeFound=>{

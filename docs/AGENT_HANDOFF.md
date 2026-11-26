@@ -96,6 +96,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Split tracking.ts, step 2: decode previews (no build change)
+
+- `src/ui/detectionPreviews.ts` (`mountDetectionPreviews`): threshold and centre-crop previews, moved from tracking.ts (`needsFrames`, `render`).
+- New `scripts/check-detection-previews.mjs` (no check covered them), added to the CI list. Note: previews refresh only on full decodes, which can be seconds apart, so the check waits until each canvas leaves its 300×150 default.
+
 ### 2026-11-26 — Claude — Split tracking.ts, step 1: markup and WorkerDetector (no build change)
 
 - `src/ui/trackingPageMarkup.ts`: the tracking page HTML (byte-identical output, checked against the old template), with a test of the ids tracking.ts relies on.
