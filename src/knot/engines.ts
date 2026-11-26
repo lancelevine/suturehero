@@ -14,7 +14,7 @@ import { CodexKnotEngine } from './codex/CodexKnotEngine';
  * implementations so they can be compared for reliability and speed:
  *  - `classic`: the event-based FreeKnotPractice (src/gameplay/FreeKnotPractice.ts);
  *  - `claude`: Claude's engine (src/knot/claude/): the classic model with robustness fixes;
- *  - `classic-worker`: the classic model in a Web Worker (src/knot/worker/);
+ *  - `classic-worker`, `claude-worker`: the classic / Claude model in a Web Worker (src/knot/worker/);
  *  - `codex`: Claude's robust grasp with stricter event-ledger classification.
  * Chosen in Practice setup → Knot engine, or with ?knot=<id> in the link (reloads the practice).
  *
@@ -97,6 +97,8 @@ export const KNOT_ENGINES: KnotEngineEntry[] = [
   { id: 'codex', label: 'Codex (robust grasp + event ledger)', create: () => new CodexKnotEngine() },
   // The same model in a Web Worker: drawing is not held up by the thread physics; the knot state is a frame behind.
   { id: 'classic-worker', label: 'Classic in a background thread (experimental)', create: () => new WorkerKnotEngine(createKnotWorkerPort()) },
+  // Claude's engine in the worker (2026-11-26); frames missed while it is busy are replayed in order.
+  { id: 'claude-worker', label: 'Claude in a background thread (experimental)', create: () => new WorkerKnotEngine(createKnotWorkerPort(), 'claude') },
 ];
 
 /** The engine for an id (unknown ids fall back to the default). */

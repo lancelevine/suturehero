@@ -8,7 +8,7 @@ import { TRACT_HALF_WIDTH } from '../../tissue/sutureTract';
 import type { KnotEngine, KnotGrip, StrandTensionView } from '../engines';
 import type { KnotTissue } from '../knotTissue';
 import { snapshotOf } from './KnotHost';
-import type { KnotFrame, KnotRequest, KnotSnapshot } from './protocol';
+import type { BacklogFrame, KnotFrame, KnotRequest, KnotSnapshot, WorkerModel } from './protocol';
 
 /** Where knot requests go and snapshots come from: a Web Worker, or (tests) a host in the same thread. */
 export interface KnotPort {
@@ -18,6 +18,11 @@ export interface KnotPort {
 
 /** Most knot updates waiting for the remote model at once (see WorkerKnotEngine.inFlight). */
 export const MAX_IN_FLIGHT = 3;
+/**
+ * Most frames kept for the worker while it is behind (about 1 s at 60 fps). Beyond that the
+ * two oldest are merged (time added, later instruments kept), as all were before 2026-11-26.
+ */
+export const MAX_BACKLOG = 60;
 
 const IDLE_TENSION: StrandTensionView = { state: 'released', tautness: 0, demand: 0, peakDemand: 0 };
 
@@ -74,11 +79,12 @@ export class WorkerKnotEngine implements KnotEngine {
    * that, frames add their time to the next update instead of queueing behind a slow model.
    */
   private inFlight = 0;
-  private pendingDt = 0;
+  /** Frames not yet sent while the worker is behind, each with its own instruments (replayed in order). */
+  private backlog: BacklogFrame[] = [];
   /** Places the instruments at the start of tying exactly as the remote model does. */
   private readonly placer = new FreeKnotPractice();
 
-  constructor(private readonly port: KnotPort) {
+  constructor(private readonly port: KnotPort, private readonly model: WorkerModel = 'classic') {
     // Start from the same wound points and tract width as the model itself.
     this.entry.copy(this.placer.entry);
     this.exit.copy(this.placer.exit);
@@ -107,7 +113,8 @@ export class WorkerKnotEngine implements KnotEngine {
 
   begin(tools: readonly Instrument[], technique?: KnotTechnique | 'auto') {
     const sent = tools.map((tool) => tool.root.position.clone());
-    this.port.post({ type: 'begin', technique, ...this.frame(tools) });
+    this.backlog = [];
+    this.port.post({ type: 'begin', technique, model: this.model, ...this.frame(tools) });
     const placer = this.placer;
     placer.entry.copy(this.entry);
     placer.exit.copy(this.exit);
@@ -127,16 +134,24 @@ export class WorkerKnotEngine implements KnotEngine {
       this.lastCorrections = snapshot.corrections;
     }
     if (!this.active) return;
-    // Never queue updates behind a slow model: send the elapsed time with the next one instead.
-    this.pendingDt += dt;
-    if (this.inFlight >= MAX_IN_FLIGHT) return;
+    // Never queue requests behind a slow model: keep this frame and send it with the next request.
+    const frame = this.frame(tools);
+    if (this.inFlight >= MAX_IN_FLIGHT) {
+      this.backlog.push({ dt, tools: frame.tools });
+      if (this.backlog.length > MAX_BACKLOG) {
+        const [oldest, next] = this.backlog.splice(0, 2);
+        this.backlog.unshift({ dt: oldest.dt + next.dt, tools: next.tools });
+      }
+      return;
+    }
     this.inFlight++;
-    const elapsed = this.pendingDt;
-    this.pendingDt = 0;
-    this.port.post({ type: 'update', dt: elapsed, blocked: blockedGrips ? [...blockedGrips] : null, ...this.frame(tools) });
+    const backlog = this.backlog;
+    this.backlog = [];
+    this.port.post({ type: 'update', dt, blocked: blockedGrips ? [...blockedGrips] : null, ...(backlog.length ? { backlog } : {}), ...frame });
   }
 
   reset() {
+    this.backlog = [];
     this.port.post({ type: 'reset' });
     this.placer.reset();
     this.latest = null;

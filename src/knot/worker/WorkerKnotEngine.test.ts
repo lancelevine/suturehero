@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { tieKnot } from '../../gameplay/test-support/knotTrials';
 import { KnotHost } from './KnotHost';
+import { SlowKnotPort } from './slowKnotPort';
 import { LocalKnotPort, WorkerKnotEngine } from './WorkerKnotEngine';
 
 const throughStandIn = async (speed: number, fps: number, throws: Array<[number, number]>) => {
@@ -27,4 +28,19 @@ it('forms the double first throw through the stand-in at normal speed', async ()
   const { host } = await throughStandIn(1, 60, [[2, 1]]);
   expect(host.model.sequence?.technique, host.model.instruction).toBe('surgeon');
   expect(host.model.sequence?.throws[0].wraps).toBe(2);
+}, 300000);
+
+// A worker slower than the display (2026-11-26): before frames were replayed in order, a worker
+// answering every 2nd or 3rd frame merged frames, lost the jaw closings in between and formed no throw.
+it.each([2, 3])('ties and locks a surgeon’s knot when the worker answers only every %i frames', async (framesPerRequest) => {
+  const host = new KnotHost();
+  const port = new SlowKnotPort(host, framesPerRequest);
+  const engine = new WorkerKnotEngine(port, 'claude');
+  const update = engine.update.bind(engine);
+  engine.update = (dt, tools, blocked) => { port.tick(); update(dt, tools, blocked); };
+  await tieKnot(engine, 2, 60, [[2, 1], [1, -1]]);
+  for (let i = 0; i < 400; i++) engine.update(1 / 60, []);
+  expect(host.model.sequence?.technique, host.model.instruction).toBe('surgeon');
+  expect(host.model.sequence?.locked, host.model.instruction).toBe(true);
+  expect(engine.sequence?.locked).toBe(true);
 }, 300000);

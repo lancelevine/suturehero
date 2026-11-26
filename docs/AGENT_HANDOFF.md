@@ -96,6 +96,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Background knot engine replays missed frames (build 0.220)
+
+- `src/knot/worker/`: an update request can carry `backlog` (`BacklogFrame[]`: dt and tool states per missed frame, oldest first, at most `MAX_BACKLOG` 60, then the oldest two are merged). `KnotHost` replays the backlog, then the current frame. `begin` can name the model (`WorkerModel` 'classic' | 'claude'); the host switches to `ClaudeKnotEngine` for 'claude'. New engine `claude-worker`.
+- New `slowKnotPort.ts` (`SlowKnotPort`: answers one update every N frames) and regression tests: a surgeon's knot locks with the worker answering every 2nd/3rd frame. On the old code both formed 0 throws.
+- Full trials (worker answering one frame late): classic-worker 14/24, claude-worker 17/24 (direct engines 24/24). The remaining gap: the model's tool corrections (driver kept off skin and thread) stay in the worker's copies and are overwritten by the next frame's poses, while the direct engines keep them on the instruments. The trial hands move tools relative to their current pose, so they penalise this; with camera tracking, poses are absolute either way. Also seen: a 3-throw with a 1-frame lag misses the forceps regrasp by 0.003 (0.088 against 0.085 reach).
+- Checks: tsc, knot tests (13), vite build (knotWorker bundle includes ClaudeKnotEngine).
+
 ### 2026-11-26 — Claude — Thread keeps real time at 30 fps (knots 24/24) (build 0.219)
 
 - Root cause of the last failing trial (surgeon's @ 2× 30 fps with jitter), found by measuring rather than tuning: `MAX_TIME_STEPS` = 2 steps of 1/120 s per update made physics run at half real time at 30 fps, so the thread lagged the hands and a 1.35-turn wrap wound about 1.8 turns on the shaft (26 points close to the shaft at 30 fps, against 12 at 60 fps). The earlier friction/carry attempts treated a symptom. There was no contact creep: the contact resolve added no winding.

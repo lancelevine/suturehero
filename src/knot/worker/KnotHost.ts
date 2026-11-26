@@ -4,7 +4,8 @@ import { Instrument } from '../../instruments/Instrument';
 import type { KnotTechnique } from '../../suture/KnotTechnique';
 import type { ThreadStrand } from '../../suture/ThreadStrand';
 import { knotSurfaceAt, microEnvironment } from '../knotTissue';
-import type { KnotFrame, KnotRequest, KnotSnapshot, ToolState } from './protocol';
+import { ClaudeKnotEngine } from '../claude/ClaudeKnotEngine';
+import type { KnotFrame, KnotRequest, KnotSnapshot, ToolState, WorkerModel } from './protocol';
 
 /** Slices per second of request time, and the most per request (bounds catch-up after a stall, s × 60). */
 const SLICES_PER_SECOND = 60;
@@ -16,7 +17,8 @@ const MAX_SLICES = 8;
  * runs in a worker or, for tests, in the same thread.
  */
 export class KnotHost {
-  readonly model = new FreeKnotPractice();
+  model: FreeKnotPractice = new FreeKnotPractice();
+  private modelKind: WorkerModel = 'classic';
   private updates = 0;
   private simulatedSeconds = 0;
   private readonly tools = [new Instrument('left', 0), new Instrument('right', 0)];
@@ -29,8 +31,34 @@ export class KnotHost {
     } else {
       const before = this.tools.map((tool) => ({ position: tool.root.position.clone(), quaternion: tool.root.quaternion.clone() }));
       this.applyFrame(request);
-      if (request.type === 'begin') this.model.begin(this.tools, request.technique as KnotTechnique | 'auto' | undefined);
+      if (request.type === 'begin') {
+        const kind = request.model ?? 'classic';
+        if (kind !== this.modelKind) {
+          this.model = kind === 'claude' ? new ClaudeKnotEngine() : new FreeKnotPractice();
+          this.modelKind = kind;
+          this.applyFrame(request);
+        }
+        this.model.begin(this.tools, request.technique as KnotTechnique | 'auto' | undefined);
+      }
       else {
+        const blocked = request.blocked ? new Set(request.blocked) : undefined;
+        // Replay the frames the worker missed, each with its own instruments and time step.
+        if (request.backlog?.length) {
+          for (const frame of request.backlog) {
+            for (const state of frame.tools) {
+              const tool = this.tools.find((t) => t.id === state.id);
+              if (tool) applyTool(tool, state, request.tissue.environment);
+            }
+            this.model.update(frame.dt, this.tools, blocked);
+            this.updates++;
+            this.simulatedSeconds += frame.dt;
+          }
+          for (const state of request.tools) {
+            const tool = this.tools.find((t) => t.id === state.id);
+            if (tool) applyTool(tool, state, request.tissue.environment);
+          }
+          before.splice(0, before.length, ...this.tools.map((tool) => ({ position: tool.root.position.clone(), quaternion: tool.root.quaternion.clone() })));
+        }
         const sent = this.tools.map((tool) => tool.root.position.clone());
         const after = this.tools.map((tool) => ({ position: tool.root.position.clone(), quaternion: tool.root.quaternion.clone() }));
         // A request can carry several frames' time (the main thread waited for this answer):
@@ -38,7 +66,6 @@ export class KnotHost {
         // moving the instruments smoothly from where they were to where they are now (a jump
         // per request is fast, jerky motion to the thread, which can stop a throw forming).
         const slices = Math.min(MAX_SLICES, Math.max(1, Math.ceil(request.dt * SLICES_PER_SECOND - 1e-6)));
-        const blocked = request.blocked ? new Set(request.blocked) : undefined;
         for (let i = 0; i < slices; i++) {
           const t = (i + 1) / slices;
           this.tools.forEach((tool, k) => {

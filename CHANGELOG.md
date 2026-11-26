@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.220 — Background knot engine replays missed frames
+
+- Background-thread knot engines: when the background thread falls behind the display, the frames it missed are now replayed in order, each with its own instrument positions and jaw openings, instead of being merged. Before, a grasp made while it was behind could be lost, and a worker 2–3× slower than the display formed no throw at all; now a surgeon's knot locks. New option **Claude in a background thread (experimental)** in Practice setup → Knot engine. The default stays Claude's engine on the main thread, which is still more reliable (synthetic tests).
+
 ## Build 0.219 — Thread keeps real time at 30 fps (knots 24/24)
 
 - Knot tying at a low frame rate: at 30 fps the thread simulation now keeps up with real time (it previously ran at half speed, so with quick hands the thread lagged and wound round the needle driver, and a single throw could be counted as a double that never locked). Engine comparison: Claude 24/24, Codex 24/24, Classic 23/24 (synthetic scripted hands). At 30 fps the physics now does the same work per second as at 60 fps; at 60 fps and above nothing changes.

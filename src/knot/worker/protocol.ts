@@ -22,9 +22,28 @@ export interface KnotFrame {
   tractHalfWidth: number;
 }
 
+/** A display frame the worker has not seen yet: its time step and the instruments then. */
+export interface BacklogFrame {
+  dt: number;
+  tools: ToolState[];
+}
+
+/** Which knot model the worker runs (default: classic). */
+export type WorkerModel = 'classic' | 'claude';
+
 export type KnotRequest =
-  | ({ type: 'begin'; technique: string | undefined } & KnotFrame)
-  | ({ type: 'update'; dt: number; blocked: string[] | null } & KnotFrame)
+  | ({ type: 'begin'; technique: string | undefined; model?: WorkerModel } & KnotFrame)
+  | ({
+      type: 'update';
+      dt: number;
+      blocked: string[] | null;
+      /**
+       * Frames since the last update the worker saw, oldest first, replayed before this one
+       * (2026-11-26). Each keeps its own jaw openings, so a grasp or release made while the
+       * worker was behind is not lost.
+       */
+      backlog?: BacklogFrame[];
+    } & KnotFrame)
   | { type: 'reset' }
   | { type: 'cut'; strand: number; coordinate: number };
 
