@@ -85,8 +85,8 @@ entry when finishing.
 - **Next up (proposed, not started):**
   1. Jaw sensor follow-ups: auto-reconnect, battery level, jaws in Sandbox
      mode without camera tracking.
-  3. Continue splitting `src/tracking.ts`; next candidates: status-strip
-     health builder, `performanceContext`.
+  3. Continue splitting `src/tracking.ts`: a shared tracking-state object, then
+     merge the camera 1 / camera 2 detect paths (needs real-camera testing after).
   4. Add a code formatter in one dedicated commit (agree with Lance first).
   5. When the OV9281 cameras arrive (monochrome, global shutter, 1280×800 @
      up to 120 fps): change `CAMERA_REQUEST` in `src/input/cameraDevices.ts`,
@@ -95,6 +95,12 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-26 — Claude — Splitting tracking.ts and main.ts: summary of this phase
+
+- Sizes: tracking.ts 121 KB → 98 KB, main.ts 70 KB → 51 KB, no behaviour change (identical markup; differential tests for the message functions; browser checks after each step).
+- New modules: `ui/trackingPageMarkup`, `input/WorkerDetector`, `ui/detectionPreviews`, `input/depthRangeControls`, `input/stereoCalibrationImport`, `input/stereoCalibrationPanel`, `ui/practicePageMarkup`, `ui/practiceMessages`.
+- What remains is mostly the tracking loop (`detectFrame`/`detectSecondFrame`/`updateLiveTargets`/`animate`) and main.ts's per-frame wiring, which share many module-level variables. The next real step is a shared tracking-state object (and merging the near-duplicate camera 1 / camera 2 detect paths). That should be done with Lance able to test real cameras afterwards, not blind.
 
 ### 2026-11-26 — Claude — Split main.ts, step 4: exercise readout (no build change)
 
