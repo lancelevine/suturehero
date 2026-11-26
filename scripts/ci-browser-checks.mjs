@@ -16,6 +16,7 @@ const DEFAULT_CHECKS = [
   'check-hall-sensor',
   'check-layout',
   'check-tracking-lab',
+  'check-tracking-lab-scroll',
   'check-free-tying',
   'check-sandbox',
   'check-practice-setup',

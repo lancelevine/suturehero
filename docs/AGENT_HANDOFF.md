@@ -61,9 +61,6 @@ entry when finishing.
     instrument and camera, then check the reading. Only synthetic-camera
     tested so far. If it doesn't work, the selector switches back to Classic.
 - **Known issues:**
-  - Tracking Lab library can be clipped by camera setup's body overflow lock;
-    browser zoom-out is the current workaround. A separate Lab scrolling fix
-    is still needed.
   - `FreeKnotTechniques.test.ts` "retains a double surgeon first throw…"
     passes on Node 24 but fails on Node 22 (thread point moves 0.042 vs a
     0.034 limit). The result sits close to its threshold and is sensitive to
@@ -96,6 +93,12 @@ entry when finishing.
      the cameras arrive.
 
 ## Log
+
+### 2026-11-26 — Claude — Demo check, hardware checklist, Lab scrolling (no build change)
+
+- `check-demo` after the knot changes of 0.209–0.221: passes (three throws, locked and seated, both tails cut, secure stitch kept; 400 s of demo time, about 6.7 min here).
+- New `docs/HARDWARE_TEST_CHECKLIST.md`: everything since 0.205 that needs real hardware, in testing order. AGENTS.md asks agents to add their hand-test items there.
+- Tracking Lab scrolling (known issue) was already fixed by an earlier CSS change: the Lab scrolls inside itself with camera setup open. New `check-tracking-lab-scroll` (25 recordings, 1440×700 and 390×844) added to CI; the known issue is removed.
 
 ### 2026-11-26 — Claude — Background knot engines apply instrument corrections (build 0.221)
 
