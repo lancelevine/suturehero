@@ -4,13 +4,16 @@ import type { Instrument } from '../instruments/Instrument';
 import { closestSegments } from './StrandContact';
 import { THREAD_RADIUS } from './threadMaterial';
 import {MaterialOpening} from './MaterialOpening';
-/** Writes the box (min x,y,z, max x,y,z) around the given points at `out[at]`. */
-function writeSpan(out:Float64Array,at:number,p:THREE.Vector3,q:THREE.Vector3,r?:THREE.Vector3,s?:THREE.Vector3){
-  out[at]=Math.min(p.x,q.x);out[at+1]=Math.min(p.y,q.y);out[at+2]=Math.min(p.z,q.z);
-  out[at+3]=Math.max(p.x,q.x);out[at+4]=Math.max(p.y,q.y);out[at+5]=Math.max(p.z,q.z);
-  if(r&&s){
-    out[at]=Math.min(out[at],r.x,s.x);out[at+1]=Math.min(out[at+1],r.y,s.y);out[at+2]=Math.min(out[at+2],r.z,s.z);
-    out[at+3]=Math.max(out[at+3],r.x,s.x);out[at+4]=Math.max(out[at+4],r.y,s.y);out[at+5]=Math.max(out[at+5],r.z,s.z);
+/** Writes the box (min x,y,z, max x,y,z) around two points at `out[at]` (plain comparisons: Math.min/max with several arguments were a hot spot). */
+function writeSpan(out:Float64Array,at:number,p:THREE.Vector3,q:THREE.Vector3){
+  out[at]=p.x<q.x?p.x:q.x;out[at+1]=p.y<q.y?p.y:q.y;out[at+2]=p.z<q.z?p.z:q.z;
+  out[at+3]=p.x>q.x?p.x:q.x;out[at+4]=p.y>q.y?p.y:q.y;out[at+5]=p.z>q.z?p.z:q.z;
+}
+/** Writes at `out[at]` the box covering two point boxes of `points` (a segment's swept box is exactly its two points' swept boxes). */
+function joinSpans(out:Float64Array,at:number,points:Float64Array,first:number,second:number){
+  for(let k=0;k<3;k++){
+    const a=points[first+k],b=points[second+k];out[at+k]=a<b?a:b;
+    const c=points[first+3+k],d=points[second+3+k];out[at+3+k]=c>d?c:d;
   }
 }
 /** Whether the box at `spans[at]` overlaps `box` (as Box3.intersectsBox). */
@@ -121,7 +124,7 @@ export class InstrumentThreadContact {
     const count=points.length;
     const pointSpans=new Float64Array(count*6),segmentSpans=new Float64Array(Math.max(0,count-1)*6);
     const fillPoint=(i:number)=>writeSpan(pointSpans,i*6,start[i],points[i]);
-    const fillSegment=(i:number)=>writeSpan(segmentSpans,i*6,start[i],start[i+1],points[i],points[i+1]);
+    const fillSegment=(i:number)=>joinSpans(segmentSpans,i*6,pointSpans,i*6,i*6+6);
     for(let i=0;i<count;i++)fillPoint(i);
     for(let i=0;i<count-1;i++)fillSegment(i);
     const refreshSpans=(index:number)=>{
@@ -151,13 +154,16 @@ export class InstrumentThreadContact {
       const a=capsule.oldA.clone().lerp(capsule.a,time.to),b=capsule.oldB.clone().lerp(capsule.b,time.to);
       const oldA=capsule.oldA.clone().lerp(capsule.a,time.from),oldB=capsule.oldB.clone().lerp(capsule.b,time.from);
       const exempt=gripExemptions?.get(capsule.toolId),axis=b.clone().sub(a);
-      const center=(point:THREE.Vector3)=>a.clone().addScaledVector(axis,THREE.MathUtils.clamp(point.clone().sub(a).dot(axis)/Math.max(1e-10,axis.lengthSq()),0,1));
+      // Per-part constants and scratch vectors for the point loop (same arithmetic as before, fewer allocations).
+      const axisLengthSq=Math.max(1e-10,axis.lengthSq()),oldAxis=oldB.clone().sub(oldA),oldAxisLengthSq=Math.max(1e-10,oldAxis.lengthSq());
+      const scratch=new THREE.Vector3(),c=new THREE.Vector3(),oldNormal=new THREE.Vector3();
       for(let i=0;i<points.length;i++) {
         if(pinned.has(i) || exempt?.has(i))continue;
         if(!spanHits(pointSpans,i*6,capsule.bounds))continue;
-        let c=center(points[i]),normal=points[i].clone().sub(c),distance=normal.length();
-        const oldAxis=oldB.clone().sub(oldA),fraction=THREE.MathUtils.clamp(start[i].clone().sub(oldA).dot(oldAxis)/Math.max(1e-10,oldAxis.lengthSq()),0,1);
-        const oldCenter=oldA.clone().addScaledVector(oldAxis,fraction),oldNormal=start[i].clone().sub(oldCenter);
+        c.copy(a).addScaledVector(axis,THREE.MathUtils.clamp(scratch.copy(points[i]).sub(a).dot(axis)/axisLengthSq,0,1));
+        let normal=points[i].clone().sub(c),distance=normal.length();
+        const fraction=THREE.MathUtils.clamp(scratch.copy(start[i]).sub(oldA).dot(oldAxis)/oldAxisLengthSq,0,1);
+        oldNormal.copy(start[i]).sub(scratch.copy(oldA).addScaledVector(oldAxis,fraction));
         if(oldNormal.length()>=capsule.radius && oldNormal.dot(normal)<capsule.radius*capsule.radius) {
           const motion=start[i].distanceTo(points[i])+oldA.distanceTo(a);
           const samples=Math.min(32,Math.max(1,Math.ceil(motion/(capsule.radius*0.35))));
@@ -165,7 +171,7 @@ export class InstrumentThreadContact {
             const t=n/samples,point=start[i].clone().lerp(points[i],t),ca=oldA.clone().lerp(a,t),cb=oldB.clone().lerp(b,t),delta=cb.sub(ca);
             const k=THREE.MathUtils.clamp(point.clone().sub(ca).dot(delta)/Math.max(1e-10,delta.lengthSq()),0,1);
             if(point.distanceTo(ca.addScaledVector(delta,k))<capsule.radius) {
-              normal=oldNormal.normalize();c=a.clone().lerp(b,fraction);distance=points[i].clone().sub(c).dot(normal);break;
+              normal=oldNormal.normalize();c.copy(a).lerp(b,fraction);distance=points[i].clone().sub(c).dot(normal);break;
             }
           }
         }

@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.223 — Knot physics about 8% faster
+
+- Knot physics about 8% faster (instrument–thread contact), with identical results: the same knot ends in exactly the same thread positions (checked by checksum).
+
 ## Build 0.222 — Guided course results export
 
 - Guided course results export: the Stitch plan section shows **Export course stitches CSV** once a course stitch is saved, with the trainee name (the same name as in the Sandbox panel; editing it in one place updates the other). Same columns as the Sandbox stitches CSV: completion time, seconds, knot technique, throws, locked, security, engine, review. Approximate practice measures.

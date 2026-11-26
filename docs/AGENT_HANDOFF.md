@@ -94,6 +94,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Knot physics about 8% faster (build 0.223)
+
+- `src/suture/InstrumentThreadContact.ts`: `writeSpan` uses plain comparisons instead of multi-argument `Math.min/max`, and segment boxes are joined from their two point boxes (`joinSpans`). The per-point capsule loop hoists `oldB - oldA`, both axis lengths, and uses scratch vectors. Same arithmetic order.
+- Profile of a 3-throw Claude knot (1× 60 fps): contact ≈ 17% + spans 8%, StrandContact ≈ 19%, StrandPairContact ≈ 9%. Whole test 23.3 s → 21.6 s. Checksum of all strand points unchanged (257.8095878645, 3 throws). Tried and reverted: sorting found pairs in StrandContact (no gain; the candidate list is usually cached).
+- Checks: suture, gameplay, knot and demo unit tests (258 pass).
+
 Entries up to 2026-11-14 are in `docs/archive/AGENT_HANDOFF-to-2026-11-14.md`.
 
 ### 2026-11-26 — Claude — Guided course results export (build 0.222)
