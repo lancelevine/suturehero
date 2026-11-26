@@ -73,6 +73,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Build (check-layout uses the production preview)
+        run: npx vite build
       - name: Run browser checks
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
