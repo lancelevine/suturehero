@@ -28,7 +28,10 @@ interface Grip {strand:ThreadStrand;index:number;local:THREE.Vector3}
  * MAX_STEPS_PER_UPDATE, but only while the thread is wound on the driver (WRAPPING_WINDING).
  * Everything else steps exactly as before.
  */
-export const MAX_TIME_STEPS=2;
+// 4 steps cover a 30 fps frame in real time (2026-11-26). At 2, physics ran at half speed at
+// 30 fps while the hands moved at full speed, so the thread lagged and wound round the driver
+// (a single fast throw read as a double). Frames slower than 30 fps still fall behind.
+export const MAX_TIME_STEPS=4;
 export const MAX_PIN_MOVE_PER_STEP=0.008;
 export const MAX_STEPS_PER_UPDATE=8;
 /** The thread counts as being wrapped once it is this many turns around the driver (≈ 54°). */
