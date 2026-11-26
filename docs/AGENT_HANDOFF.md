@@ -66,9 +66,6 @@ entry when finishing.
     0.034 limit). The result sits close to its threshold and is sensitive to
     floating-point differences. Use Node 24; a more robust fix is open.
   - Stereo tracking is unreliable in practice; single camera is used.
-  - `scripts/check-dual-camera-fit.mjs` fails at 1024×768 (camera previews
-    not stacked / wrong proportions). Already failing before 2026-11-07
-    changes (verified on `7f44662`); not yet investigated.
   - `scripts/check-depth-stability.mjs` is flaky (passes ~30–50% of runs on
     both the original `7f44662` and current code; A/B tested 10 vs 10). It
     samples depth while it is still settling after unlock. Not a regression.
