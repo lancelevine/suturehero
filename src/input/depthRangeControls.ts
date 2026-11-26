@@ -61,9 +61,13 @@ export class DepthRange {
     this.workingMm = RESET_WORKING_DEPTH_MM;
   }
 
-  /** Near distance and span used for the virtual depth, for this camera/tracker binding. */
-  range(binding: string) {
-    return depthRange(this.size.near?.binding === binding, this.nearMm, this.farMm, this.workingMm);
+  /**
+   * Near distance and span used for the virtual depth, for this camera/tracker binding. The
+   * tracking page passes the working-depth field's live value, as it read it before the move
+   * (Tracking Lab replays set the field directly).
+   */
+  range(binding: string, workingMm = this.workingMm) {
+    return depthRange(this.size.near?.binding === binding, this.nearMm, this.farMm, workingMm);
   }
 
   status(binding: string) {

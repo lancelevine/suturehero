@@ -94,6 +94,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Self-review fix: depth range reads the live working depth (no build change)
+
+- Review of the tracking.ts split found one behaviour difference: the depth range used the working depth saved by the module's own field events, while tracking.ts used to read `#working-depth-mm` live every frame (Tracking Lab replay restores that field's value directly, without events). `DepthRange.range(binding, workingMm)` now takes the live value from tracking.ts again. The stereo panel and the other moves were re-checked line by line against the old order of operations: no differences.
+
 ### 2026-11-26 — Claude — Knot physics about 8% faster (build 0.223)
 
 - `src/suture/InstrumentThreadContact.ts`: `writeSpan` uses plain comparisons instead of multi-argument `Math.min/max`, and segment boxes are joined from their two point boxes (`joinSpans`). The per-point capsule loop hoists `oldB - oldA`, both axis lengths, and uses scratch vectors. Same arithmetic order.

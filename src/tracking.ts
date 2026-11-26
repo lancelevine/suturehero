@@ -596,7 +596,7 @@ function updateLiveTargets(){
   if(!distance)continue;
   const {measuredDistance,depthDistance,source:depthSource,valid:depthInputValid}=distance;
   markerSides.set(name,markerSidePx(chosen.marker.corners));
-  const {near,span:range}=depthRangeState.range(binding);
+  const {near,span:range}=depthRangeState.range(binding,Number(workingDepthInput.value));
 
   const previousZ=depthStates.get(name);
   const lockedDepth=trackingMode.value==='mono'&&instrumentCalibration.profile(name).depthLock;
