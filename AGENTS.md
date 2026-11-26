@@ -13,6 +13,8 @@ changed. Every working session must:
    `docs/AGENT_HANDOFF.md` (the *Status* block and the newest few entries).
    If *Status → In progress* names another agent's unfinished work in the same
    files, stop and ask Lance before editing those files.
+   Entries older than about two weeks are moved to `docs/archive/` to keep the
+   log short; search there for history (e.g. "see handoff log" references).
 2. **While working:** set *Status → In progress* to your agent name and a
    one-line description, and commit/push that change first if the work will
    take more than one commit.
