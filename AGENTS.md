@@ -70,7 +70,11 @@ specific risk or explicit request.
 
 Browser checks in `scripts/check-*.mjs` need `npm run dev` running and use
 local Chromium (Playwright). Run them one at a time when a change touches the
-area they cover; they are not run by CI.
+area they cover. Since 2026-11-26 the deploy workflow also runs a fast, reliable
+set through `scripts/ci-browser-checks.mjs` (its own dev server; list in
+`DEFAULT_CHECKS`) and does not deploy if one fails. Run the same locally with
+`node scripts/ci-browser-checks.mjs [check-name ...]`. Add a check to that list
+only if it passes reliably in a software-rendered browser.
 
 - `CHROMIUM_PATH` sets the browser binary (default `/usr/bin/chromium`);
   `SUTURE_TEST_URL` sets the dev server URL (default port 5173).

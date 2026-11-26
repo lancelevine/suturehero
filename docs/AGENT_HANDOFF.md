@@ -96,6 +96,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Browser checks in CI (no build change)
+
+- New `scripts/ci-browser-checks.mjs`: starts its own Vite server on 5173, runs `DEFAULT_CHECKS` one at a time (6 min limit each, one retry, a pass on retry reported as flaky), and exits non-zero on failure. Eleven checks, about 7.5 min in this sandbox: ov9281-detect, tracking-storage, iphone-start, camera-controls, production-mode, hall-sensor, layout, tracking-lab, free-tying, sandbox, practice-setup.
+- `.github/workflows/deploy.yml`: a new `browser-checks` job (Chrome at /usr/bin/google-chrome); `deploy` needs both `build` and `browser-checks`. AGENTS.md updated.
+
 ### 2026-11-23 — Claude — Jaw sensor guided calibration, live graph, third slot (build 0.218)
 
 - New `src/input/hallCalibrationSweep.ts` (`sweepCalibration`): closed is the median of the first 15 % of the sweep; open is whichever of the 5th/95th percentiles lies farther from closed; rejected below `MIN_CALIBRATION_SPAN` or under 30 readings. Tests included.
