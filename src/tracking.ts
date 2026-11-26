@@ -8,6 +8,7 @@ import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeco
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {mountDetectionPreviews} from './ui/detectionPreviews';
 import {mountDepthRangeControls} from './input/depthRangeControls';
+import {mountStereoCalibrationPanel} from './input/stereoCalibrationPanel';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
 import {mountStatusStrip} from './ui/StatusStrip';
 import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
@@ -24,9 +25,7 @@ import {stereoBoard} from './input/stereoBoard';
 import {trackingPageMarkup} from './ui/trackingPageMarkup';
 import {WorkerDetector} from './input/WorkerDetector';
 import {stereoPracticePosition} from './input/stereoTrackingPose';
-import {parseWorkspace,practiceUnitsPerMm,serializeWorkspace,workspacePracticePosition,type StereoWorkspace} from './input/stereoWorkspace';
-import {stereoCalibrationIdentity} from './input/stereoCalibrationIdentity';
-import {mountStereoWorkspacePanel} from './ui/StereoWorkspacePanel';
+import {practiceUnitsPerMm,workspacePracticePosition} from './input/stereoWorkspace';
 import {cameraPlaneXY,desiredDepthZ,filteredDepthZ,LOCKED_DEPTH_Z} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
 import {flowBitmapsSupported,flowFrameSettings,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
@@ -62,13 +61,12 @@ import './ui/workspace.css';
 import {trackedInstrumentRotation} from './input/trackingFrame';
 import * as THREE from 'three';
 import {calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
-import {acceptStereoCalibration,stereoCalibrationSummary} from './input/stereoCalibrationImport';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
 import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
 import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from './input/trackingMessages';
-import {TRACKING_STORAGE_KEYS,readStored,readStoredJson,writeStored,removeStored,parseTrackerType,trackerTypeStorageKey} from './input/trackingStorage';
+import {readStored,writeStored,parseTrackerType,trackerTypeStorageKey} from './input/trackingStorage';
 import {estimateMarkerPose} from './input/markerPose';
 import {RING_LAYOUT_REVISION,solvePrismPose,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
@@ -140,23 +138,11 @@ const stop2=document.querySelector<HTMLButtonElement>('#stop-camera-2')!;
 const status2=document.querySelector<HTMLElement>('#camera-status-2')!;
 const detector2=new WorkerDetector('Camera 2 decode');
 const fastTracker2=new WorkerDetector('Camera 2 flow');
-const stereoPanel=document.createElement('section');stereoPanel.className='tracking-panel';stereoPanel.style.cssText='padding:12px;margin:12px 0';
-stereoPanel.innerHTML='<div class="eyebrow">CALIBRATED STEREO · METRIC 3D</div><p class="tracking-message">Import a solved stereo calibration JSON. Replace it after moving either camera, changing focus/zoom, or changing resolution/aspect ratio. Raw checkerboard captures are not solved parameters.</p><div class="tracking-actions"><label>Import calibration <input id="stereo-import" type="file" accept=".json,application/json"></label><button id="stereo-remove" type="button">Remove calibration</button><label><input id="stereo-enable" type="checkbox"> Enable metric 3D</label></div><p class="tracking-message" id="stereo-geometry-status">No calibration loaded.</p><p class="tracking-message" id="stereo-3d-points">No triangulated markers.</p>';
-document.querySelector('#stereo-calibration-status')!.closest('section')!.after(stereoPanel);
-const stereoGeometryStatus=stereoPanel.querySelector<HTMLElement>('#stereo-geometry-status')!;
-const stereo3dStatus=stereoPanel.querySelector<HTMLElement>('#stereo-3d-points')!;
-const stereoEnabled=stereoPanel.querySelector<HTMLInputElement>('#stereo-enable')!;
-let stereoCalibration:StereoCalibration|null=null;
-// Stereo workspace: user-defined right/up/forward axes and scale (stereoWorkspace.ts).
-let stereoWorkspace:StereoWorkspace|null=null;
-const stereoCalibrationKey=()=>stereoCalibration?stereoCalibrationIdentity(stereoCalibration):'';
-const loadStereoWorkspace=()=>{stereoWorkspace=stereoCalibration?parseWorkspace(readStoredJson(TRACKING_STORAGE_KEYS.stereoWorkspace),stereoCalibrationKey()):null;tableHeight.setCalibrationKey(stereoCalibration?stereoCalibrationKey():null);};
-const workspacePanel=mountStereoWorkspacePanel(stereoPanel,workspace=>{
- stereoWorkspace=workspace;
- if(workspace)writeStored(TRACKING_STORAGE_KEYS.stereoWorkspace,JSON.stringify(serializeWorkspace(workspace,stereoCalibrationKey())));
- else removeStored(TRACKING_STORAGE_KEYS.stereoWorkspace);
- resetTrackerPose();
-},()=>stereoWorkspace);
+// Calibrated stereo: calibration, workspace axes, import/remove (src/input/stereoCalibrationPanel.ts).
+const stereoSetup=mountStereoCalibrationPanel(document.querySelector('#stereo-calibration-status')!.closest('section')!,{
+ cameras:()=>({first:select.value,second:select2.value}),
+ reset:restore=>{if(restore)stereoPositions.clear();else resetTrackerPose();},
+});
 type InstrumentName='needleDriver'|'forceps'|'scissors';
 const trackerTypeSelect=document.querySelector<HTMLSelectElement>('#tracker-type')!;
 const trackerTypeStatus=document.querySelector<HTMLElement>('#tracker-type-status')!;
@@ -222,22 +208,22 @@ function noteStereoRejection(name:InstrumentName,reason:string){
  stereoRejections.set(name,reason);
 }
 function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null{
- if(!stereoActive()||!stereoCalibration||!overlay.width||!overlay2.width)return null;
- if(calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
+ if(!stereoActive()||!stereoSetup.calibration||!overlay.width||!overlay2.width)return null;
+ if(calibrationMatches(stereoSetup.calibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
  const synchronized=stereoFrames.pair(now);if(!synchronized){noteStereoRejection(name,'no time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));return null;}
  const key=`${synchronized.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
- if(cached?.key===key&&cached.calibration===stereoCalibration)return cached.pose;
+ if(cached?.key===key&&cached.calibration===stereoSetup.calibration)return cached.pose;
  const diagnostics:StereoRigDiagnostics={};
- const pose=solveStereoRigPose(stereoCalibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??(cached?.lastGood&&synchronized.at-(cached.lastGoodAt??-Infinity)<STEREO_CONTINUITY_MS?cached.lastGood:undefined),diagnostics);
+ const pose=solveStereoRigPose(stereoSetup.calibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??(cached?.lastGood&&synchronized.at-(cached.lastGoodAt??-Infinity)<STEREO_CONTINUITY_MS?cached.lastGood:undefined),diagnostics);
  if(pose)stereoRejections.delete(name);else noteStereoRejection(name,diagnostics.reason??'rejected');
  // Keep the last accepted pose through rejected frames so the next fit stays continuous.
- const keep=cached?.calibration===stereoCalibration;
- stereoPoseCache.set(name,{key,calibration:stereoCalibration,pose,lastGood:pose??(keep?cached?.lastGood:undefined),lastGoodAt:pose?synchronized.at:(keep?cached?.lastGoodAt:undefined)});return pose;
+ const keep=cached?.calibration===stereoSetup.calibration;
+ stereoPoseCache.set(name,{key,calibration:stereoSetup.calibration,pose,lastGood:pose??(keep?cached?.lastGood:undefined),lastGoodAt:pose?synchronized.at:(keep?cached?.lastGoodAt:undefined)});return pose;
 }
 
 function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
- if(!stereoCalibration)return [];
- const ids:readonly number[]=markerGroups()[name],cal=stereoCalibration;
+ if(!stereoSetup.calibration)return [];
+ const ids:readonly number[]=markerGroups()[name],cal=stereoSetup.calibration;
  const key=`${observationsAt}:${secondaryObservationsAt}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`;
  const cached=stereoMonoCache.get(name);if(cached?.key===key&&cached.calibration===cal)return cached.views.filter(v=>now-v.at<180);
  const R=cal.stereo.rotation;
@@ -261,7 +247,7 @@ function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
  stereoMonoCache.set(name,{key,calibration:cal,views});return views;
 }
 
-const stereoActive=()=>stereoEnabled.checked&&!!stereoCalibration&&trackingMode.value==='stereo'&&!simulation.checked;
+const stereoActive=()=>stereoSetup.enabled.checked&&!!stereoSetup.calibration&&trackingMode.value==='stereo'&&!simulation.checked;
 const stereoViewDot=document.querySelector<HTMLElement>('#stereo-view-dot')!;
 const stereoViewLabel=document.querySelector<HTMLElement>('#stereo-view-label')!;
 let lastTrackingStatus='',lastTrackingStatusAt=0;
@@ -270,7 +256,7 @@ function updateStereoViewIndicator(now:number){
  const fallback=[...stereoFallbackStatus].filter(([,source])=>source==='camera1'||source==='camera2');
  const fresh=[...stereoFallbackStatus].filter(([,source])=>source==='stereo').map(([name])=>name);
  const active=configured&&fresh.length>0;
- const mismatch=configured?calibrationMatches(stereoCalibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight):null;
+ const mismatch=configured?calibrationMatches(stereoSetup.calibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight):null;
  stereoViewDot.style.background=active&&!mismatch&&!fallback.length?'#16a34a':configured?'#d69e28':'#89939e';
  stereoViewLabel.textContent=mismatch?'Stereo triangulation: calibration mismatch · '+mismatch:
   configured&&fallback.length?'Stereo fallback: '+fallback.map(([name,source])=>name+' · '+(source==='camera1'?'Camera 1':'Camera 2')+' · approximate depth').join(', '):
@@ -285,31 +271,8 @@ function updateStereoViewIndicator(now:number){
 
 }
 
-stereoEnabled.addEventListener('change',resetTrackerPose);
-const stereoStorage=TRACKING_STORAGE_KEYS.stereoCalibration;
-function loadStereoCalibration(raw:unknown,restore=false){
- const parsed=acceptStereoCalibration(raw,{first:select.value,second:select2.value},restore);
- stereoCalibration=parsed;stereoEnabled.checked=false;if(!restore)resetTrackerPose();else stereoPositions.clear();
- loadStereoWorkspace();workspacePanel.refresh();
- writeStored(stereoStorage,JSON.stringify(parsed));
- stereoGeometryStatus.textContent=stereoCalibrationSummary(parsed);
-}
-// A saved calibration that no longer parses is discarded. Storage access is
-// guarded: a browser that blocks storage must not stop the page loading.
-{const saved=readStoredJson(stereoStorage);if(saved!==undefined){try{loadStereoCalibration(saved,true);}catch{removeStored(stereoStorage);}}else if(readStored(stereoStorage))removeStored(stereoStorage);}
-// In-app solve (stereoAutoCapture.ts → src/input/stereoCalibrationSolver.ts): same checks and storage as an import.
-window.addEventListener('suturehero:stereo-calibration-solved',event=>{
- try{loadStereoCalibration((event as CustomEvent).detail);}catch(e){stereoGeometryStatus.textContent='Solved calibration rejected: '+String(e);}
-});
-stereoPanel.querySelector<HTMLInputElement>('#stereo-import')!.addEventListener('change',async event=>{
- const input=event.currentTarget as HTMLInputElement,file=input.files?.[0];if(!file)return;
- try{loadStereoCalibration(JSON.parse(await file.text()));}catch(e){stereoGeometryStatus.textContent='Import rejected: '+String(e);}
- input.value='';
-});
-stereoPanel.querySelector<HTMLButtonElement>('#stereo-remove')!.addEventListener('click',()=>{
- stereoCalibration=null;stereoWorkspace=null;workspacePanel.refresh();stereoEnabled.checked=false;stereoPositions.clear();removeStored(stereoStorage);
- stereoGeometryStatus.textContent='Calibration removed.';stereo3dStatus.textContent='No triangulated markers.';
-});
+stereoSetup.enabled.addEventListener('change',resetTrackerPose);
+stereoSetup.restoreSaved();
 const frame2=document.createElement('canvas');
 const context2=frame2.getContext('2d',{willReadFrequently:true})!;
 const overlayContext2=overlay2.getContext('2d')!;
@@ -366,7 +329,7 @@ stereoQuick.addEventListener('click',async()=>{
  try{
   trackingMode.value='stereo';trackingMode.dispatchEvent(new Event('change'));
   simulation.checked=false;simulation.dispatchEvent(new Event('change'));
-  stereoEnabled.checked=true;stereoEnabled.dispatchEvent(new Event('change'));
+  stereoSetup.enabled.checked=true;stereoSetup.enabled.dispatchEvent(new Event('change'));
   stereoQuickStatus.textContent='Starting both cameras…';
   await refreshCameras();await refreshSecondCameraList();
   if(!select2.value||(select.value&&select.value===select2.value)){
@@ -375,7 +338,7 @@ stereoQuick.addEventListener('click',async()=>{
   }
   if(!stream)await startPrimaryCamera();
   if(!stream2)await startSecondaryCamera();
-  stereoQuickStatus.textContent=stereoCalibration
+  stereoQuickStatus.textContent=stereoSetup.calibration
    ?'Both cameras started; metric 3D enabled. Waiting for valid stereo marker matches.'
    :'Both cameras started. Import a solved stereo calibration to enable metric triangulation.';
  }catch(error){stereoQuickStatus.textContent='Stereo start failed: '+String(error);}
@@ -813,11 +776,11 @@ function drawRingAxes(){
 }
 /** Calibrated stereo tips as dots in a camera view (src/input/stereoProjection.ts). */
 function drawTipDots(context:CanvasRenderingContext2D,camera:1|2,width:number,height:number){
- if(!stereoCalibration||!width||!height)return;
+ if(!stereoSetup.calibration||!width||!height)return;
  const now=performance.now();
  for(const [name,tip] of latestStereoTips){
   if(now-tip.at>TIP_READOUT_MAX_AGE_MS)continue;
-  const pixel=projectToCamera(stereoCalibration,tip.mm.toArray() as [number,number,number],camera,{width,height});
+  const pixel=projectToCamera(stereoSetup.calibration,tip.mm.toArray() as [number,number,number],camera,{width,height});
   if(pixel)drawTipDot(context,pixel,TIP_DOT_COLORS[name]??'#fff');
  }
 }
@@ -1090,11 +1053,11 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    }
    if(metric?!!fallback:target&&now-target.lastSeen<trackingHoldMs){
     let raw=rawRenderedPoses.get(name);if(!raw){raw=new TrackedPoseFilter();rawRenderedPoses.set(name,raw);}
-    if(fallback?.source==='stereo'&&name==='needleDriver')workspacePanel.feed(fallback.position,now);
+    if(fallback?.source==='stereo'&&name==='needleDriver')stereoSetup.feedWorkspace(fallback.position,now);
     // Stereo: hold a still instrument steady against small-marker pose wobble.
     let steady=fallback?restLocks.get(name):undefined;if(fallback&&!steady){steady=new RestLock();restLocks.set(name,steady);}
     const stereoPose=fallback?steady!.update(fallback.position,fallback.quaternion):undefined;
-    raw.update(stereoPose?workspacePracticePosition(stereoPose.position,stereoWorkspace):target!.position,stereoPose?.quaternion??target!.quaternion,now);
+    raw.update(stereoPose?workspacePracticePosition(stereoPose.position,stereoSetup.workspace):target!.position,stereoPose?.quaternion??target!.quaternion,now);
     const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,fallback?.at??target!.lastSeen,metric);
     // Stereo tip calibration (src/input/stereoTipCalibration.ts): feed rocking poses; with a calibrated
     // tip, place the instrument at its real tip in the shared workspace (src/input/sharedTipFrame.ts).
@@ -1104,16 +1067,16 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     if(stereoPose&&tipInBody){
      const tipMm=tipPosition(stereoPose,tipInBody);
      // Table height as the skin surface (src/input/tableHeight.ts): one vertical shift for the shared space.
-     const tableShift=new THREE.Vector3(0,tableOffsetUnits(tableHeight.points(),stereoWorkspace),0);
-     const tipScene=workspacePracticePosition(tipMm,stereoWorkspace).add(tableShift);
-     const ringScene=workspacePracticePosition(stereoPose.position,stereoWorkspace).add(tableShift);
+     const tableShift=new THREE.Vector3(0,tableOffsetUnits(tableHeight.points(),stereoSetup.workspace),0);
+     const tipScene=workspacePracticePosition(tipMm,stereoSetup.workspace).add(tableShift);
+     const ringScene=workspacePracticePosition(stereoPose.position,stereoSetup.workspace).add(tableShift);
      calibrated.position.copy(tipScene);
      // Jaw orientation (src/input/jawRoll.ts): capture on request, then follow the ring's rotation, roll included.
      const shaftScene=ringScene.clone().sub(tipScene);
      const jawRequest=stereoTipCalibration.takeJawRequest(name);
-     if(jawRequest){const level=levelJawPose(shaftScene);stereoTipCalibration.saveJawOrientation(name,jawRequest,level?bodyToModel(stereoPose.quaternion,stereoWorkspace,level):null);}
+     if(jawRequest){const level=levelJawPose(shaftScene);stereoTipCalibration.saveJawOrientation(name,jawRequest,level?bodyToModel(stereoPose.quaternion,stereoSetup.workspace,level):null);}
      const jawOrientation=stereoTipCalibration.jawOrientation(name,trackerType);
-     calibrated.quaternion.copy(jawOrientation?modelPose(stereoPose.quaternion,stereoWorkspace,jawOrientation):alignShaft(calibrated.quaternion,shaftScene));
+     calibrated.quaternion.copy(jawOrientation?modelPose(stereoPose.quaternion,stereoSetup.workspace,jawOrientation):alignShaft(calibrated.quaternion,shaftScene));
      latestStereoTips.set(name,{mm:tipMm.clone(),at:now});
      motionRecorder.add(name,tipMm,now);
      sharedFrame=true;
@@ -1123,7 +1086,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     // publish the exact rendered pose to the simulator on the same origin.
     if(embeddedTracking&&(root.dataset.embedded==='true'||now-lastPoseMessage>=32)){
      publishTrackingMessage({type:TRACKING_MESSAGE.pose,instrument:name,
-      position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),seenAt:Date.now(),shared:sharedFrame,...(sharedFrame?{unitsPerMm:practiceUnitsPerMm(stereoWorkspace)}:{})},root.dataset.embedded==='true');
+      position:mesh.position.toArray(),quaternion:mesh.quaternion.toArray(),seenAt:Date.now(),shared:sharedFrame,...(sharedFrame?{unitsPerMm:practiceUnitsPerMm(stereoSetup.workspace)}:{})},root.dataset.embedded==='true');
     }
    }
   }
@@ -1143,13 +1106,13 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
  // Frame-driven capture starts from each camera's frame callback instead (see observeCameraFrames below).
  if(!recordedInput()&&!frameDriven()){void detectFrame(now);void detectSecondFrame(now);}
- if(stereoEnabled.checked){
-  if(!stereoCalibration){stereo3dStatus.textContent='Import a solved calibration JSON first.';}
-  else if(trackingMode.value!=='stereo'){stereo3dStatus.textContent='Select 2 cameras in Tracking mode.';}
-  else if(simulation.checked){stereo3dStatus.textContent='Disable simulated input for live triangulation.';}
+ if(stereoSetup.enabled.checked){
+  if(!stereoSetup.calibration){stereoSetup.triangulationStatus.textContent='Import a solved calibration JSON first.';}
+  else if(trackingMode.value!=='stereo'){stereoSetup.triangulationStatus.textContent='Select 2 cameras in Tracking mode.';}
+  else if(simulation.checked){stereoSetup.triangulationStatus.textContent='Disable simulated input for live triangulation.';}
   else{
-   const mismatch=calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight);
-   if(mismatch){stereo3dStatus.textContent='Stereo inactive: '+mismatch;}
+   const mismatch=calibrationMatches(stereoSetup.calibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight);
+   if(mismatch){stereoSetup.triangulationStatus.textContent='Stereo inactive: '+mismatch;}
    else{
     const synchronized=stereoFrames.pair(now),notes:string[]=[];
     if(!synchronized)notes.push('No time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));
@@ -1175,7 +1138,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      if(previous){previous.position.copy(filter.position);previous.quaternion.copy(filter.quaternion);previous.lastSeen=sampleAt;previous.lastSample=sampleAt;}
      else stereoPositions.set(name,{position:filter.position.clone(),quaternion:filter.quaternion.clone(),lastSeen:sampleAt,lastSample:sampleAt});
     }
-    stereo3dStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';
+    stereoSetup.triangulationStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';
    }
   }
  }
@@ -1230,13 +1193,13 @@ mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index
  setInterval(()=>{
   const now=performance.now(),stereoMode=trackingMode.value==='stereo';
   const camera1Running=!!stream&&video.videoWidth>0,camera2Running=!!stream2&&video2.videoWidth>0;
-  const stereoCalibrationProblem=!stereoCalibration?'No stereo calibration loaded':calibrationMatches(stereoCalibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)||null;
-  const metric=stereoMode&&!!stereoCalibration;
+  const stereoCalibrationProblem=!stereoSetup.calibration?'No stereo calibration loaded':calibrationMatches(stereoSetup.calibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)||null;
+  const metric=stereoMode&&!!stereoSetup.calibration;
   const health:HealthInput={
    stereoMode,camera1Running,camera2Running,stereoCalibrationProblem,
    pairingFailure:stereoMode?latestPairingFailure:null,
-   workspaceSet:stereoMode&&!!stereoCalibration?!!stereoWorkspace:undefined,
-   tableSet:stereoMode&&!!stereoCalibration?tableHeight.points().length>=TABLE_POINTS:undefined,
+   workspaceSet:stereoMode&&!!stereoSetup.calibration?!!stereoSetup.workspace:undefined,
+   tableSet:stereoMode&&!!stereoSetup.calibration?tableHeight.points().length>=TABLE_POINTS:undefined,
    instruments:(['needleDriver','forceps','scissors'] as const).map(name=>{
     const target=liveTargets.get(name);
     return {
@@ -1302,7 +1265,7 @@ export const trackingLabBridge = {
    width: (camera ? overlay2 : overlay).width, height: (camera ? overlay2 : overlay).height,
    ballWidth: 640, ballHeight: 0,
    // In stereo, add why each instrument did or did not get a stereo pose this frame.
-   balls: [] as Diagnostics['balls'], status: (stereoViewLabel.textContent ?? '') + (stereoActive() && stereo3dStatus.textContent ? '\n' + stereo3dStatus.textContent : ''), confidence: null,
+   balls: [] as Diagnostics['balls'], status: (stereoViewLabel.textContent ?? '') + (stereoActive() && stereoSetup.triangulationStatus.textContent ? '\n' + stereoSetup.triangulationStatus.textContent : ''), confidence: null,
    jawEngine: 'classic', ballSupported: false,
    poses: [...liveTargets].filter(([, target]) => now - target.lastSeen < 220).map(([instrument, target]) => ({
     instrument, markerId: target.id,

@@ -96,6 +96,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Split tracking.ts, step 4: stereo calibration panel (no build change)
+
+- `src/input/stereoCalibrationPanel.ts` (`mountStereoCalibrationPanel`): the calibrated-stereo panel markup, calibration and workspace state, saving, import/remove, in-app solve event, workspace capture feed. tracking.ts uses `stereoSetup.calibration`, `.workspace`, `.enabled`, `.geometryStatus`, `.triangulationStatus`, `.feedWorkspace`, and calls `stereoSetup.restoreSaved()` at the same start-up point as before.
+- Checks pass: tracking-storage, stereo-motion, stereo-rig-faces, tracking-panels, stereo-shortcut, stereo-capture-quality, status-strip.
+- Found, not caused by this: `check-calibration-ui` fails "suturing window should be large and at the top" also before the change.
+
 ### 2026-11-26 — Claude — Split tracking.ts, step 3: depth range controls (no build change)
 
 - `src/input/depthRangeControls.ts`: `DepthRange` (Near/Far size-depth anchors, working depth, saved form, status text, `range(binding)`) and `mountDepthRangeControls` (Near/Far/Reset buttons, working-depth field, saving). Same messages and storage key; tests in `depthRangeControls.test.ts`. tracking.ts keeps `depthBinding`, the capture rules and `resetDepthFilters`.
