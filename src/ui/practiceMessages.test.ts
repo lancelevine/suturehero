@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { exerciseProgress, exerciseTitle, graspStatusText, knotActionLabel, sandboxTitle, type ExerciseTitleInput, type ProgressInput, type SandboxTitleInput } from './practiceMessages';
+import { exerciseProgress, exerciseReadout, exerciseTitle, graspStatusText, knotActionLabel, sandboxTitle, type ExerciseTitleInput, type ProgressInput, type ReadoutInput, type SandboxTitleInput } from './practiceMessages';
 
 const sandbox = (over: Partial<SandboxTitleInput> = {}): SandboxTitleInput => ({
   now: 1000, cutMessageUntil: 0, tornMessageUntil: 0, rejection: null, inSkin: null, forcingWarning: false,
@@ -78,5 +78,27 @@ describe('progress, knot button and grasp status', () => {
     expect(graspStatusText({ ...status, edge: { held: true, ready: true, instruction: 'EDGE' } })).toBe('Forceps: holding skin edge · Edge everted');
     expect(graspStatusText({ ...status, loadTestActive: true })).toBe('Forceps: released · Driver: holding test tail · Guided pull check');
     expect(graspStatusText({ ...status, knot: { active: true, phase: 'complete' } })).toBe('Forceps: holding · Driver: released · Release-and-hold check');
+  });
+});
+
+describe('exercise readout', () => {
+  const base: ReadoutInput = {
+    sandbox: false, edge: { held: false, active: false, ready: false, instruction: 'EDGE' }, tractionAlert: false, preparingEdge: false, oppositeEdgeRequired: false, oppositeEdgeInstruction: 'OPP',
+    freePasses: [], skin: { label: 'Standard dermis', tearDegrees: 35, tearText: '7.0 mm' }, pass: { phase: 'idle', progress: 0 }, wound: { dermalBiteCount: 1, closure: 0.5 },
+    freeKnot: null, knot: null, pull: { phase: 'waiting', angle: 0, totalAngle: 0 }, threadGuideState: 'GUIDE', scissorsActive: false, cutFeedback: '',
+  };
+  it('describes Sandbox free play and the guided stages', () => {
+    expect(exerciseReadout({ ...base, sandbox: true })).toMatch(/^Free play · Standard dermis: tears if forced over 35° or 7\.0 mm off the curve/);
+    expect(exerciseReadout(base)).toBe('First evert the right skin edge · Optional forceps positioning available');
+    expect(exerciseReadout({ ...base, preparingEdge: true, edge: { held: true, active: true, ready: true, instruction: 'EDGE' } })).toBe('Skin edge: held · Eversion ready · Needle stays right → left');
+    expect(exerciseReadout({ ...base, pull: { phase: 'pulling', angle: Math.PI / 2, totalAngle: Math.PI } })).toBe('Needle rotation: 90° / 180° · GUIDE');
+  });
+  it('adds free-tying holds, wound summary and scissors feedback', () => {
+    const text = exerciseReadout({ ...base, freeKnot: { forcepsHolding: 'long strand', driverHolding: null, winding: 1.234, driverOnTissue: false, instruction: 'INSTR', handlingHint: 'HINT', reachLimited: false, tightness: 0.5, outcome: null }, scissorsActive: true, cutFeedback: 'Cut' });
+    expect(text).toBe('Forceps: holding long strand · Driver: free · Contact winding: 1.23 turns ·  INSTR · HINT · Physical strand handling · Tightening: 50% · Dermal purchase: 1/2 · Wound edges drawing together · Scissors: arrows / N M / I K J L U O · comma closes · period opens · Cut');
+  });
+  it('summarises the guided knot', () => {
+    expect(exerciseReadout({ ...base, wound: { dermalBiteCount: 2, closure: 0.97 }, knot: { throws: 2, targetThrows: 3, threadState: 'THREAD', phase: 'complete', slack: null, loadTest: null, releaseState: 'passed' } }))
+      .toBe('2 / 3 throws seated · Dermal purchase: 2/2 · THREAD · Release check: passed · Local wound edges approximated');
   });
 });

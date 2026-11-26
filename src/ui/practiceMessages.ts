@@ -201,3 +201,92 @@ export function graspStatusText(s: GraspStatusInput): string {
   if (s.knot.active) return 'Forceps: long strand · Driver: short tail · Follow the stage prompts';
   return s.graspStatus;
 }
+
+export interface ReadoutInput {
+  sandbox: boolean;
+  edge: { held: boolean; active: boolean; ready: boolean; instruction: string };
+  tractionAlert: boolean;
+  preparingEdge: boolean;
+  oppositeEdgeRequired: boolean;
+  oppositeEdgeInstruction: string;
+  /** Completed Sandbox passes, and the skin type's tear limits. */
+  freePasses: readonly FreePassRecord[];
+  skin: { label: string; tearDegrees: number; tearText: string };
+  pass: { phase: string; progress: number };
+  wound: { dermalBiteCount: number; closure: number };
+  /** Free tying state when active: what each jaw holds (null = free), contact winding, prompts and the stitch outcome. */
+  freeKnot: null | {
+    forcepsHolding: string | null;
+    driverHolding: string | null;
+    winding: number;
+    driverOnTissue: boolean;
+    instruction: string;
+    handlingHint: string;
+    reachLimited: boolean;
+    /** Tightening of the retained throw (0–1), when one is retained. */
+    tightness: number | null;
+    outcome: null | { security: string; notes: readonly string[]; edgeNotes: readonly string[] };
+  };
+  /** Guided knot state when active. */
+  knot: null | {
+    throws: number;
+    targetThrows: number;
+    threadState: string;
+    phase: string;
+    slack: null | { state: string; friction: string };
+    loadTest: null | { load: number; slip: number };
+    releaseState: string;
+  };
+  pull: { phase: string; angle: number; totalAngle: number };
+  threadGuideState: string;
+  scissorsActive: boolean;
+  cutFeedback: string;
+}
+
+/** Closure fractions for the wound-edge summary. */
+const EDGES_APPROXIMATED = 0.95;
+const EDGES_DRAWING_TOGETHER = 0.05;
+const woundEdges = (closure: number) => closure > EDGES_APPROXIMATED ? 'Local wound edges approximated' : closure > EDGES_DRAWING_TOGETHER ? 'Wound edges drawing together' : 'Wound edges open';
+const degrees = (radians: number) => Math.round(radians * 180 / Math.PI);
+const percent = (fraction: number) => Math.round(fraction * 100);
+
+/** Detail line under the exercise title. */
+export function exerciseReadout(s: ReadoutInput): string {
+  const { edge, pass, wound } = s;
+  let text: string;
+  if (s.sandbox && !edge.held) {
+    const count = s.freePasses.length;
+    text = count
+      ? `Last pass: ${describeFreePass(s.freePasses[count - 1])} · ${count} pass${count > 1 ? 'es' : ''} · Reset practice clears them`
+      : `Free play · ${s.skin.label}: tears if forced over ${s.skin.tearDegrees}° or ${s.skin.tearText} off the curve · Push the needle tip into the skin anywhere, then rotate along its curve · Needle driver: comma closes, period opens · Forceps: Z closes, X opens`;
+  } else if (s.preparingEdge || (pass.phase === 'passing' && edge.active)) {
+    const prompt = s.oppositeEdgeRequired && pass.phase === 'passing' ? s.oppositeEdgeInstruction
+      : edge.ready ? 'Eversion ready'
+      : s.tractionAlert ? edge.instruction
+      : edge.held ? 'Lift gently with E' : 'Close Z near the edge, then lift with E';
+    const stage = s.preparingEdge ? 'Needle stays right → left' : `Assisted pass: ${percent(pass.progress)}% · Dermal purchase: ${wound.dermalBiteCount}/2`;
+    text = `Skin edge: ${edge.held ? 'held' : 'released'} · ${prompt} · ${stage}`;
+  } else if (s.freeKnot) {
+    const f = s.freeKnot;
+    const forceps = edge.held ? 'holding skin edge' : f.forcepsHolding !== null ? 'holding ' + f.forcepsHolding : 'free';
+    const driver = f.driverHolding !== null ? 'holding ' + f.driverHolding : 'free';
+    const tightening = f.tightness !== null ? ' · Tightening: ' + percent(f.tightness) + '%' : '';
+    const outcome = f.outcome ? ' · Knot ' + f.outcome.security + ' (' + f.outcome.notes.slice(1).join('; ') + ') · ' + f.outcome.edgeNotes.join(' · ') : '';
+    text = `Forceps: ${forceps} · Driver: ${driver} · Contact winding: ${f.winding.toFixed(2)} turns · ${f.driverOnTissue ? 'Driver at tissue surface · ' : ''} ${f.instruction} · ${f.handlingHint} · ${f.reachLimited ? 'Thread at reach limit' : 'Physical strand handling'}${tightening}${outcome}`;
+  } else if (s.knot) {
+    const k = s.knot;
+    const slack = k.slack ? ' · ' + k.slack.state + ' · ' + (k.slack.friction === 'holding' ? 'Sliding held' : k.slack.friction === 'sliding' ? 'Sliding resisted' : 'Thread feeds freely') : '';
+    const load = k.loadTest ? ' · Pull load: ' + k.loadTest.load.toFixed(2) + ' (relative) · Slip: ' + k.loadTest.slip.toFixed(3) : '';
+    const release = k.phase === 'complete' ? ' · Release check: ' + k.releaseState : '';
+    text = `${k.throws} / ${k.targetThrows} throws seated · Dermal purchase: ${wound.dermalBiteCount}/2 · ${k.threadState}${slack}${load}${release} · ${woundEdges(wound.closure)}`;
+  } else if (s.pull.phase !== 'waiting') {
+    text = `Needle rotation: ${degrees(s.pull.angle)}° / ${degrees(s.pull.totalAngle)}° · ${s.threadGuideState}`;
+  } else if (pass.phase === 'passing' || pass.phase === 'complete') {
+    text = `Assisted pass: ${percent(pass.progress)}% · Right entry → left exit · Open jaws to abort`;
+  } else {
+    text = 'First evert the right skin edge · Optional forceps positioning available';
+  }
+  if (s.freeKnot) text += ` · Dermal purchase: ${wound.dermalBiteCount}/2 · ${woundEdges(wound.closure)}`;
+  if (s.scissorsActive || s.cutFeedback) text += ` · ${s.scissorsActive ? 'Scissors: arrows / N M / I K J L U O · comma closes · period opens · ' : ''}${s.cutFeedback}`;
+  return text;
+}

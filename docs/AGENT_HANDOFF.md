@@ -96,6 +96,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-26 — Claude — Split main.ts, step 4: exercise readout (no build change)
+
+- `src/ui/practiceMessages.ts` `exerciseReadout`: the #exercise-readout line (Sandbox, eversion, free tying, guided knot, pull, pass, plus the free-tying wound summary and scissors suffix), with named closure thresholds. Differential test against the old three statements: identical on 20,000 random states. Unit tests added.
+- Checks: tsc, unit tests, check-sandbox, check-free-tying, check-knot, check-guided-thread, check-practice-setup.
+
 ### 2026-11-26 — Claude — Split main.ts, step 3: progress, knot button, grasp status (no build change)
 
 - `src/ui/practiceMessages.ts`: `exerciseProgress` (progress bar label and value), `knotActionLabel`, `graspStatusText`, with named constants for the eversion lift (0.09), pull-check hold (1.5 s) and holding jaw opening (0.2). Differential test against the old expressions: identical on 20,000 random states. Unit tests added.
