@@ -76,6 +76,7 @@ Last updated: 2026-11-27
 - **Overlapping edges:** checks each skin stitch for one edge riding up over the other instead of meeting it, and marks it.
 - **Stray needle touches:** counts each needle contact with the vessel wall outside an intended bite, a clot risk from scratched intima, and marks them on the replay.
 - **Subcuticular bite placement:** marks each new bite's entry against the last exit and dermal level; flags bites started ahead (zig-zag, gaps) or at a different level (puckering).
+- **Back wall first:** for vessels that can't be flipped, the clamp locks and the far wall is sewn first from inside the lumen; grades bite order, eversion and back-wall catches from the inside view.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
