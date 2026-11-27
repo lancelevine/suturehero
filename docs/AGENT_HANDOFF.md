@@ -87,6 +87,20 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.226: metal reflections; CI fix; small tracking.ts extraction
+
+- CI had not deployed since 0.224: `check-full-scan` needs `ARUCO_LIBRARY_DIR`. The workflow now
+  `npm pack`s js-aruco2 2.0.0 for the browser-checks job. (One earlier unit-test run died with a
+  native "Channel closed" worker crash; one-off, later runs passed.)
+- Graphics: `createScene` gives only materials with metalness ≥ 0.5 a RoomEnvironment env map
+  (intensity 0.45; off in Fast graphics). Scene-wide env maps were tried before and washed out skin.
+  Checked by screenshot; render-recovery, layout, production-mode pass.
+- `src/ui/trackingReadouts.ts` (+test): pose readout text and marker outline from tracking.ts.
+- Efficiency: profiled the Demo test (Node 24). Top costs: instrument–thread contact 16%, strand
+  pair/self contact 15%, skin-height lookups ~14%. A scratch-vector change gave no measurable gain
+  (reverted). Further gains need algorithm changes (e.g. broad-phase for strand contact).
+- The scheduled resume now fires hourly.
+
 ### 2026-11-27 — Claude — Demo below 30 fps (no code change)
 
 - Demo unit test with a fixed frame step: passes at 60, 40 and 30 fps; fails at 25 and 20 fps on the

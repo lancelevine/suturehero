@@ -93,6 +93,11 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **Tracking menu.** Tracking ▾ holds Tracking setup, Diagnostics and Start 2 cameras.
 - [ ] **Laptop screen.** On your laptop the scene is still big enough to practise.
 
+## 8. Graphics (build 0.226)
+
+- [ ] **Steel instruments.** On Standard graphics the instruments look like polished steel, the
+      skin colour is unchanged, and the frame rate is no worse than before.
+
 ## Known limits (not bugs to report)
 
 - The background-thread engines score below the default in synthetic trials

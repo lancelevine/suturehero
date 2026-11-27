@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.226 — Steel instruments look like steel
+
+- On Standard graphics, the instruments and needle reflect a soft studio light, so they read as polished steel instead of flat grey. Skin, tray, lighting and shadows are unchanged; Fast graphics is unchanged.
+- Tracking page internals tidied (no visible change).
+
 ## Build 0.225 — Tracking menu keeps keyboard focus
 
 - After closing Tracking setup or Diagnostics (opened from the Tracking ▾ menu), focus returns to its button.
