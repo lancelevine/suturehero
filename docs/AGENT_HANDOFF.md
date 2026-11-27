@@ -48,6 +48,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — overhaul polish: Tracking Lab and phone
+
+- The blur fix deployed (CI green), so builds 0.229–0.232 are live.
+- Tracking Lab's small live view hides the HUD and view buttons (they crowded it).
+- Phone width: the HUD stat card sits under the timer (it covered the view buttons).
+- Checked: tracking-lab, tracking-lab-layout, production-mode, layout, iphone-start; screenshots.
+
 ### 2026-11-27 — Claude — fix: deploys 0.229–0.230 failed check-rotation-frame (theme blur)
 
 - CI failed check-rotation-frame from the theme commit on (tilt direction flipped on random faces).
