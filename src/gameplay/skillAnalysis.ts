@@ -45,6 +45,8 @@ export interface SkillReport {
   regrasps?: { total: number; onTip: number };
   /** Completed passes, and how many exited behind an instrument from the view camera (src/scene/blindBite.ts). */
   blindExits?: { total: number; hidden: number };
+  /** Needle entries made with the edge everted by the forceps (src/gameplay/edgePresentation.ts). */
+  edgePresentation?: { total: number; everted: number };
 }
 
 export class SkillRecorder {

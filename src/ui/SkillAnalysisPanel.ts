@@ -25,6 +25,7 @@ export function skillRows(report: SkillReport): Array<{ label: string; value: st
     ...(report.tipCollisions === undefined ? [] : [{ label: 'Tip collisions', value: String(report.tipCollisions), help: 'Times the needle-driver and forceps tips bumped together outside a needle handoff', good: report.tipCollisions === 0 }]),
     ...(report.regrasps === undefined ? [] : [{ label: 'Regrasp on tip', value: report.regrasps.total ? `${report.regrasps.onTip}/${report.regrasps.total}` : '–', help: 'In-tissue needle regrasps that gripped the tip (grip behind the tip and follow the curve)', good: report.regrasps.total > 0 && report.regrasps.onTip === 0 }]),
     ...(report.blindExits === undefined ? [] : [{ label: 'Blind exits', value: report.blindExits.total ? `${report.blindExits.hidden}/${report.blindExits.total}` : '–', help: 'Needle exits hidden behind an instrument from this view when they happened (approximate)', good: report.blindExits.total > 0 && report.blindExits.hidden === 0 }]),
+    ...(report.edgePresentation === undefined ? [] : [{ label: 'Edge presented', value: report.edgePresentation.total ? `${report.edgePresentation.everted}/${report.edgePresentation.total}` : '–', help: 'Needle entries made while the forceps held the edge gently everted (not flat, over-pulled or unheld)', good: report.edgePresentation.total > 0 && report.edgePresentation.everted === report.edgePresentation.total }]),
   ];
 }
 

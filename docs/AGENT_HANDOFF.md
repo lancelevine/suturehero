@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: edge presentation (roadmap, build 0.235)
+- New `src/gameplay/edgePresentation.ts` (+test): at each needle entry, grade the eversion hold (everted / flat / over-pulled / not held) with `EdgeEversion.ready`. Skill Analysis row "Edge presented". Checked: tsc, tests, check-sandbox, check-guided-thread.
+
 ### 2026-11-27 — Claude: step-off check (roadmap, build 0.235)
 - New `src/gameplay/stepOff.ts` (+test): |site.mismatch| in mm per tied stitch, flagged above 0.5 mm. Appended to `StitchCourse.closureReview` and the Sandbox `#spacing-review` line. Checked: tsc, stepOff + StitchCourse tests, check-sandbox, check-guided-thread.
 

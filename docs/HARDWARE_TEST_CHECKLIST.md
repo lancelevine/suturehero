@@ -150,3 +150,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: make a pass with the needle driver between your view and the exit point; Analysis "Blind exits" counts it (1/1). A pass with a clear view does not.
 - Build 0.235: in Sandbox make one shallow and one deep pass; the summary's "Bite depth" line names them (too shallow / too deep).
 - Build 0.235: tie a stitch with a much wider bite on one side; the spacing/closure line reports a step-off for that stitch.
+- Build 0.235: enter the skin once with the edge gently lifted and once without holding it; Analysis "Edge presented" shows 1/2.
