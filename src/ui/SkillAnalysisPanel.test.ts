@@ -29,3 +29,8 @@ it('shows regrasps on the tip when counted', () => {
   const rows = skillRows({ seconds: 1, pathLengthCm: 0, smoothness: null, accuracyMm: null, jawsControl: null, path: [], ideal: null, speed: [], regrasps: { total: 3, onTip: 1 } });
   expect(rows.at(-1)).toMatchObject({ label: 'Regrasp on tip', value: '1/3', good: false });
 });
+
+it('shows blind exits when counted', () => {
+  const rows = skillRows({ seconds: 1, pathLengthCm: 0, smoothness: null, accuracyMm: null, jawsControl: null, path: [], ideal: null, speed: [], blindExits: { total: 2, hidden: 0 } });
+  expect(rows.at(-1)).toMatchObject({ label: 'Blind exits', value: '0/2', good: true });
+});

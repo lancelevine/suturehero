@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: blind bite flag (roadmap, build 0.235)
+- New `src/scene/blindBite.ts` (+tests): raycast from the view camera to each new pass exit against the instruments (clearance 0.03 near the exit). `src/main.ts` feeds it from the skill sampler; Skill Analysis row "Blind exits" (+test). Uses the 3D view, not the trainee's real line of sight.
+- Checked: tsc, blindBite + SkillAnalysisPanel tests, check-sandbox, check-free-tying (after a Vite restart; the dev server had stopped).
+
 ### 2026-11-27 — Claude: Sandbox gap scan
 - `src/main.ts`: the gap-scan bars also show in Sandbox once two stitches are tied (same `course.tissueSites`). Checked: tsc, check-sandbox, check-guided-thread.
 

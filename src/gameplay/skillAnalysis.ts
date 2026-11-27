@@ -43,6 +43,8 @@ export interface SkillReport {
   tipCollisions?: number;
   /** In-tissue needle regrasps, and how many landed on the tip (src/suture/gripPosition.ts), when counted. */
   regrasps?: { total: number; onTip: number };
+  /** Completed passes, and how many exited behind an instrument from the view camera (src/scene/blindBite.ts). */
+  blindExits?: { total: number; hidden: number };
 }
 
 export class SkillRecorder {

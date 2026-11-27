@@ -64,6 +64,7 @@ import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, fre
 import {FpsCounter} from './diagnostics/FrameRates';
 import {TipCollisionCounter} from './gameplay/tipCollisions';
 import {RegraspCheck} from './suture/gripPosition';
+import {BlindBiteCheck} from './scene/blindBite';
 import {gapScan,type OpenSpan} from './gameplay/gapScan';
 import {GapScanView} from './scene/GapScanView';
 const app=document.querySelector<HTMLDivElement>('#app')!;
@@ -356,9 +357,10 @@ try {
   const NEEDLE_HANDOFF_MM=15;
   const tipCollisions=new TipCollisionCounter();
   const regraspCheck=new RegraspCheck();
+  const blindBites=new BlindBiteCheck();
   let skillClock=0;
   const sampleSkill=()=>{
-   const t=session.clock.secondsSoFar;if(t<skillClock){skillRecorder.clear();tipCollisions.reset();regraspCheck.reset();}skillClock=t;
+   const t=session.clock.secondsSoFar;if(t<skillClock){skillRecorder.clear();tipCollisions.reset();regraspCheck.reset();blindBites.reset();}skillClock=t;
    tools[1].root.updateWorldMatrix(true,false);
    const tip=tools[1].root.localToWorld(skillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
    const hold=session.eversion;
@@ -368,10 +370,11 @@ try {
    const forcepsTip=tools[0].root.localToWorld(forcepsSkillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
    const needleMm=needle.root.getWorldPosition(needleSkillPoint).multiplyScalar(SCENE_MM_PER_UNIT);
    regraspCheck.update(needle.points,grasp.heldPoint,session.freePass.inTissue);
+   blindBites.update(session.freePass.passes.map(p=>p.exit),view.camera,[tools[0].root,tools[1].root,scissors.root]);
    tipCollisions.update(tip.distanceTo(forcepsTip),needleMm.distanceTo(tip)<NEEDLE_HANDOFF_MM&&needleMm.distanceTo(forcepsTip)<NEEDLE_HANDOFF_MM);
   };
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
-  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
+  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},blindExits:{total:blindBites.exits,hidden:blindBites.hidden}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;
