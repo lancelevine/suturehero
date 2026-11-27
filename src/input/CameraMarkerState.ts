@@ -1,10 +1,9 @@
 import type { MarkerObservation } from './arucoTracking';
+import { FrameRates } from '../diagnostics/FrameRates';
 import { mergeNewMarkers } from './flowScale';
 
 /** A marker stays live this long after flow or a decode last confirmed it (ms). */
 export const MARKER_LIVE_MS = 140;
-/** The camera status line's decode / flow rates are refreshed this often (ms). */
-const STATS_INTERVAL_MS = 1000;
 
 /**
  * One camera's tracked markers (camera 2; moved out of src/tracking.ts, 2026-11-27): the latest
@@ -19,12 +18,10 @@ export class CameraMarkerState {
   latestFlowAt = 0;
   private readonly confirmed = new Map<number, number>();
   private readonly decoded = new Map<number, number>();
-  private decodedFrames = 0;
-  private flowFrames = 0;
-  private statsAt: number;
+  private readonly rates: FrameRates;
 
   constructor(now: number) {
-    this.statsAt = now;
+    this.rates = new FrameRates(now);
   }
 
   /** Markers confirmed within MARKER_LIVE_MS. */
@@ -39,7 +36,7 @@ export class CameraMarkerState {
 
   /** A flow result: found markers replace the observations; none clears them. */
   applyFlow(found: MarkerObservation[], now: number) {
-    this.flowFrames++;
+    this.rates.flow();
     this.at = now;
     if (!found.length) {
       this.observations = [];
@@ -53,7 +50,7 @@ export class CameraMarkerState {
 
   /** Count a finished decode request (also when it found nothing). */
   countDecode() {
-    this.decodedFrames++;
+    this.rates.decode();
   }
 
   /** Decoded markers: newly seen ones are added to the live set. */
@@ -66,14 +63,9 @@ export class CameraMarkerState {
     this.at = now;
   }
 
-  /** Decode/flow counts and the seconds they cover, once per STATS_INTERVAL_MS (then restarted); else null. */
+  /** Decode/flow counts and the seconds they cover, once per second (then restarted); else null. */
   takeRates(now: number) {
-    if (now - this.statsAt < STATS_INTERVAL_MS) return null;
-    const rates = { decodes: this.decodedFrames, flows: this.flowFrames, seconds: (now - this.statsAt) / 1000 };
-    this.statsAt = now;
-    this.decodedFrames = 0;
-    this.flowFrames = 0;
-    return rates;
+    return this.rates.take(now);
   }
 
   /** Camera stopped. */
@@ -83,8 +75,6 @@ export class CameraMarkerState {
     this.latestFlowAt = 0;
     this.confirmed.clear();
     this.decoded.clear();
-    this.decodedFrames = 0;
-    this.flowFrames = 0;
-    this.statsAt = now;
+    this.rates.reset(now);
   }
 }

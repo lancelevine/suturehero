@@ -21,6 +21,7 @@ import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport,stereoMatchTe
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {CameraMarkerState} from './input/CameraMarkerState';
+import {FrameRates} from './diagnostics/FrameRates';
 import {changeThrottle} from './util/changeThrottle';
 import {cameraStatusText,drawCornerDebug,drawDecodedMarkers} from './ui/markerOverlay';
 import {offsetMarkers} from './input/flowScale';
@@ -134,7 +135,7 @@ const fastTracker=new WorkerDetector('Camera 1 flow');
 let latestFlowAt=0,latestDecodeAt=0;
 let lastAppliedFrameAt=0;
 let staleDecodeDrops=0;
-let fastFrames=0,slowFrames=0,fastWindow=performance.now();
+const rates1=new FrameRates(performance.now());
 // Threshold and crop decode previews (src/ui/detectionPreviews.ts).
 const detectionPreviews=mountDetectionPreviews();
 
@@ -624,7 +625,7 @@ async function detectFrame(now:number){
   const flowResult=capture1.requestFlow(frame,now);
   void flowResult.then(found=>{
    if(session!==cameraSession)return;
-   perf.sample('Camera 1 flow frame age',performance.now()-capturedAt);fastFrames++;
+   perf.sample('Camera 1 flow frame age',performance.now()-capturedAt);rates1.flow();
    const stamp=performance.now();
    if(capturedAt<lastAppliedFrameAt)return;
    lastAppliedFrameAt=capturedAt;
@@ -641,10 +642,8 @@ async function detectFrame(now:number){
      observationsAt=stamp;idleNoMarkers=decodedHold.length===0;
      capture1.lastDecodeAt=Math.min(capture1.lastDecodeAt,stamp-65);drawDetections();
     }
-   if(stamp-fastWindow>=1000){
-    diag('detection-fps').textContent=(fastFrames*1000/(stamp-fastWindow)).toFixed(1)+' flow / '+(slowFrames*1000/(stamp-fastWindow)).toFixed(1)+' decode';
-    fastFrames=0;slowFrames=0;fastWindow=stamp;
-   }
+   const rates=rates1.take(stamp);
+   if(rates)diag('detection-fps').textContent=(rates.flows/rates.seconds).toFixed(1)+' flow / '+(rates.decodes/rates.seconds).toFixed(1)+' decode';
   }).catch(e=>{if(session===cameraSession)diag('note').textContent='Flow error: '+String(e);}).finally(()=>{capture1.flowBusy=false;});
  }
  if(doSlow){
@@ -656,7 +655,7 @@ async function detectFrame(now:number){
    const found=toFlow(nativeMarkers);
    if(session!==cameraSession)return;capture1.search.result(nativeMarkers);perf.sample('Camera 1 '+region.kind+' decode worker',detector.diagnostics.durationMs);
    if(cornerDebug.checked)for(const marker of found)rawDecodedCorners.set(marker.id,{marker,capturedAt,receivedAt:performance.now()});
-   perf.sample('Camera 1 decode frame age',performance.now()-capturedAt);slowFrames++;framesAnalyzed++;
+   perf.sample('Camera 1 decode frame age',performance.now()-capturedAt);rates1.decode();framesAnalyzed++;
    for(const [name,text] of Object.entries(decodeDiagnosticsText({frames:framesAnalyzed,matched:found.length,outlines:detector.candidateCorners.length,cropped,regionW,regionH,regionKind:region.kind,decoder:detector.diagnostics,flowNote:fastTracker.diagnostics.note})))diag(name).textContent=text;
    if(found.length){
     const decodeStamp=performance.now();

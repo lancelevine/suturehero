@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: shared FrameRates counter
+- `src/diagnostics/FrameRates.ts` (+test) counts flow/decode frames per 1 s window; used by camera 1's "#diag-detection-fps" (replaces three loose variables in `src/tracking.ts`) and by `CameraMarkerState` (camera 2). Same numbers and text.
+- Checked: tsc, FrameRates + CameraMarkerState tests, check-tracking-motion, check-stereo-motion, check-profiler.
+
 ### 2026-11-27 — Claude: clearLivePoses in tracking.ts
 - One `clearLivePoses()` replaces four copies of "clear live targets, stillness and depth filters" in `src/tracking.ts`. No behaviour change. Checked: tsc, check-camera-controls, check-tracking-motion.
 
