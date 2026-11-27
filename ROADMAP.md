@@ -85,3 +85,4 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Case-based scenarios:** a patient story sets the site, wound and constraints; the trainee picks the closure and suture.
 - **Sterile field score:** flag any time an instrument tip touches something outside the sterile field.
 - **Closure gallery:** a top-down snapshot of each finished closure with its score and date, to see progress over time.
+- **Suture removal drill:** cut one side close to the skin and pull toward the wound, without dragging outside thread through the track.
