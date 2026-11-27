@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {visibilityFlag} from './ui/visibilityFlag';
 import {setText} from './ui/setText';
 import {startBothCameras} from './input/startBothCameras';
 import {bindDepthLock,bindSliderReadouts,trackingModeDescription} from './ui/trackingControls';
@@ -122,6 +123,7 @@ const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
 const scissorsReadout=document.querySelector<HTMLElement>('#scissors-readout')!;
 const faceOverlapReadout=document.querySelector<HTMLElement>('#face-overlap-readout')!;
+const faceOverlapShown=visibilityFlag(faceOverlapReadout);
 const detector=new WorkerDetector('Camera 1 decode');
 const fastTracker=new WorkerDetector('Camera 1 flow');
 let latestFlowAt=0,latestDecodeAt=0;
@@ -554,9 +556,10 @@ function updateLiveTargets(){
 const rotationStages=new RotationStageReadout<InstrumentName>();
 const rotationStageRaw=rotationStages.raw,rotationStageStatus=rotationStages.status;
 const rotationStageElement=document.querySelector<HTMLElement>('#rotation-stage-readout');
+const rotationStageShown=visibilityFlag(rotationStageElement);
 function updateRotationStageReadout(){
  // Diagnostic text only: skip the per-frame Euler and string work while its panel is closed.
- if(!rotationStageElement||rotationStageElement.offsetParent===null)return;
+ if(!rotationStageElement||!rotationStageShown())return;
  setText(rotationStageElement,rotationStages.text([['needleDriver',driver],['forceps',forceps],['scissors',scissors]],name=>liveTargets.get(name)?.quaternion));
 }
 /** Send a calibrated jaw opening (camera or Bluetooth jaw sensor) to the previews and the practice scene. */
@@ -613,8 +616,9 @@ function drawDetections(){
  if(!simulation.checked){
   const readout=(name:'needleDriver'|'forceps'|'scissors')=>poseReadoutText(liveTargets.get(name),performance.now(),trackingHoldMs);
   setText(driverReadout,readout('needleDriver'));setText(forcepsReadout,readout('forceps'));setText(scissorsReadout,readout('scissors'));
+  // Face-overlap diagnostics re-rank markers: skipped while the panel is closed (src/ui/visibilityFlag.ts).
   setText(filterDiagnostics,filterDiagnosticsText(filterMeasurements));
-  setText(faceOverlapReadout,faceOverlapText(markerGroups(),verifiedMarkers().map(m=>m.id),trackerGeometry(trackerType)));
+  if(faceOverlapShown())setText(faceOverlapReadout,faceOverlapText(markerGroups(),verifiedMarkers().map(m=>m.id),trackerGeometry(trackerType)));
  }
  perf.sample('Tracking status UI',performance.now()-uiStarted);
 }

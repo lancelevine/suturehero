@@ -55,6 +55,9 @@ entry when finishing.
   effect: each stage is relative to its first sample after the panel opens, not after page load.
   Checked by script: hidden → skipped; Diagnostics open → readout fills, no errors.
 - main.ts: the "Tracking <instrument>" status no longer rewrites on every pose message.
+- Visibility now via `src/ui/visibilityFlag.ts` (IntersectionObserver; reading `offsetParent`
+  forces layout). Also gates the face-overlap line (re-ranks markers per detection). The filter
+  diagnostics line is NOT gated: check-driver-depth and check-depth-stability read it while hidden.
 
 ### 2026-11-27 — Claude — shared setText; full local CI pass
 
