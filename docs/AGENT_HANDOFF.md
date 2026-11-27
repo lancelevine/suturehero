@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: Skill Analysis ideal path follows the needle entries
+- `src/gameplay/skillAnalysis.ts`: `report()` takes the free-pass entry points (mm, seen from above) and the ideal route runs start → each entry → end instead of a straight line. Test added.
+- `src/main.ts` passes `session.freePass.passes` entries; panel tooltip/aria text updated.
+- Checked: tsc, skillAnalysis + SkillAnalysisPanel tests. Lance: open Analysis after a few passes and check the dashed route looks sensible.
+
 ### 2026-11-27 — Claude — standalone tracking page polish
 
 - Status strip now sits below the page header on tracking.html (it was inserted before it;

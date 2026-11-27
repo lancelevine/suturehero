@@ -347,7 +347,7 @@ try {
    skillRecorder.add({t,x:tip.x,z:tip.z,holding:hold.held,safeHold:hold.held&&!['stretching','slipping','slipped'].includes(hold.traction.state)});
   };
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
-  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>skillRecorder.report(session.clock.secondsSoFar,passSymmetries()),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
+  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
   view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){if(demo?.running){/* The demo's knot physics is tuned at 1/60 s steps (src/demo/freeKnotDemo.test.ts): slice longer frames. */const slices=Math.max(1,Math.ceil(dt*60-1e-6));for(let i=0;i<slices;i++){demo.step(dt/slices);session.update(dt/slices);}}else session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){

@@ -3,7 +3,7 @@ import { formatClock } from './practiceHud';
 
 /**
  * Skill Analysis panel (2026-11-27, mockup): stat list, instrument path chart (actual path solid
- * blue, ideal straight line dashed cyan, seen from above) and a small speed graph.
+ * blue, ideal route through the needle entries dashed cyan, seen from above) and a small speed graph.
  */
 const CHART_W = 300;
 const CHART_H = 170;
@@ -48,8 +48,8 @@ export function mountSkillAnalysisPanel(host: HTMLElement, report: () => SkillRe
   panel.className = 'skill-analysis';
   panel.innerHTML = `
 <ul class="skill-stats" data-skill="stats"></ul>
-<div class="skill-chart"><div class="skill-chart-head"><span>Instrument path</span><span class="skill-legend"><i class="actual"></i>Actual <i class="ideal"></i>Ideal</span></div>
-<svg viewBox="0 0 ${CHART_W} ${CHART_H}" role="img" aria-label="Needle-driver tip path seen from above, with the straight line from start to end"><polyline class="ideal" data-skill="ideal"/><polyline class="actual" data-skill="path"/></svg></div>
+<div class="skill-chart"><div class="skill-chart-head"><span>Instrument path</span><span class="skill-legend" title="Ideal: the shortest route through your needle entry points"><i class="actual"></i>Actual <i class="ideal"></i>Ideal</span></div>
+<svg viewBox="0 0 ${CHART_W} ${CHART_H}" role="img" aria-label="Needle-driver tip path seen from above, with the shortest route through the needle entry points"><polyline class="ideal" data-skill="ideal"/><polyline class="actual" data-skill="path"/></svg></div>
 <div class="skill-chart"><div class="skill-chart-head"><span>Velocity</span><span data-skill="peak"></span></div>
 <svg viewBox="0 0 ${CHART_W} ${SPEED_H}" role="img" aria-label="Tip speed over time"><polyline class="speed" data-skill="speed"/></svg></div>
 <small>Approximate practice measures from the 3D scene; not a validated assessment.</small>`;

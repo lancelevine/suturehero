@@ -26,3 +26,10 @@ it('reports nothing measured yet, and keeps only recent history', () => {
   expect(recorder.report(0, []).path).toHaveLength(1);
   expect(recorder.pathLengthMm).toBe(10);
 });
+
+it('routes the ideal path through the needle entry points', () => {
+  const recorder = new SkillRecorder();
+  recorder.add(sample(0, 0));
+  recorder.add(sample(1, 50));
+  expect(recorder.report(1, [], [{ x: 20, z: 5 }]).ideal).toEqual([{ x: 0, z: 0 }, { x: 20, z: 5 }, { x: 50, z: 0 }]);
+});

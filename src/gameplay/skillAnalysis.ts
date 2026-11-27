@@ -33,9 +33,10 @@ export interface SkillReport {
   accuracyMm: number | null;
   /** Share (0–1) of forceps hold time without over-stretching or slipping; null before any hold. */
   jawsControl: number | null;
-  /** The tip path and the straight line from its start to its end, seen from above (mm). */
+  /** The tip path seen from above (mm), and the ideal: the shortest route from its start through
+   * each needle entry point, in order, to its end (straight start → end before any pass). */
   path: Array<{ x: number; z: number }>;
-  ideal: [{ x: number; z: number }, { x: number; z: number }] | null;
+  ideal: Array<{ x: number; z: number }> | null;
   /** Tip speed over time (s, mm/s). */
   speed: Array<{ t: number; v: number }>;
 }
@@ -65,7 +66,7 @@ export class SkillRecorder {
     return this.totalPathMm;
   }
 
-  report(seconds: number, passSymmetriesMm: readonly number[]): SkillReport {
+  report(seconds: number, passSymmetriesMm: readonly number[], waypoints: ReadonlyArray<{ x: number; z: number }> = []): SkillReport {
     const samples = this.samples;
     const speed: Array<{ t: number; v: number }> = [];
     for (let i = 1; i < samples.length; i++) {
@@ -90,7 +91,7 @@ export class SkillRecorder {
       accuracyMm: mean(passSymmetriesMm),
       jawsControl: held.length ? held.filter((s) => s.safeHold).length / held.length : null,
       path: samples.map((s) => ({ x: s.x, z: s.z })),
-      ideal: first && last && first !== last ? [{ x: first.x, z: first.z }, { x: last.x, z: last.z }] : null,
+      ideal: first && last && first !== last ? [{ x: first.x, z: first.z }, ...waypoints.map((w) => ({ x: w.x, z: w.z })), { x: last.x, z: last.z }] : null,
       speed,
     };
   }
