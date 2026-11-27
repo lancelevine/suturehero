@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { exerciseProgress, exerciseReadout, exerciseTitle, graspStatusText, knotActionLabel, sandboxTitle, type ExerciseTitleInput, type ProgressInput, type ReadoutInput, type SandboxTitleInput } from './practiceMessages';
+import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle, type ExerciseTitleInput, type ProgressInput, type ReadoutInput, type SandboxTitleInput } from './practiceMessages';
 
 const sandbox = (over: Partial<SandboxTitleInput> = {}): SandboxTitleInput => ({
   now: 1000, cutMessageUntil: 0, tornMessageUntil: 0, rejection: null, inSkin: null, forcingWarning: false,
@@ -101,4 +101,14 @@ describe('exercise readout', () => {
     expect(exerciseReadout({ ...base, wound: { dermalBiteCount: 2, closure: 0.97 }, knot: { throws: 2, targetThrows: 3, threadState: 'THREAD', phase: 'complete', slack: null, loadTest: null, releaseState: 'passed' } }))
       .toBe('2 / 3 throws seated · Dermal purchase: 2/2 · THREAD · Release check: passed · Local wound edges approximated');
   });
+});
+
+it('describes the free-tying knot state', () => {
+  const base = { phase: 'seated', knotAtTissue: true, throws: 2, label: "Surgeon's knot", hasOpening: false, handlingHint: 'Pull the ends apart' };
+  expect(freeKnotStateText(base)).toBe("Throw 2 seated at tissue · Surgeon's knot");
+  expect(freeKnotStateText({ ...base, knotAtTissue: false })).toBe('Pull the ends apart');
+  expect(freeKnotStateText({ ...base, phase: 'retained' })).toBe('Pull the ends apart');
+  expect(freeKnotStateText({ ...base, phase: 'idle' })).toBe('No throw formed · Pull the ends apart');
+  expect(freeKnotStateText({ ...base, phase: 'idle', hasOpening: true })).toBe('Pull the ends apart');
+  expect(freeKnotStateText({ ...base, throws: undefined, label: undefined })).toBe('Throw 1 seated at tissue · ');
 });

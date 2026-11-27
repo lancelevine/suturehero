@@ -1,5 +1,5 @@
 import {knotEngineEntry} from './knot/engines';
-import {markStitchSteps,skinTractionText,updateCourseButtons,updateTensionPanel} from './ui/practicePanels';
+import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
 import {cameraMode as deviceCameraMode} from './input/cameraDevices';
@@ -52,7 +52,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 import { practicePageMarkup } from './ui/practicePageMarkup';
 import { mountCourseExport } from './ui/courseExport';
-import { exerciseProgress, exerciseReadout, exerciseTitle, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
+import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 const APP_BUILD='0.226';
@@ -366,7 +366,7 @@ try {
     const handlingHint=session.freeKnot.active?session.freeKnot.handlingHint:'';
     if(session.freeKnot.active){
       const free=session.freeKnot,state=free.retainedThrow.phase;
-      knotState.textContent=state==='seated'?free.knotAtTissue?`Throw ${free.sequence?.throws.length||1} seated at tissue · ${free.sequence?.label??''}`:handlingHint:state==='retained'||state==='passed'?handlingHint:free.passage.hasOpening?handlingHint:`No throw formed · ${handlingHint}`;
+      knotState.textContent=freeKnotStateText({phase:state,knotAtTissue:free.knotAtTissue,throws:free.sequence?.throws.length,label:free.sequence?.label,hasOpening:free.passage.hasOpening,handlingHint});
       knotState.dataset.phase=state==='seated'&&!free.knotAtTissue?'tightened':state;
     }
     (frameQuery('#begin-free-knot') as HTMLButtonElement).disabled=!session.canBeginKnot;
@@ -423,8 +423,8 @@ try {
     const title=frameQuery('#exercise-title')!;
     const pass=session.pass; passGuide.update(pass); if(session.canPlanBites)passGuide.root.visible=true; if(session.sandbox)passGuide.root.visible=false; if(!showNeedleGuide.checked || knot.active || session.freeKnot.active) passGuide.root.visible=false;
     (frameQuery('#begin-pass') as HTMLButtonElement).disabled=!session.canBeginPass;
-    {const replayButton=frameQuery<HTMLButtonElement>('#replay');if(replayButton){replayButton.disabled=!replay.replaying&&!replay.available;const label=replay.replaying?`Stop replay ${Math.round(replay.progress*100)}%`:'Replay ½×';if(replayButton.textContent!==label)replayButton.textContent=label;}}
-    {const resetNeedle=frameQuery<HTMLButtonElement>('#reset-needle');if(resetNeedle)resetNeedle.disabled=!session.sandbox;const undo=frameQuery<HTMLButtonElement>('#undo-pass');if(undo)undo.disabled=!session.sandbox||(!session.freePass.inTissue&&!session.freePass.passes.length&&!session.freePass.torn.length);}
+    updateSandboxViewTools(frameQuery,{replaying:replay.replaying,replayAvailable:replay.available,replayProgress:replay.progress,sandbox:session.sandbox,
+     undoable:session.freePass.inTissue||session.freePass.passes.length>0||session.freePass.torn.length>0});
     frameQuery('#begin-pass')!.textContent=session.sandbox?'Start guided exercise':session.preparingEdge?'Begin needle pass':'Start guided pass';
     {const heading=frameQuery('.scene-heading h2');const microHeading=session.environment.id==='microsurgery'?`${MICRO_TARGETS[resolveMicroTarget(microSelect.value)].label} anastomosis · one stitch`:null;const headingText=microHeading??(session.sandbox?'Sandbox':'Simple interrupted suture');if(heading&&heading.textContent!==headingText)heading.textContent=headingText;}
     {const label=Array.from(frameQuery('.toolbar > span')?.childNodes??[]).find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent!.trim());const labelText=session.sandbox?' Sandbox ':' Guided stitch ';if(label&&label.textContent!==labelText)label.textContent=labelText;}

@@ -87,6 +87,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Sandbox view tools and knot status text out of main.ts
+
+- `updateSandboxViewTools` (practicePanels.ts) and `freeKnotStateText` (practiceMessages.ts), tested.
+  Browser checks run after the full local CI pass (below).
+
 ### 2026-11-27 — Claude — "Start 2 cameras" orchestration out of tracking.ts
 
 - `src/input/startBothCameras.ts` (+test). Checked: stereo-shortcut, stereo-motion.

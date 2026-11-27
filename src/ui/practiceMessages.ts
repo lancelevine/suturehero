@@ -290,3 +290,11 @@ export function exerciseReadout(s: ReadoutInput): string {
   if (s.scissorsActive || s.cutFeedback) text += ` · ${s.scissorsActive ? 'Scissors: arrows / N M / I K J L U O · comma closes · period opens · ' : ''}${s.cutFeedback}`;
   return text;
 }
+
+/** The free-tying knot status line (moved out of src/main.ts, 2026-11-27). */
+export function freeKnotStateText(input: { phase: string; knotAtTissue: boolean; throws: number | undefined; label: string | undefined; hasOpening: boolean; handlingHint: string }): string {
+  const { phase, handlingHint } = input;
+  if (phase === 'seated') return input.knotAtTissue ? `Throw ${input.throws || 1} seated at tissue · ${input.label ?? ''}` : handlingHint;
+  if (phase === 'retained' || phase === 'passed' || input.hasOpening) return handlingHint;
+  return `No throw formed · ${handlingHint}`;
+}

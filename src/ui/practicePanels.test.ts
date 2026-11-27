@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { markStitchSteps, skinTractionText, tensionMeterValue, updateCourseButtons, updateTensionPanel } from './practicePanels';
+import { markStitchSteps, skinTractionText, tensionMeterValue, updateCourseButtons, updateSandboxViewTools, updateTensionPanel } from './practicePanels';
 
 function element() {
   const classes = new Set<string>();
@@ -59,4 +59,16 @@ it('explains the skin hold', () => {
   expect(skinTractionText({ ...base, alert: true, state: 'slipped' })).toEqual({ state: 'Ease off', hint: 'Open the forceps with X, use Position forceps if needed, then close Z and lift gently.' });
   expect(skinTractionText({ ...base, edgesShown: true }).hint).toMatch(/^Amber rings/);
   expect(skinTractionText({ ...base, held: false, ready: true })).toEqual({ state: 'Skin released · Traction easing', hint: 'Edge everted · Keep this gentle hold for the needle pass.' });
+});
+
+it('enables the Sandbox view tools', () => {
+  const elements = new Map<string, ReturnType<typeof element> & { disabled?: boolean }>();
+  const query = ((selector: string) => {
+    if (!elements.has(selector)) elements.set(selector, element());
+    return elements.get(selector);
+  }) as never;
+  updateSandboxViewTools(query, { replaying: true, replayAvailable: false, replayProgress: 0.42, sandbox: true, undoable: false });
+  expect([elements.get('#replay')!.textContent, elements.get('#replay')!.disabled, elements.get('#reset-needle')!.disabled, elements.get('#undo-pass')!.disabled]).toEqual(['Stop replay 42%', false, false, true]);
+  updateSandboxViewTools(query, { replaying: false, replayAvailable: false, replayProgress: 0, sandbox: false, undoable: true });
+  expect([elements.get('#replay')!.textContent, elements.get('#replay')!.disabled, elements.get('#undo-pass')!.disabled]).toEqual(['Replay ½×', true, true]);
 });

@@ -95,3 +95,17 @@ export function skinTractionText(input: {
   else hint = 'A small lift everts the skin. Shift slows movement; Q lowers the forceps.';
   return { state, hint };
 }
+
+/** The Sandbox buttons over the scene: Replay ½× (with progress while replaying), Reset needle, Undo pass. */
+export function updateSandboxViewTools(query: Query, state: { replaying: boolean; replayAvailable: boolean; replayProgress: number; sandbox: boolean; undoable: boolean }) {
+  const replay = query<HTMLButtonElement>('#replay');
+  if (replay) {
+    replay.disabled = !state.replaying && !state.replayAvailable;
+    const label = state.replaying ? `Stop replay ${Math.round(state.replayProgress * 100)}%` : 'Replay ½×';
+    if (replay.textContent !== label) replay.textContent = label;
+  }
+  const reset = query<HTMLButtonElement>('#reset-needle');
+  if (reset) reset.disabled = !state.sandbox;
+  const undo = query<HTMLButtonElement>('#undo-pass');
+  if (undo) undo.disabled = !state.sandbox || !state.undoable;
+}
