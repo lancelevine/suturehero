@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: render-loop pose block tidy; follow-up noted
+- `src/tracking.ts` render loop: rest lock and stereo fallback use `getOrCreate` (three statements removed). No behaviour change. Checked: tsc, check-stereo-motion, check-tracking-motion.
+- Follow-up: the per-instrument rendered-pose block in `animate` (~40 lines: fallback fusion, rest lock, calibration transform, stereo tip frame, publish) is the largest piece left in tracking.ts. Moving it out needs ~10 dependencies passed in; worth doing as a class owning `rawRenderedPoses`/`restLocks`/`stereoFallbacks`, with a test, in its own commit.
+
 ### 2026-11-27 — Claude: jaw meters written only on change
 - `src/main.ts` render loop: the two jaw `<meter>` values are set only when they change (were set every frame). Checked: tsc, check-sandbox.
 

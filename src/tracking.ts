@@ -716,8 +716,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    const metric=stereoActive(),stereo=metric?stereoPositions.get(name):undefined;
    let fallback:ReturnType<StereoFallback['update']>=null;
    if(metric){
-    const controller=getOrCreate(stereoFallbacks,name,()=>new StereoFallback());
-    const fusion=controller;
+    const fusion=getOrCreate(stereoFallbacks,name,()=>new StereoFallback());
     fallback=perf.measure('Stereo fusion (render loop)',()=>{
      const views=stereoMonoViews(name,now);
      const orientation=stereo?.quaternion;
@@ -729,8 +728,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     const raw=getOrCreate(rawRenderedPoses,name,()=>new TrackedPoseFilter());
     if(fallback?.source==='stereo'&&name==='needleDriver')stereoSetup.feedWorkspace(fallback.position,now);
     // Stereo: hold a still instrument steady against small-marker pose wobble.
-    let steady=fallback?restLocks.get(name):undefined;if(fallback&&!steady){steady=new RestLock();restLocks.set(name,steady);}
-    const stereoPose=fallback?steady!.update(fallback.position,fallback.quaternion):undefined;
+    const stereoPose=fallback?getOrCreate(restLocks,name,()=>new RestLock()).update(fallback.position,fallback.quaternion):undefined;
     raw.update(stereoPose?workspacePracticePosition(stereoPose.position,stereoSetup.workspace):target!.position,stereoPose?.quaternion??target!.quaternion,now);
     const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,fallback?.at??target!.lastSeen,metric);
     // Stereo tip calibration (src/input/stereoTipCalibration.ts): feed rocking poses; with a calibrated
