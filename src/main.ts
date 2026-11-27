@@ -33,7 +33,8 @@ import {EpidermalAlignmentGuide} from './scene/EpidermalAlignmentGuide';
 import {CrossSectionView} from './scene/CrossSectionView';
 import {DEFAULT_BITE_WIDTH} from './tissue/BitePlan';
 import {CompletedStitchesView} from './scene/CompletedStitchesView';
-import {MICRO_TARGETS,resolveMicroTarget} from './environments/MicroTargets';
+import {MICRO_TARGETS,microProfile,resolveMicroTarget,setClampSpread} from './environments/MicroTargets';
+import {AclandClamp} from './scene/AclandClamp';
 import {Scissors} from './instruments/Scissors';
 import {InstrumentControls} from './input/InstrumentControls';
 import {FragmentView} from './scene/FragmentView';
@@ -99,7 +100,9 @@ try {
   // Slow-motion replay of the last 12 s of the Sandbox (scene/ReplayController.ts).
   const replay=new ReplayController(tools,needle);
   const tissue=new TissuePatch();const artery=new ArteryTissue();artery.root.visible=false;
-  view.scene.add(tissue.root,artery.root,needle.root,...tools.map(tool=>tool.root));
+  // Adjustable Acland double clamp on the vessel (src/scene/AclandClamp.ts, src/environments/MicroTargets.ts).
+  const aclandClamp=new AclandClamp();
+  view.scene.add(tissue.root,artery.root,aclandClamp.root,needle.root,...tools.map(tool=>tool.root));
   const scissors=new Scissors();view.scene.add(scissors.root);
   const fragmentsView=new FragmentView();view.scene.add(fragmentsView.root);
   const input=new InstrumentControls(new KeyboardInput()); const session=new PracticeSession(input,tools,grasp);
@@ -188,6 +191,8 @@ try {
     const button=document.querySelector('#switch-environment')!;button.textContent=texts.switchButton;button.setAttribute('aria-pressed',String(micro));
     document.querySelector('#viewport')!.setAttribute('data-environment',id);
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
+    (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
+    aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro);
     (document.querySelector('#skin-type-field') as HTMLElement).hidden=micro;
     document.querySelector('.scene-heading h2')!.textContent=texts.heading;
     const tag=document.querySelector('.scene-tag')!;tag.textContent=texts.tag;tag.setAttribute('title',texts.tagTitle);
@@ -201,6 +206,8 @@ try {
     if(micro)view.microCloseUp();else view.resetCamera();
   };
   microSelect.addEventListener('change',()=>switchEnvironment('microsurgery'));
+  {const clampInput=document.querySelector<HTMLInputElement>('#clamp-spread')!,clampValue=document.querySelector<HTMLOutputElement>('#clamp-spread-value')!;
+   clampInput.addEventListener('change',()=>{const factor=setClampSpread(Number(clampInput.value)/100);clampValue.textContent=`${Math.round(factor*100)}%`;switchEnvironment('microsurgery');});}
   document.querySelector('#switch-environment')!.addEventListener('click',()=>{const url=new URL(location.href);url.searchParams.set('environment',session.environment.id==='skin'?'microsurgery':'skin');url.searchParams.set('skin',skinSelect.value);url.searchParams.set('needle',needleSelect.value);url.searchParams.set('suture',materialSelect.value);url.searchParams.set('technique',techniqueSelect.value);url.searchParams.set('target',microSelect.value);location.assign(url.href);});
   switchEnvironment(params.get('environment')==='microsurgery'?'microsurgery':'skin');
   const handoffGuide=new HandoffGuide(); view.scene.add(handoffGuide.root);

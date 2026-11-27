@@ -19,7 +19,7 @@ import {StitchCourse} from './StitchCourse';
 import {DEEP_DERMIS_Y,retainedSurfaceLift,fieldShift,fieldLift,type TissueSite} from '../tissue/StitchField';
 import {StitchTissueResponse} from '../tissue/StitchTissueResponse';
 import {assessStitch} from './StitchAssessment';
-import {MICRO_FLOOR_Y,MICRO_TARGETS} from '../environments/MicroTargets';
+import {MICRO_FLOOR_Y,microProfile} from '../environments/MicroTargets';
 import type {MicroTarget} from '../environments/MicroTargets';
 import {environments,createMicroEnvironment,type EnvironmentId} from '../environments/PracticeEnvironment';
 import type {KnotTechnique} from '../suture/KnotTechnique';
@@ -63,7 +63,7 @@ export class PracticeSession {
   selectedTechnique?:KnotTechnique;
   setEnvironment(id:EnvironmentId,target:MicroTarget='artery'){
     this.reset();this.environment=id==='microsurgery'?createMicroEnvironment(target):environments.skin;
-    this.wound.initialGap=id==='microsurgery'?MICRO_TARGETS[target].gap:.1;
+    this.wound.initialGap=id==='microsurgery'?microProfile(target).gap:.1;
     this.eversion.edgeX=this.wound.initialGap/2;this.eversion.reset();
     this.pass.purchaseY=this.environment.purchaseY;this.wound.purchaseValidator=this.environment.loadBearing;
     this.configureTissueResponse();this.freeKnot.threadFloorAt=this.environment.threadFloorAt;this.freeKnot.tissueContact=this.environment.threadContact;this.freeKnot.driverObstacle=this.environment.driverObstacle;

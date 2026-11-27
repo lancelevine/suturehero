@@ -1,6 +1,6 @@
 import {tubeThreadContact} from '../tissue/TubeThreadContact';
 import type {StrandObstacle} from '../suture/ThreadStrand';
-import {MICRO_TARGETS,MICRO_TRAY_Y,MICRO_FLOOR_Y,type MicroTarget} from './MicroTargets';
+import {MICRO_TARGETS,microProfile,MICRO_TRAY_Y,MICRO_FLOOR_Y,type MicroTarget} from './MicroTargets';
 import type * as THREE from 'three';
 import {isDermalBite,DERMAL_MIDPOINT} from '../tissue/anatomy';
 import {threadSurfaceAt} from '../suture/TissueThreadGuide';
@@ -19,7 +19,7 @@ export const environments:Record<EnvironmentId,PracticeEnvironment>={
  microsurgery:createMicroEnvironment('artery'),
 };
 export function createMicroEnvironment(target:MicroTarget):PracticeEnvironment{
- const shape=MICRO_TARGETS[target];
+ const shape=microProfile(target);
  const driverWalls=new Map<number,StrandObstacle>();
  const driverObstacle=(radius:number)=>{let wall=driverWalls.get(radius);if(!wall){wall=tubeThreadContact(shape,radius);driverWalls.set(radius,wall);}return wall;};
  const floorAt=(p:THREE.Vector3)=>Math.abs(p.x)<=3.5&&Math.abs(p.z)<=2.5?MICRO_TRAY_Y+.075:MICRO_FLOOR_Y+.025;

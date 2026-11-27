@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {MICRO_TARGETS,type MicroTarget} from '../environments/MicroTargets';
+import {microProfile,type MicroTarget} from '../environments/MicroTargets';
 import type {WoundApproximation} from './WoundApproximation';
 import type {EdgeEversion} from './EdgeEversion';
 /** Vessel wall and lumen roughness (wet tissue reads as slightly glossy). */
@@ -11,14 +11,16 @@ export class ArteryTissue {
  private surfaces:{mesh:THREE.Mesh;original:Float32Array}[]=[];
  private lastClosure=NaN;private lastEversion=-1;
  target:MicroTarget='artery';
+ private builtGap=NaN;
  constructor(){this.build();}
  setTarget(target:MicroTarget){
-  if(target===this.target)return;
+  // Rebuild for a new target, or when the Acland clamp changed the gap (src/environments/MicroTargets.ts).
+  if(target===this.target&&microProfile(target).gap===this.builtGap)return;
   const materials=new Set<THREE.Material>();this.root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();if(Array.isArray(o.material))o.material.forEach(m=>materials.add(m));else materials.add(o.material);}});materials.forEach(m=>m.dispose());
   this.root.clear();this.surfaces=[];this.target=target;this.lastClosure=NaN;this.lastEversion=-1;this.build();
  }
  private build(){
-  const ARTERY=MICRO_TARGETS[this.target];
+  const ARTERY=microProfile(this.target);this.builtGap=ARTERY.gap;
   // Moist adventitia: a softer highlight than dry skin (roughness .72 looked matte and flat).
   const outer=new THREE.MeshStandardMaterial({color:ARTERY.color,roughness:VESSEL_WALL_ROUGHNESS});
   const inner=new THREE.MeshStandardMaterial({color:ARTERY.innerColor,roughness:VESSEL_LUMEN_ROUGHNESS,side:THREE.BackSide});

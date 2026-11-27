@@ -7,6 +7,8 @@ commit `bde9116`.
 
 ## Build 0.235 — Stitch angle across the wound
 
+- Microsurgery: green Acland double clamp on the vessel. The "Acland clamp" slider (50–150%) pushes the vessel ends closer or spreads them apart, which sets how far the stitch must pull; changing it restarts the stitch (roadmap: "Adjustable green double Acland clamp").
+
 - Sandbox: each completed needle pass is drawn as a line across the wound, green when it is square to the wound and amber when it is more than 10° off (roadmap: "Stitch angle across the wound"). Approximate practice measure.
 - 3-stitch session: the closure review now ends with a gap scan along the whole wound, listing where the edges are still apart (roadmap: "Gap scan for skin"); when the session is finished (or in Sandbox once two stitches are tied), the open stretches are marked with red bars on the wound.
 - Sandbox: 5-minute warm-up drill. Start it from the Sandbox session panel; it counts your passes for five minutes, then logs the day, the passes and the mean bite. The panel shows whether today's warm-up is done and your daily streak (roadmap: "5-minute warm-up drill with a daily log"; stored in this browser only).

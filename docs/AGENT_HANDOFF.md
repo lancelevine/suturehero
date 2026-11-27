@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: Acland double clamp (roadmap #2, full anastomosis, step 1)
+- `src/environments/MicroTargets.ts`: clamp spread 0.5–1.5 (default 1) and `microProfile(target)` with the clamped gap (+test); ArteryTissue, PracticeSession (wound.initialGap) and createMicroEnvironment read the gap through it. ArteryTissue rebuilds when the gap changes.
+- New `src/scene/AclandClamp.ts` (+test): green clamp head on each end and a joining bar. Practice setup slider "Acland clamp" (`#clamp-spread`, microsurgery only); changing it re-runs `switchEnvironment('microsurgery')`, which restarts the stitch.
+- Checked: tsc, tests, screenshots at 100% and 60% (gap 0.3 → 0.18, alignment 0.75 → 0.45 mm), check-practice-setup, check-layout, check-sandbox.
+- Not yet: moving the ends live mid-stitch, clamp collision with instruments, clamp setting in the URL.
+
 ### 2026-11-27 — Claude: running and running subcuticular recognition (stitch patterns step 2)
 - `src/gameplay/stitchPatterns.ts`: runs of ≥ 3 same-side crossing passes advancing 3–10 mm one way = running (even advance within 2 mm, even bites); ≥ 2 alternating non-crossing passes = running subcuticular (dermis, alternating, even advance). +2 tests. Checked: tsc, tests, check-sandbox.
 - Not done: the sim still ties each pass separately; a single continuous thread through a running closure needs thread physics work (later step).
