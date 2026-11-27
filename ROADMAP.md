@@ -29,8 +29,8 @@ Last updated: 2026-11-27
 - **Stitch order coaching:** on long or curved wounds, first stitch in the middle, then halve each gap; scores whether you followed it. *(First version in build 0.235: Sandbox summary line, straight wound.)*
 - **Flip the vessel:** after the front wall, turn the double clamp 180 degrees and sew the back wall; checks the flip doesn't twist the vessel or tear stitches.
 - **Needle regrasp check:** grab the needle behind the tip on exit and follow its curve on pull-through; graded per bite, skin and vessel.
-- **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen.
-- **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot.
+- **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen. *(Not started: the knot engines do not expose where the knot sits; needs a knot position in `KnotEngine`.)*
+- **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot. *(Not started: needs an "air knot" signal from every knot engine (`KnotEngine`); unseated throws are already reported in the stitch outcome.)*
 - **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep.
 - **Landmark alignment:** on wounds crossing a line like the vermilion border, brow or crease, the first stitch lines it up; scored on millimetres off.
 - **Needle direction check (vessel):** outside-in on the first wall, inside-out on the second; flags any bite that goes the wrong way.
@@ -38,7 +38,7 @@ Last updated: 2026-11-27
 - **Pulley stitch:** far-near-near-far bite for high-tension edges; scored on bite order and tension taken off.
 - **Edge presentation:** grades how forceps or a skin hook lift and evert the edge before each bite, grabbing dermis rather than pinching epidermis.
 - **Last stitches left loose:** final two or three anastomosis stitches placed untied with loops open to see the lumen, then tied; grades order, tying before checking, and tangles.
-- **Gap scan for skin:** after a closure, sweeps the wound and highlights any spot where the edges aren't touching between stitches.
+- **Gap scan for skin:** after a closure, sweeps the wound and highlights any spot where the edges aren't touching between stitches. *(First version in build 0.235: listed in the 3-stitch closure review; scene highlight still to do.)*
 - **Continuous anastomosis:** one running suture around the vessel; scored on even spacing, purse-string narrowing and slack before the final tie.
 - **Subcuticular start and finish:** buried anchor knot to start, Aberdeen knot or buried exit to finish; scored on holding and staying hidden.
 - **Driver grip force:** needle driver jaw sensor flags clamping hard enough to bend a fine needle or so light it spins mid-bite.

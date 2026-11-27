@@ -52,6 +52,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: gap scan for skin (roadmap, build 0.235); two roadmap items deferred
+- New `src/gameplay/gapScan.ts` (+test): sweeps z = −1.1…1.1 with the retained-stitch field (`fieldShift`) and returns stretches with gap > 0.045 (the closure review's "visible opening"). `StitchCourse.closureReview` ends with "Gap scan: …"; StitchCourse test asserts it.
+- Deferred (noted in ROADMAP.md): knot placement check and air-knot detection need new signals from every knot engine (`KnotEngine`); not a quick UI change.
+- Checked: tsc, gapScan + StitchCourse tests, check-guided-thread, check-sandbox.
+
 ### 2026-11-27 — Claude: 5-minute warm-up drill (roadmap, build 0.235)
 - New `src/gameplay/warmupLog.ts` (+tests): log in `suturehero.warmupLog.v1` (day, passes, mean bite; last 100), daily streak, summary line. `src/ui/SandboxSummaryPanel.ts`: Start/Stop warm-up button and countdown; a finished warm-up logs the passes made during it (stopping early does not log). Styles in `src/ui/theme.css`.
 - Checked: tsc, warmupLog test, browser (start → countdown → stop), check-sandbox, check-layout. CHANGELOG 0.235, ROADMAP note, checklist item.

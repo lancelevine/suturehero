@@ -36,7 +36,7 @@ it('reviews residual opening between saved stitches and clears on reset',()=>{
  const c=new StitchCourse(),strand=[new THREE.Vector3(),new THREE.Vector3(.1,.4,.1)];c.begin();
  expect(c.closureReview).toContain('Save two');
  for(const z of [-1,-.7,.8]){c.selectSite(z);c.record(true,site,[],[strand]);c.advance();}
- expect(c.closureReview).toContain('visible opening');expect(c.spacingReview).toContain('Uneven');
+ expect(c.closureReview).toContain('visible opening');expect(c.closureReview).toContain('Gap scan: open at');expect(c.spacingReview).toContain('Uneven');
  c.reset();expect(c.closureReview).toContain('Save two');
 });
 it('records any number of Sandbox stitches at their own positions, outside a guided course',()=>{

@@ -2,6 +2,7 @@ import {formatMm} from '../setup/sceneScale';
 import * as THREE from 'three';
 import {fieldShift,type TissueSite} from '../tissue/StitchField';
 import type {StitchMeta} from './sessionRecord';
+import {gapScan,OPEN_GAP} from './gapScan';
 export interface CompletedStitch {
  readonly number:number;readonly site:TissueSite;readonly review:readonly string[];
  readonly strands:readonly (readonly THREE.Vector3[])[];
@@ -30,7 +31,10 @@ export class StitchCourse {
   if(this.sites.length<2)return 'Save two stitches to review closure between them.';
   const gaps=this.sites.slice(1).map((b,i)=>{const a=this.sites[i],gap=(a.initialGap+b.initialGap)/2;return gap-2*fieldShift(gap/2,(a.siteZ+b.siteZ)/2,this.sites);});
   const largest=Math.max(...gaps),uneven=largest-Math.min(...gaps)>.012;
-  return `Between stitches: ${largest>.045?'visible opening':uneven?'uneven closure':'shared approximation'} · Largest midpoint gap ${formatMm(largest,2)}`;
+  // Gap scan along the whole wound (src/gameplay/gapScan.ts): where the edges are still apart.
+  const open=gapScan(this.sites);
+  const scan=open.length?`Gap scan: open at ${open.map(span=>`${formatMm(span.from,0)} to ${formatMm(span.to,0)}`).join(', ')}`:'Gap scan: edges touching along the wound';
+  return `Between stitches: ${largest>OPEN_GAP?'visible opening':uneven?'uneven closure':'shared approximation'} · Largest midpoint gap ${formatMm(largest,2)} · ${scan}`;
  }
  active=false;index=0;revision=0;
  private records:readonly CompletedStitch[]=[];
