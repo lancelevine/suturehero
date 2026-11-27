@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {visibilityFlag} from './visibilityFlag';
 import {instrumentCalibration,trackerTipDistanceMm,trackerToTipOffset,type InstrumentCalibration} from '../input/InstrumentCalibration';
 import type {BallInstrumentName} from '../input/ballTrackingSlots';
 import {trackedInstrumentRotation} from '../input/trackingFrame';
@@ -12,7 +13,7 @@ export class CalibrationPreview {
  private selected:BallInstrumentName='needleDriver';
  private centers=new Map<BallInstrumentName,THREE.Vector3>();
  private jaws=new Map<BallInstrumentName,{opening:number;seenAt:number}>();
- private last?:Sample;private lastTool?:BallInstrumentName;private frame=0;private lastFrame=0;private disposed=false;
+ private last?:Sample;private lastTool?:BallInstrumentName;private frame=0;private lastFrame=0;private disposed=false;private readonly shown=visibilityFlag(this.element);
  constructor(private calibration=instrumentCalibration){
   this.element.className='calibration-live-preview';
   this.element.innerHTML=`<div class="calibration-preview-heading"><strong data-preview-title>Live needle driver</strong><span data-preview-status role="status">Show the marker</span></div><svg viewBox="0 0 300 260" role="img" aria-label="Live calibrated instrument movement and rotation"><defs><clipPath id="calibration-preview-clip"><rect x="1" y="1" width="298" height="258" rx="8"/></clipPath></defs><g clip-path="url(#calibration-preview-clip)"><path d="M15 130H285M150 17V245M25 190L275 110" stroke="#e0eae5" fill="none"/><g data-preview-ghost fill="none" stroke="#bdcfc5" stroke-width="2" opacity=".55"/><g data-preview-tool fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><g data-preview-marker stroke="#23724f" stroke-width="2" fill="#e0f3e9"/><g data-preview-axes stroke-width="2" font-size="10" font-weight="bold"/></g><text x="10" y="15" fill="#789387" font-size="9">Faint: upright reference</text><g class="calibration-fixed-axes" aria-label="Fixed axis guide: X left/right, Y up/down, Z depth"><rect x="8" y="163" width="99" height="89" rx="7" fill="#ffffff" opacity=".93"/><text x="15" y="175" font-size="9" fill="#627d70">FIXED AXES</text><g transform="translate(36 221)" stroke-width="2.5" font-size="14" font-weight="bold"><path d="M0 0H36" stroke="#d76060"/><text x="40" y="5" fill="#d76060">X</text><path d="M0 0V-32" stroke="#329c75"/><text x="-5" y="-37" fill="#329c75">Y</text><path d="M0 0L22 17" stroke="#588bd1"/><text x="27" y="24" fill="#588bd1">Z</text></g></g></svg><p data-preview-marker-label class="calibration-hint"></p><p class="calibration-preview-legend"><b style="color:#d76060">X left/right</b> · <b style="color:#329c75">Y up/down</b> · <b style="color:#588bd1">Z depth</b></p><div class="calibration-preview-actions"><span data-preview-motion>Move or turn one axis at a time</span><button type="button" data-preview-center title="Center the illustration without changing calibration">Center view</button></div><details><summary>Input → mapped readings</summary><table class="calibration-preview-values"><thead><tr><th>Marker input</th><th>Virtual output</th></tr></thead><tbody data-preview-values></tbody></table><small>Green square shows the assumed tracker center from calibrated offsets, not a measured camera overlay. Movement uses practice units. Rotation uses neutral-relative axes. Tip motion includes rotation about the tracker. This schematic shows calibrated input; tissue and reach limits apply in the workspace.</small></details>`;
@@ -31,7 +32,8 @@ export class CalibrationPreview {
  }
  private tick(time:number){
   if(this.disposed)return;
-  if(time-this.lastFrame>=50&&!document.hidden){const r=this.element.getBoundingClientRect();if(r.width&&r.height&&r.bottom>0&&r.top<innerHeight){this.lastFrame=time;this.render();}}
+  // On screen per an IntersectionObserver (src/ui/visibilityFlag.ts): no forced layout every 50 ms.
+  if(time-this.lastFrame>=50&&!document.hidden&&this.shown()){this.lastFrame=time;this.render();}
   this.frame=requestAnimationFrame(next=>this.tick(next));
  }
  private paths(opening:number){

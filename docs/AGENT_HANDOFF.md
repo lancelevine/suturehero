@@ -48,6 +48,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — tracking main-thread CPU profile; calibration preview visibility
+
+- CDP CPU profile of the practice page with the synthetic camera (10 s): JS is small; 82% is
+  native "(program)" (software GPU here), then createImageBitmap 4.7%, drawImage 2.7%. Nothing
+  large left to optimise in JS on this path.
+- CalibrationPreview checked its visibility with getBoundingClientRect every 50 ms (forces
+  layout); now uses `visibilityFlag`. Checked: calibration-preview, calibration-ui,
+  calibration-rotation, hall-sensor.
+
 ### 2026-11-27 — Claude — markerPose tests; phone layout look
 
 - `src/input/markerPose.test.ts`: facing and tilted markers are recovered from projected corners;
