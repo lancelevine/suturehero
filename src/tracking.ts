@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {getOrCreate} from './util/getOrCreate';
 import {RotationTracker,type RotationContext} from './input/RotationTracker';
 import {StereoPoseMemory} from './input/stereoPoseMemory';
 import {MONO_VIEW_MAX_AGE_MS,stereoMonoViews as monoViewsFromCameras} from './input/stereoMonoViews';
@@ -415,7 +416,7 @@ const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);
 /** Live markers of these IDs whose identity was decoded within `maxAgeMs` (flow-only outlines excluded). */
 const recentlyDecodedMarkers=(ids:readonly number[],maxAgeMs:number)=>liveMarkers().filter(m=>ids.includes(m.id)&&performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<maxAgeMs);
 /** This instrument's ring pose tracker, created on first use. */
-const ringPoseTracker=(name:InstrumentName)=>{let tracker=ringPoseTrackers.get(name);if(!tracker){tracker=new RingPoseTracker();ringPoseTrackers.set(name,tracker);}return tracker;};
+const ringPoseTracker=(name:InstrumentName)=>{const tracker=getOrCreate(ringPoseTrackers,name,()=>new RingPoseTracker());return tracker;};
 function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);}
 
 let observationsAt=0;
@@ -516,7 +517,7 @@ function updateLiveTargets(){
   // switching IDs based on marker area on every frame.
   const chosen=chooseFace(candidates,previous?.id);
   if(!chosen)continue;
-  let rest=stationaryStates.get(name);if(!rest){rest=new MarkerRestLatch();stationaryStates.set(name,rest);}
+  const rest=getOrCreate(stationaryStates,name,()=>new MarkerRestLatch());
   const stationary=rest.observe(candidates.map(c=>c.marker),now);
 
   // Pose reprojection error gates rotation confidence, not marker-center translation.
@@ -539,7 +540,7 @@ function updateLiveTargets(){
   const baseline=LOCKED_DEPTH_Z[name];
   const fraction=depthRangeState.size.fraction(depthDistance/(focalPx/overlay.width),binding);
   const desiredZ=desiredDepthZ(depthDistance,near,range,Number(depthSensitivity.value),fraction);
-  let filter=monoDepthFilters.get(name);if(!filter){filter=new MonocularDepthFilter();monoDepthFilters.set(name,filter);}
+  const filter=getOrCreate(monoDepthFilters,name,()=>new MonocularDepthFilter());
   const z=filteredDepthZ(filter,trackingMode.value==='mono'&&(stableDepth.checked||lockedDepth),previousZ,desiredZ,now,lockedDepth,baseline,depthInputValid);
   depthStates.set(name,z);filterMeasurements.set(name,{rawZ:depthDistance,filteredZ:z,angle:filterMeasurements.get(name)?.angle??0,locked:lockedDepth,source:depthSource,valid:depthInputValid});
   // Perspective-correct camera-space X/Y, scaled against the same depth reference.
@@ -793,7 +794,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    const metric=stereoActive(),stereo=metric?stereoPositions.get(name):undefined;
    let fallback:ReturnType<StereoFallback['update']>=null;
    if(metric){
-    let controller=stereoFallbacks.get(name);if(!controller){controller=new StereoFallback();stereoFallbacks.set(name,controller);}
+    const controller=getOrCreate(stereoFallbacks,name,()=>new StereoFallback());
     const fusion=controller;
     fallback=perf.measure('Stereo fusion (render loop)',()=>{
      const views=stereoMonoViews(name,now);
@@ -803,7 +804,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     stereoFallbackStatus.set(name,fallback?.source??'lost');
    }
    if(metric?!!fallback:target&&now-target.lastSeen<trackingHoldMs){
-    let raw=rawRenderedPoses.get(name);if(!raw){raw=new TrackedPoseFilter();rawRenderedPoses.set(name,raw);}
+    const raw=getOrCreate(rawRenderedPoses,name,()=>new TrackedPoseFilter());
     if(fallback?.source==='stereo'&&name==='needleDriver')stereoSetup.feedWorkspace(fallback.position,now);
     // Stereo: hold a still instrument steady against small-marker pose wobble.
     let steady=fallback?restLocks.get(name):undefined;if(fallback&&!steady){steady=new RestLock();restLocks.set(name,steady);}
