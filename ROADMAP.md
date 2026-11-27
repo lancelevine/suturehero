@@ -29,6 +29,7 @@ Last updated: 2026-11-27
 - **Lifelike tissue rendering:** light through the skin, wet sheen, blood at punctures, edges that blanch under too much tension.
 - **Live tremor meter:** instrument tip tremor gauge and per-session tremor score, mainly for microsurgery.
 - **Plan vs actual:** mark planned stitch spots before closing, then overlay the plan on what you did.
+- **Setup check before each session:** confirm every marker is seen by both cameras, flag poor lighting or a smudged lens, warn on calibration drift.
 - **Endurance mode:** a 20 to 30 stitch incision, graphing how precision, tremor and speed drift.
 
 ## Mid term
