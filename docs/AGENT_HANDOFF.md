@@ -53,6 +53,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: plan for the multi-stitch anastomosis (roadmap #2, next step)
+- Finding: the microsurgery stitch reuses the skin pass mechanics on the vessel's top (anterior) wall; `NeedlePass`, `purchaseY`, `surfaceAt` and `loadBearing` all assume the stitch site faces up.
+- Plan (rotate the vessel, not the pass, as surgeons do with the clamp):
+  1. A vessel turn angle about its axis (x) applied to `ArteryTissue.root`, the clamp, stay marks and retained stitches; the pass stays at the top.
+  2. A vessel stitch course: after each tied stitch, retain it (as `CompletedStitchesView` does for skin) and turn the vessel by 360°/N (N from the stay plan / count), so the next site comes to the top.
+  3. "Flip the vessel" = a 180° turn after the front wall; back wall continues the same way.
+  4. Then: stitch count vs suggested, stay fill evenness, back-wall catch (a bite whose tract reaches the opposite wall), vessel eversion per stitch.
+- Risks: thread and knot physics hold world positions; retained knots must be frozen and turned with the vessel. Needs the free-tying and demo checks after each step.
+
 ### 2026-11-27 — Claude: stay suture planning marks (roadmap #2, step 2)
 - New `src/scene/StaySutureMarks.ts` (+test): marks at 0/180° or 0/120/240° (0 = top) on both cut faces. Practice setup select `#stay-plan` (microsurgery only). Clamp plates made thinner (0.06) at 2.3× vessel radius after a too-small size hid them.
 - Checked: tsc, tests, screenshots, check-practice-setup, check-layout. Next: multiple vessel stitches (full anastomosis), which unlocks stay fill scoring, stitch count, flip and back wall.
