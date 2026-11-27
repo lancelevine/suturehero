@@ -16,7 +16,7 @@ try{
   let patched=body.replaceAll('const id = ++this.sequence;',"if(window.__ringFixture){const o=typeof origin==='object'&&origin?origin:{x:0,y:0};if(typeof bitmap!=='undefined')bitmap.close();return Promise.resolve(window.__ringFixture.map(m=>({...m,corners:m.corners.map(p=>({x:p.x-o.x,y:p.y-o.y}))})));}\nconst id = ++this.sequence;");
   assert.notEqual(patched,body);await r.fulfill({response,body:patched});
  });
- await page.goto('http://127.0.0.1:5173/tracking.html');
+ await page.goto(new URL('tracking.html',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  const scene=async(faces,tilt=0)=>page.evaluate(async({faces,tilt})=>{
   const {faceGeometry,localCorners}=await import('/src/input/prismPose.ts');
   const base=faceGeometry(0,'ring8'),axis=base.center.clone().set(0,1,0),q=base.rotation.clone().setFromAxisAngle(axis,Math.PI);

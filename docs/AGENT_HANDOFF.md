@@ -87,6 +87,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — stereo indicator out of tracking.ts; checks honour SUTURE_TEST_URL
+
+- `src/input/stereoIndicator.ts` (+test): the stereo dot colour, label and state, as a pure
+  function (no behaviour change). Checked: stereo-motion, stereo-shortcut, status-strip,
+  stereo-rig-faces, checkerboard-worker, ring-handoffs, stereo-capture-quality.
+- Four checks ignored `SUTURE_TEST_URL` (hard-coded port 5173): stereo-motion,
+  checkerboard-worker, ring-handoffs, stereo-capture-quality. Fixed.
+- Graphics: a clearcoat on the skin made no visible difference (no environment to reflect);
+  reverted.
+
 ### 2026-11-27 — Claude — Correction: Demo frame-rate limit is 20 fps, not 25 (no code change)
 
 - The earlier "fails at 25 fps" runs used Node 22 (this shell's default); AGENTS.md warns physics

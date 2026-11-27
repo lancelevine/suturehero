@@ -19,7 +19,7 @@ try{
    }
   };
  });
- await page.goto('http://127.0.0.1:5173/tracking.html');
+ await page.goto(new URL('tracking.html',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  const set=async(i,blur=false,missing=false)=>page.evaluate(async({i,blur,missing})=>{
   const {faceGeometry}=await import('/src/input/prismPose.ts');const g=faceGeometry(0,'ring6');
   const measure=(camera)=>{

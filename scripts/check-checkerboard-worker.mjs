@@ -9,7 +9,7 @@ try{
  cvtColor(src,dst){dst.rows=src.rows;dst.cols=src.cols;dst.data=new Uint8Array(src.rows*src.cols);for(let i=0;i<dst.data.length;i++)dst.data[i]=src.data[i*4];},
  findChessboardCorners(gray,size,corners){corners.rows=48;corners.cols=1;corners.data32F=new Float32Array(Array.from({length:48},(_,i)=>[160+(i%8)*20,130+Math.floor(i/8)*20]).flat());return true;}};
  `}));
- await page.goto('http://127.0.0.1:5173/');
+ await page.goto(process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/');
  const results=await page.evaluate(async()=>{
   const worker=new Worker('/src/input/checkerboardWorker.ts?worker_file&type=classic');let id=0;
   const request=(data,transfer=[])=>new Promise((resolve,reject)=>{const n=++id,timeout=setTimeout(()=>reject(Error('worker timeout')),15000);worker.onmessage=e=>{if(e.data.id===n){clearTimeout(timeout);if(e.data.error)reject(Error(e.data.error));else resolve(e.data);}};worker.onerror=e=>reject(Error(e.message));worker.postMessage({...data,id:n,url:new URL('/mock-cv.js',location.href).href},transfer);});

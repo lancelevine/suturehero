@@ -10,7 +10,8 @@ try{
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await installSyntheticCamera(page);await page.addInitScript(()=>localStorage.setItem('suturehero.trackerType','ring6'));
  await page.route('**/src/tracking.ts*',async r=>{const response=await r.fetch(),body=await response.text();let patched=body.replace(/function stereoPrismRotation\(name, now\) \{/, '$&\nif(window.__forceCenter)return null;');assert.notEqual(patched,body);if(process.env.SUTURE_STEREO_DELAY)patched=patched.replace('pending.resolve(data.found ?? []);',"setTimeout(()=>pending.resolve(data.found ?? []),this.label==='Camera 2 flow'?35:0);");await r.fulfill({response,body:patched});});
- await page.goto(process.env.SUTURE_MAIN_STATUS?'http://127.0.0.1:5173/?graphics=low':'http://127.0.0.1:5173/tracking.html');
+ const base=process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/';
+ await page.goto(new URL(process.env.SUTURE_MAIN_STATUS?'?graphics=low':'tracking.html',base).href);
  // Camera 2's view is shifted by the disparity of the synthetic marker's depth:
  // 36 px for a 12 mm square at fx 1800 → 600 mm, and 1800 × 60 mm baseline / 600 mm = 180 px.
  // (Was 135 px, matching the old 16 mm assumption.)

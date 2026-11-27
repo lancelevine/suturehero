@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {stereoIndicator} from './input/stereoIndicator';
 import {poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {captureDue} from './input/captureScheduling';
@@ -256,13 +257,11 @@ function updateStereoViewIndicator(now:number){
  const configured=stereoActive();
  const fallback=[...stereoFallbackStatus].filter(([,source])=>source==='camera1'||source==='camera2');
  const fresh=[...stereoFallbackStatus].filter(([,source])=>source==='stereo').map(([name])=>name);
- const active=configured&&fresh.length>0;
  const mismatch=configured?calibrationMatches(stereoSetup.calibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight):null;
- stereoViewDot.style.background=active&&!mismatch&&!fallback.length?'#16a34a':configured?'#d69e28':'#89939e';
- stereoViewLabel.textContent=mismatch?'Stereo triangulation: calibration mismatch · '+mismatch:
-  configured&&fallback.length?'Stereo fallback: '+fallback.map(([name,source])=>name+' · '+(source==='camera1'?'Camera 1':'Camera 2')+' · approximate depth').join(', '):
-  active?'Stereo triangulation: ACTIVE · '+fresh.join(', '):configured?'Stereo triangulation: waiting for valid markers':'Stereo triangulation: off';
- const state=mismatch?'mismatch':configured?(fallback.length?'fallback':active?'active':'waiting'):stream&&!simulation.checked?'mono':'off';
+ const indicator=stereoIndicator({configured,fallback,fresh,mismatch,monoStreaming:!!stream&&!simulation.checked});
+ stereoViewDot.style.background=indicator.color;
+ stereoViewLabel.textContent=indicator.label;
+ const state=indicator.state;
  const detail:TrackingStatusMessage={type:TRACKING_MESSAGE.status,state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
  const key=JSON.stringify(detail);
  if(embeddedTracking&&!recordedInput()&&(key!==lastTrackingStatus||now-lastTrackingStatusAt>500)){
