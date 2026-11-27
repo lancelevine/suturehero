@@ -48,6 +48,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — skip hidden rotation diagnostics each frame
+
+- `updateRotationStageReadout` (tracking.ts) now returns early while its Diagnostics panel is
+  closed (it did three quaternion→Euler conversions and a string build every frame). Side
+  effect: each stage is relative to its first sample after the panel opens, not after page load.
+  Checked by script: hidden → skipped; Diagnostics open → readout fills, no errors.
+- main.ts: the "Tracking <instrument>" status no longer rewrites on every pose message.
+
 ### 2026-11-27 — Claude — shared setText; full local CI pass
 
 - `src/ui/setText.ts` (+test) used by main.ts and tracking.ts: the tracking readouts (marker,

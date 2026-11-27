@@ -553,9 +553,11 @@ function updateLiveTargets(){
 // Diagnostic rotation stages: raw solver, accepted target, rendered mesh (src/ui/rotationStageReadout.ts).
 const rotationStages=new RotationStageReadout<InstrumentName>();
 const rotationStageRaw=rotationStages.raw,rotationStageStatus=rotationStages.status;
+const rotationStageElement=document.querySelector<HTMLElement>('#rotation-stage-readout');
 function updateRotationStageReadout(){
- const el=document.querySelector<HTMLElement>('#rotation-stage-readout');
- if(el)el.textContent=rotationStages.text([['needleDriver',driver],['forceps',forceps],['scissors',scissors]],name=>liveTargets.get(name)?.quaternion);
+ // Diagnostic text only: skip the per-frame Euler and string work while its panel is closed.
+ if(!rotationStageElement||rotationStageElement.offsetParent===null)return;
+ setText(rotationStageElement,rotationStages.text([['needleDriver',driver],['forceps',forceps],['scissors',scissors]],name=>liveTargets.get(name)?.quaternion));
 }
 /** Send a calibrated jaw opening (camera or Bluetooth jaw sensor) to the previews and the practice scene. */
 function sendJawOpening(name:BallInstrumentName,opening:number,cameras:number[]){
