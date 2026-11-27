@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: Sandbox gap scan
+- `src/main.ts`: the gap-scan bars also show in Sandbox once two stitches are tied (same `course.tissueSites`). Checked: tsc, check-sandbox, check-guided-thread.
+
 ### 2026-11-27 — Claude: needle regrasp check (roadmap, build 0.235)
 - New `src/suture/gripPosition.ts` (+tests): grip position from tip (needle points run eye → tip), `RegraspCheck` counts new grips (new `NeedleGrasp.heldPoint` object) while `freePass.inTissue`, and those within 10% of the tip. `src/main.ts` feeds it from the skill sampler; Skill Analysis row "Regrasp on tip" (+test).
 - Checked: tsc, gripPosition + SkillAnalysisPanel tests, browser (row shows –, no page errors), check-sandbox, check-free-tying.

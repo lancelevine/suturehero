@@ -452,7 +452,7 @@ try {
     setData((frameQuery('#stitch-stage') as HTMLElement),'complete',String(assessment.complete||assessment.labFinished));
     // Strand tension meters and cue (src/ui/practicePanels.ts).
     idealPath.update(session.environment.id==='skin',session.course.siteZ);
-    {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&session.course.finished;if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
+    {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&(session.course.finished||session.sandbox&&sites.length>=2);if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
     sampleSkill();
     updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);
     const edge=session.eversion;
