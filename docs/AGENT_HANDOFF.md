@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — bitmap flow/decode requests out of tracking.ts
+
+- `src/input/bitmapRequests.ts` (+test): `postFlowBitmap` and `decodeViaBitmap`, unchanged logic;
+  `onError` turns off the bitmap path as before. Checked: tracking-motion, performance,
+  predictive-decode, stereo-motion, profiler, ring-handoffs.
+
 ### 2026-11-27 — Claude — rotation-stage diagnostic out of tracking.ts
 
 - `src/ui/rotationStageReadout.ts` (+test): raw / accepted / rendered rotation readout

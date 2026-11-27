@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {bitmapRequests} from './input/bitmapRequests';
 import {RotationStageReadout} from './ui/rotationStageReadout';
 import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
@@ -33,7 +34,7 @@ import {stereoPracticePosition} from './input/stereoTrackingPose';
 import {practiceUnitsPerMm,workspacePracticePosition} from './input/stereoWorkspace';
 import {cameraPlaneXY,desiredDepthZ,filteredDepthZ,LOCKED_DEPTH_Z} from './input/monocularDepthMapping';
 import {copyFlowSeed} from './input/flowSeed';
-import {flowBitmapsSupported,flowFrameSettings,nextFlowFrameKey,requestCropBitmap,requestFlowBitmap,type FlowSeedRef} from './input/flowFrames';
+import {flowBitmapsSupported,flowFrameSettings,type FlowSeedRef} from './input/flowFrames';
 import {frameClock,observeCameraFrames,pairingTime} from './input/CameraFrameClock';
 import {captureSettings,FLOW_MIN_INTERVAL_MS,frameDrivenEnabled} from './input/captureScheduling';
 import {trackProcessor} from './input/trackFrames';
@@ -789,36 +790,8 @@ const flowMinIntervalMs=()=>frameDriven()?FLOW_MIN_INTERVAL_MS.frameDriven:FLOW_
 // pixels, so the main thread skips its canvas draw and getImageData. Off during Lab replay and after
 // any bitmap error, when the previous ImageData path is used.
 let bitmapFlowAvailable=flowBitmapsSupported();
+const {postFlowBitmap,decodeViaBitmap}=bitmapRequests(()=>{bitmapFlowAvailable=false;});
 const useBitmapFlow=()=>bitmapFlowAvailable&&flowFrameSettings.useBitmaps&&!recordedInput();
-function postFlowBitmap(tracker:WorkerDetector,label:string,source:CanvasImageSource|VideoFrame,w:number,h:number,detect:boolean,keepForSeed:boolean){
- const key=keepForSeed?nextFlowFrameKey():undefined;
- const requested=performance.now();
- // Half the flow resolution: the worker's pyramid starts at half scale anyway, so the GPU does that
- // downscale and the worker reads a quarter of the pixels (src/input/markerFlow.ts halfScalePyramid).
- const bitmap=perf.measure(label+' flow bitmap request',()=>requestFlowBitmap(source,Math.ceil(w/2),Math.ceil(h/2)));
- const posted=bitmap.then(image=>{
-  perf.sample(label+' flow bitmap wait',performance.now()-requested);
-  if(detect)return {result:tracker.detectBitmap(image,key)};
-  tracker.store(image,key!);
-  return {result:null};
- });
- posted.catch(error=>{bitmapFlowAvailable=false;perf.count(label+' flow bitmap errors');console.warn('Flow bitmaps unavailable; using canvas readback.',error);});
- return {
-  result:detect?posted.then(p=>p.result!):undefined,
-  seed:key!==undefined?{key,ready:posted.catch(()=>null)} as FlowSeedRef:undefined,
- };
-}
-/**
- * ArUco decode region as a cropped bitmap read by the marker worker (build 0.121),
- * instead of a main-thread canvas draw + getImageData (~4 ms, p95 15 ms per decode
- * in the 0.116 profile). Same fallbacks as the flow path; the threshold/crop debug
- * views need the pixels on the main thread, so they keep the previous path.
- */
-function decodeViaBitmap(detector:WorkerDetector,label:string,source:CanvasImageSource|VideoFrame,left:number,top:number,w:number,h:number):Promise<MarkerObservation[]>{
- const requested=performance.now();
- const bitmap=perf.measure(label+' decode bitmap request',()=>requestCropBitmap(source,left,top,w,h));
- return bitmap.then(image=>{perf.sample(label+' decode bitmap wait',performance.now()-requested);return detector.detectBitmap(image,undefined,{x:left,y:top});},error=>{bitmapFlowAvailable=false;perf.count(label+' decode bitmap errors');throw error;});
-}
 async function detectFrame(now:number){
  if(!stream||!detectorReady||!video.videoWidth)return;
  const clock=frameClock(video);
