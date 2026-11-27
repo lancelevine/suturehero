@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: build 0.234, narrow-scene overlays
+- `src/ui/theme.css`: `#viewport` is a size container; below 520 px scene width the HUD stat/challenge cards, legend, tracking pill and Close-up/Undo/Replay buttons are hidden and the timer and remaining buttons shrink (they overlapped on a 390 px phone). Desktop unchanged.
+- Build 0.234 (`APP_BUILD`, tracking `performanceContext`), CHANGELOG entry (also lists the Skill Analysis ideal path).
+- Checked: screenshots at 390 and 1440 px, check-layout, check-sandbox, check-status-strip. Lance: look at the practice page on your phone.
+
 ### 2026-11-27 — Claude: shared FrameRates counter
 - `src/diagnostics/FrameRates.ts` (+test) counts flow/decode frames per 1 s window; used by camera 1's "#diag-detection-fps" (replaces three loose variables in `src/tracking.ts`) and by `CameraMarkerState` (camera 2). Same numbers and text.
 - Checked: tsc, FrameRates + CameraMarkerState tests, check-tracking-motion, check-stereo-motion, check-profiler.

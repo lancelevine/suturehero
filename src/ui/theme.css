@@ -172,3 +172,12 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 /* Standalone tracking page header: buttons the same size as elsewhere. */
 #tracking-app>header :is(button,a){font-size:13px;padding:8px 14px}
 :is(#app,#tracking-app) #tracking-scene{background:var(--sh-bg)}
+/* Narrow 3D scene (e.g. beside the camera dock on a phone): size the overlays to the scene, not the window. */
+#viewport{container:scene/inline-size}
+@container scene (max-width:520px){
+.practice-hud .hud-stats,.practice-hud .hud-challenge,#viewport .scene-label,#viewport .legend,#viewport .camera-hint,#viewport .practice-tracking-status,#viewport :is(#close-up,#undo-pass,#replay){display:none}
+.practice-hud .hud-timer{top:6px;font-size:13px;padding:4px 10px;gap:5px}
+.practice-hud .hud-timer svg{width:14px;height:14px}
+.workspace-first .workspace-view-tools{bottom:6px;right:6px;left:6px;max-width:none;gap:4px}
+#viewport .workspace-view-tools button{font-size:10px;padding:3px 6px}
+}

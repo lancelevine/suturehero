@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.234 — Tidy narrow scene
+
+- When the 3D scene is narrow (a phone, with the camera panel beside it), the stat and challenge cards, legend and extra buttons are hidden, the timer shrinks, and Reset view / Reset needle / Demo stay as small buttons, so nothing overlaps.
+- Skill Analysis: the dashed ideal path now runs through your needle entry points instead of straight from start to end.
+
 ## Build 0.233 — New look, polished
 
 - Faint cyan grid on the floor around the tray.

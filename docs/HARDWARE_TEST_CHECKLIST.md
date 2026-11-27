@@ -138,3 +138,5 @@ Moved here from the handoff Status block on 2026-11-27; details are in
   (Claude in a background thread 22/24, default 24/24). They are experimental.
 - Results are practice measures from the simulation: approximate, not a validated
   assessment.
+
+- Build 0.234: on a phone, the practice scene beside the camera panel shows only the timer and Reset view / Reset needle / Demo, with nothing overlapping.
