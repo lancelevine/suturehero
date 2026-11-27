@@ -152,3 +152,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: tie a stitch with a much wider bite on one side; the spacing/closure line reports a step-off for that stitch.
 - Build 0.235: enter the skin once with the edge gently lifted and once without holding it; Analysis "Edge presented" shows 1/2.
 - Build 0.235: after a Sandbox pass, the stitch line shows small ruler ticks every mm out from the wound centre, a longer one every 5 mm.
+- Build 0.235: pick the needle up with the forceps, pass it to the driver, then drop it once on the table; Analysis "Needle handling" shows 1 drop and a load time.

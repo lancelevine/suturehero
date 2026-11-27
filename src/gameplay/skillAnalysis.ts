@@ -47,6 +47,8 @@ export interface SkillReport {
   blindExits?: { total: number; hidden: number };
   /** Needle entries made with the edge everted by the forceps (src/gameplay/edgePresentation.ts). */
   edgePresentation?: { total: number; everted: number };
+  /** Needle drops and forceps-to-driver load times in seconds (src/gameplay/needleHandling.ts). */
+  needleHandling?: { drops: number; regrabs: number; loads: readonly number[] };
 }
 
 export class SkillRecorder {

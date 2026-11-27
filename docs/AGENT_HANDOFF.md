@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: needle pickup and transfer (roadmap, build 0.235)
+- New `src/gameplay/needleHandling.ts` (+test): from `grasp.holder` each skill sample, counts drops (released outside tissue), re-grabs, and forceps→driver load times. Skill Analysis row "Needle handling" (`needleHandlingText`, +test). Checked: tsc, tests, check-sandbox, check-guided-thread.
+
 ### 2026-11-27 — Claude: bite ruler overlay (roadmap item now done)
 - `src/scene/freePassMarks.ts`: one merged "bite-ruler" mesh with a tick every 1 mm (longer every 5 mm) along each completed stitch line, out from where it crosses the wound centre (+test). ROADMAP "Bite consistency score" marked done. Checked: tsc, test, check-sandbox, check-layout.
 

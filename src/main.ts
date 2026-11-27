@@ -66,6 +66,7 @@ import {TipCollisionCounter} from './gameplay/tipCollisions';
 import {RegraspCheck} from './suture/gripPosition';
 import {BlindBiteCheck} from './scene/blindBite';
 import {EdgePresentationCheck} from './gameplay/edgePresentation';
+import {NeedleHandlingCheck} from './gameplay/needleHandling';
 import {gapScan,type OpenSpan} from './gameplay/gapScan';
 import {GapScanView} from './scene/GapScanView';
 import {describeStepOffs} from './gameplay/stepOff';
@@ -361,9 +362,10 @@ try {
   const regraspCheck=new RegraspCheck();
   const blindBites=new BlindBiteCheck();
   const edgePresentation=new EdgePresentationCheck();
+  const needleHandling=new NeedleHandlingCheck();
   let skillClock=0;
   const sampleSkill=()=>{
-   const t=session.clock.secondsSoFar;if(t<skillClock){skillRecorder.clear();tipCollisions.reset();regraspCheck.reset();blindBites.reset();edgePresentation.reset();}skillClock=t;
+   const t=session.clock.secondsSoFar;if(t<skillClock){skillRecorder.clear();tipCollisions.reset();regraspCheck.reset();blindBites.reset();edgePresentation.reset();needleHandling.reset();}skillClock=t;
    tools[1].root.updateWorldMatrix(true,false);
    const tip=tools[1].root.localToWorld(skillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
    const hold=session.eversion;
@@ -373,12 +375,13 @@ try {
    const forcepsTip=tools[0].root.localToWorld(forcepsSkillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
    const needleMm=needle.root.getWorldPosition(needleSkillPoint).multiplyScalar(SCENE_MM_PER_UNIT);
    regraspCheck.update(needle.points,grasp.heldPoint,session.freePass.inTissue);
+   needleHandling.update(grasp.holder?.kind??null,session.freePass.inTissue,t);
    edgePresentation.update(session.freePass.inTissue,{held:hold.held,ready:hold.ready,lift:hold.lift,traction:hold.traction.state});
    blindBites.update(session.freePass.passes.map(p=>p.exit),view.camera,[tools[0].root,tools[1].root,scissors.root]);
    tipCollisions.update(tip.distanceTo(forcepsTip),needleMm.distanceTo(tip)<NEEDLE_HANDOFF_MM&&needleMm.distanceTo(forcepsTip)<NEEDLE_HANDOFF_MM);
   };
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
-  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
+  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;

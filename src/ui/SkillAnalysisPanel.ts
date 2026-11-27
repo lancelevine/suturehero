@@ -15,6 +15,15 @@ const REFRESH_MS = 500;
 const pct = (value: number | null) => (value === null ? '–' : `${Math.round(value * 100)}%`);
 
 /** The stat rows: label, value, definition (tooltip) and whether the value is good. */
+/** "0 drops · load 2.4 s" (mean forceps-to-driver load time), or "–" before any handling. */
+export function needleHandlingText(handling: { drops: number; loads: readonly number[] }) {
+  if (!handling.drops && !handling.loads.length) return '–';
+  const drops = `${handling.drops} drop${handling.drops === 1 ? '' : 's'}`;
+  if (!handling.loads.length) return drops;
+  const mean = handling.loads.reduce((a, b) => a + b, 0) / handling.loads.length;
+  return `${drops} · load ${mean.toFixed(1)} s`;
+}
+
 export function skillRows(report: SkillReport): Array<{ label: string; value: string; help: string; good: boolean }> {
   return [
     { label: 'Time', value: formatClock(report.seconds), help: 'Time since the practice session started', good: false },
@@ -26,6 +35,7 @@ export function skillRows(report: SkillReport): Array<{ label: string; value: st
     ...(report.regrasps === undefined ? [] : [{ label: 'Regrasp on tip', value: report.regrasps.total ? `${report.regrasps.onTip}/${report.regrasps.total}` : '–', help: 'In-tissue needle regrasps that gripped the tip (grip behind the tip and follow the curve)', good: report.regrasps.total > 0 && report.regrasps.onTip === 0 }]),
     ...(report.blindExits === undefined ? [] : [{ label: 'Blind exits', value: report.blindExits.total ? `${report.blindExits.hidden}/${report.blindExits.total}` : '–', help: 'Needle exits hidden behind an instrument from this view when they happened (approximate)', good: report.blindExits.total > 0 && report.blindExits.hidden === 0 }]),
     ...(report.edgePresentation === undefined ? [] : [{ label: 'Edge presented', value: report.edgePresentation.total ? `${report.edgePresentation.everted}/${report.edgePresentation.total}` : '–', help: 'Needle entries made while the forceps held the edge gently everted (not flat, over-pulled or unheld)', good: report.edgePresentation.total > 0 && report.edgePresentation.everted === report.edgePresentation.total }]),
+    ...(report.needleHandling === undefined ? [] : [{ label: 'Needle handling', value: needleHandlingText(report.needleHandling), help: 'Needle drops outside the tissue, and the mean time from forceps pickup to the driver holding the needle', good: report.needleHandling.drops === 0 && report.needleHandling.loads.length > 0 }]),
   ];
 }
 

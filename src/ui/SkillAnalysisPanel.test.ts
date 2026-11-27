@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { fitPath, skillRows, speedLine } from './SkillAnalysisPanel';
+import { fitPath, needleHandlingText, skillRows, speedLine } from './SkillAnalysisPanel';
 
 it('lists the five stats with green for good values', () => {
   const rows = skillRows({ seconds: 86, pathLengthCm: 42.34, smoothness: 0.91, accuracyMm: 0.8, jawsControl: 0.5, path: [], ideal: null, speed: [] });
@@ -33,4 +33,9 @@ it('shows regrasps on the tip when counted', () => {
 it('shows blind exits when counted', () => {
   const rows = skillRows({ seconds: 1, pathLengthCm: 0, smoothness: null, accuracyMm: null, jawsControl: null, path: [], ideal: null, speed: [], blindExits: { total: 2, hidden: 0 } });
   expect(rows.at(-1)).toMatchObject({ label: 'Blind exits', value: '0/2', good: true });
+});
+
+it('summarises needle drops and load time', () => {
+  expect(needleHandlingText({ drops: 0, loads: [] })).toBe('–');
+  expect(needleHandlingText({ drops: 1, loads: [2, 3] })).toBe('1 drop · load 2.5 s');
 });

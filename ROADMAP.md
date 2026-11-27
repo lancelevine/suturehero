@@ -53,7 +53,7 @@ Last updated: 2026-11-27
 - **Needle type and curve (upgrade the existing needle choice):** 3/8 vs 1/2 circle, cutting vs taper point; arc and tissue behavior change to match.
 - **Tail control on pull-through:** tracks the near-side tail while drawing the suture through; flags pulling it out or leaving too much to tie.
 - **Stitch angle across the wound:** draws each skin stitch's line across the wound and flags any more than a few degrees off 90. *(First version in build 0.235: Sandbox line per pass and a 10° target.)*
-- **Needle pickup and transfer:** under the scope, pick up the needle with forceps, pass to the driver and load it without setting it down; times it and counts drops and re-grabs.
+- **Needle pickup and transfer:** under the scope, pick up the needle with forceps, pass to the driver and load it without setting it down; times it and counts drops and re-grabs. *(First version in build 0.235: Skill Analysis drops and forceps-to-driver load time.)*
 - **Tension hold on running stitches:** tracks strand tension between bites; shows earlier loops going slack or the wound bunching.
 - **Blind bite flag:** flags each bite where the needle tip was hidden from view as it exited. *(First version in build 0.235: Skill Analysis "Blind exits" from the 3D view camera.)*
 - **Vessel eversion:** extends the eversion score to every vessel stitch, with a ring view marking any spot where an edge rolled in.
