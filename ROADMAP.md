@@ -60,6 +60,7 @@ Last updated: 2026-11-27
 - **Set-back dermal stitch:** buried stitch with bites 2 to 3 mm back from the edge under the dermis; scored on set-back distance and the eversion it gives.
 - **Thread budget:** each running closure starts with a fixed suture length, like an 18 inch pack; tracks thread used per stitch and flags wasteful pull-throughs.
 - **One pass or two on vessel bites:** grades taking both walls in one pass vs each wall separately with a regrasp in the lumen, against vessel size.
+- **Running stitch tie-off:** tie the free end to a last loop left long; checks loop size, that the knot holds without cinching the last bite, and slack along the line.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
