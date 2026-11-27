@@ -73,3 +73,4 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Expert ghost replay:** follow a recorded expert's instrument motion overlaid on yours.
 - **Healing time-lapse:** likely scar outcome from tension, eversion and spacing.
 - **Case-based scenarios:** a patient story sets the site, wound and constraints; the trainee picks the closure and suture.
+- **Sterile field score:** flag any time an instrument tip touches something outside the sterile field.
