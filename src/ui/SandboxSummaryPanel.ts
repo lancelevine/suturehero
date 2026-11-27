@@ -1,3 +1,5 @@
+import { describeBiteDepths } from '../gameplay/biteDepth';
+import { SCENE_MM_PER_UNIT } from '../setup/sceneScale';
 import { describeWarmups, loadWarmups, localDay, saveWarmup, WARMUP_SECONDS } from '../gameplay/warmupLog';
 import { formatClock } from './practiceHud';
 import { setText } from './setText';
@@ -57,7 +59,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
   const panel = document.createElement('section');
   panel.className = 'sandbox-summary';
   panel.setAttribute('aria-label', 'Sandbox session summary');
-  panel.innerHTML = `<h3>Sandbox session</h3><div class="sandbox-warmup"><button type="button" data-action="warmup">Start 5-minute warm-up</button><span class="sandbox-warmup-status" role="status"></span></div><p class="sandbox-summary-line" role="status"></p><p class="sandbox-spacing"></p><p class="sandbox-bites"></p><ul class="sandbox-targets"></ul>
+  panel.innerHTML = `<h3>Sandbox session</h3><div class="sandbox-warmup"><button type="button" data-action="warmup">Start 5-minute warm-up</button><span class="sandbox-warmup-status" role="status"></span></div><p class="sandbox-summary-line" role="status"></p><p class="sandbox-spacing"></p><p class="sandbox-bites"></p><p class="sandbox-depths"></p><ul class="sandbox-targets"></ul>
 <details><summary>Instructor targets</summary><form class="sandbox-target-form">${TARGET_FIELDS.map((f) => `<label>${f.label} <input type="number" name="${f.key}" step="${f.step}" min="0"></label>`).join('')}<button type="button" data-action="defaults">Defaults</button></form></details>
 <label class="sandbox-trainee">Trainee name or ID <input type="text" name="trainee" maxlength="80" autocomplete="off"></label>
 <div class="sandbox-summary-actions"><button type="button" data-action="save">Save session to progress</button><button type="button" data-action="export">Export session JSON</button><button type="button" data-action="stitches-csv">Export stitches CSV</button><button type="button" data-action="progress-csv">Export progress CSV</button></div><p class="sandbox-trend"></p>
@@ -144,6 +146,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     key = nextKey;
     const n = (v: number | null, digits = 1, unit = ' mm') => (v === null ? '–' : `${v.toFixed(digits)}${unit}`);
     panel.querySelector('.sandbox-summary-line')!.textContent = `${s.passes} pass${s.passes === 1 ? '' : 'es'} · ${s.tears} torn · ${s.cutThroughs} cut through · mean bite ${n(s.meanBiteMm)} · depth ${n(s.meanDepthMm)} · entry ${n(s.meanEntryAngleDeg, 0, '°')} · ${s.stitches} tied (${s.secureKnots} secure)`;
+    panel.querySelector('.sandbox-depths')!.textContent = describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT })));
     panel.querySelector('.sandbox-bites')!.textContent = s.biteConsistency ? describeBiteConsistency(s.biteConsistency) : '';
     panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '');
     panel.querySelector('.sandbox-targets')!.innerHTML = checkTargets(s, targets).map((r) => `<li class="${r.met === null ? 'pending' : r.met ? 'met' : 'missed'}">${r.met === null ? '○' : r.met ? '✓' : '✗'} ${r.label} · ${r.detail}</li>`).join('');

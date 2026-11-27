@@ -148,3 +148,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: finish a 3-stitch session with the stitches far apart; the closure review ends "Gap scan: open at … to …". With close, even stitches it says "edges touching along the wound". Open stretches also show as red bars on the wound.
 - Build 0.235: with the needle through the skin, regrasp it right at the tip, then behind the tip; Analysis "Regrasp on tip" shows 1/2.
 - Build 0.235: make a pass with the needle driver between your view and the exit point; Analysis "Blind exits" counts it (1/1). A pass with a clear view does not.
+- Build 0.235: in Sandbox make one shallow and one deep pass; the summary's "Bite depth" line names them (too shallow / too deep).

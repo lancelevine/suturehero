@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: bite depth gauge (roadmap, build 0.235)
+- New `src/gameplay/biteDepth.ts` (+test): verdict per pass from its deepest layer (epidermis too shallow, dermis good, fat too deep). Sandbox summary line "Bite depth". Checked: tsc, test, check-sandbox.
+
 ### 2026-11-27 — Claude: blind bite flag (roadmap, build 0.235)
 - New `src/scene/blindBite.ts` (+tests): raycast from the view camera to each new pass exit against the instruments (clearance 0.03 near the exit). `src/main.ts` feeds it from the skill sampler; Skill Analysis row "Blind exits" (+test). Uses the 3D view, not the trainee's real line of sight.
 - Checked: tsc, blindBite + SkillAnalysisPanel tests, check-sandbox, check-free-tying (after a Vite restart; the dev server had stopped).

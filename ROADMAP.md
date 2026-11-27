@@ -31,7 +31,7 @@ Last updated: 2026-11-27
 - **Needle regrasp check:** grab the needle behind the tip on exit and follow its curve on pull-through; graded per bite, skin and vessel. *(First version in build 0.235: Skill Analysis counts in-tissue regrasps on the tip; following the curve not graded yet.)*
 - **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen. *(Not started: the knot engines do not expose where the knot sits; needs a knot position in `KnotEngine`.)*
 - **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot. *(Not started: needs an "air knot" signal from every knot engine (`KnotEngine`); unseated throws are already reported in the stitch outcome.)*
-- **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep.
+- **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep. *(First version in build 0.235: Sandbox summary line per pass; cutaway view still to do.)*
 - **Landmark alignment:** on wounds crossing a line like the vermilion border, brow or crease, the first stitch lines it up; scored on millimetres off.
 - **Needle direction check (vessel):** outside-in on the first wall, inside-out on the second; flags any bite that goes the wrong way.
 - **Running locked stitch:** blanket stitch for scalp and oozing edges; scored on even lock tension and spacing, flags strangling locks.
