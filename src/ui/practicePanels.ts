@@ -45,3 +45,30 @@ export function markStitchSteps(steps: Iterable<HTMLElement>, currentStep: numbe
     else element.removeAttribute('aria-current');
   }
 }
+
+export interface CourseButtonState {
+  /** Skin environment (the 3-stitch course is skin only). */
+  skin: boolean;
+  active: boolean;
+  finished: boolean;
+  /** Current stitch (0-based). */
+  index: number;
+  canAdvance: boolean;
+  canFinishSandboxStitch: boolean;
+  canTieFreePass: boolean;
+}
+
+/** The 3-stitch course buttons and the Free tying button. */
+export function updateCourseButtons(query: Query, state: CourseButtonState) {
+  const start = query<HTMLButtonElement>('#start-course')!;
+  const next = query<HTMLButtonElement>('#next-stitch')!;
+  start.disabled = !state.skin || (state.active && !state.finished);
+  start.textContent = state.finished ? 'New 3-stitch session' : 'Start 3-stitch session';
+  next.disabled = !state.canAdvance;
+  next.textContent = state.index === 2 ? 'Finish session' : 'Save & next stitch';
+  next.hidden = !state.active;
+  const tying = query<HTMLButtonElement>('#free-tying')!;
+  tying.disabled = state.active;
+  const tyingText = state.canFinishSandboxStitch ? 'Finish stitch · next' : state.canTieFreePass ? 'Tie knot on this stitch' : 'Free tying lab';
+  if (tying.textContent !== tyingText) tying.textContent = tyingText;
+}

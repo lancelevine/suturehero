@@ -91,6 +91,8 @@ entry when finishing.
 
 - `src/ui/practicePanels.ts` (+test): `updateTensionPanel`, `tensionMeterValue`, `markStitchSteps`.
   Checked: free-tying, guided-thread, sandbox, layout.
+- Also `updateCourseButtons` (course and Free tying buttons), tested; checked course-export,
+  practice-setup, sandbox, free-tying.
 
 ### 2026-11-27 — Claude — practice loop: cached element lookups (main.ts)
 

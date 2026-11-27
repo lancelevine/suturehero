@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { markStitchSteps, tensionMeterValue, updateTensionPanel } from './practicePanels';
+import { markStitchSteps, tensionMeterValue, updateCourseButtons, updateTensionPanel } from './practicePanels';
 
 function element() {
   const classes = new Set<string>();
@@ -38,4 +38,16 @@ it('marks the current and earlier stitch steps', () => {
   const steps = [1, 2, 3].map((n) => Object.assign(element(), { dataset: { stitchStep: String(n) } }));
   markStitchSteps(steps as unknown as HTMLElement[], 2);
   expect(steps.map((s) => [s.classList.contains('done'), s.classList.contains('active'), s.getAttribute('aria-current')])).toEqual([[true, false, null], [false, true, 'step'], [false, false, null]]);
+});
+
+it('labels the course and free-tying buttons', () => {
+  const elements = new Map<string, ReturnType<typeof element> & { disabled?: boolean }>();
+  const query = ((selector: string) => {
+    if (!elements.has(selector)) elements.set(selector, element());
+    return elements.get(selector);
+  }) as never;
+  updateCourseButtons(query, { skin: true, active: true, finished: false, index: 2, canAdvance: true, canFinishSandboxStitch: false, canTieFreePass: true });
+  expect([elements.get('#start-course')!.disabled, elements.get('#next-stitch')!.textContent, elements.get('#free-tying')!.textContent, elements.get('#free-tying')!.disabled]).toEqual([true, 'Finish session', 'Tie knot on this stitch', true]);
+  updateCourseButtons(query, { skin: true, active: false, finished: true, index: 0, canAdvance: false, canFinishSandboxStitch: true, canTieFreePass: false });
+  expect([elements.get('#start-course')!.textContent, elements.get('#next-stitch')!.hidden, elements.get('#free-tying')!.textContent]).toEqual(['New 3-stitch session', true, 'Finish stitch · next']);
 });

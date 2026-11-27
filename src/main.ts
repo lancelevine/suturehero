@@ -1,5 +1,5 @@
 import {knotEngineEntry} from './knot/engines';
-import {markStitchSteps,updateTensionPanel} from './ui/practicePanels';
+import {markStitchSteps,updateCourseButtons,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
 import {cameraMode as deviceCameraMode} from './input/cameraDevices';
@@ -382,13 +382,7 @@ try {
     setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)}`:'Start a 3-stitch session to review spacing.');
     (frameQuery('.course-controls') as HTMLElement).hidden=session.environment.id!=='skin';
     completedView.update(course.completed.length,course.siteZ);
-    const courseStart=frameQuery('#start-course') as HTMLButtonElement,courseNext=frameQuery('#next-stitch') as HTMLButtonElement;
-    courseStart.disabled=session.environment.id!=='skin'||course.active&&!course.finished;
-    courseStart.textContent=course.finished?'New 3-stitch session':'Start 3-stitch session';
-    courseNext.disabled=!session.canAdvanceStitch;courseNext.textContent=course.index===2?'Finish session':'Save & next stitch';
-    courseNext.hidden=!course.active;
-    (frameQuery('#free-tying') as HTMLButtonElement).disabled=course.active;
-    {const tying=frameQuery('#free-tying')!;const tyingText=session.canFinishSandboxStitch?'Finish stitch · next':session.canTieFreePass?'Tie knot on this stitch':'Free tying lab';if(tying.textContent!==tyingText)tying.textContent=tyingText;}
+    updateCourseButtons(frameQuery,{skin:session.environment.id==='skin',active:course.active,finished:course.finished,index:course.index,canAdvance:session.canAdvanceStitch,canFinishSandboxStitch:session.canFinishSandboxStitch,canTieFreePass:session.canTieFreePass});
     if(courseStatus.textContent!==course.status)courseStatus.textContent=course.status;
     if(courseRevision!==course.revision){
       courseRevision=course.revision;courseReview.replaceChildren(...course.completed.map(stitch=>{const item=document.createElement('li');item.textContent=`Stitch ${stitch.number} · ${stitch.review.join(' · ')}`;return item;}));courseReview.hidden=!course.completed.length;
