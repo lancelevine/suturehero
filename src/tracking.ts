@@ -645,7 +645,7 @@ async function detectFrame(now:number){
    if(session!==cameraSession)return;capture1.search.result(nativeMarkers);perf.sample('Camera 1 '+region.kind+' decode worker',detector.diagnostics.durationMs);
    if(cornerDebug.checked)for(const marker of found)rawDecodedCorners.set(marker.id,{marker,capturedAt,receivedAt:performance.now()});
    perf.sample('Camera 1 decode frame age',performance.now()-capturedAt);rates1.decode();framesAnalyzed++;
-   for(const [name,text] of Object.entries(decodeDiagnosticsText({frames:framesAnalyzed,matched:found.length,outlines:detector.candidateCorners.length,cropped,regionW,regionH,regionKind:region.kind,decoder:detector.diagnostics,flowNote:fastTracker.diagnostics.note})))diag(name).textContent=text;
+   for(const [name,text] of Object.entries(decodeDiagnosticsText({frames:framesAnalyzed,matched:found.length,outlines:detector.candidateCorners.length,cropped,regionW,regionH,regionKind:region.kind,decoder:detector.diagnostics,flowNote:fastTracker.diagnostics.note})))setText(diag(name),text);
    if(found.length){
     const decodeStamp=performance.now();
     if(decodeStamp-capturedAt<180)stereoFrames.push(0,framePairAt,found);
