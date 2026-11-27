@@ -87,6 +87,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — check-knot-worker: real failure in background engines (no code change)
+
+- With a 25 min limit the check completes (Demo ~5.5 min) but fails on both background engines:
+  classic-worker and claude-worker lock 3 throws and the knot touches the skin, yet never *seats*,
+  so the session shows "0 tied (0 secure)". The default main-thread engine passes the same Demo
+  (`check-demo`). Not a test problem; threshold left as is. Next step: compare `seatLoad` /
+  seating inputs between the worker snapshot and the main-thread engine at the final tighten
+  (diag shows seatContact true, seatLoad 0 on the worker).
+- Background engines stay labelled experimental (checklist "Known limits").
+
 ### 2026-11-27 — Claude — check-performance updated (test only)
 
 - It expected build `0.82`, a "Camera 1 flow readback" row (frames now reach the flow worker as an
