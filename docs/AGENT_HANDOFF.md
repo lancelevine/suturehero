@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: corner-debug drawing via markerOverlay
+- Corner-debug drawing moved from `src/tracking.ts` to `drawCornerDebug` (`src/ui/markerOverlay.ts`), named constants for colours and the 650 ms keep time. Test added. No visible change.
+- Checked: tsc, markerOverlay test, check-tracking-motion.
+
 ### 2026-11-27 — Claude: camera 1 marker outlines via markerOverlay
 - Camera 1's outline/"OVERLAP ID" drawing moved from `src/tracking.ts` to `drawDecodedMarkers` (`src/ui/markerOverlay.ts`, new `overlapping` argument; verified IDs computed once per frame instead of per marker). Test added.
 - Checked: tsc, markerOverlay test, check-tracking-motion, check-ring-handoffs. No visible change.

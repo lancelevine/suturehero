@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { cameraStatusText, drawDetectedMarker } from './markerOverlay';
+import { cameraStatusText, drawCornerDebug, drawDetectedMarker } from './markerOverlay';
 
 it('outlines the marker and labels its ID above the first corner', () => {
   const calls: string[] = [];
@@ -23,4 +23,12 @@ it('labels and colours an overlapping face amber', () => {
   drawDetectedMarker(context, { id: 3, corners: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }] }, true);
   expect(texts).toEqual(['OVERLAP ID 3']);
   expect(context.strokeStyle).toBe('#ffc14d');
+});
+
+it('drops stale raw corners from the corner-debug view', () => {
+  const context = { beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, stroke() {}, arc() {}, fill() {} } as unknown as CanvasRenderingContext2D;
+  const marker = { id: 1, corners: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }] };
+  const raw = new Map([[1, { marker, receivedAt: 0 }], [2, { marker, receivedAt: 900 }]]);
+  expect(drawCornerDebug(context, raw, [marker], 1000)).toMatch(/^1 decoded marker/);
+  expect([...raw.keys()]).toEqual([2]);
 });

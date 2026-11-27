@@ -20,7 +20,7 @@ import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport} from './input/stereoIndicator';
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
-import {cameraStatusText,drawCornerMarks,drawDecodedMarkers} from './ui/markerOverlay';
+import {cameraStatusText,drawCornerDebug,drawDecodedMarkers} from './ui/markerOverlay';
 import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {chooseFace,faceCandidates} from './input/rotationTracking';
@@ -570,20 +570,10 @@ function sendJawOpening(name:BallInstrumentName,opening:number,cameras:number[])
  if(name==='scissors')previewScissorOpening(opening);
  publishTrackingMessage({type:TRACKING_MESSAGE.jawOpening,instrument:name,opening,cameras:cameras.map(c=>c+1),seenAt:Date.now()},embeddedTracking);
 }
-function drawCornerDebug(){
+function drawCornerDebugView(){
  if(!cornerDebug.checked)return;
- const now=performance.now();
- const drawCorners=(pts:MarkerObservation['corners'],color:string,pointsOnly=false)=>drawCornerMarks(overlayContext,pts,color,pointsOnly);
- let recent=0;
- for(const [id,entry] of rawDecodedCorners){
-  if(now-entry.receivedAt>650){rawDecodedCorners.delete(id);continue;}
-  recent++;
-  drawCorners(entry.marker.corners,'#00e5ff');
- }
- // These are the current live observations passed into the mono pose solver.
- for(const marker of liveMarkers())if(markerGroups().needleDriver.includes(marker.id)||markerGroups().forceps.includes(marker.id)||markerGroups().scissors.includes(marker.id))
-  drawCorners(marker.corners,'#ffe34d',true);
- cornerDebugStatus.textContent=recent+' decoded marker(s) · cyan is from an earlier captured frame; compare while held still';
+ const instrumentIds=[...markerGroups().needleDriver,...markerGroups().forceps,...markerGroups().scissors] as number[];
+ cornerDebugStatus.textContent=drawCornerDebug(overlayContext,rawDecodedCorners,liveMarkers().filter(m=>instrumentIds.includes(m.id)),performance.now());
 }
 /** Black line along each visible ring's shaft axis. */
 const ringAxisPoses=new Map<InstrumentName,PrismPose>();
@@ -609,7 +599,7 @@ function drawDetections(){
  const overlapping=(id:number)=>{const group=Object.values(markerGroups()).find(ids=>(ids as readonly number[]).includes(id)) as readonly number[]|undefined;return !!group&&verifiedIds.filter(v=>group.includes(v)).length>1;};
  drawDecodedMarkers(overlayContext,observations,id=>performance.now()-(markerLastDecoded.get(id)??-Infinity),overlay.width,overlay.height,overlapping);
  drawRingAxes();
- drawCornerDebug();
+ drawCornerDebugView();
  perf.sample('Marker overlay drawing',performance.now()-overlayStarted);
  perf.measure('Pose estimation + filtering',updateLiveTargets);const uiStarted=performance.now();
  setText(markerReadout,markerReadoutText(observations.map(m=>m.id),markerLastDecoded,performance.now()));

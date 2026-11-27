@@ -57,3 +57,32 @@ export function drawDecodedMarkers(context: CanvasRenderingContext2D, markers: r
   context.clearRect(0, 0, width, height);
   for (const marker of markers) if (decodedAgeMs(marker.id) <= DECODED_OUTLINE_MS) drawDetectedMarker(context, marker, overlapping(marker.id));
 }
+
+/** Raw decoded corners stay in the corner-debug view this long after they arrive (ms). */
+export const CORNER_DEBUG_KEEP_MS = 650;
+const RAW_CORNER_COLOUR = '#00e5ff';
+const LIVE_CORNER_COLOUR = '#ffe34d';
+
+/**
+ * Corner-debug view (moved out of src/tracking.ts, 2026-11-27): raw decoded corners from earlier
+ * captured frames in cyan (older entries are removed from `raw`), and the live corners passed to
+ * the pose solver as yellow dots. Returns the status line.
+ */
+export function drawCornerDebug(
+  context: CanvasRenderingContext2D,
+  raw: Map<number, { marker: MarkerObservation; receivedAt: number }>,
+  live: readonly MarkerObservation[],
+  now: number,
+) {
+  let recent = 0;
+  for (const [id, entry] of raw) {
+    if (now - entry.receivedAt > CORNER_DEBUG_KEEP_MS) {
+      raw.delete(id);
+      continue;
+    }
+    recent++;
+    drawCornerMarks(context, entry.marker.corners, RAW_CORNER_COLOUR);
+  }
+  for (const marker of live) drawCornerMarks(context, marker.corners, LIVE_CORNER_COLOUR, true);
+  return recent + ' decoded marker(s) · cyan is from an earlier captured frame; compare while held still';
+}
