@@ -6,7 +6,7 @@ import {StereoPoseMemory} from './input/stereoPoseMemory';
 import {MONO_VIEW_MAX_AGE_MS,stereoMonoViews as monoViewsFromCameras} from './input/stereoMonoViews';
 import {mountTrackingStatusStrip} from './ui/trackingStatusStrip';
 import {stereoTipPose} from './input/stereoTipPose';
-import {driftCorrections,meanCornerDistance} from './input/driftCorrection';
+import {driftCorrections,holdDecodedMarkers,recordFlowMotion} from './input/driftCorrection';
 import {moveSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
 import {CameraCapture,type CaptureEnvironment} from './input/CameraCapture';
 import {bitmapRequests} from './input/bitmapRequests';
@@ -674,20 +674,13 @@ async function detectFrame(now:number){
    // A fresh optical-flow result supersedes the last decoder snapshot.
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
    if(found.length){
-    for(const m of found){
-     const prev=flowMotion.get(m.id);
-     const displacement=prev?meanCornerDistance(m.corners,prev.corners):0;
-     const speed=prev?displacement/Math.max(1,stamp-prev.at):Infinity;
-     flowMotion.set(m.id,{corners:m.corners.map(p=>({...p})),at:stamp,speed});
-     markerLastConfirmed.set(m.id,stamp);
-    }
+    recordFlowMotion(flowMotion,found,stamp);
+    for(const m of found)markerLastConfirmed.set(m.id,stamp);
     observations=found;observationsAt=stamp;latestFlowAt=stamp;stereoFrames.push(0,framePairAt,found);idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
    else {
      // A missing optical-flow frame must not erase a freshly decoded stationary marker.
-     const decodedHold=observations.filter(m=>stamp-(markerLastDecoded.get(m.id)??-Infinity)<300);
+     const decodedHold=holdDecodedMarkers(observations,markerLastDecoded,markerLastConfirmed,stamp);
      observations=decodedHold;stereoFrames.push(0,framePairAt,[]);
-     for(const id of [...markerLastConfirmed.keys()])if(!decodedHold.some(m=>m.id===id))markerLastConfirmed.delete(id);
-     for(const marker of decodedHold)markerLastConfirmed.set(marker.id,stamp);
      observationsAt=stamp;idleNoMarkers=decodedHold.length===0;
      capture1.lastDecodeAt=Math.min(capture1.lastDecodeAt,stamp-65);drawDetections();
     }

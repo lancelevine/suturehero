@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — flow-result bookkeeping out of tracking.ts
+
+- `recordFlowMotion` and `holdDecodedMarkers` (DECODED_HOLD_MS = 300) in
+  `src/input/driftCorrection.ts`, tested. Checked: tracking-motion, marker-rest, ring-handoffs,
+  marker-motion, predictive-decode.
+
 ### 2026-11-27 — Claude — Tracking Lab bridge out of tracking.ts (−48 lines)
 
 - `src/trackingLab/bridge.ts` (+test): `createTrackingLabBridge(deps)`; tracking.ts still exports

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { driftCorrections, meanCornerDistance } from './driftCorrection';
+import { driftCorrections, holdDecodedMarkers, meanCornerDistance, recordFlowMotion } from './driftCorrection';
 
 const square = (id: number, dx: number) => ({ id, corners: [{ x: dx, y: 0 }, { x: 10 + dx, y: 0 }, { x: 10 + dx, y: 10 }, { x: dx, y: 10 }] });
 
@@ -17,4 +17,19 @@ it('corrects only still, recently tracked markers by a plausible amount, from a 
   expect(corrected[0]).not.toBe(found[0]);
   // The decoded image is too old.
   expect(driftCorrections(found, active, motion, 1000, 800)).toEqual([]);
+});
+
+it('records flow speed between frames', () => {
+  const motion = new Map();
+  recordFlowMotion(motion, [square(1, 0)], 1000);
+  expect(motion.get(1).speed).toBe(Infinity);
+  recordFlowMotion(motion, [square(1, 2)], 1010);
+  expect(motion.get(1).speed).toBeCloseTo(0.2);
+});
+
+it('holds only recently decoded markers when flow finds nothing', () => {
+  const confirmed = new Map([[1, 900], [2, 900], [9, 900]]);
+  const held = holdDecodedMarkers([square(1, 0), square(2, 0)], new Map([[1, 800], [2, 500]]), confirmed, 1000);
+  expect(held.map((m) => m.id)).toEqual([1]);
+  expect([...confirmed]).toEqual([[1, 1000]]);
 });
