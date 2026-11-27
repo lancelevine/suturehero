@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {captureDue} from './input/captureScheduling';
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
@@ -747,7 +748,7 @@ function drawCornerDebug(){
  const now=performance.now();
  const drawCorners=(pts:MarkerObservation['corners'],color:string,pointsOnly=false)=>{
   overlayContext.strokeStyle=color;overlayContext.fillStyle=color;overlayContext.lineWidth=2;
-  if(!pointsOnly){overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();overlayContext.stroke();}
+  if(!pointsOnly){traceQuad(overlayContext,pts);overlayContext.stroke();}
   for(const p of pts){overlayContext.beginPath();overlayContext.arc(p.x,p.y,pointsOnly?4:3,0,Math.PI*2);overlayContext.fill();}
  };
  let recent=0;
@@ -791,20 +792,14 @@ function drawDetections(){
  for(const marker of observations){
   // A flow-only outline is not proof that the printed face is still visible.
   if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>650)continue;
-  const pts=marker.corners;overlayContext.beginPath();overlayContext.moveTo(pts[0].x,pts[0].y);for(let i=1;i<4;i++)overlayContext.lineTo(pts[i].x,pts[i].y);overlayContext.closePath();const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(markerGroups()[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+  const pts=marker.corners;traceQuad(overlayContext,pts);const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(markerGroups()[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
  drawRingAxes();
  drawCornerDebug();
  perf.sample('Marker overlay drawing',performance.now()-overlayStarted);
  perf.measure('Pose estimation + filtering',updateLiveTargets);const uiStarted=performance.now();
  markerReadout.textContent=markerReadoutText(observations.map(m=>m.id),markerLastDecoded,performance.now());
  if(!simulation.checked){
-  const readout=(name:'needleDriver'|'forceps'|'scissors')=>{
-   const target=liveTargets.get(name);if(!target)return 'Not visible';
-   const age=performance.now()-target.lastSeen;if(age>trackingHoldMs)return 'Not visible';
-   const p=target.pose,v=p.position,e=new THREE.Euler().setFromQuaternion(p.quaternion,'XYZ');
-   const deg=(r:number)=>(r*180/Math.PI).toFixed(0);
-   return `${age>130?'Last seen · ':''}ID ${p.id} · X ${v.x.toFixed(1)}, Y ${v.y.toFixed(1)}, Z ${v.z.toFixed(1)} mm · RPY ${deg(e.x)}°/${deg(e.y)}°/${deg(e.z)}° · error ${p.reprojectionError.toFixed(1)} px (uncalibrated)`;
-  };
+  const readout=(name:'needleDriver'|'forceps'|'scissors')=>poseReadoutText(liveTargets.get(name),performance.now(),trackingHoldMs);
   driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
   filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':m.valid?'tracking':'depth unavailable'} · depth from ${m.source}`:`${name}: waiting`;}).join(' | ');
   faceOverlapReadout.textContent=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id)).map(m=>m.id);const geometry=trackerGeometry(trackerType);return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${visible.length}/${geometry.faceCount} visible · ${THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0)}° side spacing`;}).join(' | ');
