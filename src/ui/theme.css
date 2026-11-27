@@ -50,7 +50,7 @@ html,body{background:radial-gradient(1200px 700px at 70% -10%,#10234a 0%,transpa
 .brand-icon{color:var(--sh-cyan)!important;filter:drop-shadow(0 0 6px rgba(63,216,255,.55))}
 
 /* 3. Header (above the page: its blur makes a stacking context, so its menus need this) */
-:is(#app,#tracking-app)>header{position:relative;z-index:40;background:rgba(6,11,22,.8);border-bottom:1px solid rgba(63,216,255,.16);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur)}
+:is(#app,#tracking-app)>header{position:relative;z-index:40;background:rgba(6,11,22,.86);border-bottom:1px solid rgba(63,216,255,.16)}
 :is(#app,#tracking-app) .version{background:var(--sh-cyan-soft);color:var(--sh-cyan);border:1px solid var(--sh-line);border-radius:999px}
 
 /* 4. Buttons and controls */
@@ -63,10 +63,12 @@ html,body{background:radial-gradient(1200px 700px at 70% -10%,#10234a 0%,transpa
 :is(#app,#tracking-app,dialog) :is(input[type=range],input[type=checkbox],input[type=radio],meter,progress){accent-color:var(--sh-cyan)}
 :is(#app,#tracking-app) .workspace-menu-items{background:var(--sh-panel-deep);border:0;box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur)}
 
-/* 5. Frosted glass panels */
+/* 5. Glass panels. No backdrop blur here: these sit over the plain page, where it shows nothing
+   but costs a blur pass every frame (it slowed the calibration preview enough to fail
+   check-rotation-frame). Overlays on the 3D view keep the blur. */
 :is(#app,#tracking-app) :is(.workspace-calibration-drawer,.workspace-camera-dock,.tracking-panel,.tracking-camera-card,.tracking-virtual-card,.tracking-calibration-card,.lesson,.tracking-status-strip,.calibration-live-preview,.sandbox-summary),
 dialog,.tracking-tools-panel{
-  background:var(--sh-panel);color:var(--sh-text);border:0;border-radius:var(--sh-radius);box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur)}
+  background:var(--sh-panel);color:var(--sh-text);border:0;border-radius:var(--sh-radius);box-shadow:var(--sh-glow)}
 :is(#app,#tracking-app) :is(.tracking-details,.workspace-disclosure,.camera-device-card){border:1px solid rgba(63,216,255,.2);border-radius:var(--sh-radius-sm)}
 dialog::backdrop{background:rgba(2,6,14,.6);backdrop-filter:blur(4px)}
 :is(#app,#tracking-app) :is(video,canvas#primary-camera-preview,.tracking-camera-stage){background:#02060d}

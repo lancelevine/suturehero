@@ -48,6 +48,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — fix: deploys 0.229–0.230 failed check-rotation-frame (theme blur)
+
+- CI failed check-rotation-frame from the theme commit on (tilt direction flipped on random faces).
+  Bisected theme.css: the `backdrop-filter` blur on the side panels (section 5). It cost a blur
+  pass every frame and slowed the calibration preview enough that its drawing lagged the samples.
+  Those panels and the header sit over the plain page, so the blur showed nothing: removed there;
+  overlays on the 3D view (HUD, view buttons) keep it.
+- Checked: rotation-frame 3/3 (0/3 before), calibration-preview, calibration-ui,
+  calibration-rotation, tracking-panels, layout, practice-setup.
+- Also a performance note: backdrop blur over the live 3D view is GPU work every frame; it is
+  limited to the small HUD cards and buttons.
+
 ### 2026-11-27 — Claude — Build 0.232: visual overhaul step 4 (microsurgery HUD)
 
 - `practiceHud.ts`: with `micro` input the stat card shows Alignment ((initialGap·(1−closure) +
