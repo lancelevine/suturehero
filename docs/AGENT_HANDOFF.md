@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: jaw meters written only on change
+- `src/main.ts` render loop: the two jaw `<meter>` values are set only when they change (were set every frame). Checked: tsc, check-sandbox.
+
 ### 2026-11-27 — Claude: environment wording as environmentTexts
 - `environmentTexts` (`src/ui/practiceMessages.ts`, +2 tests) builds the skin/microsurgery page texts (switch button, heading, tag, scene label, first step, lesson, eversion and free notes); `switchEnvironment` in `src/main.ts` only writes them. Same texts.
 - Checked: tsc, practiceMessages test, check-practice-setup, check-guided-thread, check-layout.
