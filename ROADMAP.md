@@ -44,6 +44,7 @@ Last updated: 2026-11-27
 - **Driver grip force:** needle driver jaw sensor flags clamping hard enough to bend a fine needle or so light it spins mid-bite.
 - **Instrument tip collisions:** flags driver and forceps tips bumping, crossing or blocking each other; count per closure with replay markers.
 - **Edges of unequal length:** measures both edges, shows the spacing needed to absorb the difference, and scores how evenly it was spread.
+- **Hand-sewn vein anastomosis:** vein mode on the vessel with a thin wall that collapses unless held open with forceps counterpressure; all vessel checks apply.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
