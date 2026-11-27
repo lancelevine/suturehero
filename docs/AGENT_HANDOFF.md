@@ -87,6 +87,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — tension panel and stitch steps out of main.ts
+
+- `src/ui/practicePanels.ts` (+test): `updateTensionPanel`, `tensionMeterValue`, `markStitchSteps`.
+  Checked: free-tying, guided-thread, sandbox, layout.
+
 ### 2026-11-27 — Claude — practice loop: cached element lookups (main.ts)
 
 - `src/ui/cachedQuery.ts` (+test): the practice render loop's 44 per-frame

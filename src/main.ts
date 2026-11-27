@@ -1,4 +1,5 @@
 import {knotEngineEntry} from './knot/engines';
+import {markStitchSteps,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
 import {cameraMode as deviceCameraMode} from './input/cameraDevices';
@@ -394,25 +395,13 @@ try {
     }
     const assessment=session.stitchAssessment;
     const currentStep=Number(assessment.stage.match(/^(\d)/)?.[1]??0);
-    for(const element of Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'))){
-      const number=Number(element.dataset.stitchStep);element.classList.toggle('active',number===currentStep);element.classList.toggle('done',currentStep>number);
-      if(number===currentStep)element.setAttribute('aria-current','step');else element.removeAttribute('aria-current');
-    }
+    markStitchSteps(Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]')),currentStep);
     for(const [selector,text] of [['#stitch-stage',assessment.stage],['#stitch-quality',[...assessment.feedback,...(session.freeKnot.active&&session.freeKnot.sequence?.locked?[`Release hold: ${Math.round(session.freeReleaseProgress*100)}%`]:[])].join(' · ')]]){
       const element=frameQuery(selector)!;if(element.textContent!==text)element.textContent=text;
     }
     (frameQuery('#stitch-stage') as HTMLElement).dataset.complete=String(assessment.complete||assessment.labFinished);
-    (frameQuery('#tension-panel') as HTMLElement).hidden=!session.freeKnot.active;
-    if(session.freeKnot.active){
-      for(const side of ['long','short'] as const){
-        const tension=session.freeKnot.tension[side],meter=frameQuery(`#${side}-tension`) as HTMLMeterElement;
-        const value=tension.state==='released'?0:tension.tautness*.65+tension.demand*.35;
-        if(Math.abs(meter.value-value)>.001)meter.value=value;
-        if(meter.dataset.state!==tension.state){meter.dataset.state=tension.state;meter.setAttribute('aria-label',`${side} strand: ${tension.state}`);}
-        const label=frameQuery(`#${side}-tension-state`)!;if(label.textContent!==tension.state)label.textContent=tension.state;
-      }
-      const cue=frameQuery('#tension-cue')!;if(cue.textContent!==session.freeKnot.tensionHint)cue.textContent=session.freeKnot.tensionHint;
-    }
+    // Strand tension meters and cue (src/ui/practicePanels.ts).
+    updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);
     const edge=session.eversion;
     const skinContext=session.environment.id==='skin'&&!knot.active&&!course.finished&&!session.freeKnot.grips.has('left')&&grasp.holder?.kind!=='forceps'&&!(session.pass.phase==='complete'&&session.pull.phase==='waiting'&&!edge.held);
     const tractionAlert=skinContext&&['stretching','slipping','slipped'].includes(edge.traction.state);
