@@ -61,6 +61,7 @@ import { PracticeSession } from './gameplay/PracticeSession';
 import { practicePageMarkup } from './ui/practicePageMarkup';
 import { mountCourseExport } from './ui/courseExport';
 import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
+import {FpsCounter} from './diagnostics/FrameRates';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 const APP_BUILD='0.234';
@@ -255,7 +256,8 @@ try {
   const cameraPerformance=document.querySelector<HTMLElement>('#camera-performance')!;
   const trackingBadge=mountTrackingStatusBadge(document.querySelector<HTMLElement>('#viewport')!);
   let lastTrackingStatusAt=performance.now();
-  let trackingLoopFps=0,simulatorFrames=0,simulatorFps=0,lastSimulatorFps=performance.now();
+  let trackingLoopFps=0;
+  const simulatorFps=new FpsCounter(performance.now());
   let cameraEnabled=false;
   const setCameraMode=async(enabled:boolean)=>{
    cameraEnabled=enabled;cameraToggle.setAttribute('aria-pressed',String(enabled));cameraToggle.setAttribute('aria-expanded',String(enabled));
@@ -351,11 +353,8 @@ try {
   const frameQuery=cachedQuery();
   view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){if(demo?.running){/* The demo's knot physics is tuned at 1/60 s steps (src/demo/freeKnotDemo.test.ts): slice longer frames. */const slices=Math.max(1,Math.ceil(dt*60-1e-6));for(let i=0;i<slices;i++){demo.step(dt/slices);session.update(dt/slices);}}else session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){
-     simulatorFrames++;
-     if(time-lastSimulatorFps>=1000){
-      simulatorFps=Math.round(simulatorFrames*1000/(time-lastSimulatorFps));simulatorFrames=0;lastSimulatorFps=time;
-      cameraPerformance.textContent='Simulator '+simulatorFps+' FPS · Tracking loop '+trackingLoopFps+' FPS';
-     }
+     const fps=simulatorFps.tick(time);
+     if(fps!==null)cameraPerformance.textContent='Simulator '+fps+' FPS · Tracking loop '+trackingLoopFps+' FPS';
     }
     for(const [name,model] of [['forceps',tools[0]],['needleDriver',tools[1]]] as const){
      const jaw=jawTracking.get(name);if(jaw&&time-jaw.seenAt<350)model.setTrackedOpening(jaw.opening);
@@ -377,7 +376,7 @@ try {
     if(scissorsJaw&&time-scissorsJaw.seenAt<350)scissors.setTrackedOpening(scissorsJaw.opening);
     if(cameraEnabled)applyCameraPose('scissors',scissors.root);
     const cuttingButton=frameQuery('#select-scissors') as HTMLButtonElement;
-    cuttingButton.disabled=!canUseScissors();setText(cuttingButton,input.scissorsActive?'Use needle driver':'Use scissors');cuttingButton.setAttribute('aria-pressed',String(input.scissorsActive));
+    cuttingButton.disabled=!canUseScissors();setText(cuttingButton,input.scissorsActive?'Use needle driver':'Use scissors');const scissorsPressed=String(input.scissorsActive);if(cuttingButton.getAttribute('aria-pressed')!==scissorsPressed)cuttingButton.setAttribute('aria-pressed',scissorsPressed);
     (frameQuery('#position-scissors') as HTMLButtonElement).disabled=!canUseScissors();
     const cut=scissors.findCut(input.scissorsActive?(session.freeKnot.active?session.freeKnot.strands:[session.knotSlack.short,session.knotSlack.long]):[]);
     if(cut){

@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: simulator FPS counter and scissors button writes
+- `src/main.ts`: simulator FPS readout uses `FpsCounter`; the scissors button's `aria-pressed` is written only when it changes (was every frame).
+- Checked: tsc, check-sandbox, check-free-tying, check-camera-controls.
+
 ### 2026-11-27 — Claude: FpsCounter for render and embedded FPS
 - `FpsCounter` (`src/diagnostics/FrameRates.ts`, +test) replaces two hand-rolled per-second counters in the `src/tracking.ts` render loop (diagnostics "Virtual FPS" tooltip and the embedded fps message). The embedded fps message now first arrives after 1 s instead of on the first frame.
 - Checked: tsc, FrameRates test, check-tracking-motion, check-performance, check-camera-controls.
