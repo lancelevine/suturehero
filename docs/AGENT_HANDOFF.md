@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — stereo triangulation notes out of animate()
+
+- `stereoInstrumentReport` (+test) in `src/input/stereoIndicator.ts`: each instrument's status note
+  and the fit error fed to the camera-moved monitor. Checked: stereo-motion, stereo-rig-faces,
+  status-strip, stereo-shortcut.
+
 ### 2026-11-27 — Claude — flow-result bookkeeping out of tracking.ts
 
 - `recordFlowMotion` and `holdDecodedMarkers` (DECODED_HOLD_MS = 300) in

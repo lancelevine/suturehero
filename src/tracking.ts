@@ -13,7 +13,7 @@ import {bitmapRequests} from './input/bitmapRequests';
 import {RotationStageReadout} from './ui/rotationStageReadout';
 import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
-import {stereoBlockedReason,stereoIndicator} from './input/stereoIndicator';
+import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport} from './input/stereoIndicator';
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {cameraStatusText,drawCornerMarks,drawDecodedMarkers} from './ui/markerOverlay';
@@ -25,7 +25,7 @@ import {mountDetectionPreviews} from './ui/detectionPreviews';
 import {mountDepthRangeControls} from './input/depthRangeControls';
 import {mountStereoCalibrationPanel} from './input/stereoCalibrationPanel';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
-import {CameraMovedMonitor,fitErrorFromReason} from './ui/trackingHealth';
+import {CameraMovedMonitor} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
 import {cameraImage,recordedInput} from './trackingLab/runtime';
 import {solveStereoRigPose,type StereoRigDiagnostics,type StereoRigPose} from './input/stereoRigPose';
@@ -827,17 +827,11 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     latestPairingFailure=synchronized?null:stereoFrames.lastFailure??'unknown';
     for(const name of ['needleDriver','forceps','scissors'] as const){
      const rigid=stereoPrismRotation(name,now);
-     if(!rigid&&synchronized){
-      // Explain instruments that at least one camera sees.
-      const ids:readonly number[]=markerGroups()[name];
-      const seen=[...synchronized.first,...synchronized.second].some(m=>ids.includes(m.id));
-      const reason=stereoRejections.get(name);
-      if(seen&&reason)notes.push(name+' · stereo not used: '+reason);
-      const rejectedFit=seen&&reason?fitErrorFromReason(reason):null;if(rejectedFit!==null)cameraMovedMonitor.feed(now,rejectedFit);
-     }
+     // Status note and the fit error the camera-moved monitor watches (src/input/stereoIndicator.ts).
+     const report=stereoInstrumentReport(name,rigid,synchronized,markerGroups()[name],stereoRejections.get(name));
+     if(report.note)notes.push(report.note);
+     if(report.fitErrorPx!==null)cameraMovedMonitor.feed(now,report.fitErrorPx);
      if(!rigid||!synchronized)continue;
-     cameraMovedMonitor.feed(now,rigid.errorPx);
-     notes.push(name+' · Camera 1 IDs '+rigid.firstIds.join(',')+' / Camera 2 IDs '+rigid.secondIds.join(',')+' · joint error '+rigid.errorPx.toFixed(2)+' px');
      if(stereoPositions.get(name)?.lastSample!==synchronized.at)stereoPositions.accept(name,stereoPracticePosition(rigid.translation),rigid.quaternion,synchronized.at);
     }
     stereoSetup.triangulationStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';

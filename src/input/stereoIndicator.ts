@@ -1,3 +1,4 @@
+import { fitErrorFromReason } from '../ui/trackingHealth';
 /**
  * The tracking page's stereo status dot and label (moved out of src/tracking.ts, 2026-11-27).
  * `fallback` lists instruments placed from one camera only; `fresh` those triangulated now.
@@ -42,4 +43,24 @@ export function stereoBlockedReason(input: { calibrated: boolean; stereoMode: bo
   if (input.simulated) return 'Disable simulated input for live triangulation.';
   const mismatch = input.mismatch();
   return mismatch ? 'Stereo inactive: ' + mismatch : null;
+}
+
+/**
+ * One instrument's line in the stereo triangulation status, and the joint fit error the
+ * camera-moved monitor should see (src/ui/trackingHealth.ts): the accepted fit's error, or the
+ * error in the rejection reason when a camera sees the instrument but stereo was not used.
+ */
+export function stereoInstrumentReport(
+  name: string,
+  rigid: { firstIds: readonly number[]; secondIds: readonly number[]; errorPx: number } | null,
+  synchronized: { first: ReadonlyArray<{ id: number }>; second: ReadonlyArray<{ id: number }> } | null | undefined,
+  ids: readonly number[],
+  rejection: string | undefined,
+): { note: string | null; fitErrorPx: number | null } {
+  if (!synchronized) return { note: null, fitErrorPx: null };
+  if (rigid) return { note: name + ' · Camera 1 IDs ' + rigid.firstIds.join(',') + ' / Camera 2 IDs ' + rigid.secondIds.join(',') + ' · joint error ' + rigid.errorPx.toFixed(2) + ' px', fitErrorPx: rigid.errorPx };
+  // Explain instruments that at least one camera sees.
+  const seen = [...synchronized.first, ...synchronized.second].some((m) => ids.includes(m.id));
+  if (!seen || !rejection) return { note: null, fitErrorPx: null };
+  return { note: name + ' · stereo not used: ' + rejection, fitErrorPx: fitErrorFromReason(rejection) };
 }
