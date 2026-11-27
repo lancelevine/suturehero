@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { expect, it } from 'vitest';
-import { faceOverlapText, filterDiagnosticsText, poseReadoutText, traceQuad } from './trackingReadouts';
+import { decodeDiagnosticsText, faceOverlapText, filterDiagnosticsText, poseReadoutText, traceQuad } from './trackingReadouts';
 
 const target = (lastSeen: number) => ({ lastSeen, pose: { id: 7, position: new THREE.Vector3(1.234, -2, 300.06), quaternion: new THREE.Quaternion(), reprojectionError: 0.84 } });
 
@@ -26,4 +26,9 @@ it('describes the depth filter per instrument', () => {
 it('reports visible faces and overlaps per instrument', () => {
   const text = faceOverlapText({ needleDriver: [0, 1, 2], forceps: [10, 11] }, [1, 2, 10], { faceCount: 8, sideStepRadians: Math.PI / 4 });
   expect(text).toBe('needleDriver: OVERLAP 1+2 · 2/8 visible · 45° side spacing | forceps: face 10 · 1/8 visible · 45° side spacing');
+});
+
+it('fills the decoder diagnostics rows', () => {
+  const rows = decodeDiagnosticsText({ frames: 12, matched: 2, outlines: 5, cropped: true, regionW: 320, regionH: 240, regionKind: 'predicted', decoder: { candidateCount: null, rawMarkerCount: 3, durationMs: 7.6, pass: 'adaptive', contrast: 'good', note: 'ok' }, flowNote: 'flow ok' });
+  expect(rows).toEqual({ frames: '12', candidates: 'Unavailable', outlines: '5', decoded: '2 matched · 3 total', time: '8 ms · ROI 320×240', pass: 'predicted · adaptive', contrast: 'good', note: 'ok · flow ok' });
 });

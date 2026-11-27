@@ -87,6 +87,17 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — decode diagnostics and stereo positions out of tracking.ts
+
+- `decodeDiagnosticsText` (+test) in `src/ui/trackingReadouts.ts`: the eight decoder rows.
+- `src/input/stereoPositions.ts` (+test): per-instrument filtered stereo pose, once per frame pair
+  (owns the StereoPoseFilters). Same behaviour.
+- Checked: tracking-motion, profiler, tracking-panels, stereo-motion, stereo-rig-faces,
+  stereo-capture-quality, detection-previews.
+- Scheduled wakes: `trig_01Bj98ypHvMxRmFu424b3tr8` (:13) and backup `trig_015Z27Q9SenRpMCRYRe1k2ht`
+  (:43), both to be disabled 2026-11-29 20:00 UTC. Pushes are batched so deploy runs are not
+  cancelled by the next push.
+
 ### 2026-11-27 — Claude — rigid-body rotation out of tracking.ts (−67 lines)
 
 - `src/input/RotationTracker.ts` (+test): the second half of `updateLiveTargets` (rigid-body

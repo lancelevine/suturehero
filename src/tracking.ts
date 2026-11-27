@@ -12,7 +12,7 @@ import {RotationStageReadout} from './ui/rotationStageReadout';
 import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoBlockedReason,stereoIndicator} from './input/stereoIndicator';
-import {faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
+import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
 import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
@@ -28,7 +28,7 @@ import {markerReadoutText} from './input/markerReadout';
 import {snapshotTrackingStorage} from './trackingLab/configuration';
 import {cameraImage,recordedInput} from './trackingLab/runtime';
 import {solveStereoRigPose,type StereoRigDiagnostics,type StereoRigPose} from './input/stereoRigPose';
-import {StereoPoseFilter} from './input/StereoPoseFilter';
+import {StereoPositions} from './input/stereoPositions';
 import {RingPoseTracker} from './input/RingPoseTracker';
 import {StereoFrames} from './input/StereoFrames';
 import {StereoFallback,type MonoView} from './input/StereoFallback';
@@ -164,7 +164,7 @@ function updateTrackerDescription(){
 function resetTrackerPose(){
  instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();distanceTracks.resetSizeEstimators();capture1.search.reset();capture2.search.reset();
  rotationTracker.reset();
- liveTargets.clear();stereoPositions.clear();stereoPoseFilters.clear();
+ liveTargets.clear();stereoPositions.reset();
  
  distanceTracks.resetHistories();
 }
@@ -184,8 +184,7 @@ window.addEventListener('suturehero:camera-mode-changed',()=>{
  trackerTypeSelect.dispatchEvent(new Event('change'));
 });
 
-const stereoPositions=new Map<InstrumentName,{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;lastSample:number}>();
-const stereoPoseFilters=new Map<InstrumentName,StereoPoseFilter>();
+const stereoPositions=new StereoPositions<InstrumentName>();
 
 type StereoRotation=StereoRigPose;
 const ringPoseTrackers=new Map<InstrumentName,RingPoseTracker>();
@@ -719,14 +718,7 @@ async function detectFrame(now:number){
    if(session!==cameraSession)return;capture1.search.result(nativeMarkers);perf.sample('Camera 1 '+region.kind+' decode worker',detector.diagnostics.durationMs);
    if(cornerDebug.checked)for(const marker of found)rawDecodedCorners.set(marker.id,{marker,capturedAt,receivedAt:performance.now()});
    perf.sample('Camera 1 decode frame age',performance.now()-capturedAt);slowFrames++;framesAnalyzed++;
-   diag('frames').textContent=String(framesAnalyzed);
-   diag('candidates').textContent=detector.diagnostics.candidateCount===null?'Unavailable':String(detector.diagnostics.candidateCount);
-   diag('outlines').textContent=String(detector.candidateCorners.length);
-   diag('decoded').textContent=`${found.length} matched · ${detector.diagnostics.rawMarkerCount} total`;
-   diag('time').textContent=detector.diagnostics.durationMs.toFixed(0)+' ms · '+(cropped?'ROI':'full')+' '+regionW+'×'+regionH;
-   diag('pass').textContent=region.kind+' · '+detector.diagnostics.pass;
-   diag('contrast').textContent=detector.diagnostics.contrast;
-   diag('note').textContent=detector.diagnostics.note+' · '+fastTracker.diagnostics.note;
+   for(const [name,text] of Object.entries(decodeDiagnosticsText({frames:framesAnalyzed,matched:found.length,outlines:detector.candidateCorners.length,cropped,regionW,regionH,regionKind:region.kind,decoder:detector.diagnostics,flowNote:fastTracker.diagnostics.note})))diag(name).textContent=text;
    if(found.length){
     const decodeStamp=performance.now();
     if(decodeStamp-capturedAt<180)stereoFrames.push(0,framePairAt,found);
@@ -870,13 +862,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      if(!rigid||!synchronized)continue;
      cameraMovedMonitor.feed(now,rigid.errorPx);
      notes.push(name+' · Camera 1 IDs '+rigid.firstIds.join(',')+' / Camera 2 IDs '+rigid.secondIds.join(',')+' · joint error '+rigid.errorPx.toFixed(2)+' px');
-     const previous=stereoPositions.get(name),sampleAt=synchronized.at;
-     if(previous?.lastSample===sampleAt)continue;
-     const measured=stereoPracticePosition(rigid.translation);
-     let filter=stereoPoseFilters.get(name);if(!filter){filter=new StereoPoseFilter();stereoPoseFilters.set(name,filter);}
-     filter.update(measured,rigid.quaternion,sampleAt);
-     if(previous){previous.position.copy(filter.position);previous.quaternion.copy(filter.quaternion);previous.lastSeen=sampleAt;previous.lastSample=sampleAt;}
-     else stereoPositions.set(name,{position:filter.position.clone(),quaternion:filter.quaternion.clone(),lastSeen:sampleAt,lastSample:sampleAt});
+     if(stereoPositions.get(name)?.lastSample!==synchronized.at)stereoPositions.accept(name,stereoPracticePosition(rigid.translation),rigid.quaternion,synchronized.at);
     }
     stereoSetup.triangulationStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';
   }

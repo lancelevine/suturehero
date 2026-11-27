@@ -63,3 +63,28 @@ export function faceOverlapText(groups: Readonly<Record<string, readonly number[
     })
     .join(' | ');
 }
+
+/** The decoder diagnostics rows (Diagnostics panel, "#diag-<name>") after a camera 1 decode. */
+export function decodeDiagnosticsText(input: {
+  frames: number;
+  matched: number;
+  outlines: number;
+  cropped: boolean;
+  regionW: number;
+  regionH: number;
+  regionKind: string;
+  decoder: { candidateCount: number | null; rawMarkerCount: number; durationMs: number; pass: string; contrast: string; note: string };
+  flowNote: string;
+}): Record<string, string> {
+  const d = input.decoder;
+  return {
+    frames: String(input.frames),
+    candidates: d.candidateCount === null ? 'Unavailable' : String(d.candidateCount),
+    outlines: String(input.outlines),
+    decoded: `${input.matched} matched · ${d.rawMarkerCount} total`,
+    time: d.durationMs.toFixed(0) + ' ms · ' + (input.cropped ? 'ROI' : 'full') + ' ' + input.regionW + '×' + input.regionH,
+    pass: input.regionKind + ' · ' + d.pass,
+    contrast: d.contrast,
+    note: d.note + ' · ' + input.flowNote,
+  };
+}
