@@ -153,3 +153,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: enter the skin once with the edge gently lifted and once without holding it; Analysis "Edge presented" shows 1/2.
 - Build 0.235: after a Sandbox pass, the stitch line shows small ruler ticks every mm out from the wound centre, a longer one every 5 mm.
 - Build 0.235: pick the needle up with the forceps, pass it to the driver, then drop it once on the table; Analysis "Needle handling" shows 1 drop and a load time.
+- Build 0.235: in Sandbox, one deep narrow pass reads "flask" and one shallow wide pass reads "V-shaped" in the "Bite shape" line.

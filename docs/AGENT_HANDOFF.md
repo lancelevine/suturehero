@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: bite shape (roadmap, build 0.235); vessel needle direction deferred
+- New `src/gameplay/biteShape.ts` (+test): depth / half surface width ≥ 1.1 flask, ≥ 0.8 straight, else V-shaped. Sandbox summary line "Bite shape". Checked: tsc, test, check-sandbox.
+- Needle direction check (vessel) not started: the microsurgery stitch is a single guided pass with a fixed direction (noted in ROADMAP).
+
 ### 2026-11-27 — Claude: needle pickup and transfer (roadmap, build 0.235)
 - New `src/gameplay/needleHandling.ts` (+test): from `grasp.holder` each skill sample, counts drops (released outside tissue), re-grabs, and forceps→driver load times. Skill Analysis row "Needle handling" (`needleHandlingText`, +test). Checked: tsc, tests, check-sandbox, check-guided-thread.
 

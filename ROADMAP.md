@@ -33,7 +33,7 @@ Last updated: 2026-11-27
 - **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot. *(Not started: needs an "air knot" signal from every knot engine (`KnotEngine`); unseated throws are already reported in the stitch outcome.)*
 - **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep. *(First version in build 0.235: Sandbox summary line per pass; cutaway view still to do.)*
 - **Landmark alignment:** on wounds crossing a line like the vermilion border, brow or crease, the first stitch lines it up; scored on millimetres off.
-- **Needle direction check (vessel):** outside-in on the first wall, inside-out on the second; flags any bite that goes the wrong way.
+- **Needle direction check (vessel):** outside-in on the first wall, inside-out on the second; flags any bite that goes the wrong way. *(Not started: the microsurgery stitch is one guided pass whose direction the sim sets, so there is nothing to grade until free vessel passes exist.)*
 - **Running locked stitch:** blanket stitch for scalp and oozing edges; scored on even lock tension and spacing, flags strangling locks.
 - **Pulley stitch:** far-near-near-far bite for high-tension edges; scored on bite order and tension taken off.
 - **Edge presentation:** grades how forceps or a skin hook lift and evert the edge before each bite, grabbing dermis rather than pinching epidermis. *(First version in build 0.235: Skill Analysis grades the forceps hold at each needle entry; grasp layer not graded yet.)*
@@ -46,7 +46,7 @@ Last updated: 2026-11-27
 - **Edges of unequal length:** measures both edges, shows the spacing needed to absorb the difference, and scores how evenly it was spread.
 - **Hand-sewn vein anastomosis:** vein mode on the vessel with a thin wall that collapses unless held open with forceps counterpressure; all vessel checks apply.
 - **Diseased artery mode:** stiff, plaque-lined vessel; bites must pin plaque and intima to the wall; flags separated intima.
-- **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert.
+- **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert. *(First version in build 0.235: Sandbox summary classifies flask / straight / V-shaped; cutaway drawing still to do.)*
 - **Edges of different thickness:** thick flap edge to thinner skin; coaches a deeper bite on the thin side, scored by step-off and bite depth.
 - **Stitch density by tension:** reads tension along the wound first, suggests closer spacing where pull is highest, and scores whether density matched.
 - **Vessel twist check:** before the first stitches, marks rotation between the two ends and flags stay sutures placed out of line.
