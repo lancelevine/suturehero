@@ -40,6 +40,7 @@ entry when finishing.
     `RenderedPoseState`); camera 1 does not clear `decodeBusy` on stop, camera 2 does. Both
     unchanged; check with real cameras before changing.
   - The Demo fails below about 20 fps (a wrap is lost at 15 fps), on every engine.
+- **Open questions for Lance (2026-11-27):** landmark alignment placement; body sites as presets vs sliders; default guided bite reads V-shaped (see log).
 - **Next up (proposed, not started):**
   3. Continue splitting `src/tracking.ts`: capture pipeline, rotation, camera 2 marker state,
      stereo pairing step, render-loop pose state and the 3D preview are done (2026-11-27); left
@@ -51,6 +52,10 @@ entry when finishing.
      stereo with them. Needs real-camera testing by Lance.
 
 ## Log
+
+### 2026-11-27 — Claude: planned bite shape in the cross-section view
+- `src/scene/CrossSectionView.ts`: readout adds "Planned bite: flask / straight / V-shaped" from the planned arc (depth below the skin vs half the surface chord). Checked: tsc, browser (readout shows), check-knot.
+- **Question for Lance:** the default guided plan classifies as V-shaped (needle centre 0.55 above the 0.41 skin surface; depth 0.16 vs half-width 0.27). Geometrically right (a flask bite needs the curve's centre at or below the skin), but showing "tends to invert the edges" on the default exercise may confuse. Keep, soften, or deepen the default plan?
 
 ### 2026-11-27 — Claude: bite shape (roadmap, build 0.235); vessel needle direction deferred
 - New `src/gameplay/biteShape.ts` (+test): depth / half surface width ≥ 1.1 flask, ≥ 0.8 straight, else V-shaped. Sandbox summary line "Bite shape". Checked: tsc, test, check-sandbox.

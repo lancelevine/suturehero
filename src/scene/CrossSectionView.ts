@@ -4,6 +4,15 @@ import {TISSUE_LAYERS} from '../tissue/anatomy';
 import {fieldShift,fieldLift,DEEP_DERMIS_Y,type TissueSite} from '../tissue/StitchField';
 import type {NeedlePass} from '../tissue/NeedlePass';
 import type {EdgeEversion} from '../tissue/EdgeEversion';
+import {biteShape} from '../gameplay/biteShape';
+/** Shape of the planned bite (src/gameplay/biteShape.ts): depth below the skin vs half the surface chord. */
+function plannedShapeText(pass:NeedlePass){
+ const surface=TISSUE_LAYERS.epidermis.top,above=surface-pass.center.y;
+ if(Math.abs(above)>=pass.radius)return '';
+ const halfChord=Math.sqrt(pass.radius**2-above**2),depth=surface-(pass.center.y-pass.radius);
+ const shape=biteShape(depth,2*halfChord);
+ return ` Planned bite: ${shape}${shape==='flask'?' (everts the edges)':shape==='V-shaped'?' (tends to invert the edges)':''}.`;
+}
 /** Optional 2D slice of the same geometric tissue field used by the 3D pad. */
 export class CrossSectionView {
  private sites?:readonly TissueSite[];private revision=-1;private plan='';
@@ -36,6 +45,6 @@ export class CrossSectionView {
   }
   ctx.stroke();ctx.setLineDash([]);
   const surface=.1-2*fieldShift(.05,siteZ,sites),deep=.1-2*fieldShift(.05,siteZ,sites,DEEP_DERMIS_Y);
-  this.readout.textContent=`Surface gap ${formatMm(surface,2)} · Deep dermal gap ${formatMm(deep,2)}. ${deep-surface>.01?'Surface closure can hide a deeper opening.':'Compare the dermal edges beneath the surface.'}`;
+  this.readout.textContent=`Surface gap ${formatMm(surface,2)} · Deep dermal gap ${formatMm(deep,2)}. ${deep-surface>.01?'Surface closure can hide a deeper opening.':'Compare the dermal edges beneath the surface.'}${plannedShapeText(pass)}`;
  }
 }

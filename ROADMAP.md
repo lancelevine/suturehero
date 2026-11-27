@@ -46,7 +46,7 @@ Last updated: 2026-11-27
 - **Edges of unequal length:** measures both edges, shows the spacing needed to absorb the difference, and scores how evenly it was spread.
 - **Hand-sewn vein anastomosis:** vein mode on the vessel with a thin wall that collapses unless held open with forceps counterpressure; all vessel checks apply.
 - **Diseased artery mode:** stiff, plaque-lined vessel; bites must pin plaque and intima to the wall; flags separated intima.
-- **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert. *(First version in build 0.235: Sandbox summary classifies flask / straight / V-shaped; cutaway drawing still to do.)*
+- **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert. *(First version in build 0.235: Sandbox summary classifies flask / straight / V-shaped, and the cross-section view names the planned bite's shape.)*
 - **Edges of different thickness:** thick flap edge to thinner skin; coaches a deeper bite on the thin side, scored by step-off and bite depth.
 - **Stitch density by tension:** reads tension along the wound first, suggests closer spacing where pull is highest, and scores whether density matched.
 - **Vessel twist check:** before the first stitches, marks rotation between the two ends and flags stay sutures placed out of line.
