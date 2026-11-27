@@ -10,7 +10,7 @@ import {StereoPoseMemory} from './input/stereoPoseMemory';
 import {MONO_VIEW_MAX_AGE_MS,stereoMonoViews as monoViewsFromCameras} from './input/stereoMonoViews';
 import {mountTrackingStatusStrip} from './ui/trackingStatusStrip';
 import {stereoTipPose} from './input/stereoTipPose';
-import {driftCorrections,holdDecodedMarkers,recordFlowMotion} from './input/driftCorrection';
+import {confirmMarkers,driftCorrections,holdDecodedMarkers,missingMarkers,recordFlowMotion,replaceMarkers} from './input/driftCorrection';
 import {moveSimulatedInstruments,resetSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
 import {CameraCapture,type CaptureEnvironment} from './input/CameraCapture';
 import {bitmapRequests} from './input/bitmapRequests';
@@ -630,7 +630,7 @@ async function detectFrame(now:number){
    // When flow fails, keep a recently decoded marker briefly, but never indefinitely.
    if(found.length){
     recordFlowMotion(flowMotion,found,stamp);
-    for(const m of found)markerLastConfirmed.set(m.id,stamp);
+    confirmMarkers(markerLastConfirmed,found,stamp);
     observations=found;observationsAt=stamp;latestFlowAt=stamp;stereoFrames.push(0,framePairAt,found);idleNoMarkers=false;detector.seed(toNative(found));drawDetections();}
    else {
      // A missing optical-flow frame must not erase a freshly decoded stationary marker.
@@ -670,7 +670,7 @@ async function detectFrame(now:number){
     // decoder frame restore IDs that flow has completely lost. Limit how old
     // a recovery frame can be so its seed is still useful for optical flow.
     const active=liveMarkers();
-    const missing=found.filter(marker=>!active.some(m=>m.id===marker.id));
+    const missing=missingMarkers(found,active);
     const recoveryFresh=decodeStamp-capturedAt<300;
     // The flow worker projects decoded geometry from this exact source image
     // into its next image before correcting a live, moving quadrilateral.
@@ -680,17 +680,16 @@ async function detectFrame(now:number){
     const corrected=arucoCorrection.checked?driftCorrections(found,active,flowMotion,decodeStamp,capturedAt):[];
     const applyCorrections=()=>{
      if(!corrected.length)return;
-     const ids=new Set(corrected.map(m=>m.id));
-     observations=[...observations.filter(m=>!ids.has(m.id)),...corrected];
+     observations=replaceMarkers(observations,corrected);
      detector.seed(toNative(corrected));
-     for(const marker of corrected){markerLastConfirmed.set(marker.id,decodeStamp);}
+     confirmMarkers(markerLastConfirmed,corrected,decodeStamp);
      observationsAt=decodeStamp;
      drawDetections();
     };
     if(stale){
      staleDecodeDrops++;perf.count('Camera 1 stale decode results');
      if(missing.length&&recoveryFresh){
-      for(const marker of missing){markerLastConfirmed.set(marker.id,decodeStamp);}
+      confirmMarkers(markerLastConfirmed,missing,decodeStamp);
       observations=[...active,...missing];
       observationsAt=decodeStamp;
       idleNoMarkers=false;
@@ -702,7 +701,7 @@ async function detectFrame(now:number){
      lastAppliedFrameAt=capturedAt;
      // Do not reset good flow positions with delayed decoder coordinates.
      if(missing.length&&!recoveryFresh)fastTracker.seed(missing,flowSeedFrame);
-     for(const marker of missing){markerLastConfirmed.set(marker.id,decodeStamp);}
+     confirmMarkers(markerLastConfirmed,missing,decodeStamp);
      observations=[...active,...missing];
      observationsAt=decodeStamp;
      idleNoMarkers=observations.length===0;

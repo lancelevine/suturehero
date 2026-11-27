@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: camera 1 decode merge helpers
+- `missingMarkers`, `replaceMarkers`, `confirmMarkers` (`src/input/driftCorrection.ts`, +test) replace inline loops in `detectFrame` (`src/tracking.ts`). Same steps and same `drawDetections()` calls in the same order, so pose-filter timing is unchanged.
+- Checked: tsc, driftCorrection test, check-tracking-motion, check-driver-depth, check-ring-handoffs, check-tracking-storage.
+
 ### 2026-11-27 — Claude: one stereo fallback scale vector
 - `src/tracking.ts` render loop reused a new `Vector3(200,-200,-200)` per instrument per frame; now the named constant `STEREO_FALLBACK_SCALE`. Checked: tsc, check-stereo-motion.
 - Looked at extracting camera 1's decode merge (`detectFrame`) as a pure function: not done yet, because it calls `drawDetections()` (which also updates poses) between steps and a one-step version would change pose-filter timing. Needs a careful split; next candidate.

@@ -68,3 +68,19 @@ export function holdDecodedMarkers<M extends { id: number }>(observations: reado
   for (const marker of held) lastConfirmed.set(marker.id, stamp);
   return held;
 }
+
+/** Decoded markers whose IDs are not among the live (flow-tracked) ones. */
+export function missingMarkers<M extends { id: number }>(found: readonly M[], active: ReadonlyArray<{ id: number }>): M[] {
+  return found.filter((marker) => !active.some((live) => live.id === marker.id));
+}
+
+/** `observations` with each ID in `replacements` swapped for its replacement (drift-corrected corners). */
+export function replaceMarkers<M extends { id: number }>(observations: readonly M[], replacements: readonly M[]): M[] {
+  const ids = new Set(replacements.map((marker) => marker.id));
+  return [...observations.filter((marker) => !ids.has(marker.id)), ...replacements];
+}
+
+/** Mark these markers as confirmed at `stamp`. */
+export function confirmMarkers(lastConfirmed: Map<number, number>, markers: ReadonlyArray<{ id: number }>, stamp: number) {
+  for (const marker of markers) lastConfirmed.set(marker.id, stamp);
+}

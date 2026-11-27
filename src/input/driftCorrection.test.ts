@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { driftCorrections, holdDecodedMarkers, meanCornerDistance, recordFlowMotion } from './driftCorrection';
+import { confirmMarkers, driftCorrections, holdDecodedMarkers, meanCornerDistance, missingMarkers, recordFlowMotion, replaceMarkers } from './driftCorrection';
 
 const square = (id: number, dx: number) => ({ id, corners: [{ x: dx, y: 0 }, { x: 10 + dx, y: 0 }, { x: 10 + dx, y: 10 }, { x: dx, y: 10 }] });
 
@@ -32,4 +32,14 @@ it('holds only recently decoded markers when flow finds nothing', () => {
   const held = holdDecodedMarkers([square(1, 0), square(2, 0)], new Map([[1, 800], [2, 500]]), confirmed, 1000);
   expect(held.map((m) => m.id)).toEqual([1]);
   expect([...confirmed]).toEqual([[1, 1000]]);
+});
+
+it('finds decoded markers flow lost, swaps corrected ones in, and confirms them', () => {
+  const a = { id: 1, v: 'old' };
+  const b = { id: 2, v: 'flow' };
+  expect(missingMarkers([{ id: 1, v: 'x' }, { id: 3, v: 'y' }], [a, b]).map((m) => m.id)).toEqual([3]);
+  expect(replaceMarkers([a, b], [{ id: 1, v: 'new' }])).toEqual([b, { id: 1, v: 'new' }]);
+  const confirmed = new Map<number, number>();
+  confirmMarkers(confirmed, [a, b], 7);
+  expect([...confirmed]).toEqual([[1, 7], [2, 7]]);
 });
