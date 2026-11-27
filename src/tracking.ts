@@ -467,7 +467,7 @@ stop.addEventListener('click',stopCamera);
 select.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_PRIMARY,select.value);if(stream)void stopCamera();});
 void refreshCameras();
 const embeddedTracking=window.parent!==window||root.dataset.embedded==='true';
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x15242c);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x060b16);// dark theme (src/ui/theme.css)
 const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,4.5,7.6);camera.lookAt(0,0,0);
 // Embedded tracking publishes poses into the main scene; it needs no second GPU context.
 const renderer=embeddedTracking?null:new THREE.WebGLRenderer({antialias:true});
@@ -478,7 +478,7 @@ const orbit=renderer?new OrbitControls(camera,renderer.domElement):null;
 if(orbit){orbit.enableDamping=true;orbit.minDistance=1.4;orbit.maxDistance=18;orbit.target.set(0,.5,0);orbit.update();}
 document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>{camera.position.set(0,3.7,6);orbit?.target.set(0,.5,0);orbit?.update();});
 scene.add(new THREE.HemisphereLight(0xffffff,0x63788a,2));
-const grid=new THREE.GridHelper(5,10,0x527d85,0x304852);scene.add(grid);
+const grid=new THREE.GridHelper(5,10,0x2a8fb0,0x16324a);scene.add(grid);
 const previewInstrumentModels=new Map<'left'|'right',Instrument>();
 const driverModel=createTrackedInstrument(scene,'right',0xe3b47e),forcepsModel=createTrackedInstrument(scene,'left',0x68d1bb);
 previewInstrumentModels.set('right',driverModel.model);previewInstrumentModels.set('left',forcepsModel.model);
