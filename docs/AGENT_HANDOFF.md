@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: one stereo fallback scale vector
+- `src/tracking.ts` render loop reused a new `Vector3(200,-200,-200)` per instrument per frame; now the named constant `STEREO_FALLBACK_SCALE`. Checked: tsc, check-stereo-motion.
+- Looked at extracting camera 1's decode merge (`detectFrame`) as a pure function: not done yet, because it calls `drawDetections()` (which also updates poses) between steps and a one-step version would change pose-filter timing. Needs a careful split; next candidate.
+
 ### 2026-11-27 — Claude: camera 2 marker state as CameraMarkerState
 - New `src/input/CameraMarkerState.ts` (+3 tests) holds camera 2's observations, confirm/decode times, live filter (140 ms) and status-line counts; `src/tracking.ts` drops eight loose variables and the inline flow/decode bookkeeping in `detectSecondFrame`. No behaviour change intended.
 - Checked: tsc, unit test, check-stereo-motion, check-stereo-rig-faces, check-camera-controls, check-tracking-motion. Lance: two-camera mode should behave as before (hardware item already on the checklist).

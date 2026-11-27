@@ -722,6 +722,8 @@ let last=performance.now();
 let lastPoseMessage=0;
 let lastEmbeddedFpsReport=0;
 let embeddedFrames=0;
+/** Stereo practice position → the fallback controller's frame (mm, y and z flipped); allocated once, not per frame. */
+const STEREO_FALLBACK_SCALE=new THREE.Vector3(200,-200,-200);
 function animate(now:number){const loopStarted=performance.now();perf.tick('Tracking loop');perf.sample('Tracking frame interval',Math.max(0,now-last));if(stream&&lastAppliedFrameAt>0)perf.sample('Camera 1 applied image age',Math.max(0,performance.now()-lastAppliedFrameAt));if(stream2&&observationsAt&&markers2.at)perf.sample('Camera accepted-update skew',Math.abs(observationsAt-markers2.at));const dt=Math.min((now-last)/1000,.05);last=now;
  updateRotationStageReadout();
  if(!simulation.checked){
@@ -735,7 +737,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     fallback=perf.measure('Stereo fusion (render loop)',()=>{
      const views=stereoMonoViews(name,now);
      const orientation=stereo?.quaternion;
-     return fusion.update(stereo&&orientation?{position:stereo.position.clone().multiply(new THREE.Vector3(200,-200,-200)),quaternion:orientation,at:stereo.lastSeen}:undefined,views,now);
+     return fusion.update(stereo&&orientation?{position:stereo.position.clone().multiply(STEREO_FALLBACK_SCALE),quaternion:orientation,at:stereo.lastSeen}:undefined,views,now);
     });
     stereoFallbackStatus.set(name,fallback?.source??'lost');
    }
