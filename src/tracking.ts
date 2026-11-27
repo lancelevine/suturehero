@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {setText} from './ui/setText';
 import {startBothCameras} from './input/startBothCameras';
 import {bindDepthLock,bindSliderReadouts,trackingModeDescription} from './ui/trackingControls';
 import {createTrackingLabBridge} from './trackingLab/bridge';
@@ -237,7 +238,7 @@ function updateStereoViewIndicator(now:number){
  const mismatch=configured?calibrationMatches(stereoSetup.calibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight):null;
  const indicator=stereoIndicator({configured,fallback,fresh,mismatch,monoStreaming:!!stream&&!simulation.checked});
  stereoViewDot.style.background=indicator.color;
- stereoViewLabel.textContent=indicator.label;
+ setText(stereoViewLabel,indicator.label);
  const state=indicator.state;
  const detail:TrackingStatusMessage={type:TRACKING_MESSAGE.status,state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
  const key=JSON.stringify(detail);
@@ -453,7 +454,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);fillCameraSelect(select,await availableCameras(),current,'Default camera');}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();capture1.flowBusy=false;capture1.lastFlowAt=0;capture1.lastDecodeAt=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();markerReadout.textContent='Camera stopped';diag('note').textContent='Camera stopped';}
+async function stopCamera(){resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();capture1.flowBusy=false;capture1.lastFlowAt=0;capture1.lastDecodeAt=0;latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();setText(markerReadout,'Camera stopped');diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();renderCameraSettings();depthRangeLabel();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}${cameraMode()==='iphone'?' · '+(stream.getVideoTracks()[0]?.label??'')+(orientationNote(video.videoWidth,video.videoHeight)?' · '+orientationNote(video.videoWidth,video.videoHeight):''):''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;throw e;}
@@ -606,12 +607,12 @@ function drawDetections(){
  drawCornerDebug();
  perf.sample('Marker overlay drawing',performance.now()-overlayStarted);
  perf.measure('Pose estimation + filtering',updateLiveTargets);const uiStarted=performance.now();
- markerReadout.textContent=markerReadoutText(observations.map(m=>m.id),markerLastDecoded,performance.now());
+ setText(markerReadout,markerReadoutText(observations.map(m=>m.id),markerLastDecoded,performance.now()));
  if(!simulation.checked){
   const readout=(name:'needleDriver'|'forceps'|'scissors')=>poseReadoutText(liveTargets.get(name),performance.now(),trackingHoldMs);
-  driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
-  filterDiagnostics.textContent=filterDiagnosticsText(filterMeasurements);
-  faceOverlapReadout.textContent=faceOverlapText(markerGroups(),verifiedMarkers().map(m=>m.id),trackerGeometry(trackerType));
+  setText(driverReadout,readout('needleDriver'));setText(forcepsReadout,readout('forceps'));setText(scissorsReadout,readout('scissors'));
+  setText(filterDiagnostics,filterDiagnosticsText(filterMeasurements));
+  setText(faceOverlapReadout,faceOverlapText(markerGroups(),verifiedMarkers().map(m=>m.id),trackerGeometry(trackerType)));
  }
  perf.sample('Tracking status UI',performance.now()-uiStarted);
 }
@@ -798,9 +799,9 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  }
  if(simulation.checked){
   moveSimulatedInstruments(keys,dt,{driver,forceps,scissors});
-  driverReadout.textContent=simulatedReadout(driver.position);
-  scissorsReadout.textContent=simulatedReadout(scissors.position);
-  forcepsReadout.textContent=simulatedReadout(forceps.position);
+  setText(driverReadout,simulatedReadout(driver.position));
+  setText(scissorsReadout,simulatedReadout(scissors.position));
+  setText(forcepsReadout,simulatedReadout(forceps.position));
  }
  renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
  // Frame-driven capture starts from each camera's frame callback instead (see observeCameraFrames below).
@@ -808,7 +809,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  if(stereoSetup.enabled.checked){
   const blocked=stereoBlockedReason({calibrated:!!stereoSetup.calibration,stereoMode:trackingMode.value==='stereo',simulated:simulation.checked,
    mismatch:()=>calibrationMatches(stereoSetup.calibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)});
-  if(blocked)stereoSetup.triangulationStatus.textContent=blocked;
+  if(blocked)setText(stereoSetup.triangulationStatus,blocked);
   else{
     const synchronized=stereoFrames.pair(now),notes:string[]=[];
     if(!synchronized)notes.push('No time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));
@@ -822,7 +823,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      if(!rigid||!synchronized)continue;
      if(stereoPositions.get(name)?.lastSample!==synchronized.at)stereoPositions.accept(name,stereoPracticePosition(rigid.translation),rigid.quaternion,synchronized.at);
     }
-    stereoSetup.triangulationStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';
+    setText(stereoSetup.triangulationStatus,notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.');
   }
  }
  updateStereoViewIndicator(now);

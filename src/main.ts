@@ -1,4 +1,5 @@
 import {knotEngineEntry} from './knot/engines';
+import {setText} from './ui/setText';
 import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
@@ -317,8 +318,6 @@ try {
   let last=performance.now();
   // Per-frame element lookups are cached (src/ui/cachedQuery.ts).
   const frameQuery=cachedQuery();
-  // Write text only when it changed: a same-text write still replaces the node and costs layout work.
-  const setText=(element:Element|null,text:string)=>{if(element&&element.textContent!==text)element.textContent=text;};
   view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){if(demo?.running){/* The demo's knot physics is tuned at 1/60 s steps (src/demo/freeKnotDemo.test.ts): slice longer frames. */const slices=Math.max(1,Math.ceil(dt*60-1e-6));for(let i=0;i<slices;i++){demo.step(dt/slices);session.update(dt/slices);}}else session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){
      simulatorFrames++;
