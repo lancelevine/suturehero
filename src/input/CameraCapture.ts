@@ -99,6 +99,13 @@ export class CameraCapture {
     private readonly env: CaptureEnvironment,
   ) {}
 
+  /** Camera stopped: forget the flow request and the flow/decode timing (an in-flight decode keeps `decodeBusy`). */
+  stopRequests() {
+    this.flowBusy = false;
+    this.lastFlowAt = 0;
+    this.lastDecodeAt = 0;
+  }
+
   get label() {
     return 'Camera ' + this.index;
   }

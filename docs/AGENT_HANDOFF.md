@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: CameraCapture.stopRequests
+- `CameraCapture.stopRequests()` (+test) replaces the per-field resets in `stopCamera`/`stopSecondCamera` (`src/tracking.ts`). Camera 1 still leaves `decodeBusy` as before; camera 2 still clears it. No behaviour change.
+- Checked: tsc, CameraCapture test, check-camera-controls, check-stereo-motion.
+- Follow-up to look at: camera 1 does not clear `decodeBusy` on stop, camera 2 does; confirm which is intended.
+
 ### 2026-11-27 — Claude: stereo match line via stereoIndicator
 - `stereoMatchText` (`src/input/stereoIndicator.ts`, +test, `STEREO_SYNC_WARNING_MS=250`) builds the "#stereo-match-status" line; `src/tracking.ts` now writes it with `setText` (skips same-text DOM writes each frame). Same text as before.
 - Checked: tsc, stereoIndicator test, check-stereo-motion.

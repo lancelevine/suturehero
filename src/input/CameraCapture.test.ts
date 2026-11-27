@@ -54,3 +54,13 @@ it('falls back to canvas readback for flow when bitmaps are off', async () => {
   expect(context.drawImage).toHaveBeenCalled();
   expect(tracker.detect).toHaveBeenCalledOnce();
 });
+
+it('forgets flow state and timing when the camera stops', () => {
+  const { capture } = setup(true);
+  capture.flowBusy = true;
+  capture.decodeBusy = true;
+  capture.lastFlowAt = 5;
+  capture.lastDecodeAt = 6;
+  capture.stopRequests();
+  expect([capture.flowBusy, capture.decodeBusy, capture.lastFlowAt, capture.lastDecodeAt]).toEqual([false, true, 0, 0]);
+});
