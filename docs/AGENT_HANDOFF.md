@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: FpsCounter for render and embedded FPS
+- `FpsCounter` (`src/diagnostics/FrameRates.ts`, +test) replaces two hand-rolled per-second counters in the `src/tracking.ts` render loop (diagnostics "Virtual FPS" tooltip and the embedded fps message). The embedded fps message now first arrives after 1 s instead of on the first frame.
+- Checked: tsc, FrameRates test, check-tracking-motion, check-performance, check-camera-controls.
+
 ### 2026-11-27 — Claude: glossier vessel wall
 - `src/tissue/ArteryTissue.ts`: wall roughness .72 → .48, lumen .82 → .6 (named constants). Visual only. Checked: tsc, screenshot. In CHANGELOG 0.234.
 

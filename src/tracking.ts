@@ -21,7 +21,7 @@ import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport,stereoMatchTe
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {CameraMarkerState} from './input/CameraMarkerState';
-import {FrameRates} from './diagnostics/FrameRates';
+import {FpsCounter,FrameRates} from './diagnostics/FrameRates';
 import {changeThrottle} from './util/changeThrottle';
 import {cameraStatusText,drawCornerDebug,drawDecodedMarkers} from './ui/markerOverlay';
 import {offsetMarkers} from './input/flowScale';
@@ -430,7 +430,8 @@ const filterMeasurements=new Map<'needleDriver'|'forceps'|'scissors',{rawZ:numbe
 const stationaryStates=new Map<InstrumentName,MarkerRestLatch>();
 const liveTargets=new Map<'needleDriver'|'forceps'|'scissors',{position:THREE.Vector3;quaternion:THREE.Quaternion;lastSeen:number;id:number;pose:NonNullable<ReturnType<typeof estimateMarkerPose>>}>();
 let detectorReady=false,lastDetection=0,cameraSession=0;
-let idleNoMarkers=true,skippedFrames=0,renderFrames=0,renderFps=0,lastFpsTime=performance.now();
+let idleNoMarkers=true,skippedFrames=0;
+const renderFps=new FpsCounter(performance.now());
 const motionCanvas=document.createElement('canvas');motionCanvas.width=64;motionCanvas.height=36;
 const motionCtx=motionCanvas.getContext('2d',{willReadFrequently:true})!;
 let motionPrevious:Uint8Array|null=null;
@@ -720,8 +721,7 @@ const rawRenderedPoses=new Map<InstrumentName,TrackedPoseFilter>();
 const restLocks=new Map<InstrumentName,RestLock>();
 let last=performance.now();
 let lastPoseMessage=0;
-let lastEmbeddedFpsReport=0;
-let embeddedFrames=0;
+const embeddedFps=new FpsCounter(performance.now());
 /** Stereo practice position → the fallback controller's frame (mm, y and z flipped); allocated once, not per frame. */
 const STEREO_FALLBACK_SCALE=new THREE.Vector3(200,-200,-200);
 function animate(now:number){const loopStarted=performance.now();perf.tick('Tracking loop');perf.sample('Tracking frame interval',Math.max(0,now-last));if(stream&&lastAppliedFrameAt>0)perf.sample('Camera 1 applied image age',Math.max(0,performance.now()-lastAppliedFrameAt));if(stream2&&observationsAt&&markers2.at)perf.sample('Camera accepted-update skew',Math.abs(observationsAt-markers2.at));const dt=Math.min((now-last)/1000,.05);last=now;
@@ -777,7 +777,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
   setText(scissorsReadout,simulatedReadout(scissors.position));
   setText(forcepsReadout,simulatedReadout(forceps.position));
  }
- renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
+ {const fps=renderFps.tick(now);if(fps!==null){diag('note').title='Virtual FPS '+fps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}}
  // Frame-driven capture starts from each camera's frame callback instead (see observeCameraFrames below).
  if(!recordedInput()&&!frameDriven()){void detectFrame(now);void detectSecondFrame(now);}
  if(stereoSetup.enabled.checked){
@@ -803,11 +803,8 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  updateStereoViewIndicator(now);
  if(renderer){orbit?.update();perf.measure('Tracking render submission',()=>renderer!.render(scene,camera));}
  else{
-  embeddedFrames++;
-  if(now-lastEmbeddedFpsReport>=1000){
-   publishTrackingMessage({type:TRACKING_MESSAGE.fps,fps:Math.round(embeddedFrames*1000/(now-lastEmbeddedFpsReport||1000))},root.dataset.embedded==='true');
-   embeddedFrames=0;lastEmbeddedFpsReport=now;
-  }
+  const fps=embeddedFps.tick(now);
+  if(fps!==null)publishTrackingMessage({type:TRACKING_MESSAGE.fps,fps},root.dataset.embedded==='true');
  }
  perf.sample('Tracking CPU frame',performance.now()-loopStarted);
  if(!recordedInput())requestAnimationFrame(animate);

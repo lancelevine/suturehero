@@ -33,3 +33,20 @@ export class FrameRates {
     this.windowStart = now;
   }
 }
+
+/** Frames per second over RATE_WINDOW_MS windows: `tick` counts a frame and returns the rounded rate when a window ends, else null. */
+export class FpsCounter {
+  private frames = 0;
+
+  constructor(private windowStart: number) {}
+
+  tick(now: number) {
+    this.frames++;
+    const elapsed = now - this.windowStart;
+    if (elapsed < RATE_WINDOW_MS) return null;
+    const fps = Math.round((this.frames * 1000) / elapsed);
+    this.frames = 0;
+    this.windowStart = now;
+    return fps;
+  }
+}
