@@ -87,6 +87,17 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — slider readouts and depth lock out of tracking.ts
+
+- `src/ui/trackingControls.ts` (+test): slider value readouts and the all-instruments depth lock
+  (`depthLockState`). Checked: driver-depth, tracking-storage, calibration-ui, camera-controls,
+  tracking-panels.
+- Graphics: a gradient scene background made no visible difference (the floor plane fills the
+  view); reverted.
+- Note: another Claude session is pushing ROADMAP.md entries to main every few minutes, which
+  cancels in-flight deploy runs; the latest run still deploys everything (last code deploy that
+  completed: "Cache element lookups in the practice render loop").
+
 ### 2026-11-27 — Claude — tension panel and stitch steps out of main.ts
 
 - `src/ui/practicePanels.ts` (+test): `updateTensionPanel`, `tensionMeterValue`, `markStitchSteps`.

@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {bindDepthLock,bindSliderReadouts} from './ui/trackingControls';
 import {createTrackingLabBridge} from './trackingLab/bridge';
 import {getOrCreate} from './util/getOrCreate';
 import {RotationTracker,type RotationContext} from './input/RotationTracker';
@@ -106,12 +107,9 @@ const rotationSensitivityValue=document.querySelector<HTMLOutputElement>('#rotat
 const depthSensitivityValue=document.querySelector<HTMLOutputElement>('#depth-sensitivity-value')!;
 const filterDiagnostics=document.querySelector<HTMLElement>('#tracking-filter-diagnostics')!;
 const workingDepthInput=document.querySelector<HTMLInputElement>('#working-depth-mm')!;
-rotationSensitivity.addEventListener('input',()=>{rotationSensitivityValue.textContent=`${rotationSensitivity.value}°`;});
-rotationGain.addEventListener('input',()=>{rotationGainValue.textContent=`${Number(rotationGain.value).toFixed(2)}×`;});
-depthSensitivity.addEventListener('input',()=>{depthSensitivityValue.textContent=`${depthSensitivity.value}×`;depthStates.clear();});
-const syncDepthLock=()=>{const locks=(['forceps','needleDriver','scissors'] as const).map(name=>instrumentCalibration.profile(name).depthLock);lockDepth.checked=locks.every(Boolean);lockDepth.indeterminate=locks.some(Boolean)&&!locks.every(Boolean);};
-instrumentCalibration.subscribe(syncDepthLock);syncDepthLock();
-lockDepth.addEventListener('change',()=>{const checked=lockDepth.checked;for(const name of ['forceps','needleDriver','scissors'] as const)instrumentCalibration.update(name,{depthLock:checked});liveTargets.clear();stationaryStates.clear();depthStates.clear();});
+// Slider readouts and the all-instruments depth lock (src/ui/trackingControls.ts).
+bindSliderReadouts({rotationSensitivity,rotationSensitivityValue,rotationGain,rotationGainValue,depthSensitivity,depthSensitivityValue},()=>depthStates.clear());
+bindDepthLock(lockDepth,instrumentCalibration,()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{resetTrackerPose();
  liveTargets.clear();stationaryStates.clear();depthStates.clear();
  trackingModeInfo.textContent=trackingMode.value==='mono'
