@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: running and running subcuticular recognition (stitch patterns step 2)
+- `src/gameplay/stitchPatterns.ts`: runs of ≥ 3 same-side crossing passes advancing 3–10 mm one way = running (even advance within 2 mm, even bites); ≥ 2 alternating non-crossing passes = running subcuticular (dermis, alternating, even advance). +2 tests. Checked: tsc, tests, check-sandbox.
+- Not done: the sim still ties each pass separately; a single continuous thread through a running closure needs thread physics work (later step).
+
 ### 2026-11-27 — Claude: mattress stitch recognition (roadmap "More stitch patterns", step 1)
 - Lance: "start with them in order" (1 stitch patterns, 2 full anastomosis, 3 knot-engine signals, 4 body sites).
 - New `src/gameplay/stitchPatterns.ts` (+3 tests): pairs consecutive opposite-direction crossing passes into vertical mattress (in line ≤ 2 mm, far ≥ 1.5× near to recognise; graded near 1–3 mm, far ≥ 2×, far deeper) or horizontal mattress (3–10 mm apart, bites within 1.5 mm). Sandbox summary "Stitch patterns" line. Thresholds are teaching guidance; Lance to confirm.

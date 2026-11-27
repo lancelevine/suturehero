@@ -155,3 +155,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: pick the needle up with the forceps, pass it to the driver, then drop it once on the table; Analysis "Needle handling" shows 1 drop and a load time.
 - Build 0.235: in Sandbox, one deep narrow pass reads "flask" and one shallow wide pass reads "V-shaped" in the "Bite shape" line.
 - Build 0.235: in Sandbox, make a wide deep pass across the wound, then a narrow shallow pass back at the same spot; the summary lists a vertical mattress with its checks. Two similar passes back and forth ~5 mm apart read as a horizontal mattress.
+- Build 0.235: in Sandbox, three passes from the same side about 5 mm apart read as "running"; alternating bites that stay under the skin on each side read as "running subcuticular".

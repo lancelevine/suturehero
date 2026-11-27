@@ -29,4 +29,18 @@ describe('stitch pattern recognition', () => {
   it('does not pair passes in the same direction', () => {
     expect(recognisePatterns([pass(-1, 6, 0), pass(-1, 2, 0)]).map((s) => s.pattern)).toEqual(['simple', 'simple']);
   });
+
+  it('recognises a running stitch and checks its spacing', () => {
+    const [run] = recognisePatterns([pass(-1, 5, 0), pass(-1, 5, 5), pass(-1, 5.5, 10), pass(-1, 5, 18)]);
+    expect(run.pattern).toBe('running');
+    expect(run.passes).toEqual([1, 2, 3, 4]);
+    expect(run.checks[0].met).toBe(false);
+  });
+
+  it('recognises a running subcuticular closure from alternating dermal bites', () => {
+    const bite = (fromSide: number, zMm: number): PatternPass => ({ entry: { x: fromSide * u(2), z: u(zMm) }, exit: { x: fromSide * u(1), z: u(zMm + 3) }, entryEdge: u(2), exitEdge: u(1), depth: u(2), crossesWound: false, deepestLayer: 'dermis' });
+    const [run] = recognisePatterns([bite(-1, 0), bite(1, 5), bite(-1, 10)]);
+    expect(run.pattern).toBe('running subcuticular');
+    expect(run.checks.every((c) => c.met)).toBe(true);
+  });
 });
