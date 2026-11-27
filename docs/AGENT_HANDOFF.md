@@ -87,6 +87,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — practice loop: cached element lookups (main.ts)
+
+- `src/ui/cachedQuery.ts` (+test): the practice render loop's 44 per-frame
+  `document.querySelector` calls now reuse each element until it leaves the page. Small CPU
+  saving per frame (not measurable above noise in this software-rendered sandbox).
+- Checked: layout, sandbox, free-tying, practice-setup, guided-thread, course-export,
+  production-mode, render-recovery.
+- Strand contact (≈15% of knot physics) re-read: already hashed, cached and box-culled; no cheap
+  exact speed-up left.
+
 ### 2026-11-27 — Claude — stereo triangulation notes out of animate()
 
 - `stereoInstrumentReport` (+test) in `src/input/stereoIndicator.ts`: each instrument's status note

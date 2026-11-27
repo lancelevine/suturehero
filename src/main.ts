@@ -1,4 +1,5 @@
 import {knotEngineEntry} from './knot/engines';
+import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
 import {cameraMode as deviceCameraMode} from './input/cameraDevices';
 import {mountDemoControl,type DemoControl} from './ui/demoControl';
@@ -313,6 +314,8 @@ try {
     object.quaternion.slerp(desiredRotation,1-Math.exp(-Math.min(frameDt,.05)*50));
   };
   let last=performance.now();
+  // Per-frame element lookups are cached (src/ui/cachedQuery.ts).
+  const frameQuery=cachedQuery();
   view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){if(demo?.running){/* The demo's knot physics is tuned at 1/60 s steps (src/demo/freeKnotDemo.test.ts): slice longer frames. */const slices=Math.max(1,Math.ceil(dt*60-1e-6));for(let i=0;i<slices;i++){demo.step(dt/slices);session.update(dt/slices);}}else session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){
      simulatorFrames++;
@@ -340,24 +343,24 @@ try {
     const scissorsJaw=jawTracking.get('scissors');
     if(scissorsJaw&&time-scissorsJaw.seenAt<350)scissors.setTrackedOpening(scissorsJaw.opening);
     if(cameraEnabled)applyCameraPose('scissors',scissors.root);
-    const cuttingButton=document.querySelector('#select-scissors') as HTMLButtonElement;
+    const cuttingButton=frameQuery('#select-scissors') as HTMLButtonElement;
     cuttingButton.disabled=!canUseScissors();cuttingButton.textContent=input.scissorsActive?'Use needle driver':'Use scissors';cuttingButton.setAttribute('aria-pressed',String(input.scissorsActive));
-    (document.querySelector('#position-scissors') as HTMLButtonElement).disabled=!canUseScissors();
+    (frameQuery('#position-scissors') as HTMLButtonElement).disabled=!canUseScissors();
     const cut=scissors.findCut(input.scissorsActive?(session.freeKnot.active?session.freeKnot.strands:[session.knotSlack.short,session.knotSlack.long]):[]);
     if(cut){
       if(session.freeKnot.active){session.freeKnot.cut(cut.strand,cut.coordinate);cutFeedback=session.freeKnot.cutMessage;}
       else cutFeedback=session.knotSlack.cut(cut.strand,cut.coordinate)?'Suture cut · Knot retained':'Leave a free tail outside the knot';
     }
     fragmentsView.update(session.freeKnot.active?session.freeKnot.fragments:session.knotSlack.fragments);
-    document.querySelector('#right-tool-name')!.textContent=input.scissorsActive?(session.environment.id==='microsurgery'?'Westcott scissors':'Mayo scissors'):session.environment.id==='microsurgery'?'Castroviejo driver':'Right needle driver'; if(session.environment.id==='skin'){tissue.setTargets(session.pass.entry,session.pass.exit);tissue.update(session.wound,session.eversion,session.course.tissueSites,session.course.siteZ,session.tissueField);}else artery.update(session.wound,session.eversion);
+    frameQuery('#right-tool-name')!.textContent=input.scissorsActive?(session.environment.id==='microsurgery'?'Westcott scissors':'Mayo scissors'):session.environment.id==='microsurgery'?'Castroviejo driver':'Right needle driver'; if(session.environment.id==='skin'){tissue.setTargets(session.pass.entry,session.pass.exit);tissue.update(session.wound,session.eversion,session.course.tissueSites,session.course.siteZ,session.tissueField);}else artery.update(session.wound,session.eversion);
     crossSectionToggle.parentElement!.hidden=session.environment.id!=='skin';
     crossSectionPanel.hidden=session.environment.id!=='skin'||!crossSectionToggle.checked;
     if(!crossSectionPanel.hidden)crossSection.update(session.tissueField,session.course.siteZ,session.pass,session.eversion);
     epidermalGuide.root.visible=session.environment.id==='skin'&&session.pass.phase==='passing'&&session.oppositeEdgeRequired;
     if(epidermalGuide.root.visible){const a=session.epidermalAlignment;epidermalGuide.update(a.left,a.right,session.oppositeEdgeReady);}
-    (document.querySelector('#guided-technique-field') as HTMLElement).hidden=session.freeKnot.active;
+    (frameQuery('#guided-technique-field') as HTMLElement).hidden=session.freeKnot.active;
     const knot=session.knot;
-    const knotState=document.querySelector('#knot-state') as HTMLElement;
+    const knotState=frameQuery('#knot-state') as HTMLElement;
     knotState.hidden=!session.freeKnot.active;
     const handlingHint=session.freeKnot.active?session.freeKnot.handlingHint:'';
     if(session.freeKnot.active){
@@ -365,10 +368,10 @@ try {
       knotState.textContent=state==='seated'?free.knotAtTissue?`Throw ${free.sequence?.throws.length||1} seated at tissue · ${free.sequence?.label??''}`:handlingHint:state==='retained'||state==='passed'?handlingHint:free.passage.hasOpening?handlingHint:`No throw formed · ${handlingHint}`;
       knotState.dataset.phase=state==='seated'&&!free.knotAtTissue?'tightened':state;
     }
-    (document.querySelector('#begin-free-knot') as HTMLButtonElement).disabled=!session.canBeginKnot;
+    (frameQuery('#begin-free-knot') as HTMLButtonElement).disabled=!session.canBeginKnot;
     const course=session.course;
-    (document.querySelector('.bite-planning') as HTMLElement).hidden=session.environment.id!=='skin';
-    (document.querySelector('#bite-controls') as HTMLFieldSetElement).disabled=!session.canPlanBites;
+    (frameQuery('.bite-planning') as HTMLElement).hidden=session.environment.id!=='skin';
+    (frameQuery('#bite-controls') as HTMLFieldSetElement).disabled=!session.canPlanBites;
     for(const [input,output,value] of [[rightBite,'#right-bite-value',session.pass.entry.x/DEFAULT_BITE_WIDTH],[leftBite,'#left-bite-value',-session.pass.exit.x/DEFAULT_BITE_WIDTH]] as const){
       const percent=String(Math.round(value*100));if(input.value!==percent)input.value=percent;setPlanText(output,`${percent}%`);
     }
@@ -376,15 +379,15 @@ try {
     setPlanText('#stitch-position-value',course.siteZ.toFixed(2));
     setPlanText('#bite-plan-status',!session.canPlanBites?'Bite plan locked for this stitch':session.bitePlanLimited?'Widths adjusted to fit the needle and preserve dermal purchase.':'Bite widths are relative to the default bite; position uses practice units.');
     setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)}`:'Start a 3-stitch session to review spacing.');
-    (document.querySelector('.course-controls') as HTMLElement).hidden=session.environment.id!=='skin';
+    (frameQuery('.course-controls') as HTMLElement).hidden=session.environment.id!=='skin';
     completedView.update(course.completed.length,course.siteZ);
-    const courseStart=document.querySelector('#start-course') as HTMLButtonElement,courseNext=document.querySelector('#next-stitch') as HTMLButtonElement;
+    const courseStart=frameQuery('#start-course') as HTMLButtonElement,courseNext=frameQuery('#next-stitch') as HTMLButtonElement;
     courseStart.disabled=session.environment.id!=='skin'||course.active&&!course.finished;
     courseStart.textContent=course.finished?'New 3-stitch session':'Start 3-stitch session';
     courseNext.disabled=!session.canAdvanceStitch;courseNext.textContent=course.index===2?'Finish session':'Save & next stitch';
     courseNext.hidden=!course.active;
-    (document.querySelector('#free-tying') as HTMLButtonElement).disabled=course.active;
-    {const tying=document.querySelector('#free-tying')!;const tyingText=session.canFinishSandboxStitch?'Finish stitch · next':session.canTieFreePass?'Tie knot on this stitch':'Free tying lab';if(tying.textContent!==tyingText)tying.textContent=tyingText;}
+    (frameQuery('#free-tying') as HTMLButtonElement).disabled=course.active;
+    {const tying=frameQuery('#free-tying')!;const tyingText=session.canFinishSandboxStitch?'Finish stitch · next':session.canTieFreePass?'Tie knot on this stitch':'Free tying lab';if(tying.textContent!==tyingText)tying.textContent=tyingText;}
     if(courseStatus.textContent!==course.status)courseStatus.textContent=course.status;
     if(courseRevision!==course.revision){
       courseRevision=course.revision;courseReview.replaceChildren(...course.completed.map(stitch=>{const item=document.createElement('li');item.textContent=`Stitch ${stitch.number} · ${stitch.review.join(' · ')}`;return item;}));courseReview.hidden=!course.completed.length;
@@ -396,27 +399,27 @@ try {
       if(number===currentStep)element.setAttribute('aria-current','step');else element.removeAttribute('aria-current');
     }
     for(const [selector,text] of [['#stitch-stage',assessment.stage],['#stitch-quality',[...assessment.feedback,...(session.freeKnot.active&&session.freeKnot.sequence?.locked?[`Release hold: ${Math.round(session.freeReleaseProgress*100)}%`]:[])].join(' · ')]]){
-      const element=document.querySelector(selector)!;if(element.textContent!==text)element.textContent=text;
+      const element=frameQuery(selector)!;if(element.textContent!==text)element.textContent=text;
     }
-    (document.querySelector('#stitch-stage') as HTMLElement).dataset.complete=String(assessment.complete||assessment.labFinished);
-    (document.querySelector('#tension-panel') as HTMLElement).hidden=!session.freeKnot.active;
+    (frameQuery('#stitch-stage') as HTMLElement).dataset.complete=String(assessment.complete||assessment.labFinished);
+    (frameQuery('#tension-panel') as HTMLElement).hidden=!session.freeKnot.active;
     if(session.freeKnot.active){
       for(const side of ['long','short'] as const){
-        const tension=session.freeKnot.tension[side],meter=document.querySelector(`#${side}-tension`) as HTMLMeterElement;
+        const tension=session.freeKnot.tension[side],meter=frameQuery(`#${side}-tension`) as HTMLMeterElement;
         const value=tension.state==='released'?0:tension.tautness*.65+tension.demand*.35;
         if(Math.abs(meter.value-value)>.001)meter.value=value;
         if(meter.dataset.state!==tension.state){meter.dataset.state=tension.state;meter.setAttribute('aria-label',`${side} strand: ${tension.state}`);}
-        const label=document.querySelector(`#${side}-tension-state`)!;if(label.textContent!==tension.state)label.textContent=tension.state;
+        const label=frameQuery(`#${side}-tension-state`)!;if(label.textContent!==tension.state)label.textContent=tension.state;
       }
-      const cue=document.querySelector('#tension-cue')!;if(cue.textContent!==session.freeKnot.tensionHint)cue.textContent=session.freeKnot.tensionHint;
+      const cue=frameQuery('#tension-cue')!;if(cue.textContent!==session.freeKnot.tensionHint)cue.textContent=session.freeKnot.tensionHint;
     }
     const edge=session.eversion;
     const skinContext=session.environment.id==='skin'&&!knot.active&&!course.finished&&!session.freeKnot.grips.has('left')&&grasp.holder?.kind!=='forceps'&&!(session.pass.phase==='complete'&&session.pull.phase==='waiting'&&!edge.held);
     const tractionAlert=skinContext&&['stretching','slipping','slipped'].includes(edge.traction.state);
-    const skinPanel=document.querySelector('#skin-handling') as HTMLElement;
+    const skinPanel=frameQuery('#skin-handling') as HTMLElement;
     skinPanel.hidden=!skinContext||!edge.active&&edge.traction.state!=='slipped';
     if(!skinPanel.hidden){
-      const traction=edge.traction,meter=document.querySelector('#skin-traction') as HTMLMeterElement;
+      const traction=edge.traction,meter=frameQuery('#skin-traction') as HTMLMeterElement;
       if(Math.abs(meter.value-traction.load)>.001)meter.value=traction.load;
       if(meter.dataset.state!==traction.state)meter.dataset.state=traction.state;
       setPlanText('#skin-traction-state',tractionAlert?edge.instruction:edge.held?'Gentle skin traction':'Skin released · Traction easing');
@@ -424,27 +427,27 @@ try {
     }
     edgeMarker.visible=!knot.active && (session.preparingEdge || edge.held || tractionAlert);
     edgeMarker.position.copy(edge.target);edgeMarker.material.color.setHex(tractionAlert?(edge.traction.state==='stretching'?0xf4b95d:0xf08b86):edge.held?0x65df9b:0xf7ce73);
-    (document.querySelector('#eversion-note') as HTMLElement).hidden=!session.preparingEdge && session.pass.phase!=='passing';
-    const knotAction=document.querySelector('#knot-action') as HTMLButtonElement;
+    (frameQuery('#eversion-note') as HTMLElement).hidden=!session.preparingEdge && session.pass.phase!=='passing';
+    const knotAction=frameQuery('#knot-action') as HTMLButtonElement;
     knotAction.disabled=!session.canKnotAction;
     knotAction.textContent=knotActionLabel({loadTestActive:session.loadTest.active,releaseCheckState:session.releaseCheck.state,knotPhase:knot.phase,technique:knot.sequence?.technique,throws:knot.throws});
-    (document.querySelector('.grip-settings') as HTMLElement).hidden=knot.active || session.freeKnot.active || session.positioningSkin;
-    (document.querySelector('#free-note') as HTMLElement).hidden=!session.freeKnot.active;
-    (document.querySelector('#knot-note') as HTMLElement).hidden=!knot.active;
+    (frameQuery('.grip-settings') as HTMLElement).hidden=knot.active || session.freeKnot.active || session.positioningSkin;
+    (frameQuery('#free-note') as HTMLElement).hidden=!session.freeKnot.active;
+    (frameQuery('#knot-note') as HTMLElement).hidden=!knot.active;
     needle.root.updateWorldMatrix(true,false);
     knotView.update(knot,tools,session.wound.deformPoint(session.pass.entry),session.wound.deformPoint(session.pass.exit),needle.points[0].clone().applyMatrix4(needle.root.matrixWorld),session.knotSlack,session.pass.halfWidth);
     const exercise=session.placement; const pose=needle.getTipPose(); guide.update(pose.position,exercise);
-    const title=document.querySelector('#exercise-title')!;
+    const title=frameQuery('#exercise-title')!;
     const pass=session.pass; passGuide.update(pass); if(session.canPlanBites)passGuide.root.visible=true; if(session.sandbox)passGuide.root.visible=false; if(!showNeedleGuide.checked || knot.active || session.freeKnot.active) passGuide.root.visible=false;
-    (document.querySelector('#begin-pass') as HTMLButtonElement).disabled=!session.canBeginPass;
-    {const replayButton=document.querySelector<HTMLButtonElement>('#replay');if(replayButton){replayButton.disabled=!replay.replaying&&!replay.available;const label=replay.replaying?`Stop replay ${Math.round(replay.progress*100)}%`:'Replay ½×';if(replayButton.textContent!==label)replayButton.textContent=label;}}
-    {const resetNeedle=document.querySelector<HTMLButtonElement>('#reset-needle');if(resetNeedle)resetNeedle.disabled=!session.sandbox;const undo=document.querySelector<HTMLButtonElement>('#undo-pass');if(undo)undo.disabled=!session.sandbox||(!session.freePass.inTissue&&!session.freePass.passes.length&&!session.freePass.torn.length);}
-    document.querySelector('#begin-pass')!.textContent=session.sandbox?'Start guided exercise':session.preparingEdge?'Begin needle pass':'Start guided pass';
-    {const heading=document.querySelector('.scene-heading h2');const microHeading=session.environment.id==='microsurgery'?`${MICRO_TARGETS[resolveMicroTarget(microSelect.value)].label} anastomosis · one stitch`:null;const headingText=microHeading??(session.sandbox?'Sandbox':'Simple interrupted suture');if(heading&&heading.textContent!==headingText)heading.textContent=headingText;}
-    {const label=Array.from(document.querySelector('.toolbar > span')?.childNodes??[]).find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent!.trim());const labelText=session.sandbox?' Sandbox ':' Guided stitch ';if(label&&label.textContent!==labelText)label.textContent=labelText;}
-    document.querySelector('#position-forceps')!.textContent=session.positioningSkin?'Position forceps at skin edge':'Position forceps';
+    (frameQuery('#begin-pass') as HTMLButtonElement).disabled=!session.canBeginPass;
+    {const replayButton=frameQuery<HTMLButtonElement>('#replay');if(replayButton){replayButton.disabled=!replay.replaying&&!replay.available;const label=replay.replaying?`Stop replay ${Math.round(replay.progress*100)}%`:'Replay ½×';if(replayButton.textContent!==label)replayButton.textContent=label;}}
+    {const resetNeedle=frameQuery<HTMLButtonElement>('#reset-needle');if(resetNeedle)resetNeedle.disabled=!session.sandbox;const undo=frameQuery<HTMLButtonElement>('#undo-pass');if(undo)undo.disabled=!session.sandbox||(!session.freePass.inTissue&&!session.freePass.passes.length&&!session.freePass.torn.length);}
+    frameQuery('#begin-pass')!.textContent=session.sandbox?'Start guided exercise':session.preparingEdge?'Begin needle pass':'Start guided pass';
+    {const heading=frameQuery('.scene-heading h2');const microHeading=session.environment.id==='microsurgery'?`${MICRO_TARGETS[resolveMicroTarget(microSelect.value)].label} anastomosis · one stitch`:null;const headingText=microHeading??(session.sandbox?'Sandbox':'Simple interrupted suture');if(heading&&heading.textContent!==headingText)heading.textContent=headingText;}
+    {const label=Array.from(frameQuery('.toolbar > span')?.childNodes??[]).find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent!.trim());const labelText=session.sandbox?' Sandbox ':' Guided stitch ';if(label&&label.textContent!==labelText)label.textContent=labelText;}
+    frameQuery('#position-forceps')!.textContent=session.positioningSkin?'Position forceps at skin edge':'Position forceps';
     const pull=session.pull;
-    (document.querySelector('#position-forceps') as HTMLButtonElement).disabled=!session.canPositionForceps;
+    (frameQuery('#position-forceps') as HTMLButtonElement).disabled=!session.canPositionForceps;
     const selectedLocal=session.selectedGripPoint;
     graspGuide.update(grasp,selectedLocal,session.canPositionForceps); graspGuide.root.visible=!knot.active && !session.freeKnot.active && !edge.held && !session.positioningSkin && !session.sandbox;
     const selectedWorld=selectedLocal.clone().applyMatrix4(needle.root.matrixWorld);
@@ -462,18 +465,18 @@ try {
     const sandboxMessage=sandboxTitle({now:performance.now(),cutMessageUntil,tornMessageUntil,rejection:freePass.rejection,inSkin,forcingWarning:freePass.forcingWarning,threadGripIds:[...session.threadGrasp.grips.keys()],holder:grasp.holder,heldPoint:grasp.heldPoint,candidate:grasp.candidate});
     const message=exerciseTitle({sandbox:session.sandbox,sandboxTitle:sandboxMessage,edge,tractionAlert,preparingEdge:session.preparingEdge,passPhase:pass.phase,pullPhase:pull.phase,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,tailsTrimmed:session.knotSlack.trimmed,trimmedTails:session.knotSlack.trimmedTails.size,stitchComplete:assessment.complete,freeKnotActive:session.freeKnot.active,knot,forcepsOpenness:tools[0].openness,loadTest:session.loadTest,releaseInstruction:session.releaseCheck.instruction,holderKind:grasp.holder?.kind??null,candidateKind:grasp.candidate?.kind??null,hasReceiver:!!grasp.receiver});
     if(title.textContent!==message) title.textContent=message;
-    (document.querySelector('#exercise-title') as HTMLElement).dataset.passSupport=pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle';
+    (frameQuery('#exercise-title') as HTMLElement).dataset.passSupport=pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle';
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     document.querySelector('#exercise-readout')!.textContent=exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     frameQuery('#exercise-readout')!.textContent=exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,
       pull,threadGuideState:needle.threadGuide.state,scissorsActive:input.scissorsActive,cutFeedback});}
     {const progress=exerciseProgress({sandbox:session.sandbox,preparingEdge:session.preparingEdge,edgeLift:edge.lift,freeKnotActive:session.freeKnot.active,loadTest:session.loadTest,releaseCheck:session.releaseCheck,knot,pull,pass});
-    (document.querySelector('#placement-progress') as HTMLProgressElement).value=progress.value;document.querySelector('#progress-label')!.textContent=progress.label;}
-    if(pass.phase==='passing'&&session.oppositeEdgeRequired)(document.querySelector('#position-forceps') as HTMLButtonElement).textContent='Position forceps at opposite edge';
-    const status=document.querySelector('#grasp-status')!; const statusText=graspStatusText({tractionAlert,edge,passPhase:pass.phase,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,preparingEdge:session.preparingEdge,freeKnotActive:session.freeKnot.active,loadTestActive:session.loadTest.active,driverOpenness:tools[1].openness,knot,releaseCheck:session.releaseCheck,graspStatus:grasp.status}); if(status.textContent!==statusText) status.textContent=statusText; if(session.environment.id==='microsurgery')for(const selector of ['#exercise-title','#exercise-readout','#grasp-status','#position-forceps']){
-      const element=document.querySelector(selector)!;element.textContent=element.textContent!.replaceAll('Skin edge','Vessel edge').replaceAll('skin edge','vessel edge').replaceAll('Dermal purchase','Wall purchase');
-    } view.controls.update(); perf.measure('Simulator render submission',()=>view.renderer.render(view.scene,view.camera)); tools.forEach(tool=>{(document.querySelector(`#${tool.id}-jaw`) as HTMLMeterElement).value=tool.id==='right'&&input.scissorsActive?scissors.openness:tool.openness;});perf.sample('Simulator CPU frame',performance.now()-frameStarted);});
+    (frameQuery('#placement-progress') as HTMLProgressElement).value=progress.value;frameQuery('#progress-label')!.textContent=progress.label;}
+    if(pass.phase==='passing'&&session.oppositeEdgeRequired)(frameQuery('#position-forceps') as HTMLButtonElement).textContent='Position forceps at opposite edge';
+    const status=frameQuery('#grasp-status')!; const statusText=graspStatusText({tractionAlert,edge,passPhase:pass.phase,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,preparingEdge:session.preparingEdge,freeKnotActive:session.freeKnot.active,loadTestActive:session.loadTest.active,driverOpenness:tools[1].openness,knot,releaseCheck:session.releaseCheck,graspStatus:grasp.status}); if(status.textContent!==statusText) status.textContent=statusText; if(session.environment.id==='microsurgery')for(const selector of ['#exercise-title','#exercise-readout','#grasp-status','#position-forceps']){
+      const element=frameQuery(selector)!;element.textContent=element.textContent!.replaceAll('Skin edge','Vessel edge').replaceAll('skin edge','vessel edge').replaceAll('Dermal purchase','Wall purchase');
+    } view.controls.update(); perf.measure('Simulator render submission',()=>view.renderer.render(view.scene,view.camera)); tools.forEach(tool=>{(frameQuery(`#${tool.id}-jaw`) as HTMLMeterElement).value=tool.id==='right'&&input.scissorsActive?scissors.openness:tool.openness;});perf.sample('Simulator CPU frame',performance.now()-frameStarted);});
   window.addEventListener('pagehide',()=>{input.dispose(); view.renderer.setAnimationLoop(null);});
 } catch(error) { document.querySelector('#error')!.textContent='The 3D workspace could not start. Please use a browser with WebGL enabled.'; console.error(error); }
