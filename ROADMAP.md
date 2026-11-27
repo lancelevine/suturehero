@@ -16,7 +16,7 @@ Last updated: 2026-11-27
 - **Vessel dilation step:** dilate each vessel end before suturing; too little narrows the lumen, too much tears the intima and raises clot risk.
 - **Nerve repair:** align fascicles and place epineurial stitches without twist. Reuses the microsurgery scene.
 - **5-minute warm-up drill** with a daily log. *(First version in build 0.235: Sandbox warm-up timer, per-day log in browser storage and a streak.)*
-- **More stitch patterns:** vertical and horizontal mattress, running, running subcuticular, each scored.
+- **More stitch patterns:** vertical and horizontal mattress, running, running subcuticular, each scored. *(Step 1 in build 0.235: Sandbox recognises and grades vertical and horizontal mattress from free passes. Next: running and running subcuticular.)*
 - **Corner stitch:** half-buried horizontal mattress through the tip of a V-shaped or stellate wound; scored on the tip sitting flush without being strangled.
 - **Bite consistency score:** ruler overlay of each stitch's distance from the edge on both sides and spacing between stitches, outliers highlighted. *(Done in build 0.235: Sandbox summary line, red rings on outlier bites vs the median bite, and a millimetre ruler on each stitch line.)*
 - **Figure-of-eight and purse-string stitches:** for fascia, bleeders and round defects; each scored on its own geometry.

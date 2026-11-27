@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: mattress stitch recognition (roadmap "More stitch patterns", step 1)
+- Lance: "start with them in order" (1 stitch patterns, 2 full anastomosis, 3 knot-engine signals, 4 body sites).
+- New `src/gameplay/stitchPatterns.ts` (+3 tests): pairs consecutive opposite-direction crossing passes into vertical mattress (in line ≤ 2 mm, far ≥ 1.5× near to recognise; graded near 1–3 mm, far ≥ 2×, far deeper) or horizontal mattress (3–10 mm apart, bites within 1.5 mm). Sandbox summary "Stitch patterns" line. Thresholds are teaching guidance; Lance to confirm.
+- Checked: tsc, test, check-sandbox. Next: running and running subcuticular.
+
 ### 2026-11-27 — Claude: planned bite shape in the cross-section view
 - `src/scene/CrossSectionView.ts`: readout adds "Planned bite: flask / straight / V-shaped" from the planned arc (depth below the skin vs half the surface chord). Checked: tsc, browser (readout shows), check-knot.
 - **Question for Lance:** the default guided plan classifies as V-shaped (needle centre 0.55 above the 0.41 skin surface; depth 0.16 vs half-width 0.27). Geometrically right (a flask bite needs the curve's centre at or below the skin), but showing "tends to invert the edges" on the default exercise may confuse. Keep, soften, or deepen the default plan?
