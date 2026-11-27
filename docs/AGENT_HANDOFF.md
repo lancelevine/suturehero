@@ -52,6 +52,8 @@ entry when finishing.
 
 - `src/input/markerPose.test.ts`: facing and tilted markers are recovered from projected corners;
   degenerate input rejected (the module had no unit test).
+- Also new tests for `src/knot/knotTissue.ts` (skin surface heights, site offset, microsurgery)
+  and `src/diagnostics/frameCadence.ts` (arrival rate, missed frames, capture age).
 - Phone width (390 px) screenshot: no horizontal scroll; header buttons wrap; side panel opens
   below the scene. The 3D scene is small there when the camera dock is beside it (pre-existing
   layout; left for Lance to decide).
