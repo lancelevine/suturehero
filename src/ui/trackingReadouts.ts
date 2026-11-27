@@ -29,3 +29,37 @@ export function traceQuad(context: Pick<CanvasRenderingContext2D, 'beginPath' | 
   for (let i = 1; i < 4; i++) context.lineTo(corners[i].x, corners[i].y);
   context.closePath();
 }
+
+/** One instrument's depth-filter state, as shown under Diagnostics. */
+export interface FilterMeasurement {
+  rawZ: number;
+  filteredZ: number;
+  angle: number;
+  locked: boolean;
+  valid: boolean;
+  source: string;
+}
+
+/** Depth-filter line for the three instruments ("waiting" before the first measurement). */
+export function filterDiagnosticsText(measurements: ReadonlyMap<string, FilterMeasurement>): string {
+  return (['needleDriver', 'forceps', 'scissors'] as const)
+    .map((name) => {
+      const m = measurements.get(name);
+      if (!m) return `${name}: waiting`;
+      const state = m.locked ? 'stationary lock' : m.valid ? 'tracking' : 'depth unavailable';
+      return `${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${state} · depth from ${m.source}`;
+    })
+    .join(' | ');
+}
+
+/** Which tracker faces each instrument shows (two or more at once is an overlap). */
+export function faceOverlapText(groups: Readonly<Record<string, readonly number[]>>, visibleIds: readonly number[], geometry: { faceCount: number; sideStepRadians: number }): string {
+  const spacing = THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0);
+  return Object.keys(groups)
+    .map((name) => {
+      const visible = visibleIds.filter((id) => groups[name].includes(id));
+      const faces = visible.length > 1 ? 'OVERLAP ' + visible.join('+') : visible.length ? 'face ' + visible[0] : 'none';
+      return `${name}: ${faces} · ${visible.length}/${geometry.faceCount} visible · ${spacing}° side spacing`;
+    })
+    .join(' | ');
+}

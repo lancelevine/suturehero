@@ -87,6 +87,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — filter and face-overlap readouts out of tracking.ts
+
+- `filterDiagnosticsText` and `faceOverlapText` in `src/ui/trackingReadouts.ts` (+tests); no
+  behaviour change. Checked: tracking-panels, driver-depth, tracking-motion, ring-configuration.
+
 ### 2026-11-27 — Claude — stereo indicator out of tracking.ts; checks honour SUTURE_TEST_URL
 
 - `src/input/stereoIndicator.ts` (+test): the stereo dot colour, label and state, as a pure

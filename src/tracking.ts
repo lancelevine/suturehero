@@ -1,6 +1,6 @@
 import {markerSidePx} from './input/trackerDistance';
 import {stereoIndicator} from './input/stereoIndicator';
-import {poseReadoutText,traceQuad} from './ui/trackingReadouts';
+import {faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {captureDue} from './input/captureScheduling';
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
@@ -800,8 +800,8 @@ function drawDetections(){
  if(!simulation.checked){
   const readout=(name:'needleDriver'|'forceps'|'scissors')=>poseReadoutText(liveTargets.get(name),performance.now(),trackingHoldMs);
   driverReadout.textContent=readout('needleDriver');forcepsReadout.textContent=readout('forceps');scissorsReadout.textContent=readout('scissors');
-  filterDiagnostics.textContent=(['needleDriver','forceps','scissors'] as const).map(name=>{const m=filterMeasurements.get(name);return m?`${name}: distance ${m.rawZ.toFixed(0)} mm · virtual Z ${m.filteredZ.toFixed(2)} · Δ rotation ${m.angle.toFixed(1)}° · ${m.locked?'stationary lock':m.valid?'tracking':'depth unavailable'} · depth from ${m.source}`:`${name}: waiting`;}).join(' | ');
-  faceOverlapReadout.textContent=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).map(name=>{const visible=verifiedMarkers().filter(m=>(markerGroups()[name] as readonly number[]).includes(m.id)).map(m=>m.id);const geometry=trackerGeometry(trackerType);return `${name}: ${visible.length>1?'OVERLAP '+visible.join('+'):visible.length?'face '+visible[0]:'none'} · ${visible.length}/${geometry.faceCount} visible · ${THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0)}° side spacing`;}).join(' | ');
+  filterDiagnostics.textContent=filterDiagnosticsText(filterMeasurements);
+  faceOverlapReadout.textContent=faceOverlapText(markerGroups(),verifiedMarkers().map(m=>m.id),trackerGeometry(trackerType));
  }
  perf.sample('Tracking status UI',performance.now()-uiStarted);
 }

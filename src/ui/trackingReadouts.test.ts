@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { expect, it } from 'vitest';
-import { poseReadoutText, traceQuad } from './trackingReadouts';
+import { faceOverlapText, filterDiagnosticsText, poseReadoutText, traceQuad } from './trackingReadouts';
 
 const target = (lastSeen: number) => ({ lastSeen, pose: { id: 7, position: new THREE.Vector3(1.234, -2, 300.06), quaternion: new THREE.Quaternion(), reprojectionError: 0.84 } });
 
@@ -16,4 +16,14 @@ it('traces a closed quad through four corners', () => {
   const context = { beginPath: () => calls.push('begin'), moveTo: (x: number, y: number) => calls.push(`m${x},${y}`), lineTo: (x: number, y: number) => calls.push(`l${x},${y}`), closePath: () => calls.push('close') };
   traceQuad(context, [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]);
   expect(calls).toEqual(['begin', 'm0,0', 'l1,0', 'l1,1', 'l0,1', 'close']);
+});
+
+it('describes the depth filter per instrument', () => {
+  const measurements = new Map([['forceps', { rawZ: 301.4, filteredZ: 1.234, angle: 2.25, locked: false, valid: true, source: 'markers' }]]);
+  expect(filterDiagnosticsText(measurements)).toBe('needleDriver: waiting | forceps: distance 301 mm · virtual Z 1.23 · Δ rotation 2.3° · tracking · depth from markers | scissors: waiting');
+});
+
+it('reports visible faces and overlaps per instrument', () => {
+  const text = faceOverlapText({ needleDriver: [0, 1, 2], forceps: [10, 11] }, [1, 2, 10], { faceCount: 8, sideStepRadians: Math.PI / 4 });
+  expect(text).toBe('needleDriver: OVERLAP 1+2 · 2/8 visible · 45° side spacing | forceps: face 10 · 1/8 visible · 45° side spacing');
 });
