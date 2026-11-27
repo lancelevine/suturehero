@@ -96,6 +96,8 @@ entry when finishing.
 - Next suspect: `gripEnd` (src/demo/freeKnotDemo.ts) counts frames (`GRIP_CONFIRM_FRAMES`,
   `REOPEN_FRAMES`), not seconds.
 - Also measured: caching `PracticeSession.knotTissue` gave no speed gain (reverted).
+- Re-checked the check-knot-worker findings on Node 24: same results (answer every frame passes;
+  every 3rd frame, or corrections off, fails).
 - Run Node 24 explicitly here: `npx -y node@24 node_modules/vitest/vitest.mjs run <file>`.
 
 ### 2026-11-27 — Claude — Build 0.226: metal reflections; CI fix; small tracking.ts extraction
