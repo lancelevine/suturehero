@@ -8,7 +8,7 @@ commit `bde9116`.
 ## Build 0.235 — Stitch angle across the wound
 
 - Sandbox: each completed needle pass is drawn as a line across the wound, green when it is square to the wound and amber when it is more than 10° off (roadmap: "Stitch angle across the wound"). Approximate practice measure.
-- 3-stitch session: the closure review now ends with a gap scan along the whole wound, listing where the edges are still apart (roadmap: "Gap scan for skin"; text only, no highlight in the scene yet).
+- 3-stitch session: the closure review now ends with a gap scan along the whole wound, listing where the edges are still apart (roadmap: "Gap scan for skin"); when the session is finished, the open stretches are marked with red bars on the wound.
 - Sandbox: 5-minute warm-up drill. Start it from the Sandbox session panel; it counts your passes for five minutes, then logs the day, the passes and the mean bite. The panel shows whether today's warm-up is done and your daily streak (roadmap: "5-minute warm-up drill with a daily log"; stored in this browser only).
 - Skill Analysis: new "Tip collisions" count, the times the needle-driver and forceps tips bumped together (within about 3 mm) outside a needle handoff (roadmap: "Instrument tip collisions"; no replay markers yet).
 - Sandbox: bite consistency. The summary compares every bite (entry and exit distance from the edge) with your median bite and lists any more than 1.5 mm off (roadmap: "Bite consistency score"); outlier bites are also circled in red on the skin.

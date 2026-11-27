@@ -63,6 +63,8 @@ import { mountCourseExport } from './ui/courseExport';
 import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 import {FpsCounter} from './diagnostics/FrameRates';
 import {TipCollisionCounter} from './gameplay/tipCollisions';
+import {gapScan,type OpenSpan} from './gameplay/gapScan';
+import {GapScanView} from './scene/GapScanView';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -203,6 +205,9 @@ try {
   const passGuide=new PassGuide(session.pass); view.scene.add(passGuide.root);
   // Dashed cyan ideal suture line along the wound (src/scene/IdealSuturePath.ts).
   const idealPath=new IdealSuturePath(SKIN_SURFACE_Y); view.scene.add(idealPath.root);
+  // Gap scan after a finished 3-stitch session (src/gameplay/gapScan.ts); recomputed only when the stitch sites change.
+  const gapScanView=new GapScanView(SKIN_SURFACE_Y); view.scene.add(gapScanView.root);
+  let scannedSites:readonly unknown[]|null=null,openSpans:OpenSpan[]=[];
   // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
   view.scene.add(replay.paths);
   let demo:DemoControl|null=null;
@@ -444,6 +449,7 @@ try {
     setData((frameQuery('#stitch-stage') as HTMLElement),'complete',String(assessment.complete||assessment.labFinished));
     // Strand tension meters and cue (src/ui/practicePanels.ts).
     idealPath.update(session.environment.id==='skin',session.course.siteZ);
+    {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&session.course.finished;if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
     sampleSkill();
     updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);
     const edge=session.eversion;

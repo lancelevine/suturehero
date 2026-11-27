@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: gap scan drawn on the wound
+- New `src/scene/GapScanView.ts` (+test): red bars over open spans, following the course site like the other stitch views. `src/main.ts` shows it for a finished skin 3-stitch session; the scan reruns only when `course.tissueSites` changes.
+- Checked: tsc, GapScanView test, check-guided-thread, check-sandbox, check-layout.
+
 ### 2026-11-27 — Claude: gap scan for skin (roadmap, build 0.235); two roadmap items deferred
 - New `src/gameplay/gapScan.ts` (+test): sweeps z = −1.1…1.1 with the retained-stitch field (`fieldShift`) and returns stretches with gap > 0.045 (the closure review's "visible opening"). `StitchCourse.closureReview` ends with "Gap scan: …"; StitchCourse test asserts it.
 - Deferred (noted in ROADMAP.md): knot placement check and air-knot detection need new signals from every knot engine (`KnotEngine`); not a quick UI change.
