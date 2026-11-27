@@ -1,5 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
-import {bindDepthLock,bindSliderReadouts} from './ui/trackingControls';
+import {bindDepthLock,bindSliderReadouts,trackingModeDescription} from './ui/trackingControls';
 import {createTrackingLabBridge} from './trackingLab/bridge';
 import {getOrCreate} from './util/getOrCreate';
 import {RotationTracker,type RotationContext} from './input/RotationTracker';
@@ -8,7 +8,7 @@ import {MONO_VIEW_MAX_AGE_MS,stereoMonoViews as monoViewsFromCameras} from './in
 import {mountTrackingStatusStrip} from './ui/trackingStatusStrip';
 import {stereoTipPose} from './input/stereoTipPose';
 import {driftCorrections,holdDecodedMarkers,recordFlowMotion} from './input/driftCorrection';
-import {moveSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
+import {moveSimulatedInstruments,resetSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
 import {CameraCapture,type CaptureEnvironment} from './input/CameraCapture';
 import {bitmapRequests} from './input/bitmapRequests';
 import {RotationStageReadout} from './ui/rotationStageReadout';
@@ -112,11 +112,9 @@ bindSliderReadouts({rotationSensitivity,rotationSensitivityValue,rotationGain,ro
 bindDepthLock(lockDepth,instrumentCalibration,()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
 trackingMode.addEventListener('change',()=>{resetTrackerPose();
  liveTargets.clear();stationaryStates.clear();depthStates.clear();
- trackingModeInfo.textContent=trackingMode.value==='mono'
-  ?'1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
-  :'2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
+ trackingModeInfo.textContent=trackingModeDescription(trackingMode.value);
 });
-simulation.addEventListener('change',()=>{resetTrackerPose();stereoPositions.clear();liveTargets.clear();stationaryStates.clear();depthStates.clear();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);driver.quaternion.identity();forceps.quaternion.identity();scissors.quaternion.identity();});
+simulation.addEventListener('change',()=>{resetTrackerPose();stereoPositions.clear();liveTargets.clear();stationaryStates.clear();depthStates.clear();resetSimulatedInstruments({driver,forceps,scissors});});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;

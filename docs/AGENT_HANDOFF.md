@@ -92,6 +92,8 @@ entry when finishing.
 - `src/ui/trackingControls.ts` (+test): slider value readouts and the all-instruments depth lock
   (`depthLockState`). Checked: driver-depth, tracking-storage, calibration-ui, camera-controls,
   tracking-panels.
+- Also `resetSimulatedInstruments` and `trackingModeDescription`, tested; checked stereo-shortcut,
+  tracking-panels, practice-setup.
 - Graphics: a gradient scene background made no visible difference (the floor plane fills the
   view); reverted.
 - Note: another Claude session is pushing ROADMAP.md entries to main every few minutes, which

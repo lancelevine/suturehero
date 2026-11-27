@@ -51,3 +51,10 @@ export function bindDepthLock(
     onChange();
   });
 }
+
+/** What the selected tracking mode does (shown under the mode selector). */
+export function trackingModeDescription(mode: string) {
+  return mode === 'mono'
+    ? '1 camera: filtered approximate depth, with optional depth lock. Camera 1 drives movement and rotation.'
+    : '2 cameras: import solved calibration, enable metric 3D, and verify both cameras match the calibrated setup.';
+}
