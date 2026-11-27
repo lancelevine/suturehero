@@ -113,14 +113,16 @@ const rotationSensitivityValue=document.querySelector<HTMLOutputElement>('#rotat
 const depthSensitivityValue=document.querySelector<HTMLOutputElement>('#depth-sensitivity-value')!;
 const filterDiagnostics=document.querySelector<HTMLElement>('#tracking-filter-diagnostics')!;
 const workingDepthInput=document.querySelector<HTMLInputElement>('#working-depth-mm')!;
+/** Forget the live instrument poses and their stillness/depth filters (mode, simulation or depth-lock change, camera stop). */
+function clearLivePoses(){liveTargets.clear();stationaryStates.clear();depthStates.clear();}
 // Slider readouts and the all-instruments depth lock (src/ui/trackingControls.ts).
 bindSliderReadouts({rotationSensitivity,rotationSensitivityValue,rotationGain,rotationGainValue,depthSensitivity,depthSensitivityValue},()=>depthStates.clear());
-bindDepthLock(lockDepth,instrumentCalibration,()=>{liveTargets.clear();stationaryStates.clear();depthStates.clear();});
+bindDepthLock(lockDepth,instrumentCalibration,()=>clearLivePoses());
 trackingMode.addEventListener('change',()=>{resetTrackerPose();
- liveTargets.clear();stationaryStates.clear();depthStates.clear();
+ clearLivePoses();
  trackingModeInfo.textContent=trackingModeDescription(trackingMode.value);
 });
-simulation.addEventListener('change',()=>{resetTrackerPose();stereoPositions.clear();liveTargets.clear();stationaryStates.clear();depthStates.clear();resetSimulatedInstruments({driver,forceps,scissors});});
+simulation.addEventListener('change',()=>{resetTrackerPose();stereoPositions.clear();clearLivePoses();resetSimulatedInstruments({driver,forceps,scissors});});
 const markerReadout=document.querySelector<HTMLElement>('#marker-readout')!;
 const driverReadout=document.querySelector<HTMLElement>('#driver-readout')!;
 const forcepsReadout=document.querySelector<HTMLElement>('#forceps-readout')!;
@@ -437,7 +439,7 @@ let stream:MediaStream|null=null;
 async function refreshCameras(){
  try {const current=select.value||savedCamera(CAMERA_STORAGE_PRIMARY);fillCameraSelect(select,await availableCameras(),current,'Default camera');}catch{ /* permission or unsupported */ }
 }
-async function stopCamera(){resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();capture1.stopRequests();latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;liveTargets.clear();stationaryStates.clear();depthStates.clear();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();setText(markerReadout,'Camera stopped');diag('note').textContent='Camera stopped';}
+async function stopCamera(){resetTrackerPose();stereoPositions.clear();cameraSession++;detector.dispose();fastTracker.dispose();capture1.stopRequests();latestFlowAt=0;latestDecodeAt=0;lastAppliedFrameAt=0;staleDecodeDrops=0;detectorReady=false;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;observations=[];observationsAt=0;clearLivePoses();overlayContext.clearRect(0,0,overlay.width,overlay.height);start.disabled=false;stop.disabled=true;document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='';status.textContent='Camera stopped.';renderCameraSettings();setText(markerReadout,'Camera stopped');diag('note').textContent='Camera stopped';}
 async function startPrimaryCamera(){
  try {await stopCamera();detectorReady=false;stream=await openCamera(select.value||undefined);video.srcObject=stream;await video.play();renderCameraSettings();depthRangeLabel();document.querySelector<HTMLElement>('#camera-placeholder')!.style.display='none';framesAnalyzed=0;detectorFpsWindow=performance.now();detectorFpsCount=0;diag('frames').textContent='0';diag('detection-fps').textContent='0';const settings=stream.getVideoTracks()[0]?.getSettings();diag('resolution').textContent=`${video.videoWidth} × ${video.videoHeight} camera · tracking ≤960px wide${settings?.frameRate?' · '+Math.round(settings.frameRate)+' fps':''}${cameraMode()==='iphone'?' · '+(stream.getVideoTracks()[0]?.label??'')+(orientationNote(video.videoWidth,video.videoHeight)?' · '+orientationNote(video.videoWidth,video.videoHeight):''):''}`;start.disabled=true;stop.disabled=false;status.textContent='Camera running. Loading marker detector…';const session=cameraSession;await Promise.all([detector.initialize(),fastTracker.initialize(true)]);if(session!==cameraSession)return;detectorReady=true;status.textContent='Live ArUco detection running. Hold a marker in view.';await refreshCameras();await refreshSecondCameraList();renderCameraSettings();status2.textContent='Camera 2 is optional for now.';}
  catch(e){status.textContent=`Camera error: ${e instanceof Error?e.message:String(e)}`;throw e;}

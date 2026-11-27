@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: clearLivePoses in tracking.ts
+- One `clearLivePoses()` replaces four copies of "clear live targets, stillness and depth filters" in `src/tracking.ts`. No behaviour change. Checked: tsc, check-camera-controls, check-tracking-motion.
+
 ### 2026-11-27 — Claude: camera 1 decode merge helpers
 - `missingMarkers`, `replaceMarkers`, `confirmMarkers` (`src/input/driftCorrection.ts`, +test) replace inline loops in `detectFrame` (`src/tracking.ts`). Same steps and same `drawDetections()` calls in the same order, so pose-filter timing is unchanged.
 - Checked: tsc, driftCorrection test, check-tracking-motion, check-driver-depth, check-ring-handoffs, check-tracking-storage.
