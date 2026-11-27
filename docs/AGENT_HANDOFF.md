@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — practice loop: no same-text DOM writes
+
+- The render loop wrote ~9 labels every frame even when unchanged (each write replaces the text
+  node and invalidates layout). They now go through `setText`, which writes only on change. The
+  "Position forceps" label was also written twice per frame (base, then override); now once.
+
 ### 2026-11-27 — Claude — Sandbox view tools and knot status text out of main.ts
 
 - `updateSandboxViewTools` (practicePanels.ts) and `freeKnotStateText` (practiceMessages.ts), tested.
