@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: step-off check (roadmap, build 0.235)
+- New `src/gameplay/stepOff.ts` (+test): |site.mismatch| in mm per tied stitch, flagged above 0.5 mm. Appended to `StitchCourse.closureReview` and the Sandbox `#spacing-review` line. Checked: tsc, stepOff + StitchCourse tests, check-sandbox, check-guided-thread.
+
 ### 2026-11-27 — Claude: bite depth gauge (roadmap, build 0.235)
 - New `src/gameplay/biteDepth.ts` (+test): verdict per pass from its deepest layer (epidermis too shallow, dermis good, fat too deep). Sandbox summary line "Bite depth". Checked: tsc, test, check-sandbox.
 

@@ -67,6 +67,7 @@ import {RegraspCheck} from './suture/gripPosition';
 import {BlindBiteCheck} from './scene/blindBite';
 import {gapScan,type OpenSpan} from './gameplay/gapScan';
 import {GapScanView} from './scene/GapScanView';
+import {describeStepOffs} from './gameplay/stepOff';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -437,7 +438,7 @@ try {
     setAttr(stitchPosition,'min',String(Math.ceil(course.positionLimits.min*100-1e-7)));setAttr(stitchPosition,'max',String(Math.floor(course.positionLimits.max*100+1e-7)));{const site=String(Math.round(course.siteZ*100));if(stitchPosition.value!==site)stitchPosition.value=site;}
     setPlanText('#stitch-position-value',course.siteZ.toFixed(2));
     setPlanText('#bite-plan-status',!session.canPlanBites?'Bite plan locked for this stitch':session.bitePlanLimited?'Widths adjusted to fit the needle and preserve dermal purchase.':'Bite widths are relative to the default bite; position uses practice units.');
-    setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)}`:'Start a 3-stitch session to review spacing.');
+    setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)} · ${describeStepOffs(course.tissueSites)}`:'Start a 3-stitch session to review spacing.');
     setHidden((frameQuery('.course-controls') as HTMLElement),session.environment.id!=='skin');
     completedView.update(course.completed.length,course.siteZ);
     updateCourseButtons(frameQuery,{skin:session.environment.id==='skin',active:course.active,finished:course.finished,index:course.index,canAdvance:session.canAdvanceStitch,canFinishSandboxStitch:session.canFinishSandboxStitch,canTieFreePass:session.canTieFreePass});
