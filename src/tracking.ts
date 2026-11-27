@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {StereoPoseMemory} from './input/stereoPoseMemory';
 import {MONO_VIEW_MAX_AGE_MS,stereoMonoViews as monoViewsFromCameras} from './input/stereoMonoViews';
 import {mountTrackingStatusStrip} from './ui/trackingStatusStrip';
 import {stereoTipPose} from './input/stereoTipPose';
@@ -191,9 +192,7 @@ const stereoFrames=new StereoFrames();
 const stereoFallbacks=new Map<InstrumentName,StereoFallback>();
 const stereoFallbackStatus=new Map<InstrumentName,string>();
 const stereoMonoCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;views:MonoView[]}>();
-const stereoPoseCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;pose:StereoRotation|null;lastGood?:StereoRotation;lastGoodAt?:number}>();
-/** A remembered stereo pose guides the next fit only while this recent (ms). */
-const STEREO_CONTINUITY_MS=500;
+const stereoPoseCache=new StereoPoseMemory<InstrumentName,StereoRotation,StereoCalibration>();
 // Fit all known face corners jointly in the calibrated camera frames.
 /** Why stereo was not used for each instrument on the latest frame (diagnostics only). */
 const stereoRejections=new Map<InstrumentName,string>();
@@ -208,14 +207,13 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
  if(!stereoActive()||!stereoSetup.calibration||!overlay.width||!overlay2.width)return null;
  if(calibrationMatches(stereoSetup.calibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight))return null;
  const synchronized=stereoFrames.pair(now);if(!synchronized){noteStereoRejection(name,'no time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));return null;}
- const key=`${synchronized.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`,cached=stereoPoseCache.get(name);
- if(cached?.key===key&&cached.calibration===stereoSetup.calibration)return cached.pose;
+ const key=`${synchronized.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`;
+ const cached=stereoPoseCache.cached(name,key,stereoSetup.calibration);if(cached!==undefined)return cached;
  const diagnostics:StereoRigDiagnostics={};
- const pose=solveStereoRigPose(stereoSetup.calibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,cached?.pose??(cached?.lastGood&&synchronized.at-(cached.lastGoodAt??-Infinity)<STEREO_CONTINUITY_MS?cached.lastGood:undefined),diagnostics);
+ const pose=solveStereoRigPose(stereoSetup.calibration,synchronized.first,synchronized.second,{width:overlay.width,height:overlay.height},{width:overlay2.width,height:overlay2.height},markerGroups()[name][0],trackerType,stereoPoseCache.seed(name,synchronized.at),diagnostics);
  if(pose)stereoRejections.delete(name);else noteStereoRejection(name,diagnostics.reason??'rejected');
  // Keep the last accepted pose through rejected frames so the next fit stays continuous.
- const keep=cached?.calibration===stereoSetup.calibration;
- stereoPoseCache.set(name,{key,calibration:stereoSetup.calibration,pose,lastGood:pose??(keep?cached?.lastGood:undefined),lastGoodAt:pose?synchronized.at:(keep?cached?.lastGoodAt:undefined)});return pose;
+ stereoPoseCache.remember(name,key,stereoSetup.calibration,pose,synchronized.at);return pose;
 }
 
 function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{

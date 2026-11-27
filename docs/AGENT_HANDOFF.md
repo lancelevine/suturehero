@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — stereo pose memory out of tracking.ts
+
+- `src/input/stereoPoseMemory.ts` (+test): per-instrument stereo fit cache and continuity seed
+  (`STEREO_CONTINUITY_MS`), same rules. Checked: stereo-motion, stereo-rig-faces,
+  stereo-capture-quality.
+
 ### 2026-11-27 — Claude — stereo per-camera fallback views out of tracking.ts
 
 - `src/input/stereoMonoViews.ts` (+test): each camera's single-marker pose (undistort, solve,
