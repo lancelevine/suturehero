@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: environment wording as environmentTexts
+- `environmentTexts` (`src/ui/practiceMessages.ts`, +2 tests) builds the skin/microsurgery page texts (switch button, heading, tag, scene label, first step, lesson, eversion and free notes); `switchEnvironment` in `src/main.ts` only writes them. Same texts.
+- Checked: tsc, practiceMessages test, check-practice-setup, check-guided-thread, check-layout.
+- Note: deploy run for "Roadmap: add bite shape view" failed with a GitHub Pages 502 (server error, not our code); later runs redeploy.
+
 ### 2026-11-27 — Claude: tracking preview scene as a module
 - `src/scene/trackingPreviewScene.ts` (+test): the tracking page's 3D preview (scene, camera, renderer, orbit, grid, instrument models, resize observer, reset view, render) moved out of `src/tracking.ts`; named constants for the pixel caps. No visible change.
 - Checked: tsc, unit test, check-tracking-motion, check-tracking-panels, check-performance, check-stereo-motion, standalone page screenshot with Reset view (no page errors).

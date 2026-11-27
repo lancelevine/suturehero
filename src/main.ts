@@ -60,7 +60,7 @@ import { NeedleGrasp } from './suture/NeedleGrasp';
 import { PracticeSession } from './gameplay/PracticeSession';
 import { practicePageMarkup } from './ui/practicePageMarkup';
 import { mountCourseExport } from './ui/courseExport';
-import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
+import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 import {FpsCounter} from './diagnostics/FrameRates';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
@@ -173,18 +173,19 @@ try {
   const switchEnvironment=(id:EnvironmentId)=>{
     input.scissorsActive=false;scissors.reset();cutFeedback='';session.setEnvironment(id,resolveMicroTarget(microSelect.value));artery.setTarget(resolveMicroTarget(microSelect.value));const micro=id==='microsurgery';scissors.setStyle(micro?'westcott':'mayo');scissors.minimumHeight=micro?-.65:.04;
     tissue.root.visible=!micro;artery.root.visible=micro;view.setMicrosurgery(micro);
-    const button=document.querySelector('#switch-environment')!;button.textContent=micro?'Skin environment':'Microsurgery environment';button.setAttribute('aria-pressed',String(micro));
+    // Environment wording (src/ui/practiceMessages.ts environmentTexts).
+    const texts=environmentTexts(micro,microSelect.value,MICRO_TARGETS[resolveMicroTarget(microSelect.value)].label,{lesson:originalLesson,eversion:originalEversion,free:originalFree});
+    const button=document.querySelector('#switch-environment')!;button.textContent=texts.switchButton;button.setAttribute('aria-pressed',String(micro));
     document.querySelector('#viewport')!.setAttribute('data-environment',id);
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#skin-type-field') as HTMLElement).hidden=micro;
-    document.querySelector('.scene-heading h2')!.textContent=micro?`${MICRO_TARGETS[resolveMicroTarget(microSelect.value)].label} anastomosis · one stitch`:'Simple interrupted suture';
-    const tag=document.querySelector('.scene-tag')!;tag.textContent=micro?(microSelect.value==='nerve'?'NERVE + FASCICLES':'HOLLOW ARTERY ENDS'):'3-LAYER TISSUE PAD';tag.setAttribute('title',micro?'Outer wall · Lumen · Cut ends':'Epidermis · Dermis · Subcutaneous fat');
-    document.querySelector('.scene-label')!.innerHTML=`<i></i> LIVE VIEW <span>•</span> ${micro?(microSelect.value==='nerve'?'NERVE ENDS':'VESSEL ENDS'):'TISSUE PAD 01'}`;
-    document.querySelector('.steps>div:first-child span')!.innerHTML=`Evert the right ${micro?'tissue':'skin'} edge<small>Position forceps · Z grasp · E lift</small>`;
-    document.querySelector('.lesson p')!.textContent=micro?originalLesson.replaceAll('skin edge','vessel edge'):originalLesson;
-    document.querySelector('#eversion-note')!.textContent=micro?'Grasp the right vessel edge with the forceps, lift briefly to evert the wall, then begin the needle pass. Release the wall before transferring the needle. The arterial wall carries the stitch load. This is one anterior-wall stitch; a complete circumferential anastomosis is not yet modeled.':originalEversion;
-    if(micro&&microSelect.value==='nerve')document.querySelector('#eversion-note')!.textContent='Grasp the outer nerve sheath with the forceps and lift gently before the guided pass. The epineurial sheath carries the stitch load; the fascicle bundles are shown inside. This is a practice approximation of one stitch.';
-    document.querySelector('#free-note')!.textContent=micro?originalFree.replaceAll('skin edge','vessel edge'):originalFree;
+    document.querySelector('.scene-heading h2')!.textContent=texts.heading;
+    const tag=document.querySelector('.scene-tag')!;tag.textContent=texts.tag;tag.setAttribute('title',texts.tagTitle);
+    document.querySelector('.scene-label')!.innerHTML=`<i></i> LIVE VIEW <span>•</span> ${texts.sceneLabel}`;
+    document.querySelector('.steps>div:first-child span')!.innerHTML=`${texts.firstStep}<small>Position forceps · Z grasp · E lift</small>`;
+    document.querySelector('.lesson p')!.textContent=texts.lesson;
+    document.querySelector('#eversion-note')!.textContent=texts.eversion;
+    document.querySelector('#free-note')!.textContent=texts.free;
     const url=new URL(location.href);url.searchParams.set('environment',id);url.searchParams.set('target',microSelect.value);history.replaceState(null,'',url);
     closeUp=micro;closeUpButton.setAttribute('aria-pressed',String(micro));closeUpButton.textContent=micro?'Wide view':'Close-up view';
     if(micro)view.microCloseUp();else view.resetCamera();

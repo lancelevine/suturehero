@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle, type ExerciseTitleInput, type ProgressInput, type ReadoutInput, type SandboxTitleInput } from './practiceMessages';
+import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle, type ExerciseTitleInput, type ProgressInput, type ReadoutInput, type SandboxTitleInput } from './practiceMessages';
 
 const sandbox = (over: Partial<SandboxTitleInput> = {}): SandboxTitleInput => ({
   now: 1000, cutMessageUntil: 0, tornMessageUntil: 0, rejection: null, inSkin: null, forcingWarning: false,
@@ -111,4 +111,19 @@ it('describes the free-tying knot state', () => {
   expect(freeKnotStateText({ ...base, phase: 'idle' })).toBe('No throw formed · Pull the ends apart');
   expect(freeKnotStateText({ ...base, phase: 'idle', hasOpening: true })).toBe('Pull the ends apart');
   expect(freeKnotStateText({ ...base, throws: undefined, label: undefined })).toBe('Throw 1 seated at tissue · ');
+});
+
+describe('environmentTexts', () => {
+  const original = { lesson: 'Lift the skin edge', eversion: 'Skin eversion', free: 'Free skin edge' };
+  it('keeps the skin texts in the skin environment', () => {
+    const texts = environmentTexts(false, 'artery', 'Artery', original);
+    expect([texts.heading, texts.tag, texts.sceneLabel, texts.lesson, texts.eversion]).toEqual(['Simple interrupted suture', '3-LAYER TISSUE PAD', 'TISSUE PAD 01', 'Lift the skin edge', 'Skin eversion']);
+  });
+  it('switches to vessel or nerve wording in microsurgery', () => {
+    const artery = environmentTexts(true, 'artery', 'Artery', original);
+    expect([artery.heading, artery.tag, artery.lesson, artery.free]).toEqual(['Artery anastomosis · one stitch', 'HOLLOW ARTERY ENDS', 'Lift the vessel edge', 'Free vessel edge']);
+    const nerve = environmentTexts(true, 'nerve', 'Nerve', original);
+    expect([nerve.tag, nerve.sceneLabel]).toEqual(['NERVE + FASCICLES', 'NERVE ENDS']);
+    expect(nerve.eversion).toMatch(/^Grasp the outer nerve sheath/);
+  });
 });

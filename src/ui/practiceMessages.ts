@@ -298,3 +298,26 @@ export function freeKnotStateText(input: { phase: string; knotAtTissue: boolean;
   if (phase === 'retained' || phase === 'passed' || input.hasOpening) return handlingHint;
   return `No throw formed · ${handlingHint}`;
 }
+
+const ARTERY_EVERSION_NOTE = 'Grasp the right vessel edge with the forceps, lift briefly to evert the wall, then begin the needle pass. Release the wall before transferring the needle. The arterial wall carries the stitch load. This is one anterior-wall stitch; a complete circumferential anastomosis is not yet modeled.';
+const NERVE_EVERSION_NOTE = 'Grasp the outer nerve sheath with the forceps and lift gently before the guided pass. The epineurial sheath carries the stitch load; the fascicle bundles are shown inside. This is a practice approximation of one stitch.';
+
+/**
+ * Page texts for the skin or microsurgery environment (moved out of src/main.ts, 2026-11-27).
+ * `targetLabel` is the microsurgery target's label (e.g. "Artery"); `original` are the skin texts
+ * read from the page at start-up.
+ */
+export function environmentTexts(micro: boolean, target: string, targetLabel: string, original: { lesson: string; eversion: string; free: string }) {
+  const nerve = micro && target === 'nerve';
+  return {
+    switchButton: micro ? 'Skin environment' : 'Microsurgery environment',
+    heading: micro ? `${targetLabel} anastomosis · one stitch` : 'Simple interrupted suture',
+    tag: micro ? (nerve ? 'NERVE + FASCICLES' : 'HOLLOW ARTERY ENDS') : '3-LAYER TISSUE PAD',
+    tagTitle: micro ? 'Outer wall · Lumen · Cut ends' : 'Epidermis · Dermis · Subcutaneous fat',
+    sceneLabel: micro ? (nerve ? 'NERVE ENDS' : 'VESSEL ENDS') : 'TISSUE PAD 01',
+    firstStep: `Evert the right ${micro ? 'tissue' : 'skin'} edge`,
+    lesson: micro ? original.lesson.replaceAll('skin edge', 'vessel edge') : original.lesson,
+    eversion: nerve ? NERVE_EVERSION_NOTE : micro ? ARTERY_EVERSION_NOTE : original.eversion,
+    free: micro ? original.free.replaceAll('skin edge', 'vessel edge') : original.free,
+  };
+}
