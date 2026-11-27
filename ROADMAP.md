@@ -80,6 +80,7 @@ Last updated: 2026-11-27
 - **Allgöwer stitch:** half-buried vertical mattress that exits skin on one side only, keeping track marks off a flap edge; scores buried-side depth, eversion on both sides, and that the visible side stayed on the healthier edge.
 - **Fragile skin mode:** thin, papery skin (elderly forearm, long steroid use) with low tear strength; narrow bites and tight knots cut through, wide bites and gentle knots are rewarded.
 - **Tissue tenting before puncture:** skin dents and stretches under the needle tip as force builds, then gives with a pop; deeper tent and later pop for a dull needle, shallow angle or loose tissue.
+- **Skin that relaxes under load:** viscoelastic creep so held tension fades over a minute or two; waiting after a stay pays off, and stitches tied early on a tight wound loosen a little.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
