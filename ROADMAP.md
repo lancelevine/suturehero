@@ -48,6 +48,7 @@ Last updated: 2026-11-27
 - **Diseased artery mode:** stiff, plaque-lined vessel; bites must pin plaque and intima to the wall; flags separated intima.
 - **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert.
 - **Edges of different thickness:** thick flap edge to thinner skin; coaches a deeper bite on the thin side, scored by step-off and bite depth.
+- **Stitch density by tension:** reads tension along the wound first, suggests closer spacing where pull is highest, and scores whether density matched.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
