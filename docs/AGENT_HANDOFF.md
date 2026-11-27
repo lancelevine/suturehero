@@ -87,6 +87,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — simulated input and stereo prerequisites out of animate()
+
+- `src/input/simulatedInstruments.ts` (+test): keyboard-driven simulated instruments and readout.
+  `stereoBlockedReason` (+test) in `src/input/stereoIndicator.ts`: the "Import a calibration / Select
+  2 cameras / Disable simulated input / Stereo inactive" message. No behaviour change.
+- Checked: stereo-motion, stereo-shortcut, tracking-motion, status-strip, practice-setup, and a
+  scripted browser run of simulated input (arrow key moves the driver, no errors).
+
 ### 2026-11-27 — Claude — per-camera capture pipeline out of tracking.ts (−82 lines)
 
 - `src/input/CameraCapture.ts` (+test): one class per camera for what both detect functions

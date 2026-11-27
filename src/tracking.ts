@@ -1,10 +1,11 @@
 import {markerSidePx} from './input/trackerDistance';
+import {moveSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
 import {CameraCapture,type CaptureEnvironment} from './input/CameraCapture';
 import {bitmapRequests} from './input/bitmapRequests';
 import {RotationStageReadout} from './ui/rotationStageReadout';
 import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
-import {stereoIndicator} from './input/stereoIndicator';
+import {stereoBlockedReason,stereoIndicator} from './input/stereoIndicator';
 import {faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
@@ -940,28 +941,20 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
   }
   if(embeddedTracking)lastPoseMessage=now;
  }
- if(simulation.checked){const speed=(keys.has('shift')?2:1)*dt;
-  driver.position.x+=(Number(keys.has('arrowright'))-Number(keys.has('arrowleft')))*speed;driver.position.z+=(Number(keys.has('arrowdown'))-Number(keys.has('arrowup')))*speed;
-  scissors.position.x+=(Number(keys.has('l'))-Number(keys.has('j')))*speed;scissors.position.z+=(Number(keys.has('k'))-Number(keys.has('i')))*speed;
-  forceps.position.x+=(Number(keys.has('d'))-Number(keys.has('a')))*speed;forceps.position.z+=(Number(keys.has('s'))-Number(keys.has('w')))*speed;
+ if(simulation.checked){
+  moveSimulatedInstruments(keys,dt,{driver,forceps,scissors});
+  driverReadout.textContent=simulatedReadout(driver.position);
+  scissorsReadout.textContent=simulatedReadout(scissors.position);
+  forcepsReadout.textContent=simulatedReadout(forceps.position);
  }
- if(simulation.checked){driver.position.x=THREE.MathUtils.clamp(driver.position.x,-2,2);driver.position.z=THREE.MathUtils.clamp(driver.position.z,-2,2);
- forceps.position.x=THREE.MathUtils.clamp(forceps.position.x,-2,2);forceps.position.z=THREE.MathUtils.clamp(forceps.position.z,-2,2);
- scissors.position.x=THREE.MathUtils.clamp(scissors.position.x,-2,2);scissors.position.z=THREE.MathUtils.clamp(scissors.position.z,-2,2);}
- if(simulation.checked)driverReadout.textContent=`Simulated · (${driver.position.x.toFixed(2)}, ${driver.position.z.toFixed(2)})`;
- if(simulation.checked)scissorsReadout.textContent=`Simulated · (${scissors.position.x.toFixed(2)}, ${scissors.position.z.toFixed(2)})`;
- if(simulation.checked)forcepsReadout.textContent=`Simulated · (${forceps.position.x.toFixed(2)}, ${forceps.position.z.toFixed(2)})`;
  renderFrames++;if(now-lastFpsTime>=1000){renderFps=Math.round(renderFrames*1000/(now-lastFpsTime));renderFrames=0;lastFpsTime=now;diag('note').title='Virtual FPS '+renderFps+' · detector frames skipped '+skippedFrames+' · mode '+(idleNoMarkers?'idle':'tracking');}
  // Frame-driven capture starts from each camera's frame callback instead (see observeCameraFrames below).
  if(!recordedInput()&&!frameDriven()){void detectFrame(now);void detectSecondFrame(now);}
  if(stereoSetup.enabled.checked){
-  if(!stereoSetup.calibration){stereoSetup.triangulationStatus.textContent='Import a solved calibration JSON first.';}
-  else if(trackingMode.value!=='stereo'){stereoSetup.triangulationStatus.textContent='Select 2 cameras in Tracking mode.';}
-  else if(simulation.checked){stereoSetup.triangulationStatus.textContent='Disable simulated input for live triangulation.';}
+  const blocked=stereoBlockedReason({calibrated:!!stereoSetup.calibration,stereoMode:trackingMode.value==='stereo',simulated:simulation.checked,
+   mismatch:()=>calibrationMatches(stereoSetup.calibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)});
+  if(blocked)stereoSetup.triangulationStatus.textContent=blocked;
   else{
-   const mismatch=calibrationMatches(stereoSetup.calibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight);
-   if(mismatch){stereoSetup.triangulationStatus.textContent='Stereo inactive: '+mismatch;}
-   else{
     const synchronized=stereoFrames.pair(now),notes:string[]=[];
     if(!synchronized)notes.push('No time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));
     latestPairingFailure=synchronized?null:stereoFrames.lastFailure??'unknown';
@@ -987,7 +980,6 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
      else stereoPositions.set(name,{position:filter.position.clone(),quaternion:filter.quaternion.clone(),lastSeen:sampleAt,lastSample:sampleAt});
     }
     stereoSetup.triangulationStatus.textContent=notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.';
-   }
   }
  }
  updateStereoViewIndicator(now);

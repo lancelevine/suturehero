@@ -31,3 +31,15 @@ export function stereoIndicator({ configured, fallback, fresh, mismatch, monoStr
   else state = monoStreaming ? 'mono' : 'off';
   return { color, label, state };
 }
+
+/**
+ * Why live triangulation cannot run yet, as shown under the stereo setup, or null when it can.
+ * `mismatch` is only evaluated once a calibration is loaded and the other conditions hold.
+ */
+export function stereoBlockedReason(input: { calibrated: boolean; stereoMode: boolean; simulated: boolean; mismatch: () => string | null }): string | null {
+  if (!input.calibrated) return 'Import a solved calibration JSON first.';
+  if (!input.stereoMode) return 'Select 2 cameras in Tracking mode.';
+  if (input.simulated) return 'Disable simulated input for live triangulation.';
+  const mismatch = input.mismatch();
+  return mismatch ? 'Stereo inactive: ' + mismatch : null;
+}
