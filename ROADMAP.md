@@ -48,6 +48,7 @@ Last updated: 2026-11-27
 - **Benchmarks by training level:** compare against anonymous averages for students, residents and attendings.
 - **Adaptive next drill:** pick a drill that targets your weakest metric, spaced-repetition style.
 - **Daily challenge:** the same wound for everyone each day, with a leaderboard.
+- **Multi-layer closure:** buried deep dermal stitches first, then a skin layer; scored on whether the deep layer took tension off the skin.
 - **Instrument tie speed drills:** timed knots scored on speed and on whether each is square and lies flat.
 
 ## Long term
