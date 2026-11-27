@@ -87,6 +87,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — shared setText; full local CI pass
+
+- `src/ui/setText.ts` (+test) used by main.ts and tracking.ts: the tracking readouts (marker,
+  pose, filter, overlap, stereo label, triangulation status) no longer rewrite unchanged text.
+- Full `node scripts/ci-browser-checks.mjs` locally: 41/41 passed. Then sandbox, layout,
+  guided-thread, free-tying, practice-setup, tracking-panels, tracking-motion, stereo-motion,
+  driver-depth, status-strip all pass on the latest commits.
+
 ### 2026-11-27 — Claude — practice loop: no same-text DOM writes
 
 - The render loop wrote ~9 labels every frame even when unchanged (each write replaces the text
