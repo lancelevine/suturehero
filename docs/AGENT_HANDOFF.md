@@ -87,6 +87,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Tracking Lab bridge out of tracking.ts (−48 lines)
+
+- `src/trackingLab/bridge.ts` (+test): `createTrackingLabBridge(deps)`; tracking.ts still exports
+  `trackingLabBridge` (the Lab imports it from there). Same behaviour.
+- Checked: tracking-lab, tracking-lab-layout, tracking-lab-scroll, production-mode.
+- Graphics: glossier suture (roughness 0.35) made no visible difference at normal zoom; reverted.
+
 ### 2026-11-27 — Claude — overlay helpers and getOrCreate
 
 - `drawCornerMarks` (markerOverlay.ts) and `drawRingAxes` (ringAxisOverlay.ts), tested; five

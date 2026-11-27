@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {createTrackingLabBridge} from './trackingLab/bridge';
 import {getOrCreate} from './util/getOrCreate';
 import {RotationTracker,type RotationContext} from './input/RotationTracker';
 import {StereoPoseMemory} from './input/stereoPoseMemory';
@@ -26,7 +27,6 @@ import {mountStereoCalibrationPanel} from './input/stereoCalibrationPanel';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
 import {CameraMovedMonitor,fitErrorFromReason} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
-import {snapshotTrackingStorage} from './trackingLab/configuration';
 import {cameraImage,recordedInput} from './trackingLab/runtime';
 import {solveStereoRigPose,type StereoRigDiagnostics,type StereoRigPose} from './input/stereoRigPose';
 import {StereoPositions} from './input/stereoPositions';
@@ -56,7 +56,6 @@ import {LiveProfiler} from './diagnostics/LiveProfiler';
 import {mountProfilerPanel} from './ui/ProfilerPanel';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
 import {mountHallSensorPanel} from './ui/HallSensorPanel';
-import type {Diagnostics} from './trackingLab/model';
 import {mountPerformancePanel} from './ui/PerformancePanel';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
@@ -904,74 +903,25 @@ mountTrackingStatusStrip(()=>{
  };
 },now=>cameraMovedMonitor.check(now));
 
-/** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
-export const trackingLabBridge = {
- videos: () => [video, video2],
- async start(cameras?: number[]) {
-  if (!stream) await startPrimaryCamera();
-  if ((cameras?.includes(1) ?? trackingMode.value === 'stereo') && !stream2) {
-   const primary = stream?.getVideoTracks()[0]?.getSettings().deviceId ?? select.value;
-   if (!select2.value || select2.value === primary) {
-    const other = (await availableCameras()).find(device => device.deviceId !== primary);
-    if (!other) throw new Error('Two-camera mode needs a second available camera');
-    select2.value = other.deviceId;
-   }
-   await startSecondaryCamera();
-   if (!stream2) throw new Error('Camera 2 did not start');
-  }
- },
- configuration() {
-  const profiles = Object.fromEntries((['needleDriver', 'forceps', 'scissors'] as const)
-   .map(name => [name, instrumentCalibration.profile(name)]));
-  const controls = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[id],select[id]'))
-   .filter(element => element.type !== 'file' && element.closest('#tracking-app,.tracking-tools-panel,#instrument-calibration'))
-   .map(element => ({id: element.id, value: element.value, checked: element instanceof HTMLInputElement ? element.checked : undefined}));
-  return {
-   storage: snapshotTrackingStorage({
-    'suturehero.instrument-calibration.v1': JSON.stringify(profiles),
-   }),
-   controls,
-   activeInstrument: document.querySelector('[data-calibration-tool][aria-pressed="true"]')?.getAttribute('data-calibration-tool') ?? 'needleDriver',
-  };
- },
- snapshot(camera: number) {
-  const source = camera ? video2 : video, now = performance.now();
-  const at = camera ? secondaryObservationsAt : observationsAt;
-  const currentWorkers = [camera ? detector2 : detector, camera ? fastTracker2 : fastTracker]
-   .filter(worker => worker.lastResultAt >= (frameClock(source)?.presentedAt ?? now) - 1);
-  const markers = (camera ? liveSecondMarkers() : liveMarkers()).map(marker => ({
-   ...marker,
-   current: currentWorkers.some(worker => worker.lastDetectedIds.includes(marker.id)),
-   corners: marker.corners.map(point => ({...point})),
-  }));
-  return {
-   // Camera jaw tracking was removed (build 0.205; jaws come from the Hall sensor): ball fields stay empty for the Lab.
-   at, ballProcessed: true, markerCurrent: markers.some(marker => marker.current),
-   markers: now - at < 220 ? markers : [],
-   width: (camera ? overlay2 : overlay).width, height: (camera ? overlay2 : overlay).height,
-   ballWidth: 640, ballHeight: 0,
-   // In stereo, add why each instrument did or did not get a stereo pose this frame.
-   balls: [] as Diagnostics['balls'], status: (stereoViewLabel.textContent ?? '') + (stereoActive() && stereoSetup.triangulationStatus.textContent ? '\n' + stereoSetup.triangulationStatus.textContent : ''), confidence: null,
-   jawEngine: 'classic', ballSupported: false,
-   poses: [...liveTargets].filter(([, target]) => now - target.lastSeen < 220).map(([instrument, target]) => ({
-    instrument, markerId: target.id,
-    markerPose: {camera: 0, translationMm: target.pose.position.toArray(), quaternion: target.pose.quaternion.toArray(), reprojectionErrorPx: target.pose.reprojectionError},
-    position: target.position.toArray(), quaternion: target.quaternion.toArray(), at: target.lastSeen,
-   })),
-   stereo: stereoActive(),
-  };
- },
- async process(camera: number, at: number) {
-  if (!recordedInput()) throw new Error('Recorded frame input is required');
-  await (camera ? detectSecondFrame(at) : detectFrame(at));
-  const started = Date.now();
-  while (detector.busy || detector2.busy || fastTracker.busy || fastTracker2.busy || capture1.flowBusy || capture2.flowBusy
-   || capture1.decodeBusy || capture2.decodeBusy) {
-   if (Date.now() - started > 20000) throw new Error('Tracking worker timed out');
-   await new Promise(resolve => setTimeout(resolve, 1));
-  }
-  updateLiveTargets();
-  animate(at);
-  return this.snapshot(camera);
- },
-};
+// Tracking Lab access to the live page (src/trackingLab/bridge.ts).
+export const trackingLabBridge=createTrackingLabBridge({
+ videos:()=>[video,video2],
+ running:camera=>!!(camera?stream2:stream),
+ startPrimary:startPrimaryCamera,startSecondary:startSecondaryCamera,
+ stereoMode:()=>trackingMode.value==='stereo',
+ primaryDeviceId:()=>stream?.getVideoTracks()[0]?.getSettings().deviceId??select.value,
+ secondarySelect:select2,availableCameras,
+ instrumentProfiles:()=>Object.fromEntries((['needleDriver','forceps','scissors'] as const).map(name=>[name,instrumentCalibration.profile(name)])),
+ observationsAt:camera=>camera?secondaryObservationsAt:observationsAt,
+ workers:camera=>camera?[detector2,fastTracker2]:[detector,fastTracker],
+ presentedAt:camera=>frameClock(camera?video2:video)?.presentedAt,
+ liveMarkers:camera=>camera?liveSecondMarkers():liveMarkers(),
+ overlaySize:camera=>camera?overlay2:overlay,
+ statusText:()=>(stereoViewLabel.textContent??'')+(stereoActive()&&stereoSetup.triangulationStatus.textContent?'\n'+stereoSetup.triangulationStatus.textContent:''),
+ stereoActive,
+ liveTargets:()=>liveTargets,
+ recordedInput:()=>!!recordedInput(),
+ detect:(camera,at)=>camera?detectSecondFrame(at):detectFrame(at),
+ busy:()=>detector.busy||detector2.busy||fastTracker.busy||fastTracker2.busy||capture1.flowBusy||capture2.flowBusy||capture1.decodeBusy||capture2.decodeBusy,
+ updateLiveTargets,animate,
+});
