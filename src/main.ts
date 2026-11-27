@@ -62,6 +62,7 @@ import { practicePageMarkup } from './ui/practicePageMarkup';
 import { mountCourseExport } from './ui/courseExport';
 import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 import {FpsCounter} from './diagnostics/FrameRates';
+import {TipCollisionCounter} from './gameplay/tipCollisions';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -344,17 +345,25 @@ try {
   // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
   const skillRecorder=new SkillRecorder();
   /** Needle-driver tip in its local frame (scene units); reused vector for the per-frame sample. */
-  const DRIVER_TIP_LOCAL=new THREE.Vector3(0,0,.05),skillTip=new THREE.Vector3();
+  const DRIVER_TIP_LOCAL=new THREE.Vector3(0,0,.05),skillTip=new THREE.Vector3(),forcepsSkillTip=new THREE.Vector3(),needleSkillPoint=new THREE.Vector3();
+  /** The needle within this distance of both tips (mm) means a handoff, not a collision. */
+  const NEEDLE_HANDOFF_MM=15;
+  const tipCollisions=new TipCollisionCounter();
   let skillClock=0;
   const sampleSkill=()=>{
-   const t=session.clock.secondsSoFar;if(t<skillClock)skillRecorder.clear();skillClock=t;
+   const t=session.clock.secondsSoFar;if(t<skillClock){skillRecorder.clear();tipCollisions.reset();}skillClock=t;
    tools[1].root.updateWorldMatrix(true,false);
    const tip=tools[1].root.localToWorld(skillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
    const hold=session.eversion;
    skillRecorder.add({t,x:tip.x,z:tip.z,holding:hold.held,safeHold:hold.held&&!['stretching','slipping','slipped'].includes(hold.traction.state)});
+   // Tip collisions (src/gameplay/tipCollisions.ts): a handoff is when the needle is near both tips.
+   tools[0].root.updateWorldMatrix(true,false);needle.root.updateWorldMatrix(true,false);
+   const forcepsTip=tools[0].root.localToWorld(forcepsSkillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
+   const needleMm=needle.root.getWorldPosition(needleSkillPoint).multiplyScalar(SCENE_MM_PER_UNIT);
+   tipCollisions.update(tip.distanceTo(forcepsTip),needleMm.distanceTo(tip)<NEEDLE_HANDOFF_MM&&needleMm.distanceTo(forcepsTip)<NEEDLE_HANDOFF_MM);
   };
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
-  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
+  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;

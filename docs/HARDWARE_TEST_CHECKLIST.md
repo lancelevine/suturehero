@@ -143,3 +143,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: in Sandbox, make a straight pass and a deliberately slanted one; the straight one gets a green line across the wound, the slanted one amber, and the Targets list shows "Square to wound" with the worst angle.
 - Build 0.235: in Sandbox, tie a stitch in the middle, then at about the quarter points; the summary's spacing line ends "Stitch order: middle first, then halving". Start at one end instead and it says from which stitch to change.
 - Build 0.235: in Sandbox, make passes with one much wider bite; the summary's "Bite consistency" line names that pass as an outlier.
+- Build 0.235: open Analysis, touch the forceps and needle-driver tips together (not while passing the needle): "Tip collisions" goes up by one per touch. Passing the needle between them should not count.

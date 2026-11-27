@@ -39,6 +39,8 @@ export interface SkillReport {
   ideal: Array<{ x: number; z: number }> | null;
   /** Tip speed over time (s, mm/s). */
   speed: Array<{ t: number; v: number }>;
+  /** Driver/forceps tip bumps outside needle handoffs (src/gameplay/tipCollisions.ts), when counted. */
+  tipCollisions?: number;
 }
 
 export class SkillRecorder {

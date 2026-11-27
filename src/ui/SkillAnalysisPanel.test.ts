@@ -19,3 +19,8 @@ it('draws speed against time, highest speed at the top', () => {
   expect(speedLine([{ t: 0, v: 0 }, { t: 1, v: 10 }], 100, 40)).toBe('0.0,36.0 100.0,4.0');
   expect(speedLine([{ t: 0, v: 1 }])).toBe('');
 });
+
+it('adds tip collisions when counted', () => {
+  const rows = skillRows({ seconds: 1, pathLengthCm: 0, smoothness: null, accuracyMm: null, jawsControl: null, path: [], ideal: null, speed: [], tipCollisions: 0 });
+  expect(rows.at(-1)).toMatchObject({ label: 'Tip collisions', value: '0', good: true });
+});

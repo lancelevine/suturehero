@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: instrument tip collisions (roadmap, build 0.235)
+- New `src/gameplay/tipCollisions.ts` (+test): contact below 3 mm, released above 5 mm, not counted when the needle is within 15 mm of both tips (handoff). `src/main.ts` feeds it from the skill sampler and adds `tipCollisions` to the Skill Analysis report; `skillRows` shows it when present (+test).
+- Checked: tsc, SkillAnalysisPanel/skillAnalysis/tipCollisions tests, browser (row shows 0, no page errors), check-sandbox. The handoff test is approximate (needle root position); Lance to try with real instruments.
+
 ### 2026-11-27 — Claude: outlier bites ringed on the skin
 - `src/scene/freePassMarks.ts`: a red ring (shared geometry/material) on each completed pass's entry/exit bite that `biteConsistency` flags as an outlier (+test). Checked: tsc, freePassMarks test, check-sandbox, check-layout.
 
