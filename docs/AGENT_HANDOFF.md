@@ -48,6 +48,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — markerPose tests; phone layout look
+
+- `src/input/markerPose.test.ts`: facing and tilted markers are recovered from projected corners;
+  degenerate input rejected (the module had no unit test).
+- Phone width (390 px) screenshot: no horizontal scroll; header buttons wrap; side panel opens
+  below the scene. The 3D scene is small there when the camera dock is beside it (pre-existing
+  layout; left for Lance to decide).
+
 ### 2026-11-27 — Claude — Build 0.228: softer shadows
 
 - `light.shadow.intensity = 0.7` (createScene.ts, `SHADOW_INTENSITY`): shadows partly lit instead
