@@ -42,3 +42,15 @@ export function drawCornerMarks(context: CanvasRenderingContext2D, corners: Mark
     context.fill();
   }
 }
+
+/** A marker's green outline is drawn only this long after its ID was last decoded (ms). */
+export const DECODED_OUTLINE_MS = 650;
+
+/**
+ * Clear a camera overlay and outline its recently decoded markers (camera 2; moved out of
+ * src/tracking.ts, 2026-11-27). An optical-flow prediction of an old marker is not outlined.
+ */
+export function drawDecodedMarkers(context: CanvasRenderingContext2D, markers: readonly MarkerObservation[], decodedAgeMs: (id: number) => number, width: number, height: number) {
+  context.clearRect(0, 0, width, height);
+  for (const marker of markers) if (decodedAgeMs(marker.id) <= DECODED_OUTLINE_MS) drawDetectedMarker(context, marker);
+}

@@ -16,7 +16,7 @@ import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoBlockedReason,stereoIndicator} from './input/stereoIndicator';
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
-import {cameraStatusText,drawCornerMarks,drawDetectedMarker} from './ui/markerOverlay';
+import {cameraStatusText,drawCornerMarks,drawDecodedMarkers} from './ui/markerOverlay';
 import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {chooseFace,faceCandidates} from './input/rotationTracking';
@@ -333,13 +333,7 @@ async function detectSecondFrame(now:number){
  try{
  const render=()=>{
   const fresh=liveSecondMarkers();
-  overlayContext2.clearRect(0,0,w,h);
-  for(const marker of fresh){
-   // Same green-outline rule as Camera 1: require a recent decoded ID,
-   // not merely an optical-flow prediction of an old marker.
-   if(performance.now()-(decoded2.get(marker.id)??-Infinity)>650)continue;
-   drawDetectedMarker(overlayContext2,marker);
-  }
+  drawDecodedMarkers(overlayContext2,fresh,id=>performance.now()-(decoded2.get(id)??-Infinity),w,h);
   drawTipDots(overlayContext2,2,w,h);
   const stamp=performance.now();
   if(stamp-statsAt2>=1000){

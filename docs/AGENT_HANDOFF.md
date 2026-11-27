@@ -92,6 +92,8 @@ entry when finishing.
 - `recordFlowMotion` and `holdDecodedMarkers` (DECODED_HOLD_MS = 300) in
   `src/input/driftCorrection.ts`, tested. Checked: tracking-motion, marker-rest, ring-handoffs,
   marker-motion, predictive-decode.
+- Also `drawDecodedMarkers` (camera 2 overlay; markerOverlay.ts), tested; checked stereo-motion,
+  dual-camera-fit, stereo-capture-quality.
 
 ### 2026-11-27 — Claude — Tracking Lab bridge out of tracking.ts (−48 lines)
 
