@@ -64,7 +64,7 @@ Last updated: 2026-11-27
 - **Forehand and backhand bites:** reads needle orientation in the driver against bite direction; flags awkward forehand bites where backhand would be cleaner.
 - **Dead space check:** after closure, finds gaps between the wound floor and the stitched surface in the cutaway and points to the bites too shallow to close them.
 - **Suture breaking strength:** each suture size gets a real breaking load; the thread snaps if a pull or knot throw exceeds it, with a gauge showing how close each pull came.
-- **Stitch count for the vessel:** suggests a stitch count from vessel diameter and wall (about 8 for a 1 mm artery) and scores the count placed; too few leaks, too many narrows the lumen.
+- **Stitch count for the vessel:** suggests a stitch count from vessel diameter and wall (about 8 for a 1 mm artery) and scores the count placed; too few leaks, too many narrows the lumen. *(Not started: microsurgery is one guided stitch for now; needs a full anastomosis and a count rule from Lance beyond the 1 mm ≈ 8 anchor.)*
 - **Rotate, don't push:** reads the driver's marker during each bite and scores rotation around the needle's curve versus straight pushing that widens the puncture.
 - **Pull direction when tying:** reads the thread's direction as each throw snugs down and flags throws pulled along the wound or upward instead of straight across in line with the bite.
 - **Sliding knot on tight wounds:** two same-way throws as a slip knot, slid down until edges just meet, then locked with a reversed throw; shows edge contact while sliding and checks it was locked.
