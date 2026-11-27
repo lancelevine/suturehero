@@ -74,6 +74,7 @@ Last updated: 2026-11-27
 - **Adaptive next drill:** pick a drill that targets your weakest metric, spaced-repetition style.
 - **Daily challenge:** the same wound for everyone each day, with a leaderboard.
 - **Supermicrosurgery drill:** 0.3 to 0.8 mm vessels at lymphaticovenous anastomosis scale, 11-0 or 12-0 suture, higher magnification.
+- **End-to-side anastomosis:** sew a vessel end onto a side opening in a second vessel; heel and toe first, then each side; scored on join angle and heel narrowing.
 - **Multi-layer closure:** buried deep dermal stitches first, then a skin layer; scored on whether the deep layer took tension off the skin.
 - **Buried knot check:** each deep dermal stitch goes deep to superficial, then superficial to deep, so the knot lands at the bottom of the wound.
 - **Instrument tie speed drills:** timed knots scored on speed and on whether each is square and lies flat.
