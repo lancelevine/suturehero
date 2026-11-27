@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: fewer per-frame DOM writes
+- `src/main.ts`: the stitch-step list (`[data-stitch-step]`) is queried once and re-marked only when the step changes (was `querySelectorAll` + marking every frame).
+- `src/tracking.ts` (previous commit d66333f): decode diagnostics lines written with `setText`.
+- Checked: tsc, check-guided-thread, check-sandbox, check-tracking-motion.
+
 ### 2026-11-27 — Claude: cached diagnostics lookups
 - `src/tracking.ts`: `diag(name)` (the `#diag-*` lines, written several times per decoded frame) now goes through `cachedQuery` instead of `document.querySelector` each call.
 - Checked: tsc, check-tracking-motion, check-profiler, check-full-scan.
