@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: cached diagnostics lookups
+- `src/tracking.ts`: `diag(name)` (the `#diag-*` lines, written several times per decoded frame) now goes through `cachedQuery` instead of `document.querySelector` each call.
+- Checked: tsc, check-tracking-motion, check-profiler, check-full-scan.
+
 ### 2026-11-27 — Claude: rotation solver status cached
 - `src/tracking.ts`: `#rotation-solver-status` is looked up once and written with `setText` (both writers: rotation context and the still-instrument branch of `updateLiveTargets`); it was a `querySelector` plus DOM write per instrument per frame.
 - Checked: tsc, check-marker-rest, check-ring-handoffs, check-tracking-motion, check-driver-depth.

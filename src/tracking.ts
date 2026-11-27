@@ -84,6 +84,7 @@ import './tracking.css';
 import './ui/theme.css';
 import {stereoPairingStep} from './input/stereoPairingStep';
 import {RenderedPoseState} from './input/RenderedPoseState';
+import {cachedQuery} from './ui/cachedQuery';
 
 declare const __SUTUREHERO_BUILD__: string;
 declare const __SUTUREHERO_REVISION__: string;
@@ -360,7 +361,9 @@ void refreshSecondCameraList().catch(()=>{status2.textContent='Connect both USB 
 
 // Validated stereo capture is owned by stereoAutoCapture.
 
-const diag=(name:string)=>document.querySelector<HTMLElement>('#diag-'+name)!;
+// Diagnostics lines (#diag-*): used per frame, so looked up through a cache (src/ui/cachedQuery.ts).
+const diagQuery=cachedQuery();
+const diag=(name:string)=>diagQuery<HTMLElement>('#diag-'+name)!;
 let framesAnalyzed=0,detectorFpsWindow=performance.now(),detectorFpsCount=0;
 const overlayContext=overlay.getContext('2d')!;
 let observations:MarkerObservation[]=[];
