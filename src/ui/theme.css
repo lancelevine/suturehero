@@ -152,3 +152,19 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 .production-stage .iphone-start button{background:linear-gradient(180deg,#3fdcff,#1ea8e0)!important;color:#03101d!important;box-shadow:0 0 18px rgba(63,216,255,.4)}
 
 .iphone-start p{background:var(--sh-panel)!important;color:var(--sh-text)!important;box-shadow:var(--sh-glow)}
+
+/* Meters and progress bars: dark track, glowing green fill (amber/red when the app marks a warning). */
+:is(#app,#tracking-app,dialog) :is(meter,progress){-webkit-appearance:none;appearance:none;height:6px;border:0;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+:is(#app,#tracking-app,dialog) progress::-webkit-progress-bar{background:rgba(255,255,255,.08);border-radius:3px}
+:is(#app,#tracking-app,dialog) progress::-webkit-progress-value{background:var(--sh-green);border-radius:3px;box-shadow:0 0 8px rgba(62,229,154,.6)}
+:is(#app,#tracking-app,dialog) progress::-moz-progress-bar{background:var(--sh-green);border-radius:3px}
+:is(#app,#tracking-app,dialog) meter::-webkit-meter-bar{background:rgba(255,255,255,.08);border:0;border-radius:3px;height:6px}
+:is(#app,#tracking-app,dialog) meter::-webkit-meter-optimum-value{background:var(--sh-green);border-radius:3px}
+:is(#app,#tracking-app,dialog) meter::-webkit-meter-suboptimum-value{background:var(--sh-amber);border-radius:3px}
+:is(#app,#tracking-app,dialog) meter::-webkit-meter-even-less-good-value{background:var(--sh-red);border-radius:3px}
+:is(#app,#tracking-app,dialog) meter:is([data-state=stretching],[data-state=slipping],[data-state=slipped])::-webkit-meter-optimum-value{background:var(--sh-amber)}
+
+/* Instruction strip under the scene: a glass bar with a cyan accent. */
+:is(#app,#tracking-app) .workspace-coach{margin-top:10px;padding:10px 14px;border-radius:var(--sh-radius);background:var(--sh-panel);box-shadow:var(--sh-glow);border-left:3px solid var(--sh-cyan)}
+:is(#app,#tracking-app) .workspace-coach .exercise-feedback strong{font-weight:600}
+:is(#app,#tracking-app) #skin-handling{border-radius:var(--sh-radius-sm);background:var(--sh-panel-deep);box-shadow:0 0 0 1px rgba(63,216,255,.14)}
