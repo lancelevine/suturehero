@@ -71,6 +71,8 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
       two; Diagnostics → profile should still list Camera 1 / Camera 2 rows.
 - [ ] **Stereo tip (if calibrated).** With two cameras and a calibrated tip, the instrument
       sits at its real tip and the saved jaw orientation still applies (code moved 2026-11-27).
+- [ ] **Rotation unchanged (2026-11-27).** Rolling and tilting each instrument, and turning it
+      so a different ring face shows, looks the same as before (the rotation code was moved).
 - [ ] **Depth range.** Near / Far / Reset depth range and the working-depth field
       behave as before.
 - [ ] **OV9281 (when they arrive).** Start one: Camera settings → Camera type switches

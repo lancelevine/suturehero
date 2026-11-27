@@ -87,6 +87,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — rigid-body rotation out of tracking.ts (−67 lines)
+
+- `src/input/RotationTracker.ts` (+test): the second half of `updateLiveTargets` (rigid-body
+  solve or stereo rotation, source switching, face transitions, rotation gate, stall/accept) and
+  the "held still" ring alignment, owning the three per-instrument maps it used. The page passes a
+  `RotationContext` (marker freshness, ring trackers, stereo rotation, checkboxes, status outputs).
+  Same order and arithmetic; magic numbers named (350/650/110/100/180 ms).
+- Checked: tracking-motion, calibration-rotation, rotation-frame, ring-handoffs, marker-rest,
+  neutral-placement, stereo-motion, stereo-rig-faces, driver-depth (also SUTURE_DEPTH_NOISE=1),
+  ring-configuration, calibration-preview.
+- Lance: rotation with the real camera (checklist section 4).
+
 ### 2026-11-27 — Claude — stereo pose memory out of tracking.ts
 
 - `src/input/stereoPoseMemory.ts` (+test): per-instrument stereo fit cache and continuity seed

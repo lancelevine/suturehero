@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {RotationTracker,type RotationContext} from './input/RotationTracker';
 import {StereoPoseMemory} from './input/stereoPoseMemory';
 import {MONO_VIEW_MAX_AGE_MS,stereoMonoViews as monoViewsFromCameras} from './input/stereoMonoViews';
 import {mountTrackingStatusStrip} from './ui/trackingStatusStrip';
@@ -16,7 +17,7 @@ import {orientationNote} from './input/iphoneCamera';
 import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
 import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
-import {acceptRotation,chooseFace,combineRotation,faceCandidates,gateElapsedSeconds,largestFaceId,restRigidBody,rotationFaceMarkers,predictRotation,rotationVerdict,stallRotation,startRigidBody,updateFaceTransition,type FaceTransitionState,type RigidBodyState} from './input/rotationTracking';
+import {chooseFace,faceCandidates} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
 import {mountDetectionPreviews} from './ui/detectionPreviews';
 import {mountDepthRangeControls} from './input/depthRangeControls';
@@ -72,7 +73,7 @@ import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
 import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from './input/trackingMessages';
 import {readStored,writeStored,parseTrackerType,trackerTypeStorageKey} from './input/trackingStorage';
 import {estimateMarkerPose} from './input/markerPose';
-import {RING_LAYOUT_REVISION,solvePrismPose,trackerGeometry,type PrismPose,type TrackerType} from './input/prismPose';
+import {RING_LAYOUT_REVISION,trackerGeometry,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import type {BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
@@ -162,7 +163,7 @@ function updateTrackerDescription(){
 
 function resetTrackerPose(){
  instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();distanceTracks.resetSizeEstimators();capture1.search.reset();capture2.search.reset();
- rigidBodyStates.clear();rotationSources.clear();
+ rotationTracker.reset();
  liveTargets.clear();stereoPositions.clear();stereoPoseFilters.clear();
  
  distanceTracks.resetHistories();
@@ -421,9 +422,19 @@ function pruneMarkers(){observations=observations.filter(m=>markerAge(m.id)<=MAR
 let observationsAt=0;
 const trackingHoldMs=650;
 // Rotation-only rigid-body state. Never used to accept/reject translation.
-const rotationSources=new Map<InstrumentName,'mono'|'stereo'>();
-const faceTransitionStates=new Map<InstrumentName,FaceTransitionState>();
-const rigidBodyStates=new Map<InstrumentName,RigidBodyState>();
+const rotationTracker=new RotationTracker<InstrumentName>();
+/** What the rotation step reads from this page for one instrument (src/input/RotationTracker.ts). */
+const rotationContextFor=(name:InstrumentName,ids:readonly number[]):RotationContext=>({
+ ids,trackerType,mono:trackingMode.value==='mono',width:overlay.width,height:overlay.height,
+ flowRotation:document.querySelector<HTMLInputElement>('#flow-rotation')!.checked,
+ faceTransition:document.querySelector<HTMLInputElement>('#face-transition')!.checked,
+ recentlyDecoded:recentlyDecodedMarkers,lastDecodedAt:id=>markerLastDecoded.get(id),markerAge:id=>markerAge(id),
+ ringTracker:create=>create?ringPoseTracker(name):ringPoseTrackers.get(name),
+ stereoRotation:()=>stereoPrismRotation(name,performance.now()),
+ stageRaw:rotationStageRaw,stageStatus:rotationStageStatus,
+ setSolverStatus:text=>{document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=text;},
+ setAngleDegrees:degrees=>{const m=filterMeasurements.get(name);if(m)m.angle=degrees;},
+});
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
 const monoDepthFilters=new Map<InstrumentName,MonocularDepthFilter>();
 const stableDepth=document.querySelector<HTMLInputElement>('#stable-depth')!;
@@ -538,18 +549,11 @@ function updateLiveTargets(){
   // -> scene Y, and camera depth -> scene Z. Do not swap horizontal and depth:
   // doing so makes a left/right physical movement appear forward/back.
   const position=new THREE.Vector3(x,y,z);
-  if(stationary&&previous&&now-previous.lastSeen<700&&rigidBodyStates.has(name)){
+  const rotationContext=rotationContextFor(name,ids);
+  if(stationary&&previous&&now-previous.lastSeen<700&&rotationTracker.has(name)){
    // Holding still is exactly when overlap alignment should accumulate.
    // The rest latch must not skip those calibration observations.
-   let alignedStatus='';
-   if(trackerType==='ring8'&&trackingMode.value==='mono'){
-    const tracker=ringPoseTracker(name);
-    tracker.solve(recentlyDecodedMarkers(ids,350),ids[0],overlay.width,overlay.height,now,rigidBodyStates.get(name)?.pose);
-    alignedStatus=' · '+tracker.status;
-   }
-   // Recognition and overlap indicators keep updating; an unchanged shared
-   // face is evidence that a different face count is not physical movement.
-   const state=rigidBodyStates.get(name);if(state)restRigidBody(state,now);
+   const alignedStatus=rotationTracker.holdStill(name,now,rotationContext);
    // Let a real depth move finish filtering after the instrument stops. The
    // held raw distance above prevents face-count changes from creating new depth.
    position.x=previous.position.x;position.y=previous.position.y;
@@ -558,83 +562,12 @@ function updateLiveTargets(){
    document.querySelector('#rotation-solver-status')!.textContent=name+' · stationary image geometry · pose held'+alignedStatus;
    continue;
   }
-
-  // Independent rigid-body rotation: never gate or alter the working translation.
-  const continuousFlowRotation=document.querySelector<HTMLInputElement>('#flow-rotation')!.checked&&trackingMode.value==='mono';
-  // Baseline requires a recent decode. Experimental mode additionally uses
-  // flow-confirmed corners while their identity remains recently decoded.
-  const rotationMarkers=recentlyDecodedMarkers(ids,continuousFlowRotation?650:350);
-  let state=rigidBodyStates.get(name);
-  const faceTransitionEnabled=document.querySelector<HTMLInputElement>('#face-transition')!.checked&&trackingMode.value==='mono';
-  const currentFace=largestFaceId(rotationFaceMarkers(rotationMarkers,ids[0],trackerType==='ring8'));
-  // Solve all simultaneously visible prism faces as one rigid object.
-  // Retain the last accepted pose as a solver seed, but never discard real
-  // rotation by resetting the output anchor when the visible face changes.
-  const predicted:PrismPose|undefined=state?predictRotation(state,now):undefined;
-  const ringTracker=trackerType==='ring8'?ringPoseTracker(name):ringPoseTrackers.get(name);
-  const useAlignedRing=trackerType==='ring8'&&trackingMode.value==='mono';
-  const monoRigid=perf.measure('Rigid pose solve',()=>useAlignedRing
-   ?ringTracker!.solve(rotationMarkers,ids[0],overlay.width,overlay.height,now,state?.pose,predicted)
-   :solvePrismPose(rotationMarkers,ids[0],overlay.width,overlay.height,state?.pose,predicted,trackerType));
-  const stereoRigid=perf.measure('Stereo pose/synchronization',()=>stereoPrismRotation(name,performance.now()));
-  // Stereo pose has a distinct camera-calibrated frame. Preserve the mono
-  // solver's orientation state separately so switching modes cannot cause
-  // an arbitrary camera-frame jump.
-  const {rigid,source:rotationSource}=combineRotation(monoRigid,stereoRigid);
-  const stereoUsable=rotationSource==='stereo';
-  const lastSource=rotationSources.get(name);
-  if(rigid&&lastSource&&lastSource!==rotationSource){
-   rigidBodyStates.delete(name);
-   state=undefined;
-  }
-  if(rigid)rotationSources.set(name,rotationSource);
-  if(rigid){rotationStageRaw.set(name,rigid.quaternion.clone());rotationStageStatus.set(name,'solver valid');}
-  else{
-   const message=useAlignedRing?ringTracker!.status:'no raw pose';rotationStageStatus.set(name,message);
-   if(useAlignedRing)document.querySelector('#rotation-solver-status')!.textContent=name+' · '+message;
-  }
-  let quaternion=previous?.quaternion.clone()??new THREE.Quaternion();
-  if(rigid){
-   if(!state){
-    rigidBodyStates.set(name,startRigidBody(rigid,quaternion,now));
-    if(currentFace!==null)faceTransitionStates.set(name,{faceId:currentFace,candidateId:null,candidateCount:0});
-   }else{
-    const elapsed=gateElapsedSeconds(state,now);
-    const angularDifference=rigid.quaternion.angleTo(state.lastRaw);
-    const depthMeasurement=filterMeasurements.get(name);if(depthMeasurement)depthMeasurement.angle=THREE.MathUtils.radToDeg(angularDifference);
-    const freshDecodedFace=rotationMarkers.some(m=>performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<110);
-    const flowRotationRecent=continuousFlowRotation&&rotationMarkers.some(m=>markerAge(m.id)<100);
-    let transition=faceTransitionStates.get(name);
-    if(!transition&&currentFace!==null){
-     transition={faceId:currentFace,candidateId:null,candidateCount:0};
-     faceTransitionStates.set(name,transition);
-    }
-    const changedFace=!!transition&&currentFace!==null&&currentFace!==transition.faceId;
-    const newFaceFresh=changedFace&&rotationMarkers.some(m=>m.id===currentFace&&
-     performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<180);
-    if(transition)updateFaceTransition(transition,currentFace,newFaceFresh);
-    const predictedDifference=predicted?rigid.quaternion.angleTo(predicted.quaternion):Infinity;
-    const verdict=rotationVerdict({error:rigid.error,faces:rigid.faces,stereo:stereoUsable,angularDifference,predictedDifference,elapsedSeconds:elapsed,
-     staleMs:now-state.lastAt,freshDecodedFace,flowRotationRecent,faceTransitionEnabled,newFaceFresh:!!newFaceFresh,candidateCount:transition?.candidateCount??0});
-    const credible=verdict!=='rejected';
-    document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=
-     name+' · '+rotationSource+' · raw '+THREE.MathUtils.radToDeg(angularDifference).toFixed(1)+'° · '+rigid.faces+
-     ' face(s) · error '+rigid.error.toFixed(1)+'px · '+(credible?verdict:(changedFace?'face transition pending':'angular gate rejected'))+(useAlignedRing?' · '+ringTracker!.status:'');
-    rotationStageStatus.set(name,credible?'accepted':'rejected ('+rigid.faces+' faces, '+rigid.error.toFixed(1)+' error)');
-    if(credible){
-     if(transition&&currentFace!==null){transition.faceId=currentFace;transition.candidateId=null;transition.candidateCount=0;}
-     // Track rotation in the prism's *local* coordinate frame. The virtual
-     // models have their shafts aligned with local Y, just like the prism.
-     // Postmultiplying the body-local delta makes prism roll rotate the
-     // instrument about its shaft, regardless of how the prism is tilted.
-     // Keep the instrument's existing tip pivot and stereo translation.
-     quaternion.copy(acceptRotation(state,rigid,now,elapsed,angularDifference));
-    }else stallRotation(state,now);
-   }
-  }else if(state)stallRotation(state,now);
+  // Independent rigid-body rotation: never gate or alter the working translation (src/input/RotationTracker.ts).
+  const quaternion=rotationTracker.update(name,now,previous?.quaternion,rotationContext);
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
+
 // Diagnostic rotation stages: raw solver, accepted target, rendered mesh (src/ui/rotationStageReadout.ts).
 const rotationStages=new RotationStageReadout<InstrumentName>();
 const rotationStageRaw=rotationStages.raw,rotationStageStatus=rotationStages.status;
