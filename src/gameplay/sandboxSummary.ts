@@ -1,5 +1,6 @@
 import { formatMm, SCENE_MM_PER_UNIT } from '../setup/sceneScale';
 import type { FreePassRecord } from '../tissue/FreeNeedlePass';
+import { biteConsistency, type BiteConsistency } from './biteConsistency';
 import { reviewStitchOrder, type StitchOrderReview } from './stitchOrder';
 
 /**
@@ -34,6 +35,8 @@ export interface SandboxSummary {
   worstSquareOffDeg?: number | null;
   /** Middle-first, then halving the gaps (src/gameplay/stitchOrder.ts); absent in older saved summaries. */
   stitchOrder?: StitchOrderReview;
+  /** Bites compared with the median bite (src/gameplay/biteConsistency.ts); absent in older saved summaries. */
+  biteConsistency?: BiteConsistency;
 }
 
 /**
@@ -71,6 +74,7 @@ export function summarizeSandbox(passes: readonly FreePassRecord[], torn: readon
     spacingMm: sorted.slice(1).map((s, i) => mm(s.siteZ - sorted[i].siteZ)),
     worstSquareOffDeg: squareOff.length ? Math.max(...squareOff) : null,
     stitchOrder: reviewStitchOrder(stitches.map((s) => s.siteZ)),
+    biteConsistency: biteConsistency(passes.map((p) => ({ entryMm: mm(p.entryEdge), exitMm: p.exitEdge === null ? null : mm(p.exitEdge) }))),
   };
 }
 

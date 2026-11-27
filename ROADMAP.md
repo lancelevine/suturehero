@@ -18,7 +18,7 @@ Last updated: 2026-11-27
 - **5-minute warm-up drill** with a daily log.
 - **More stitch patterns:** vertical and horizontal mattress, running, running subcuticular, each scored.
 - **Corner stitch:** half-buried horizontal mattress through the tip of a V-shaped or stellate wound; scored on the tip sitting flush without being strangled.
-- **Bite consistency score:** ruler overlay of each stitch's distance from the edge on both sides and spacing between stitches, outliers highlighted.
+- **Bite consistency score:** ruler overlay of each stitch's distance from the edge on both sides and spacing between stitches, outliers highlighted. *(First version in build 0.235: Sandbox summary line with outliers vs the median bite; the ruler overlay is still to do.)*
 - **Figure-of-eight and purse-string stitches:** for fascia, bleeders and round defects; each scored on its own geometry.
 - **Step-off check:** compares the height of the two wound edges at each stitch and flags any step-off from uneven bite depth.
 - **Back-wall catch alert:** during an anastomosis, flags any bite that catches the opposite vessel wall, on that bite rather than at the patency test.

@@ -8,6 +8,7 @@ commit `bde9116`.
 ## Build 0.235 — Stitch angle across the wound
 
 - Sandbox: each completed needle pass is drawn as a line across the wound, green when it is square to the wound and amber when it is more than 10° off (roadmap: "Stitch angle across the wound"). Approximate practice measure.
+- Sandbox: bite consistency. The summary compares every bite (entry and exit distance from the edge) with your median bite and lists any more than 1.5 mm off (roadmap: "Bite consistency score", text only for now).
 - Sandbox: stitch order coaching. After you tie stitches, the summary says whether you started in the middle and then halved the largest gap each time, and from which stitch you didn't (roadmap: "Stitch order coaching").
 - Sandbox targets: new "Square to wound (within 10°)" target with the worst pass shown; the limit is editable with the other targets.
 - Fewer per-frame allocations in the render loop.
