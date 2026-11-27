@@ -62,6 +62,7 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Deep-cavity suturing:** a wound in a pocket or under a retracted flap, at awkward angles.
 - **Ergonomics coaching:** cameras watch wrists, elbows and shoulders and nudge on posture drift.
 - **Training curriculum.**
+- **Left-handed mode (low priority):** mirror the scene, arc guide and scoring for left-handed surgeons.
 
 ## Maybe
 
