@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — stereo per-camera fallback views out of tracking.ts
+
+- `src/input/stereoMonoViews.ts` (+test): each camera's single-marker pose (undistort, solve,
+  reject bad fits/depths, camera 2 into camera 1's frame), thresholds named. Caching stays in
+  tracking.ts. Checked: stereo-motion, stereo-rig-faces, stereo-capture-quality, dual-camera-fit.
+
 ### 2026-11-27 — Claude — status strip wiring out of tracking.ts
 
 - `src/ui/trackingStatusStrip.ts` (+test): strip button wiring, 500 ms refresh, and `healthInput`

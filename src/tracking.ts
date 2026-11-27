@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {MONO_VIEW_MAX_AGE_MS,stereoMonoViews as monoViewsFromCameras} from './input/stereoMonoViews';
 import {mountTrackingStatusStrip} from './ui/trackingStatusStrip';
 import {stereoTipPose} from './input/stereoTipPose';
 import {driftCorrections,meanCornerDistance} from './input/driftCorrection';
@@ -62,7 +63,7 @@ import {mountTrackingLayout} from './ui/TrackingLayout';
 import './ui/workspace.css';
 import {trackedInstrumentRotation} from './input/trackingFrame';
 import * as THREE from 'three';
-import {calibrationMatches,undistort,type StereoCalibration} from './input/stereoGeometry';
+import {calibrationMatches,type StereoCalibration} from './input/stereoGeometry';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
@@ -70,7 +71,7 @@ import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
 import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from './input/trackingMessages';
 import {readStored,writeStored,parseTrackerType,trackerTypeStorageKey} from './input/trackingStorage';
 import {estimateMarkerPose} from './input/markerPose';
-import {RING_LAYOUT_REVISION,solvePrismPose,trackerGeometry,bodyPoseFromMarker,type PrismPose,type TrackerType} from './input/prismPose';
+import {RING_LAYOUT_REVISION,solvePrismPose,trackerGeometry,type PrismPose,type TrackerType} from './input/prismPose';
 import {Instrument} from './instruments/Instrument';
 import type {BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
@@ -219,27 +220,14 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
 
 function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
  if(!stereoSetup.calibration)return [];
- const ids:readonly number[]=markerGroups()[name],cal=stereoSetup.calibration;
+ const cal=stereoSetup.calibration;
  const key=`${observationsAt}:${secondaryObservationsAt}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`;
- const cached=stereoMonoCache.get(name);if(cached?.key===key&&cached.calibration===cal)return cached.views.filter(v=>now-v.at<180);
- const R=cal.stereo.rotation;
- const matrix=new THREE.Matrix4().set(R[0][0],R[0][1],R[0][2],0,R[1][0],R[1][1],R[1][2],0,R[2][0],R[2][1],R[2][2],0,0,0,0,1);
- const inverse=new THREE.Quaternion().setFromRotationMatrix(matrix).invert(),translation=new THREE.Vector3(...cal.stereo.translationMm as [number,number,number]);
- const views=([0,1] as const).flatMap(camera=>{
-  const at=camera?secondaryObservationsAt:observationsAt;if(now-at>180)return [];
-  const size=camera?{width:overlay2.width,height:overlay2.height}:{width:overlay.width,height:overlay.height},intrinsics=camera?cal.camera2:cal.camera1;
-  const candidates=(camera?liveSecondMarkers():liveMarkers()).filter(m=>ids.includes(m.id)).map(marker=>{
-   const normalized={id:marker.id,corners:marker.corners.map(p=>{const [x,y]=undistort(p,intrinsics.cameraMatrix,intrinsics.distortionCoefficients,intrinsics.imageSize??cal.imageSize,size);return {x:1000+x*1000,y:1000+y*1000};})};
-   const pose=estimateMarkerPose(normalized,2000,2000,trackerGeometry(trackerType).markerSizeMm,1000);
-   if(!pose||pose.reprojectionError>4)return null;
-   const body=bodyPoseFromMarker(pose,ids.indexOf(marker.id),trackerType);
-   if(body.translation.z<30||body.translation.z>3000)return null;
-   const axis=new THREE.Vector3(0,0,1);
-   if(camera){body.translation.sub(translation).applyQuaternion(inverse);body.quaternion.premultiply(inverse);axis.applyQuaternion(inverse);}
-   return {position:body.translation,quaternion:body.quaternion,axis,at,camera,error:pose.reprojectionError};
-  }).filter((p):p is NonNullable<typeof p>=>p!==null).sort((a,b)=>a.error-b.error);
-  return candidates.length?[candidates[0]]:[];
- });
+ const cached=stereoMonoCache.get(name);if(cached?.key===key&&cached.calibration===cal)return cached.views.filter(v=>now-v.at<MONO_VIEW_MAX_AGE_MS);
+ // Each camera's own pose estimate (src/input/stereoMonoViews.ts).
+ const views=monoViewsFromCameras(cal,markerGroups()[name],trackerType,[
+  {at:observationsAt,size:{width:overlay.width,height:overlay.height},markers:liveMarkers()},
+  {at:secondaryObservationsAt,size:{width:overlay2.width,height:overlay2.height},markers:liveSecondMarkers()},
+ ],now);
  stereoMonoCache.set(name,{key,calibration:cal,views});return views;
 }
 
