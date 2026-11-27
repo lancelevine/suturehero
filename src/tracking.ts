@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoIndicator} from './input/stereoIndicator';
 import {faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
@@ -462,22 +463,7 @@ const cornerDebugStatus=document.querySelector<HTMLElement>('#corner-debug-statu
 const markerLastConfirmed=new Map<number,number>();
 const markerLastDecoded=new Map<number,number>();
 const OVERLAP_DECODE_MS=220;
-const verifiedMarkers=()=>{
- const now=performance.now();
- const eligible=liveMarkers().filter(m=>now-(markerLastDecoded.get(m.id)??-Infinity)<=OVERLAP_DECODE_MS);
- const selected:MarkerObservation[]=[];
- for(const name of Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>){
-  const ids=markerGroups()[name] as readonly number[];
-  const ranked=eligible.filter(m=>ids.includes(m.id)).map(m=>{
-   const area=Math.abs(m.corners.reduce((sum,p,i)=>sum+p.x*m.corners[(i+1)%4].y-m.corners[(i+1)%4].x*p.y,0))/2;
-   const age=now-(markerLastDecoded.get(m.id)??0);
-   return {marker:m,score:Math.log1p(area)-age*.009};
-  }).sort((a,b)=>b.score-a.score);
-  // A hexagonal ring can expose three side faces; ring8 adds inclined end faces.
-  selected.push(...ranked.slice(0,trackerType==='prism'?2:trackerType==='ring6'?3:5).map(item=>item.marker));
- }
- return selected;
-};
+const verifiedMarkers=()=>selectVerifiedMarkers(liveMarkers(),markerGroups(),trackerType,markerLastDecoded,performance.now(),OVERLAP_DECODE_MS);
 const MARKER_LIVE_MS=140;
 const markerAge=(id:number,now=performance.now())=>now-(markerLastConfirmed.get(id)??-Infinity);
 const liveMarkers=()=>observations.filter(m=>markerAge(m.id)<=MARKER_LIVE_MS);

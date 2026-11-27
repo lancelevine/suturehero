@@ -87,6 +87,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — marker selection out of tracking.ts
+
+- `src/input/verifiedMarkers.ts` (+test): `selectVerifiedMarkers` (per-instrument ranking by
+  area and decode age, capped by `maxVisibleFaces`), same arithmetic as before. Checked:
+  tracking-motion, ring-handoffs, driver-depth, marker-rest, neutral-placement, stereo-rig-faces,
+  tracking-panels.
+
 ### 2026-11-27 — Claude — marker ID tables out of tracking.ts
 
 - `src/input/markerGroups.ts` (+test): ring8 / ring6 / prism marker IDs and `markerGroupsFor`.
