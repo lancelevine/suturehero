@@ -19,6 +19,7 @@ Last updated: 2026-11-27
 - **More stitch patterns:** vertical and horizontal mattress, running, running subcuticular, each scored.
 - **Corner stitch:** half-buried horizontal mattress through the tip of a V-shaped or stellate wound; scored on the tip sitting flush without being strangled.
 - **Bite consistency score:** ruler overlay of each stitch's distance from the edge on both sides and spacing between stitches, outliers highlighted.
+- **Figure-of-eight and purse-string stitches:** for fascia, bleeders and round defects; each scored on its own geometry.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
