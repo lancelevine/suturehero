@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: rotation solver status cached
+- `src/tracking.ts`: `#rotation-solver-status` is looked up once and written with `setText` (both writers: rotation context and the still-instrument branch of `updateLiveTargets`); it was a `querySelector` plus DOM write per instrument per frame.
+- Checked: tsc, check-marker-rest, check-ring-handoffs, check-tracking-motion, check-driver-depth.
+
 ### 2026-11-27 — Claude: RenderedPoseState for the render loop
 - `src/input/RenderedPoseState.ts` (+2 tests) owns each instrument's stereo fallback, rest lock and rendered-pose filter (three maps and the scale vector left `src/tracking.ts`). `reset()` keeps the old behaviour: filters and fallbacks cleared, rest locks kept.
 - Finding (not changed): `resetTrackerPose` never cleared the stereo rest locks, so a reset can briefly hold the pre-reset still pose. Worth a look with real stereo.

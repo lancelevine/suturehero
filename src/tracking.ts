@@ -397,7 +397,7 @@ const rotationContextFor=(name:InstrumentName,ids:readonly number[]):RotationCon
  ringTracker:create=>create?ringPoseTracker(name):ringPoseTrackers.get(name),
  stereoRotation:()=>stereoPrismRotation(name,performance.now()),
  stageRaw:rotationStageRaw,stageStatus:rotationStageStatus,
- setSolverStatus:text=>{document.querySelector<HTMLElement>('#rotation-solver-status')!.textContent=text;},
+ setSolverStatus:text=>setText(rotationSolverStatus,text),
  setAngleDegrees:degrees=>{const m=filterMeasurements.get(name);if(m)m.angle=degrees;},
 });
 const depthStates=new Map<'needleDriver'|'forceps'|'scissors',number>();
@@ -511,7 +511,7 @@ function updateLiveTargets(){
    position.x=previous.position.x;position.y=previous.position.y;
    liveTargets.set(name,{...previous,position,lastSeen:now,id:chosen.pose.id,pose:chosen.pose});
    rotationStageStatus.set(name,'stationary image geometry · pose held');
-   document.querySelector('#rotation-solver-status')!.textContent=name+' · stationary image geometry · pose held'+alignedStatus;
+   setText(rotationSolverStatus,name+' · stationary image geometry · pose held'+alignedStatus);
    continue;
   }
   // Independent rigid-body rotation: never gate or alter the working translation (src/input/RotationTracker.ts).
@@ -521,6 +521,8 @@ function updateLiveTargets(){
 }
 
 // Diagnostic rotation stages: raw solver, accepted target, rendered mesh (src/ui/rotationStageReadout.ts).
+/** Rotation solver status line: looked up once, written only when its text changes (it updates every frame). */
+const rotationSolverStatus=document.querySelector<HTMLElement>('#rotation-solver-status')!;
 const rotationStages=new RotationStageReadout<InstrumentName>();
 const rotationStageRaw=rotationStages.raw,rotationStageStatus=rotationStages.status;
 const rotationStageElement=document.querySelector<HTMLElement>('#rotation-stage-readout');
