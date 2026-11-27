@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: standalone tracking page polish
+- `src/ui/theme.css`: calibration tab/neutral rules now also apply on `#tracking-app`; status strip inset 14 px; "Return to practice" styled as a header button. Checked: screenshot, check-status-strip, check-tracking-panels. In CHANGELOG 0.234.
+
 ### 2026-11-27 — Claude: sandbox strip and camera chip polish
 - `src/main.ts`: the `.hold-progress` bar is hidden in Sandbox (it only repeated "Sandbox" at 0; the HUD stat card has progress). Written only when the value changes.
 - `src/ui/theme.css`: camera name chip (`.tracking-video:after`) in theme colours (previous commit c355d44).

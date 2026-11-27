@@ -182,9 +182,13 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 #viewport .workspace-view-tools button{font-size:10px;padding:3px 6px}
 }
 /* Instrument calibration panel: underline tabs and inset neutral-pose block (the generic button theme boxed the tabs). */
-#app .calibration-tabs{border-color:var(--sh-line)}
-#app .calibration-tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;box-shadow:none;padding:10px 4px;color:var(--sh-muted)}
-#app .calibration-tabs button[aria-pressed=true]{border-bottom-color:var(--sh-cyan);color:var(--sh-text)}
-#app .calibration-neutral-action{padding:0 12px}
+:is(#app,#tracking-app) .calibration-tabs{border-color:var(--sh-line)}
+:is(#app,#tracking-app) .calibration-tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;box-shadow:none;padding:10px 4px;color:var(--sh-muted)}
+:is(#app,#tracking-app) .calibration-tabs button[aria-pressed=true]{border-bottom-color:var(--sh-cyan);color:var(--sh-text)}
+:is(#app,#tracking-app) .calibration-neutral-action{padding:0 12px}
 /* Camera name chip in the corner of each feed. */
 .tracking-camera-feeds .tracking-video:after{background:var(--sh-panel);color:var(--sh-text);border:1px solid var(--sh-line);border-radius:6px;font-family:var(--sh-font)}
+/* Standalone tracking page: inset the status strip and show "Return to practice" as a header button. */
+#tracking-app>.tracking-status-strip{padding:0 14px}
+#tracking-app>header a[href="./"]:not(.brand){text-decoration:none;border:1px solid var(--sh-line);border-radius:10px;color:var(--sh-text)}
+#tracking-app>header a[href="./"]:not(.brand):hover{border-color:var(--sh-cyan);color:var(--sh-cyan)}

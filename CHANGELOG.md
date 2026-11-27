@@ -10,6 +10,7 @@ commit `bde9116`.
 - When the 3D scene is narrow (a phone, with the camera panel beside it), the stat and challenge cards, legend and extra buttons are hidden, the timer shrinks, and Reset view / Reset needle / Demo stay as small buttons, so nothing overlaps.
 - Instrument calibration panel: Pose / Jaws / Axis mapping are underline tabs again, and the neutral-pose block no longer touches the panel edges.
 - Sandbox: the instruction strip no longer shows an empty progress bar labelled "Sandbox" (progress is on the stat card). The camera name chip uses the dark theme.
+- Tracking page: "Return to practice" is a header button, the status strip is inset from the edge, and the calibration tabs match the practice page.
 - Skill Analysis: the dashed ideal path now runs through your needle entry points instead of straight from start to end.
 
 ## Build 0.233 — New look, polished
