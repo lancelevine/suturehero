@@ -1,5 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
-import {markerGroupsFor} from './input/markerGroups';
+import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoIndicator} from './input/stereoIndicator';
 import {faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
@@ -154,9 +154,9 @@ let trackerType:TrackerType='prism';
 const decodeSearchGroups=()=>Object.values(markerGroups()).map(ids=>[...ids]);
 const markerGroups=():Record<InstrumentName,readonly number[]>=>markerGroupsFor(trackerType);
 function updateTrackerDescription(){
- const geometry=trackerGeometry(trackerType),groups=markerGroups(),spacing=THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0);
- trackerTypeStatus.textContent=`${geometry.faceCount}-face ${trackerType==='prism'?'prism':'ring'} · ${spacing}° side spacing for all instruments · `+(['needleDriver','forceps','scissors'] as const).map(n=>`${n==='needleDriver'?'Needle driver':n==='forceps'?'Forceps':'Scissors'} IDs ${groups[n][0]}–${groups[n].at(-1)}`).join(' · ');
- document.querySelector('#tracker-geometry-description')!.textContent=`DICT_4X4_50 · ${geometry.markerSizeMm} mm marker squares. All instruments use the selected ${geometry.faceCount}-face geometry with ${spacing}° side spacing${trackerType==='ring8'?' plus two inclined end faces; briefly show each angled marker together with a side marker to align its single-camera rotation':''}. Face ID order and printed corner orientation must match the physical tracker. Camera depth and angles remain approximate until camera calibration.`;
+ const text=trackerDescriptionText(trackerType,trackerGeometry(trackerType),markerGroups());
+ trackerTypeStatus.textContent=text.status;
+ document.querySelector('#tracker-geometry-description')!.textContent=text.description;
 }
 
 function resetTrackerPose(){
