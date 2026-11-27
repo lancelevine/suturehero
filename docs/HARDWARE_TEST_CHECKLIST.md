@@ -105,6 +105,17 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **Steel instruments.** On Standard graphics the instruments look like polished steel, the
       skin colour is unchanged, and the frame rate is no worse than before.
 
+## 9. Older items still worth checking (optional)
+
+Moved here from the handoff Status block on 2026-11-27; details are in
+`docs/archive/AGENT_HANDOFF-to-2026-11-14.md`.
+
+- [ ] **Stereo stabilisation (0.88).** Two cameras: hold the needle driver still; it should not
+      jump. Then move it deliberately; response should stay usable.
+- [ ] **Tracking Lab recording (0.83).** Record a real tracking failure, stop, replay and export it.
+- [ ] **Camera-track frames (0.135).** With an OV9281, an exported profile shows `frameSource`
+      "camera track" and capture rates above 30/s.
+
 ## Known limits (not bugs to report)
 
 - The background-thread engines score below the default in synthetic trials

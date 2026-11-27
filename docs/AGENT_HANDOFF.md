@@ -6,60 +6,19 @@ entry when finishing.
 
 ## Status
 
-- **In progress:** Claude — autonomous work while Lance is away (to 2026-11-29): CI browser checks, then splitting src/tracking.ts and src/main.ts (Codex: please avoid those two files), then knot friction and worker engine on branches.
+- **In progress:** Claude — autonomous work while Lance is away (to 2026-11-29 20:00 UTC):
+  shrinking src/tracking.ts and src/main.ts into tested modules, efficiency, graphics
+  (Codex: please avoid those two files until then).
 - **Knot engines (for Lance's comparison):** register engines in
   `KNOT_ENGINES` (`src/knot/engines.ts`); each must implement `KnotEngine`.
   Compare with `KNOT_TRIALS=1 npx vitest run src/knot/engineTrials.test.ts`
   (`KNOT_ENGINES=a,b` to pick; `KNOT_TRIALS=quick` for a short run).
   Current (full run 2026-11-26, build 0.219): claude 24/24 (default), codex 24/24, classic 23/24,
-  classic-worker (experimental).
-- **Needs Lance to test by hand:** start with `docs/HARDWARE_TEST_CHECKLIST.md`
-  (everything since build 0.205, in testing order). Older items:
-  - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
-    per instrument and check the virtual jaw plane matches while rolling;
-    run the 6-touch accuracy check and note the average/worst; read the
-    bite feedback in mm after a guided pass (keyboard jaws).
-  - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
-    with keyboard jaws (Z / comma) using the measured-tip dots; record 3
-    table touches and check tips rest on the skin; follow the "Next:" step
-    in the status strip from a fresh setup.
-  - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
-    closed → Align prism faces → Calibrate open (alignment must be redone).
-    Then wiggle and roll with the jaws still; open/close on each face.
-  - **Handle-prism wiggle (build 0.137):** one camera, jaws closed, only
-    face 9 + ring visible, wiggle: the % should stay near 0 (or show
-    "Holding last reading · prism and ring not in the same Camera 1
-    image"). If it holds most of the time, flow is not following the
-    prism face; send a profile.
-  - **Handle-prism jaws while turning (build 0.136):** one camera, jaws
-    held still, roll the instrument through every prism face. The opening
-    should stay put (or say "Holding last reading · … does not fit the
-    hinge"). Steeply angled faces can still be off by several percent.
-  - **Camera-track frames (build 0.135):** with Camera type OV9281, export
-    a profile: `frameSource` should be "camera track", and "Camera 1
-    capture attempts" / "flow round trip" rates should rise above 30/s.
-    Check tracking still feels right; if worse, set Diagnostics →
-    Performance → "Camera frames processed" to "At display refresh" and
-    send both profiles.
-  - **Stereo stabilization (build 0.88):** reload, hold the needle driver
-    still, and confirm that the virtual instrument no longer jumps. Then move
-    it deliberately and check that response remains usable. The supplied
-    1.9-second Lab recording showed ACTIVE fits around 0.6–1.1 px alongside
-    large pose discontinuities, motivating the continuity gate.
-  - **Stereo correction (build 0.85):** test the needle driver in both cameras
-    with unused instruments out of view, and confirm triangulation.
-    IDs 2/3 on another instrument currently overlap the needle-driver group.
-    Recapture ring mono Near/Far and marker-relative jaw calibrations made
-    before this correction. Keep the existing checkerboard stereo calibration.
-    If stereo still rejects, send the status/rejection text or a Lab recording.
-  - **Tracking Lab (build 0.83):** record a real single/stereo-camera failure,
-    stop, replay, and export it. Confirm practical recording FPS and image
-    quality with the actual webcams. Replay has synthetic-camera coverage,
-    not real-hardware validation.
-  - **New jaw tracker** (Calibrate → Needle driver → Jaws → Jaw tracker
-    "White balls (new)"): calibrate closed and open with the real
-    instrument and camera, then check the reading. Only synthetic-camera
-    tested so far. If it doesn't work, the selector switches back to Classic.
+  claude-worker 22/24 and classic-worker 18/24 (experimental; neither seats the knot in the Demo,
+  see 2026-11-27 log).
+- **Needs Lance to test by hand:** `docs/HARDWARE_TEST_CHECKLIST.md` (everything since build
+  0.205, in testing order). Older items were moved to `docs/archive/AGENT_HANDOFF-to-2026-11-14.md`
+  on 2026-11-27 (several concern camera jaw tracking, removed in 0.205).
 - **Known issues:**
   - `FreeKnotTechniques.test.ts` "retains a double surgeon first throw…"
     passes on Node 24 but fails on Node 22 (thread point moves 0.042 vs a
@@ -75,11 +34,13 @@ entry when finishing.
     distances in mono mode are scaled by this guess. Don't change it without
     re-checking depth calibration; new code must use the same model
     (`defaultIntrinsics` in `src/input/bodyGeometry.ts`).
-  - `src/tracking.ts` (~98 KB) and `src/main.ts` (~51 KB) are still large
-    (split partly on 2026-11-26) and the most likely place for merge conflicts.
+  - `src/tracking.ts` (~900 lines) and `src/main.ts` (~465 lines) are still the largest files
+    (split further on 2026-11-27) and the most likely place for merge conflicts.
+  - The Demo fails below about 25 fps (forceps misses a regrasp), on every engine.
 - **Next up (proposed, not started):**
-  3. Continue splitting `src/tracking.ts`: a shared tracking-state object, then
-     merge the camera 1 / camera 2 detect paths (needs real-camera testing after).
+  3. Continue splitting `src/tracking.ts`: the shared capture pipeline and rotation tracking are
+     done (2026-11-27); left are camera 1's decode-result merge, the depth step and the render
+     loop, which hold most of the live state (needs real-camera testing after).
   4. Add a code formatter in one dedicated commit (agree with Lance first).
   5. When the OV9281 cameras arrive: the OV9281 camera type (1280×800 @ 120
      fps) is chosen automatically by name (build 0.216); recalibrate and retest

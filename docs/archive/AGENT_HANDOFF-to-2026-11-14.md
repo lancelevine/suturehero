@@ -1421,3 +1421,56 @@ Newest first. Template:
 - Lance to test: nothing (no app behavior changed).
 - Notes for the other agent: please follow the read-first / write-last steps
   in `AGENTS.md` from now on. No source code was changed.
+
+
+## Hand-test items removed from the Status block on 2026-11-27
+
+Some concern camera jaw tracking, removed in build 0.205; the rest predate the hardware checklist.
+
+- **Needs Lance to test by hand:** start with `docs/HARDWARE_TEST_CHECKLIST.md`
+  (everything since build 0.205, in testing order). Older items:
+  - **Builds 0.154–0.156:** Set jaw orientation (jaws opening sideways)
+    per instrument and check the virtual jaw plane matches while rolling;
+    run the 6-touch accuracy check and note the average/worst; read the
+    bite feedback in mm after a guided pass (keyboard jaws).
+  - **Builds 0.145–0.148 (stereo, tips calibrated):** grasp the needle
+    with keyboard jaws (Z / comma) using the measured-tip dots; record 3
+    table touches and check tips rest on the skin; follow the "Next:" step
+    in the status strip from a fresh setup.
+  - **Handle-prism jaws (build 0.138):** Remove calibration → Calibrate
+    closed → Align prism faces → Calibrate open (alignment must be redone).
+    Then wiggle and roll with the jaws still; open/close on each face.
+  - **Handle-prism wiggle (build 0.137):** one camera, jaws closed, only
+    face 9 + ring visible, wiggle: the % should stay near 0 (or show
+    "Holding last reading · prism and ring not in the same Camera 1
+    image"). If it holds most of the time, flow is not following the
+    prism face; send a profile.
+  - **Handle-prism jaws while turning (build 0.136):** one camera, jaws
+    held still, roll the instrument through every prism face. The opening
+    should stay put (or say "Holding last reading · … does not fit the
+    hinge"). Steeply angled faces can still be off by several percent.
+  - **Camera-track frames (build 0.135):** with Camera type OV9281, export
+    a profile: `frameSource` should be "camera track", and "Camera 1
+    capture attempts" / "flow round trip" rates should rise above 30/s.
+    Check tracking still feels right; if worse, set Diagnostics →
+    Performance → "Camera frames processed" to "At display refresh" and
+    send both profiles.
+  - **Stereo stabilization (build 0.88):** reload, hold the needle driver
+    still, and confirm that the virtual instrument no longer jumps. Then move
+    it deliberately and check that response remains usable. The supplied
+    1.9-second Lab recording showed ACTIVE fits around 0.6–1.1 px alongside
+    large pose discontinuities, motivating the continuity gate.
+  - **Stereo correction (build 0.85):** test the needle driver in both cameras
+    with unused instruments out of view, and confirm triangulation.
+    IDs 2/3 on another instrument currently overlap the needle-driver group.
+    Recapture ring mono Near/Far and marker-relative jaw calibrations made
+    before this correction. Keep the existing checkerboard stereo calibration.
+    If stereo still rejects, send the status/rejection text or a Lab recording.
+  - **Tracking Lab (build 0.83):** record a real single/stereo-camera failure,
+    stop, replay, and export it. Confirm practical recording FPS and image
+    quality with the actual webcams. Replay has synthetic-camera coverage,
+    not real-hardware validation.
+  - **New jaw tracker** (Calibrate → Needle driver → Jaws → Jaw tracker
+    "White balls (new)"): calibrate closed and open with the real
+    instrument and camera, then check the reading. Only synthetic-camera
+    tested so far. If it doesn't work, the selector switches back to Classic.
