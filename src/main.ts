@@ -4,7 +4,7 @@ import {mountSkillAnalysisPanel} from './ui/SkillAnalysisPanel';
 import {IdealSuturePath} from './scene/IdealSuturePath';
 import {SKIN_SURFACE_Y} from './tissue/FreeNeedlePass';
 import {mountPracticeHud} from './ui/practiceHud';
-import {SCENE_MM_PER_UNIT} from './setup/sceneScale';
+import {MICRO_MM_PER_UNIT,SCENE_MM_PER_UNIT} from './setup/sceneScale';
 import {setText} from './ui/setText';
 import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
@@ -63,7 +63,7 @@ import { mountCourseExport } from './ui/courseExport';
 import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
-const APP_BUILD='0.231';
+const APP_BUILD='0.232';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -333,7 +333,8 @@ try {
    return {seconds:session.clock.secondsSoFar,
     precisionMm:last&&last.exitEdge!==null?Math.abs(last.entryEdge-last.exitEdge)*SCENE_MM_PER_UNIT:null,
     tension:free.active?Math.max(free.tension.long.tautness,free.tension.short.tautness):null,
-    stitches:session.course.completed.length,course:session.course.active};
+    stitches:session.course.completed.length,course:session.course.active,
+    micro:session.environment.id==='microsurgery'?{alignmentMm:(session.wound.initialGap*(1-session.wound.closure)+Math.abs(session.wound.edgeMismatch))*MICRO_MM_PER_UNIT,closure:session.wound.closure}:undefined};
   });
   // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
   const skillRecorder=new SkillRecorder();

@@ -7,6 +7,9 @@
 /** Challenge goals shown on the card (display targets, not scoring rules). */
 export const SANDBOX_GOAL_STITCHES = 6;
 export const COURSE_GOAL_STITCHES = 3;
+/** Microsurgery: sutures in an end-to-end anastomosis, and the alignment target (mm). */
+export const MICRO_GOAL_STITCHES = 8;
+export const MICRO_ALIGNMENT_TARGET_MM = 0.2;
 export const GOAL_SECONDS = 10 * 60;
 /** Target entry/exit symmetry (mm) shown as "within ±…" and used for the precision bar. */
 export const PRECISION_TARGET_MM = 1;
@@ -22,6 +25,8 @@ export interface HudInput {
   stitches: number;
   /** In the 3-stitch course (else the Sandbox challenge). */
   course: boolean;
+  /** Microsurgery: remaining gap plus edge step between the vessel ends (mm) and closure (0–1). */
+  micro?: { alignmentMm: number; closure: number };
 }
 
 export interface HudState {
@@ -30,6 +35,8 @@ export interface HudState {
   tension: { value: string; fraction: number };
   progress: { value: string; goal: number; done: number };
   challenge: { title: string; lines: Array<{ text: string; met: boolean | null }> };
+  /** Microsurgery readouts (alignment, score) instead of precision and tension. */
+  micro: { alignment: { value: string; fraction: number; good: boolean }; score: { value: string; fraction: number } } | null;
 }
 
 export function formatClock(seconds: number) {
@@ -40,7 +47,7 @@ export function formatClock(seconds: number) {
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
 export function hudState(input: HudInput): HudState {
-  const goal = input.course ? COURSE_GOAL_STITCHES : SANDBOX_GOAL_STITCHES;
+  const goal = input.micro ? MICRO_GOAL_STITCHES : input.course ? COURSE_GOAL_STITCHES : SANDBOX_GOAL_STITCHES;
   const done = Math.min(goal, input.stitches);
   const precision = input.precisionMm;
   const withinPrecision = precision === null ? null : precision <= PRECISION_TARGET_MM;
@@ -57,13 +64,25 @@ export function hudState(input: HudInput): HudState {
     },
     progress: { value: `${done}/${goal}`, goal, done },
     challenge: {
-      title: input.course ? '3-stitch course' : 'Sandbox challenge',
+      title: input.micro ? 'Anastomosis' : input.course ? '3-stitch course' : 'Sandbox challenge',
       lines: [
         { text: `Place ${goal} sutures`, met: done >= goal ? true : null },
         { text: `Within ${formatClock(GOAL_SECONDS)}`, met: input.seconds <= GOAL_SECONDS ? (done >= goal ? true : null) : false },
-        { text: `Within ±${PRECISION_TARGET_MM.toFixed(1)} mm`, met: withinPrecision },
+        input.micro
+          ? { text: `Align within ${MICRO_ALIGNMENT_TARGET_MM.toFixed(1)} mm`, met: input.micro.alignmentMm <= MICRO_ALIGNMENT_TARGET_MM ? true : null }
+          : { text: `Within ±${PRECISION_TARGET_MM.toFixed(1)} mm`, met: withinPrecision },
       ],
     },
+    micro: input.micro
+      ? {
+          alignment: {
+            value: `≈${input.micro.alignmentMm.toFixed(2)} mm`,
+            fraction: clamp01(1 - input.micro.alignmentMm / (MICRO_ALIGNMENT_TARGET_MM * 10)),
+            good: input.micro.alignmentMm <= MICRO_ALIGNMENT_TARGET_MM,
+          },
+          score: { value: `${Math.round(clamp01(input.micro.closure) * 100)}%`, fraction: clamp01(input.micro.closure) },
+        }
+      : null,
   };
 }
 
@@ -81,8 +100,8 @@ export function mountPracticeHud(viewport: HTMLElement, read: () => HudInput) {
   hud.innerHTML = `
 <div class="hud-timer" role="timer" aria-label="Session time">${STOPWATCH}<span data-hud="timer">0:00</span></div>
 <section class="hud-card hud-stats" aria-label="Live stats">
-  <div class="hud-stat"><span class="hud-icon">${ICONS.precision}</span><span class="hud-label" title="Entry/exit symmetry of the last needle pass">Precision</span><strong data-hud="precision">–</strong><span class="hud-bar"><i data-hud-bar="precision"></i></span></div>
-  <div class="hud-stat"><span class="hud-icon">${ICONS.tension}</span><span class="hud-label" title="How taut the held strand is while tying">Tension</span><strong data-hud="tension">–</strong><span class="hud-bar"><i data-hud-bar="tension"></i></span></div>
+  <div class="hud-stat"><span class="hud-icon">${ICONS.precision}</span><span class="hud-label" data-hud="label-precision" title="Precision: entry/exit symmetry of the last needle pass. Alignment (microsurgery): remaining gap plus edge step between the vessel ends">Precision</span><strong data-hud="precision">–</strong><span class="hud-bar"><i data-hud-bar="precision"></i></span></div>
+  <div class="hud-stat"><span class="hud-icon">${ICONS.tension}</span><span class="hud-label" data-hud="label-tension" title="Tension: how taut the held strand is while tying. Score (microsurgery): how fully the vessel ends are brought together">Tension</span><strong data-hud="tension">–</strong><span class="hud-bar"><i data-hud-bar="tension"></i></span></div>
   <div class="hud-stat"><span class="hud-icon">${ICONS.progress}</span><span class="hud-label">Progress</span><strong data-hud="progress">0/0</strong><span class="hud-segments" data-hud="segments"></span></div>
 </section>
 <section class="hud-card hud-challenge" aria-label="Challenge"><span class="hud-eyebrow">CHALLENGE</span><strong data-hud="challenge-title"></strong><ul data-hud="challenge"></ul></section>`;
@@ -101,11 +120,14 @@ export function mountPracticeHud(viewport: HTMLElement, read: () => HudInput) {
   const render = () => {
     const state = hudState(read());
     text('timer', state.timer);
-    text('precision', state.precision.value);
-    bar('precision', state.precision.fraction, state.precision.good || state.precision.value === '–');
-    hud.querySelector('[data-hud="precision"]')!.classList.toggle('good', state.precision.good);
-    text('tension', state.tension.value);
-    bar('tension', state.tension.fraction);
+    const first = state.micro ? state.micro.alignment : state.precision;
+    text('label-precision', state.micro ? 'Alignment' : 'Precision');
+    text('precision', first.value);
+    bar('precision', first.fraction, first.good || first.value === '–');
+    hud.querySelector('[data-hud="precision"]')!.classList.toggle('good', first.good);
+    text('label-tension', state.micro ? 'Score' : 'Tension');
+    text('tension', state.micro ? state.micro.score.value : state.tension.value);
+    bar('tension', state.micro ? state.micro.score.fraction : state.tension.fraction);
     text('progress', state.progress.value);
     const key = `${state.progress.done}/${state.progress.goal}`;
     if (key !== segmentKey) {

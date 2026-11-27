@@ -48,6 +48,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.232: visual overhaul step 4 (microsurgery HUD)
+
+- `practiceHud.ts`: with `micro` input the stat card shows Alignment ((initialGap·(1−closure) +
+  |edgeMismatch|) in mm), Score (closure %) and Progress n/8; challenge "Anastomosis".
+- `MICRO_MM_PER_UNIT = 2.5` (sceneScale.ts): the vessel scene is magnified and had no mm scale;
+  assumed 2 mm artery ↔ 0.8 units. Shown with "≈". Lance to confirm.
+- Checked: practice-setup, layout, sandbox, production-mode; screenshot.
+- The four requested parts of the overhaul are now in (theme, HUD, Skill Analysis, microsurgery).
+
 ### 2026-11-27 — Claude — Build 0.231: visual overhaul step 3 (Skill Analysis)
 
 - `src/gameplay/skillAnalysis.ts` (+test): `SkillRecorder` samples the needle-driver tip (20 Hz,

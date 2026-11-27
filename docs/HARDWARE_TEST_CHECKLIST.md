@@ -118,6 +118,8 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
       whether the challenge targets (6 sutures, 10:00, ±1.0 mm) are the ones you want.
 - [ ] **Skill Analysis (0.231).** Analysis → values update while you practise; the path chart
       follows the needle driver; check the definitions suit you (tooltips on each row).
+- [ ] **Microsurgery HUD (0.232).** Alignment falls and Score rises as the vessel ends close.
+      Confirm the display scale (2.5 mm per scene unit) or give the vessel size to use.
 
 ## 9. Older items still worth checking (optional)
 

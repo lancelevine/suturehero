@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.232 — Microsurgery HUD
+
+- In microsurgery the stat card shows Alignment (remaining gap plus edge step between the vessel ends, ≈ mm), Score (how fully the ends are brought together, %) and Progress out of 8 sutures; the challenge card shows the anastomosis goal (8 sutures, within 10:00, align within 0.2 mm).
+- The microsurgery scene is magnified, so its millimetres use an approximate display scale (2.5 mm per scene unit, from a typical 2 mm artery); to be confirmed.
+
 ## Build 0.231 — Skill Analysis
 
 - New Analysis button: a Skill Analysis panel with Time, Path length (cm), Smoothness, Accuracy (mm) and Jaws control (%), an instrument path chart (actual path solid blue, straight start-to-end line dashed cyan, seen from above) and a small velocity graph.

@@ -23,3 +23,12 @@ it('marks a met and a missed challenge, and shows dashes with nothing measured',
   expect([empty.precision.value, empty.tension.value]).toEqual(['–', '–']);
   expect(empty.challenge.lines[1].met).toBe(false);
 });
+
+it('shows alignment, progress out of 8 and score in microsurgery', () => {
+  const state = hudState({ seconds: 30, precisionMm: null, tension: null, stitches: 4, course: false, micro: { alignmentMm: 0.15, closure: 0.62 } });
+  expect(state.progress.value).toBe('4/8');
+  expect(state.micro).toMatchObject({ alignment: { value: '≈0.15 mm', good: true }, score: { value: '62%' } });
+  expect(state.challenge.title).toBe('Anastomosis');
+  expect(state.challenge.lines[2]).toEqual({ text: 'Align within 0.2 mm', met: true });
+  expect(hudState({ seconds: 1, precisionMm: null, tension: null, stitches: 0, course: false }).micro).toBeNull();
+});
