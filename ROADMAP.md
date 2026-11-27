@@ -28,7 +28,7 @@ Last updated: 2026-11-27
 - **Microsurgical bite geometry:** each vessel bite measured against wall thickness (about 2x from the edge, equal both sides, needle perpendicular to the wall).
 - **Stitch order coaching:** on long or curved wounds, first stitch in the middle, then halve each gap; scores whether you followed it. *(First version in build 0.235: Sandbox summary line, straight wound.)*
 - **Flip the vessel:** after the front wall, turn the double clamp 180 degrees and sew the back wall; checks the flip doesn't twist the vessel or tear stitches.
-- **Needle regrasp check:** grab the needle behind the tip on exit and follow its curve on pull-through; graded per bite, skin and vessel.
+- **Needle regrasp check:** grab the needle behind the tip on exit and follow its curve on pull-through; graded per bite, skin and vessel. *(First version in build 0.235: Skill Analysis counts in-tissue regrasps on the tip; following the curve not graded yet.)*
 - **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen. *(Not started: the knot engines do not expose where the knot sits; needs a knot position in `KnotEngine`.)*
 - **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot. *(Not started: needs an "air knot" signal from every knot engine (`KnotEngine`); unseated throws are already reported in the stitch outcome.)*
 - **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep.

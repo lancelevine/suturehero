@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: needle regrasp check (roadmap, build 0.235)
+- New `src/suture/gripPosition.ts` (+tests): grip position from tip (needle points run eye → tip), `RegraspCheck` counts new grips (new `NeedleGrasp.heldPoint` object) while `freePass.inTissue`, and those within 10% of the tip. `src/main.ts` feeds it from the skill sampler; Skill Analysis row "Regrasp on tip" (+test).
+- Checked: tsc, gripPosition + SkillAnalysisPanel tests, browser (row shows –, no page errors), check-sandbox, check-free-tying.
+
 ### 2026-11-27 — Claude: roadmap triage notes
 - Looked at "Needle regrasp check": `NeedleGrasp.heldPoint` (needle-local) gives where the needle is gripped, but which end of `needle.points` is the tip needs tracing through the needle model; a longer job, not started.
 - Remaining roadmap items mostly need new physics or knot-engine signals (knot position, air knot, tension along the wound, running stitches, vessel clamp/dilation/flip). Good next candidates that are mostly UI/scoring: needle regrasp check (above), Sandbox gap scan, bite ruler overlay.

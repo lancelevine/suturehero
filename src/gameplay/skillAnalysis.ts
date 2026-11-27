@@ -41,6 +41,8 @@ export interface SkillReport {
   speed: Array<{ t: number; v: number }>;
   /** Driver/forceps tip bumps outside needle handoffs (src/gameplay/tipCollisions.ts), when counted. */
   tipCollisions?: number;
+  /** In-tissue needle regrasps, and how many landed on the tip (src/suture/gripPosition.ts), when counted. */
+  regrasps?: { total: number; onTip: number };
 }
 
 export class SkillRecorder {

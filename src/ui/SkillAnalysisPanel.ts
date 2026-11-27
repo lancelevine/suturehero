@@ -23,6 +23,7 @@ export function skillRows(report: SkillReport): Array<{ label: string; value: st
     { label: 'Accuracy', value: report.accuracyMm === null ? '–' : `${report.accuracyMm.toFixed(1)} mm`, help: 'Mean entry/exit symmetry of completed needle passes', good: report.accuracyMm !== null && report.accuracyMm <= 1 },
     { label: 'Jaws control', value: pct(report.jawsControl), help: 'Share of forceps hold time without over-stretching or slipping the skin', good: (report.jawsControl ?? 0) >= 0.8 },
     ...(report.tipCollisions === undefined ? [] : [{ label: 'Tip collisions', value: String(report.tipCollisions), help: 'Times the needle-driver and forceps tips bumped together outside a needle handoff', good: report.tipCollisions === 0 }]),
+    ...(report.regrasps === undefined ? [] : [{ label: 'Regrasp on tip', value: report.regrasps.total ? `${report.regrasps.onTip}/${report.regrasps.total}` : '–', help: 'In-tissue needle regrasps that gripped the tip (grip behind the tip and follow the curve)', good: report.regrasps.total > 0 && report.regrasps.onTip === 0 }]),
   ];
 }
 

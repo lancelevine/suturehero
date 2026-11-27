@@ -24,3 +24,8 @@ it('adds tip collisions when counted', () => {
   const rows = skillRows({ seconds: 1, pathLengthCm: 0, smoothness: null, accuracyMm: null, jawsControl: null, path: [], ideal: null, speed: [], tipCollisions: 0 });
   expect(rows.at(-1)).toMatchObject({ label: 'Tip collisions', value: '0', good: true });
 });
+
+it('shows regrasps on the tip when counted', () => {
+  const rows = skillRows({ seconds: 1, pathLengthCm: 0, smoothness: null, accuracyMm: null, jawsControl: null, path: [], ideal: null, speed: [], regrasps: { total: 3, onTip: 1 } });
+  expect(rows.at(-1)).toMatchObject({ label: 'Regrasp on tip', value: '1/3', good: false });
+});

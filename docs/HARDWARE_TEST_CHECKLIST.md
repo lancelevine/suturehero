@@ -146,3 +146,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: open Analysis, touch the forceps and needle-driver tips together (not while passing the needle): "Tip collisions" goes up by one per touch. Passing the needle between them should not count.
 - Build 0.235: in Sandbox, press "Start 5-minute warm-up", make a few passes and let it run out; the line then reads "Warm-up done today · 1-day streak · last: N passes…". Stopping early does not log.
 - Build 0.235: finish a 3-stitch session with the stitches far apart; the closure review ends "Gap scan: open at … to …". With close, even stitches it says "edges touching along the wound". Open stretches also show as red bars on the wound.
+- Build 0.235: with the needle through the skin, regrasp it right at the tip, then behind the tip; Analysis "Regrasp on tip" shows 1/2.
