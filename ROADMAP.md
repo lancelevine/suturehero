@@ -68,6 +68,7 @@ Last updated: 2026-11-27
 - **Rotate, don't push:** reads the driver's marker during each bite and scores rotation around the needle's curve versus straight pushing that widens the puncture.
 - **Pull direction when tying:** reads the thread's direction as each throw snugs down and flags throws pulled along the wound or upward instead of straight across in line with the bite.
 - **Sliding knot on tight wounds:** two same-way throws as a slip knot, slid down until edges just meet, then locked with a reversed throw; shows edge contact while sliding and checks it was locked.
+- **Needle dulling:** the needle wears with every pass (faster for cutting points and re-bites); shows the extra force needed and suggests a fresh needle once dull.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
