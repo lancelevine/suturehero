@@ -74,7 +74,9 @@ export function mountTrackingStatusStrip(state: () => TrackingState, cameraMoved
     if (toggle && toggle.getAttribute('aria-expanded') !== 'true') toggle.click();
     click(`[data-calibration-pane="${pane}"]`);
   };
-  const strip = mountStatusStrip(stripParent, workspaceStage ?? stripParent.firstElementChild, {
+  // Below the page header (standalone tracking page), or before the practice stage (embedded).
+  const afterHeader = stripParent.querySelector(':scope > header')?.nextElementSibling ?? null;
+  const strip = mountStatusStrip(stripParent, workspaceStage ?? afterHeader ?? stripParent.firstElementChild, {
     cameras: () => click(state().stereoMode ? '#start-stereo-all' : '#start-camera'),
     stereo: () => click('#tracking-setup-panel-toggle'),
     neutral: () => openCalibration('pose'),

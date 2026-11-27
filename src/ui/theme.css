@@ -168,3 +168,7 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 :is(#app,#tracking-app) .workspace-coach{margin-top:10px;padding:10px 14px;border-radius:var(--sh-radius);background:var(--sh-panel);box-shadow:var(--sh-glow);border-left:3px solid var(--sh-cyan)}
 :is(#app,#tracking-app) .workspace-coach .exercise-feedback strong{font-weight:600}
 :is(#app,#tracking-app) #skin-handling{border-radius:var(--sh-radius-sm);background:var(--sh-panel-deep);box-shadow:0 0 0 1px rgba(63,216,255,.14)}
+
+/* Standalone tracking page header: buttons the same size as elsewhere. */
+#tracking-app>header :is(button,a){font-size:13px;padding:8px 14px}
+:is(#app,#tracking-app) #tracking-scene{background:var(--sh-bg)}

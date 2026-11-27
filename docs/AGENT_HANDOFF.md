@@ -48,6 +48,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — standalone tracking page polish
+
+- Status strip now sits below the page header on tracking.html (it was inserted before it;
+  `trackingStatusStrip.ts`); header buttons normal size; preview container navy.
+- Checked: status-strip, tracking-panels, tracking-storage, tracking-motion, camera-controls.
+
 ### 2026-11-27 — Claude — Build 0.233: overhaul polish
 
 - Floor grid (createScene.ts, follows the floor in microsurgery); meters/progress styled; glass
