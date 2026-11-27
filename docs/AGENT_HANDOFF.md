@@ -36,7 +36,7 @@ entry when finishing.
     (`defaultIntrinsics` in `src/input/bodyGeometry.ts`).
   - `src/tracking.ts` (~900 lines) and `src/main.ts` (~465 lines) are still the largest files
     (split further on 2026-11-27) and the most likely place for merge conflicts.
-  - The Demo fails below about 25 fps (forceps misses a regrasp), on every engine.
+  - The Demo fails below about 20 fps (a wrap is lost at 15 fps), on every engine.
 - **Next up (proposed, not started):**
   3. Continue splitting `src/tracking.ts`: the shared capture pipeline and rotation tracking are
      done (2026-11-27); left are camera 1's decode-result merge, the depth step and the render
@@ -47,6 +47,19 @@ entry when finishing.
      stereo with them. Needs real-camera testing by Lance.
 
 ## Log
+
+### 2026-11-27 — Claude — Build 0.227: Demo works down to ~20 fps
+
+- Cause found: `gripEnd` (src/demo/freeKnotDemo.ts) decided to close the jaws from the distance
+  measured *before* the frame's move. At low frame rates the drifting thread end moved more than
+  CLOSE_WITHIN (0.03) per frame, so the jaws never closed and the regrasp timed out. Now uses
+  the distance remaining after the move.
+- Demo unit test with fixed steps (Node 24): passes at 60, 25 and 20 fps (20 failed before); 15
+  fps still fails (square instead of surgeon's: a wrap is lost). src/demo tests pass.
+  check-demo passes (rerun with SUTURE_DEMO_TRACE=1: 428 s, three throws locked and seated, both
+  tails cut, secure stitch kept); one earlier run ended with the page closed after 25 min
+  (sandbox contention; the identical code then passed).
+- Build bumped to 0.227 (CHANGELOG), checklist Demo item updated.
 
 ### 2026-11-27 — Claude — skip hidden rotation diagnostics each frame
 

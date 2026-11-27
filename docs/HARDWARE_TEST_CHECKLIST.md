@@ -45,7 +45,8 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **Background engine (optional).** Knot engine → "Claude in a background thread
       (experimental)": tying should feel smoother on a slow laptop. Report whether knots
       behave as well as with the default.
-- [ ] **Demo.** Press Demo: the instruments tie all three throws and the stitch is kept.
+- [ ] **Demo.** Press Demo: the instruments tie all three throws and the stitch is kept (since
+      0.227 also on a slower laptop).
 
 ## 3. Results export (Sandbox)
 

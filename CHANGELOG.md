@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.227 — Demo works on slower computers
+
+- The Demo now ties its knot at frame rates down to about 20 fps (it used to fail below 25 fps: the forceps missed the thread end when regrasping).
+- Behind the scenes: the tracking page and practice loop do less work per frame (no rewriting unchanged text, hidden diagnostics skipped), and much of `tracking.ts` moved into tested modules. No intended change to tracking.
+
 ## Build 0.226 — Steel instruments look like steel
 
 - On Standard graphics, the instruments and needle reflect a soft studio light, so they read as polished steel instead of flat grey. Skin, tray, lighting and shadows are unchanged; Fast graphics is unchanged.

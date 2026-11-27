@@ -89,12 +89,15 @@ function gripEnd(tool: Instrument, end: () => THREE.Vector3, gripped: () => bool
       const target = end().sub(TIP);
       const step = target.clone().sub(tool.root.position);
       tool.root.position.add(step.clampLength(0, REACH_SPEED * dt));
+      // Judge the closing distance after this frame's move (2026-11-27): measured before it, a
+      // thread end drifting more than CLOSE_WITHIN per frame (low frame rates) was never reached.
+      const remaining = target.distanceTo(tool.root.position);
       if (gripped() && tool.openness <= CLOSED) return;
       if (reopen > 0) {
         reopen--;
         tool.openness = OPEN;
         closedFor = 0;
-      } else if (step.length() < CLOSE_WITHIN) {
+      } else if (remaining < CLOSE_WITHIN) {
         if (tool.openness > CLOSED) tool.openness = CLOSED;
         // Closed but not (yet) reported as gripping: give the report time, then retry.
         else if (++closedFor > GRIP_CONFIRM_FRAMES) reopen = REOPEN_FRAMES;
