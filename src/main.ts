@@ -277,7 +277,7 @@ try {
    const fps=parseTrackingFps(data);
    if(fps!==null){trackingLoopFps=fps;return;}
    const pose=parseTrackingPose(data);if(!pose)return;
-   cameraStatus.textContent='Tracking '+pose.instrument;
+   setText(cameraStatus,'Tracking '+pose.instrument);
    cameraPoses.set(pose.instrument,{shared:pose.shared===true,unitsPerMm:pose.unitsPerMm,
     position:new THREE.Vector3().fromArray(pose.position),
     quaternion:new THREE.Quaternion().fromArray(pose.quaternion).normalize(),seenAt:performance.now()
