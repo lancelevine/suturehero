@@ -159,3 +159,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: in Microsurgery, a green clamp sits on each vessel end; moving the "Acland clamp" slider to 60% brings the ends closer (Alignment readout drops) and to 140% spreads them.
 - Build 0.235: in Microsurgery, set "Stay sutures" to 3 · 120°; three cyan marks appear on each vessel end, one at the top.
 - Build 0.235: in Microsurgery, "Turn vessel 45°" turns the clamp and stay marks around the vessel; "Flip vessel" turns it half way round. The needle still works on the top of the vessel.
+- Build 0.235: in Microsurgery, complete a stitch, press "Save stitch & turn": the knot stays on the vessel and turns with it, a fresh stitch starts on top, and the HUD reads 1/8. Repeat and use "Flip vessel" for the back wall.

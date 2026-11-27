@@ -3,7 +3,7 @@ import {SkillRecorder} from './gameplay/skillAnalysis';
 import {mountSkillAnalysisPanel} from './ui/SkillAnalysisPanel';
 import {IdealSuturePath} from './scene/IdealSuturePath';
 import {SKIN_SURFACE_Y} from './tissue/FreeNeedlePass';
-import {mountPracticeHud} from './ui/practiceHud';
+import {MICRO_GOAL_STITCHES,mountPracticeHud} from './ui/practiceHud';
 import {MICRO_MM_PER_UNIT,SCENE_MM_PER_UNIT} from './setup/sceneScale';
 import {setAttr,setData,setDisabled,setHidden,setText} from './ui/setText';
 import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
@@ -105,14 +105,28 @@ try {
   // Adjustable Acland double clamp on the vessel (src/scene/AclandClamp.ts, src/environments/MicroTargets.ts).
   const aclandClamp=new AclandClamp();
   // Turn / flip the vessel (microsurgery only): the next stitch site comes to the top, as with the double clamp.
-  const vesselTurnButtons=([['Turn vessel 45°',Math.PI/4],['Flip vessel',Math.PI]] as const).map(([label,turn])=>{
+  const vesselTurnButtons:HTMLButtonElement[]=([['Turn vessel 45°',Math.PI/4],['Flip vessel',Math.PI]] as const).map(([label,turn])=>{
    const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
    button.addEventListener('click',()=>vesselFrame.turnBy(turn));document.querySelector('.workspace-view-tools')?.prepend(button);return button;});
+  // Save the tied vessel stitch (frozen on the vessel) and turn the vessel so the next site is on top.
+  const saveVesselButton=document.createElement('button');saveVesselButton.type='button';saveVesselButton.textContent='Save stitch & turn';saveVesselButton.hidden=true;saveVesselButton.className='vessel-turn';
+  saveVesselButton.addEventListener('click',()=>{
+    if(!session.canSaveVesselStitch)return;
+    const sources=session.freeKnot.active?[freeView.root]:[knotView.root];
+    vesselStitchesView.retain(sources,0);
+    // The frozen copy is in world coordinates; place it in the turned vessel frame so it turns with the vessel.
+    vesselStitchesView.root.updateWorldMatrix(true,false);
+    vesselStitchesView.root.children.at(-1)?.applyMatrix4(vesselStitchesView.root.matrixWorld.clone().invert());
+    session.saveVesselStitch();resetCourseTools();vesselFrame.turnBy(2*Math.PI/MICRO_GOAL_STITCHES);
+  });
+  document.querySelector('.workspace-view-tools')?.prepend(saveVesselButton);vesselTurnButtons.push(saveVesselButton);
   // Stay suture plan marks on the vessel ends (src/scene/StaySutureMarks.ts).
   const stayMarks=new StaySutureMarks();
   const stayPlan=()=>{const v=document.querySelector<HTMLSelectElement>('#stay-plan')?.value;return (v==='180'||v==='120'?v:'none') as StayPlan;};
   // Vessel, clamp and stay marks turn together about the vessel axis (src/scene/VesselFrame.ts).
   const vesselFrame=new VesselFrame();vesselFrame.root.add(artery.root,aclandClamp.root,stayMarks.root);
+  // Saved vessel stitches stay on the vessel and turn with it (anastomosis plan step 2).
+  const vesselStitchesView=new CompletedStitchesView();vesselFrame.root.add(vesselStitchesView.root);
   view.scene.add(tissue.root,vesselFrame.root,needle.root,...tools.map(tool=>tool.root));
   const scissors=new Scissors();view.scene.add(scissors.root);
   const fragmentsView=new FragmentView();view.scene.add(fragmentsView.root);
@@ -204,7 +218,7 @@ try {
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro);
-    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);
+    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();
     for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
     stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),micro);
@@ -372,7 +386,7 @@ try {
    return {seconds:session.clock.secondsSoFar,
     precisionMm:last&&last.exitEdge!==null?Math.abs(last.entryEdge-last.exitEdge)*SCENE_MM_PER_UNIT:null,
     tension:free.active?Math.max(free.tension.long.tautness,free.tension.short.tautness):null,
-    stitches:session.course.completed.length,course:session.course.active,
+    stitches:session.environment.id==='microsurgery'?session.vesselStitches:session.course.completed.length,course:session.course.active,
     micro:session.environment.id==='microsurgery'?{alignmentMm:(session.wound.initialGap*(1-session.wound.closure)+Math.abs(session.wound.edgeMismatch))*MICRO_MM_PER_UNIT,closure:session.wound.closure}:undefined};
   });
   // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
@@ -433,7 +447,7 @@ try {
     if(scissorsJaw&&time-scissorsJaw.seenAt<350)scissors.setTrackedOpening(scissorsJaw.opening);
     if(cameraEnabled)applyCameraPose('scissors',scissors.root);
     const cuttingButton=frameQuery('#select-scissors') as HTMLButtonElement;
-    setDisabled(cuttingButton,!canUseScissors());setText(cuttingButton,input.scissorsActive?'Use needle driver':'Use scissors');const scissorsPressed=String(input.scissorsActive);if(cuttingButton.getAttribute('aria-pressed')!==scissorsPressed)cuttingButton.setAttribute('aria-pressed',scissorsPressed);
+    setDisabled(cuttingButton,!canUseScissors());setDisabled(saveVesselButton,!session.canSaveVesselStitch);setText(cuttingButton,input.scissorsActive?'Use needle driver':'Use scissors');const scissorsPressed=String(input.scissorsActive);if(cuttingButton.getAttribute('aria-pressed')!==scissorsPressed)cuttingButton.setAttribute('aria-pressed',scissorsPressed);
     setDisabled((frameQuery('#position-scissors') as HTMLButtonElement),!canUseScissors());
     const cut=scissors.findCut(input.scissorsActive?(session.freeKnot.active?session.freeKnot.strands:[session.knotSlack.short,session.knotSlack.long]):[]);
     if(cut){

@@ -62,7 +62,7 @@ export class PracticeSession {
   environment=environments.skin;
   selectedTechnique?:KnotTechnique;
   setEnvironment(id:EnvironmentId,target:MicroTarget='artery'){
-    this.reset();this.environment=id==='microsurgery'?createMicroEnvironment(target):environments.skin;
+    this.reset();this.vesselStitches=0;this.environment=id==='microsurgery'?createMicroEnvironment(target):environments.skin;
     this.wound.initialGap=id==='microsurgery'?microProfile(target).gap:.1;
     this.eversion.edgeX=this.wound.initialGap/2;this.eversion.reset();
     this.pass.purchaseY=this.environment.purchaseY;this.wound.purchaseValidator=this.environment.loadBearing;
@@ -255,6 +255,14 @@ export class PracticeSession {
   startCourse(){
     if(this.environment.id!=='skin'||!this.grasp||this.course.active&&!this.course.finished)return false;
     this.reset();this.course.begin();this.configureTissueResponse();return true;
+  }
+  /** Microsurgery stitches saved around the vessel this session (anastomosis plan step 2). */
+  vesselStitches=0;
+  get canSaveVesselStitch(){return this.environment.id==='microsurgery'&&this.stitchAssessment.complete;}
+  /** Keep the tied vessel stitch (the page freezes its geometry) and start a fresh one; the clock keeps running. */
+  saveVesselStitch(){
+    if(!this.canSaveVesselStitch)return false;
+    this.vesselStitches++;this.resetCurrent();this.configureTissueResponse();return true;
   }
   get canAdvanceStitch(){return this.course.active&&!this.course.finished&&this.stitchAssessment.complete;}
   advanceStitch(){

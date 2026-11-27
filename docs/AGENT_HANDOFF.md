@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: save vessel stitches around the vessel (anastomosis plan step 2)
+- `PracticeSession`: `vesselStitches`, `canSaveVesselStitch` (microsurgery + stitch complete), `saveVesselStitch()` (count, `resetCurrent()`, clock keeps running); reset on environment switch (+test, Node 24).
+- `src/main.ts`: "Save stitch & turn" view button freezes the knot geometry into a `CompletedStitchesView` inside the vessel frame (compensated so it turns with the vessel), then turns 45° (360°/8). HUD microsurgery progress counts `vesselStitches`.
+- Checked: tsc, PracticeSession test, browser with "complete" forced through the dev hook (1 stitch, turned 0.785 rad, frozen group, HUD 1/8, no page errors), check-practice-setup, check-layout, check-sandbox, check-guided-thread. **Not tested with a real tied vessel stitch** (Lance).
+- Next: stitch count / stay fill scoring, back-wall catch, per-stitch vessel eversion.
+
 ### 2026-11-27 — Claude: vessel turn / flip (anastomosis plan step 1)
 - New `src/scene/VesselFrame.ts` (+test): group pivoting on the vessel axis; `src/main.ts` puts the artery, clamp and stay marks in it and adds "Turn vessel 45°" / "Flip vessel" view buttons (microsurgery only); switching environment resets the turn. The vessel is a cylinder, so pass physics are unchanged.
 - Checked: tsc, test, screenshot after a 45° turn, check-practice-setup, check-layout, check-sandbox. Next: plan step 2 (retain vessel stitches and turn them with the vessel).

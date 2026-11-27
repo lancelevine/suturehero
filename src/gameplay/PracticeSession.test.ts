@@ -378,3 +378,18 @@ it('keeps a free knot’s closure after letting go once its lock has been seated
  seat.mockReturnValue(false);load.mockReturnValue(0);for(let i=0;i<120;i++)s.update(1/60);
  expect(s.wound.closure).toBeGreaterThan(.9);
 });
+
+it('saves vessel stitches only in microsurgery once a stitch is complete, and resets the count on switching',()=>{
+  const left=new Instrument('left',0),right=new Instrument('right',0);
+  const idle={translation:[0,0,0],rotation:[0,0,0],jaw:0} as ToolCommand;
+  const session=new PracticeSession({sample:()=>idle,dispose:()=>{}},[left,right]);
+  expect(session.saveVesselStitch()).toBe(false);
+  session.setEnvironment('microsurgery');
+  expect(session.canSaveVesselStitch).toBe(false);
+  expect(session.saveVesselStitch()).toBe(false);
+  vi.spyOn(session,'stitchAssessment','get').mockReturnValue({...session.stitchAssessment,complete:true});
+  expect(session.saveVesselStitch()).toBe(true);
+  expect(session.vesselStitches).toBe(1);
+  session.setEnvironment('microsurgery');
+  expect(session.vesselStitches).toBe(0);
+});
