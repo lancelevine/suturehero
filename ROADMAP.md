@@ -15,34 +15,34 @@ Last updated: 2026-11-27
 - **Adjustable green double Acland clamp** on the microsurgery vessel. Pushing in brings the ends closer, pushing out spreads them, which sets the tension needed to secure the knot. Default: vessel ends a little apart; the clamp is for small adjustments, not a difficulty setting.
 - **Vessel dilation step:** dilate each vessel end before suturing; too little narrows the lumen, too much tears the intima and raises clot risk.
 - **Nerve repair:** align fascicles and place epineurial stitches without twist. Reuses the microsurgery scene.
-- **5-minute warm-up drill** with a daily log. *(First version in build 0.235: Sandbox warm-up timer, per-day log in browser storage and a streak.)*
+- **5-minute warm-up drill** with a daily log.
 - **More stitch patterns:** vertical and horizontal mattress, running, running subcuticular, each scored.
 - **Corner stitch:** half-buried horizontal mattress through the tip of a V-shaped or stellate wound; scored on the tip sitting flush without being strangled.
-- **Bite consistency score:** ruler overlay of each stitch's distance from the edge on both sides and spacing between stitches, outliers highlighted. *(First version in build 0.235: Sandbox summary line and red rings on outlier bites vs the median bite; a full ruler overlay is still to do.)*
+- **Bite consistency score:** ruler overlay of each stitch's distance from the edge on both sides and spacing between stitches, outliers highlighted.
 - **Figure-of-eight and purse-string stitches:** for fascia, bleeders and round defects; each scored on its own geometry.
-- **Step-off check:** compares the height of the two wound edges at each stitch and flags any step-off from uneven bite depth. *(First version in build 0.235: per-stitch edge height difference in the closure review and Sandbox spacing line.)*
+- **Step-off check:** compares the height of the two wound edges at each stitch and flags any step-off from uneven bite depth.
 - **Back-wall catch alert:** during an anastomosis, flags any bite that catches the opposite vessel wall, on that bite rather than at the patency test.
 - **Stay suture planning:** pick 180 or 120 degree stays before an anastomosis; the sim marks where they go and scores how evenly the remaining bites fill the gaps.
 - **Vessel grasp check:** flags forceps grabs that pinch the full vessel wall instead of adventitia or lumen counterpressure.
 - **Thread management scoring:** flags tangles, suture catching on instruments or dragging across the field, and pulls that saw through tissue.
 - **Microsurgical bite geometry:** each vessel bite measured against wall thickness (about 2x from the edge, equal both sides, needle perpendicular to the wall).
-- **Stitch order coaching:** on long or curved wounds, first stitch in the middle, then halve each gap; scores whether you followed it. *(First version in build 0.235: Sandbox summary line, straight wound.)*
+- **Stitch order coaching:** on long or curved wounds, first stitch in the middle, then halve each gap; scores whether you followed it.
 - **Flip the vessel:** after the front wall, turn the double clamp 180 degrees and sew the back wall; checks the flip doesn't twist the vessel or tear stitches.
-- **Needle regrasp check:** grab the needle behind the tip on exit and follow its curve on pull-through; graded per bite, skin and vessel. *(First version in build 0.235: Skill Analysis counts in-tissue regrasps on the tip; following the curve not graded yet.)*
-- **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen. *(Not started: the knot engines do not expose where the knot sits; needs a knot position in `KnotEngine`.)*
-- **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot. *(Not started: needs an "air knot" signal from every knot engine (`KnotEngine`); unseated throws are already reported in the stitch outcome.)*
-- **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep. *(First version in build 0.235: Sandbox summary line per pass; cutaway view still to do.)*
+- **Needle regrasp check:** grab the needle behind the tip on exit and follow its curve on pull-through; graded per bite, skin and vessel.
+- **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen.
+- **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot.
+- **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep.
 - **Landmark alignment:** on wounds crossing a line like the vermilion border, brow or crease, the first stitch lines it up; scored on millimetres off.
 - **Needle direction check (vessel):** outside-in on the first wall, inside-out on the second; flags any bite that goes the wrong way.
 - **Running locked stitch:** blanket stitch for scalp and oozing edges; scored on even lock tension and spacing, flags strangling locks.
 - **Pulley stitch:** far-near-near-far bite for high-tension edges; scored on bite order and tension taken off.
 - **Edge presentation:** grades how forceps or a skin hook lift and evert the edge before each bite, grabbing dermis rather than pinching epidermis.
 - **Last stitches left loose:** final two or three anastomosis stitches placed untied with loops open to see the lumen, then tied; grades order, tying before checking, and tangles.
-- **Gap scan for skin:** after a closure, sweeps the wound and highlights any spot where the edges aren't touching between stitches. *(First version in build 0.235: listed in the 3-stitch closure review and marked with red bars on the wound when the session is finished, and in Sandbox once two stitches are tied.)*
+- **Gap scan for skin:** after a closure, sweeps the wound and highlights any spot where the edges aren't touching between stitches.
 - **Continuous anastomosis:** one running suture around the vessel; scored on even spacing, purse-string narrowing and slack before the final tie.
 - **Subcuticular start and finish:** buried anchor knot to start, Aberdeen knot or buried exit to finish; scored on holding and staying hidden.
 - **Driver grip force:** needle driver jaw sensor flags clamping hard enough to bend a fine needle or so light it spins mid-bite.
-- **Instrument tip collisions:** flags driver and forceps tips bumping, crossing or blocking each other; count per closure with replay markers. *(First version in build 0.235: bump count in Skill Analysis; crossing/blocking and replay markers still to do.)*
+- **Instrument tip collisions:** flags driver and forceps tips bumping, crossing or blocking each other; count per closure with replay markers.
 - **Edges of unequal length:** measures both edges, shows the spacing needed to absorb the difference, and scores how evenly it was spread.
 - **Hand-sewn vein anastomosis:** vein mode on the vessel with a thin wall that collapses unless held open with forceps counterpressure; all vessel checks apply.
 - **Diseased artery mode:** stiff, plaque-lined vessel; bites must pin plaque and intima to the wall; flags separated intima.
@@ -52,10 +52,10 @@ Last updated: 2026-11-27
 - **Vessel twist check:** before the first stitches, marks rotation between the two ends and flags stay sutures placed out of line.
 - **Needle type and curve (upgrade the existing needle choice):** 3/8 vs 1/2 circle, cutting vs taper point; arc and tissue behavior change to match.
 - **Tail control on pull-through:** tracks the near-side tail while drawing the suture through; flags pulling it out or leaving too much to tie.
-- **Stitch angle across the wound:** draws each skin stitch's line across the wound and flags any more than a few degrees off 90. *(First version in build 0.235: Sandbox line per pass and a 10° target.)*
+- **Stitch angle across the wound:** draws each skin stitch's line across the wound and flags any more than a few degrees off 90.
 - **Needle pickup and transfer:** under the scope, pick up the needle with forceps, pass to the driver and load it without setting it down; times it and counts drops and re-grabs.
 - **Tension hold on running stitches:** tracks strand tension between bites; shows earlier loops going slack or the wound bunching.
-- **Blind bite flag:** flags each bite where the needle tip was hidden from view as it exited. *(First version in build 0.235: Skill Analysis "Blind exits" from the 3D view camera.)*
+- **Blind bite flag:** flags each bite where the needle tip was hidden from view as it exited.
 - **Vessel eversion:** extends the eversion score to every vessel stitch, with a ring view marking any spot where an edge rolled in.
 - **Set-back dermal stitch:** buried stitch with bites 2 to 3 mm back from the edge under the dermis; scored on set-back distance and the eversion it gives.
 - **Thread budget:** each running closure starts with a fixed suture length, like an 18 inch pack; tracks thread used per stitch and flags wasteful pull-throughs.
@@ -69,6 +69,7 @@ Last updated: 2026-11-27
 - **Pull direction when tying:** reads the thread's direction as each throw snugs down and flags throws pulled along the wound or upward instead of straight across in line with the bite.
 - **Sliding knot on tight wounds:** two same-way throws as a slip knot, slid down until edges just meet, then locked with a reversed throw; shows edge contact while sliding and checks it was locked.
 - **Needle dulling:** the needle wears with every pass (faster for cutting points and re-bites); shows the extra force needed and suggests a fresh needle once dull.
+- **Closing the wound ends:** marks each apex, checks the end stitches sit at or just past it at full depth, and shows any opening left at either end.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
