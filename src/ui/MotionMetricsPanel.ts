@@ -1,3 +1,4 @@
+import { setDisabled } from './setText';
 import { motionRecorder, type MotionSummary } from '../gameplay/motionMetrics';
 
 /**
@@ -30,7 +31,7 @@ export function mountMotionMetricsPanel(host: HTMLElement, build: () => string) 
   const summary = details.querySelector<HTMLElement>('[data-motion-summary]')!;
   const refresh = () => {
     toggle.textContent = motionRecorder.active ? 'Stop recording' : 'Start recording';
-    exportButton.disabled = motionRecorder.active || motionRecorder.count === 0;
+    setDisabled(exportButton, motionRecorder.active || motionRecorder.count === 0);
     count.textContent = motionRecorder.count ? `${motionRecorder.count} samples${motionRecorder.active ? ' · recording…' : ''}` : '';
     if (details.open) summary.innerHTML = table(motionRecorder.summary());
   };

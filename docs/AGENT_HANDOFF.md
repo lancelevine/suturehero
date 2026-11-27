@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: idle DOM mutations several hundred → 15 per 3 s
+- Measured with a MutationObserver on the idle practice page (1440×900, camera off): several hundred mutation records in 3 s before this series, 15 after.
+- `src/ui/setText.ts`: `setAttr`, `setMarkup` (remembers what it last wrote per element), plus tests. Used in `InstrumentCalibrationPanel.ts` (100 ms refresh: buttons, guide text, SVG transforms), `CalibrationPreview.ts` (per-frame SVG, values table, data attributes), `TrackingStatusBadge.ts`, `StatusStrip.ts`, `courseExport.ts`, `MotionMetricsPanel.ts`, and the stitch-position slider / placement progress in `src/main.ts`.
+- Checked: tsc, setText test, check-status-strip, check-calibration-preview, check-tracking-panels, check-sandbox, check-camera-controls. In CHANGELOG 0.234.
+
 ### 2026-11-27 — Claude: practicePanels guarded writes
 - `src/ui/practicePanels.ts`: tension panel, course buttons and sandbox view tools use `setHidden`/`setDisabled`/`setText` (several unguarded per-frame writes). Checked: tsc, practicePanels test, check-sandbox, check-guided-thread, check-free-tying.
 

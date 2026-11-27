@@ -21,3 +21,19 @@ export function setDisabled(element: { disabled: boolean } | null | undefined, d
 export function setData(element: HTMLElement | null | undefined, key: string, value: string) {
   if (element && element.dataset[key] !== value) element.dataset[key] = value;
 }
+
+/** Set an attribute only when its value changes (same reason as setHidden). */
+export function setAttr(element: Element | null | undefined, name: string, value: string) {
+  if (element && element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
+
+const lastMarkup = new WeakMap<Element, string>();
+/**
+ * Replace an element's markup only when it differs from what this function last wrote there
+ * (remembered per element, since reading innerHTML back would serialise the subtree).
+ */
+export function setMarkup(element: Element | null | undefined, html: string) {
+  if (!element || lastMarkup.get(element) === html) return;
+  element.innerHTML = html;
+  lastMarkup.set(element, html);
+}

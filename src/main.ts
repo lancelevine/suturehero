@@ -5,7 +5,7 @@ import {IdealSuturePath} from './scene/IdealSuturePath';
 import {SKIN_SURFACE_Y} from './tissue/FreeNeedlePass';
 import {mountPracticeHud} from './ui/practiceHud';
 import {MICRO_MM_PER_UNIT,SCENE_MM_PER_UNIT} from './setup/sceneScale';
-import {setData,setDisabled,setHidden,setText} from './ui/setText';
+import {setAttr,setData,setDisabled,setHidden,setText} from './ui/setText';
 import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
@@ -410,7 +410,7 @@ try {
     for(const [input,output,value] of [[rightBite,'#right-bite-value',session.pass.entry.x/DEFAULT_BITE_WIDTH],[leftBite,'#left-bite-value',-session.pass.exit.x/DEFAULT_BITE_WIDTH]] as const){
       const percent=String(Math.round(value*100));if(input.value!==percent)input.value=percent;setPlanText(output,`${percent}%`);
     }
-    stitchPosition.min=String(Math.ceil(course.positionLimits.min*100-1e-7));stitchPosition.max=String(Math.floor(course.positionLimits.max*100+1e-7));stitchPosition.value=String(Math.round(course.siteZ*100));
+    setAttr(stitchPosition,'min',String(Math.ceil(course.positionLimits.min*100-1e-7)));setAttr(stitchPosition,'max',String(Math.floor(course.positionLimits.max*100+1e-7)));{const site=String(Math.round(course.siteZ*100));if(stitchPosition.value!==site)stitchPosition.value=site;}
     setPlanText('#stitch-position-value',course.siteZ.toFixed(2));
     setPlanText('#bite-plan-status',!session.canPlanBites?'Bite plan locked for this stitch':session.bitePlanLimited?'Widths adjusted to fit the needle and preserve dermal purchase.':'Bite widths are relative to the default bite; position uses practice units.');
     setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)}`:'Start a 3-stitch session to review spacing.');
@@ -493,7 +493,7 @@ try {
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,
       pull,threadGuideState:needle.threadGuide.state,scissorsActive:input.scissorsActive,cutFeedback}));}
     {const progress=exerciseProgress({sandbox:session.sandbox,preparingEdge:session.preparingEdge,edgeLift:edge.lift,freeKnotActive:session.freeKnot.active,loadTest:session.loadTest,releaseCheck:session.releaseCheck,knot,pull,pass});
-    (frameQuery('#placement-progress') as HTMLProgressElement).value=progress.value;setText(frameQuery('#progress-label'),progress.label);
+    {const bar=frameQuery('#placement-progress') as HTMLProgressElement;if(bar.value!==progress.value)bar.value=progress.value;}setText(frameQuery('#progress-label'),progress.label);
     // Sandbox progress is on the HUD stat card; the bar would only repeat "Sandbox".
     const holdProgress=frameQuery('.hold-progress') as HTMLElement|null;if(holdProgress&&holdProgress.hidden!==session.sandbox)holdProgress.hidden=session.sandbox;}
     const status=frameQuery('#grasp-status')!; const statusText=graspStatusText({tractionAlert,edge,passPhase:pass.phase,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,preparingEdge:session.preparingEdge,freeKnotActive:session.freeKnot.active,loadTestActive:session.loadTest.active,driverOpenness:tools[1].openness,knot,releaseCheck:session.releaseCheck,graspStatus:grasp.status}); if(status.textContent!==statusText) status.textContent=statusText; if(session.environment.id==='microsurgery')for(const selector of ['#exercise-title','#exercise-readout','#grasp-status','#position-forceps']){

@@ -14,6 +14,7 @@ commit `bde9116`.
 - Skill Analysis: before the needle driver has moved, the path chart says "Move the needle driver to draw its path" instead of showing a dot; the Ideal legend swatch is visibly dashed.
 - Microsurgery: the vessel wall and lumen have a soft wet highlight instead of a flat matte look.
 - Ideal suture line: chevrons are clean cyan arrows (their overlapping glow had turned white), and the line draws in 2 GPU draw calls instead of about 60.
+- Faster idle page: the practice page now makes about 15 DOM changes in 3 seconds when idle, down from several hundred (buttons, panels, calibration preview and status lines were rewritten every frame even when unchanged).
 - Skill Analysis: the dashed ideal path now runs through your needle entry points instead of straight from start to end.
 
 ## Build 0.233 — New look, polished

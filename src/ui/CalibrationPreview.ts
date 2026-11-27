@@ -3,6 +3,7 @@ import {visibilityFlag} from './visibilityFlag';
 import {instrumentCalibration,trackerTipDistanceMm,trackerToTipOffset,type InstrumentCalibration} from '../input/InstrumentCalibration';
 import type {BallInstrumentName} from '../input/ballTrackingSlots';
 import {trackedInstrumentRotation} from '../input/trackingFrame';
+import {setData,setMarkup,setText} from './setText';
 const names={forceps:'Forceps',needleDriver:'Needle driver',scissors:'Scissors'};
 const colors={forceps:'#319b84',needleDriver:'#c65353',scissors:'#557ed0'};
 const axisColors=['#d76060','#329c75','#588bd1'];
@@ -53,7 +54,7 @@ export class CalibrationPreview {
  private draw(paths:THREE.Vector3[][],rotation:THREE.Quaternion,movement:THREE.Vector3){return paths.map(path=>path.map((point,i)=>{const p=this.project(point.clone().multiplyScalar(.8).applyQuaternion(rotation).add(movement));return `${i?'L':'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`;}).join(' '));}
  private render(){
   const sample=this.calibration.preview(this.selected),fresh=!!sample,last=sample??(this.lastTool===this.selected?this.last:undefined);
-  this.element.dataset.instrument=this.selected;this.element.dataset.tracking=fresh?'live':last?'lost':'waiting';
+  setData(this.element,'instrument',this.selected);setData(this.element,'tracking',fresh?'live':last?'lost':'waiting');
   const title=this.element.querySelector('[data-preview-title]')!,titleText='Live '+names[this.selected].toLowerCase();if(title.textContent!==titleText)title.textContent=titleText;
   const status=this.element.querySelector('[data-preview-status]')!,statusText=fresh?'Tracking':last?'Marker lost · holding pose':'Show this marker';if(status.textContent!==statusText)status.textContent=statusText;
   const movement=(last?.movement.clone()??new THREE.Vector3()).sub(this.centers.get(this.selected)??new THREE.Vector3());
@@ -68,16 +69,16 @@ export class CalibrationPreview {
   const markerRotation=last?.markerRotation??new THREE.Quaternion();
   const corners=[[-.08,-.08],[.08,-.08],[.08,.08],[-.08,.08],[-.08,-.08]].map(([x,y])=>this.project(new THREE.Vector3(x,y,0).applyQuaternion(markerRotation).add(markerMovement)));
   const center=this.project(markerMovement),tip=this.project(movement),marker=this.element.querySelector('[data-preview-marker]')!;
-  marker.innerHTML=`<path d="M${tip.x} ${tip.y}L${center.x} ${center.y}" fill="none" stroke-dasharray="3 3" opacity=".65"/><path d="${corners.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' ')}"/><circle cx="${corners[0].x}" cy="${corners[0].y}" r="2.5" fill="#23724f"/><circle cx="${center.x}" cy="${center.y}" r="1.5"/>`;
-  this.element.querySelector('[data-preview-marker-label]')!.textContent=`Tracker reference · ${trackerTipDistanceMm[this.selected]} mm toward handle${profile.tipOffset.some(v=>v!==0)?' + custom offset':''} · corner dot shows roll.`;
+  setMarkup(marker,`<path d="M${tip.x} ${tip.y}L${center.x} ${center.y}" fill="none" stroke-dasharray="3 3" opacity=".65"/><path d="${corners.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' ')}"/><circle cx="${corners[0].x}" cy="${corners[0].y}" r="2.5" fill="#23724f"/><circle cx="${center.x}" cy="${center.y}" r="1.5"/>`);
+  setText(this.element.querySelector('[data-preview-marker-label]'),`Tracker reference · ${trackerTipDistanceMm[this.selected]} mm toward handle${profile.tipOffset.some(v=>v!==0)?' + custom offset':''} · corner dot shows roll.`);
   const origin=this.project(movement),axes=this.element.querySelector('[data-preview-axes]')!;
-  axes.innerHTML=[new THREE.Vector3(.42,0,0),new THREE.Vector3(0,.42,0),new THREE.Vector3(0,0,.42)].map((axis,i)=>{const end=this.project(axis.add(movement));return `<path d="M${origin.x} ${origin.y}L${end.x} ${end.y}" stroke="${axisColors[i]}"/><text x="${end.x+3}" y="${end.y-3}" fill="${axisColors[i]}">${'XYZ'[i]}</text>`;}).join('');
+  setMarkup(axes,[new THREE.Vector3(.42,0,0),new THREE.Vector3(0,.42,0),new THREE.Vector3(0,0,.42)].map((axis,i)=>{const end=this.project(axis.add(movement));return `<path d="M${origin.x} ${origin.y}L${end.x} ${end.y}" stroke="${axisColors[i]}"/><text x="${end.x+3}" y="${end.y-3}" fill="${axisColors[i]}">${'XYZ'[i]}</text>`;}).join(''));
   if(sample){
    const p=this.calibration.profile(this.selected);
    if(this.last&&this.lastTool===this.selected){const move=sample.rawMovement.clone().sub(this.last.rawMovement),turn=sample.rawRotation.clone().sub(this.last.rawRotation);const rotating=turn.length()>.004,changing=rotating||move.length()>.003;if(changing){const delta=(rotating?turn:move).toArray(),input=delta.map(Math.abs).indexOf(Math.max(...delta.map(Math.abs))),map=rotating?p.rotationAxes:p.translationAxes,output=map.indexOf(input as 0|1|2),reversed=(rotating?p.rotationInvert:p.translationInvert)[output];this.element.querySelector('[data-preview-motion]')!.textContent=`${rotating?'Turn':'Move'}: marker ${'XYZ'[input]} → virtual ${'XYZ'[output]}${reversed?' · reversed':''}${!rotating&&output===2&&sample.depthLocked?' · mono depth locked':''}`;}}
    const number=(n:number,rotation=false)=>(rotation?THREE.MathUtils.radToDeg(n).toFixed(0)+'°':n.toFixed(2));
-   this.element.querySelector('[data-preview-values]')!.innerHTML=(['Move','Turn'] as const).flatMap((kind,k)=>[0,1,2].map(axis=>{const raw=(k?sample.rawRotation:sample.rawMovement).toArray(),mapped=(k?sample.mappedRotation:sample.movement).toArray(),input=(k?p.rotationAxes:p.translationAxes)[axis];return `<tr><td>${kind} ${'XYZ'[input]} ${number(raw[input],!!k)}</td><td>${'XYZ'[axis]} ${number(mapped[axis],!!k)}</td></tr>`;})).join('')+`<tr><td>Jaws</td><td>${jaw?Math.round(jaw.opening*100)+'%'+(performance.now()-jaw.seenAt>500?' · last known':''):'Calibrate on Jaws tab'}</td></tr>`;
+   setMarkup(this.element.querySelector('[data-preview-values]'),(['Move','Turn'] as const).flatMap((kind,k)=>[0,1,2].map(axis=>{const raw=(k?sample.rawRotation:sample.rawMovement).toArray(),mapped=(k?sample.mappedRotation:sample.movement).toArray(),input=(k?p.rotationAxes:p.translationAxes)[axis];return `<tr><td>${kind} ${'XYZ'[input]} ${number(raw[input],!!k)}</td><td>${'XYZ'[axis]} ${number(mapped[axis],!!k)}</td></tr>`;})).join('')+`<tr><td>Jaws</td><td>${jaw?Math.round(jaw.opening*100)+'%'+(performance.now()-jaw.seenAt>500?' · last known':''):'Calibrate on Jaws tab'}</td></tr>`);
    this.last=sample;this.lastTool=this.selected;
-  }else if(!last)this.element.querySelector('[data-preview-values]')!.innerHTML='<tr><td colspan="2">Waiting for this instrument’s marker.</td></tr>';
+  }else if(!last)setMarkup(this.element.querySelector('[data-preview-values]'),'<tr><td colspan="2">Waiting for this instrument’s marker.</td></tr>');
  }
 }

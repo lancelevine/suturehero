@@ -1,8 +1,9 @@
+import {setAttr,setData,setText} from './setText';
 export function mountTrackingStatusBadge(viewport:HTMLElement){
  const badge=document.createElement('div');badge.id='practice-tracking-status';badge.className='practice-tracking-status';
  badge.setAttribute('role','status');badge.setAttribute('aria-live','polite');
  const dot=document.createElement('i'),label=document.createElement('span');badge.append(dot,label);viewport.append(badge);
- const show=(state:string,text:string,title=text)=>{badge.dataset.state=state;if(label.textContent!==text)label.textContent=text;badge.title=title;};
+ const show=(state:string,text:string,title=text)=>{setData(badge,'state',state);setText(label,text);setAttr(badge,'title',title);};
  show('off','Camera tracking off');
  return {off:()=>show('off','Camera tracking off'),waiting:()=>show('waiting','Tracking status unavailable'),update:(data:any)=>{
   if(data?.type!=='suturehero:tracking-status'||!['active','fallback','waiting','off','mono','mismatch'].includes(data.state))return false;

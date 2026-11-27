@@ -1,3 +1,4 @@
+import { setHidden } from './setText';
 import { stitchesCsv, type ExportStitch } from '../gameplay/sessionRecord';
 import { bindTraineeInput, downloadText, exportFileName } from './traineeExport';
 
@@ -38,7 +39,7 @@ export function mountCourseExport(after: Element, source: CourseExportSource) {
     downloadText(stitchesCsv(source.stitches(), trainee(), source.build()), 'text/csv', exportFileName('course', trainee(), 'csv'));
   });
   const refresh = () => {
-    block.hidden = !(source.active() && source.stitches().length > 0);
+    setHidden(block, !(source.active() && source.stitches().length > 0));
   };
   refresh();
   setInterval(refresh, REFRESH_MS);

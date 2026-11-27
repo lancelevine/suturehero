@@ -26,3 +26,21 @@ it('writes hidden and disabled only when they change', async () => {
   setDisabled(element, true);
   expect([writes, element.hidden, element.disabled]).toEqual([1, true, true]);
 });
+
+it('rewrites markup and attributes only when they change', async () => {
+  const { setAttr, setMarkup } = await import('./setText');
+  let markupWrites = 0;
+  let attributeWrites = 0;
+  const attributes = new Map<string, string>();
+  const element = {
+    set innerHTML(_html: string) { markupWrites++; },
+    getAttribute: (name: string) => attributes.get(name) ?? null,
+    setAttribute: (name: string, value: string) => { attributeWrites++; attributes.set(name, value); },
+  } as unknown as Element;
+  setMarkup(element, '<b>a</b>');
+  setMarkup(element, '<b>a</b>');
+  setMarkup(element, '<b>b</b>');
+  setAttr(element, 'title', 'x');
+  setAttr(element, 'title', 'x');
+  expect([markupWrites, attributeWrites]).toEqual([2, 1]);
+});

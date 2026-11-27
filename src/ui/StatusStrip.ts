@@ -1,3 +1,4 @@
+import { setAttr, setHidden, setText } from './setText';
 import './statusStrip.css';
 import { nextStep, type ChecklistItem, type ChecklistKey } from './trackingHealth';
 
@@ -62,10 +63,10 @@ export function mountStatusStrip(parent: HTMLElement, before: Element | null, ac
           return button;
         }));
       }
-      warning.hidden = !state.warning;
-      warning.textContent = state.warning ?? '';
+      setHidden(warning, !state.warning);
+      setText(warning, state.warning ?? '');
       // The strip is one fixed-height row (statusStrip.css); long text is cut with "…", full text on hover.
-      warning.title = state.warning ?? '';
+      setAttr(warning, 'title', state.warning ?? '');
       const lines = state.holding.slice(0, MAX_HOLDING_LINES);
       if (holding.dataset.lines !== JSON.stringify(lines)) {
         holding.dataset.lines = JSON.stringify(lines);

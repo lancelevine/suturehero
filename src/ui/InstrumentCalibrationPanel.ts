@@ -14,6 +14,7 @@ import {GuidedCalibration,guidedDirections,solveGuidedRotation} from '../input/G
 import {CalibrationPreview} from './CalibrationPreview';
 import {instrumentCalibration,type Axis} from '../input/InstrumentCalibration';
 import {type BallInstrumentName} from '../input/ballTrackingSlots';
+import {setAttr,setDisabled,setText} from './setText';
 const calibrationOrder:readonly BallInstrumentName[]=['needleDriver','forceps','scissors'];
 const names={forceps:'Forceps',needleDriver:'Needle driver',scissors:'Scissors'};
 const mounted=new WeakMap<HTMLElement,InstrumentCalibrationPanel>();
@@ -25,7 +26,7 @@ export class InstrumentCalibrationPanel {
  private selected:BallInstrumentName='needleDriver';private tableNote='';private accuracyNote='';private pane='pose';private jaws?:HTMLElement;private guide?:GuidedCalibration;
  constructor(private host:HTMLElement){
   host.classList.add('instrument-calibration-panel');this.render();host.addEventListener('click',e=>this.click(e));host.addEventListener('input',e=>this.input(e));host.addEventListener('change',e=>this.change(e));
-  setInterval(()=>{const button=host.querySelector<HTMLButtonElement>('[data-neutral]');if(button)button.disabled=!instrumentCalibration.hasFreshPose(this.selected);const status=host.querySelector('[data-pose-status]');const text=instrumentCalibration.hasFreshPose(this.selected)?'Marker tracked · ready to set neutral':'Show this instrument’s marker to set neutral';if(status&&status.textContent!==text)status.textContent=text;this.updateGuide();this.updateTip();},100);
+  setInterval(()=>{const button=host.querySelector<HTMLButtonElement>('[data-neutral]');setDisabled(button,!instrumentCalibration.hasFreshPose(this.selected));const status=host.querySelector('[data-pose-status]');const text=instrumentCalibration.hasFreshPose(this.selected)?'Marker tracked · ready to set neutral':'Show this instrument’s marker to set neutral';if(status&&status.textContent!==text)status.textContent=text;this.updateGuide();this.updateTip();},100);
  }
  /** Tip calibration status and the forceps–needle driver tip distance. */
  private updateTip(){
@@ -34,7 +35,7 @@ export class InstrumentCalibrationPanel {
   const message=stereoTipCalibration.status();
   const text=capturing?message:saved?`Calibrated: tip ${Math.hypot(...saved.tip).toFixed(0)} mm from the ring centre (±${saved.rmsMm.toFixed(1)} mm)${saved.bodyToModel?' · jaw orientation set':' · jaw orientation not set'}. ${/not calibrated|jaw orientation|Hold the jaws/i.test(message)?message:''}`:(message&&/not calibrated|cancelled/i.test(message)?message+' ':'')+'Not calibrated: with both cameras tracking, press Calibrate tip, rest the tip on one spot and rock the instrument for 8 s.';
   if(status.textContent!==text)status.textContent=text;
-  button.textContent=capturing?'Cancel':'Calibrate tip';
+  setText(button,capturing?'Cancel':'Calibrate tip');
   const distance=tipsApartMm(performance.now());
   const apartText=distance===null?'Tips apart: calibrate both tips and track both instruments in stereo.':`Tips apart: ${distance.toFixed(1)} mm (touch the real tips together to check).`;
   if(apart.textContent!==apartText)apart.textContent=apartText;
@@ -92,13 +93,13 @@ export class InstrumentCalibrationPanel {
   guide?.observe(raw,sample?.observedAt??0,performance.now());
   const complete=guide&&guide.step>=6;
   const instruction=!guide?'Set neutral and begin. Six directions will be checked.':complete?'Six checks passed. Test the live preview, then Save.':guide.neutral?`Return to neutral before check ${guide.step+1} of 6, hold still, then confirm.`:`Check ${guide.step+1} of 6: ${guidedDirections[guide.step]}. Keep your hand in place, hold still, then capture.`;
-  this.host.querySelector('[data-guide-instruction]')!.textContent=instruction;
-  this.host.querySelector('[data-guide-measure]')!.textContent=guide&&!complete?guide.readiness():raw?`Detected rotation: ${(raw.length()*180/Math.PI).toFixed(0)}°`:'Waiting for marker tracking';
+  setText(this.host.querySelector('[data-guide-instruction]'),instruction);
+  setText(this.host.querySelector('[data-guide-measure]'),guide&&!complete?guide.readiness():raw?`Detected rotation: ${(raw.length()*180/Math.PI).toFixed(0)}°`:'Waiting for marker tracking');
   const capture=this.host.querySelector<HTMLButtonElement>('[data-guide-capture]')!;
-  capture.textContent=guide?.neutral?'Confirm neutral':'Capture this direction';capture.disabled=!guide||!!complete||guide.readiness()!=='Ready';
-  target.setAttribute('transform',`rotate(${!guide||guide.neutral?0:guide.step%2===0?35:-35})`);
+  setText(capture,guide?.neutral?'Confirm neutral':'Capture this direction');setDisabled(capture,!guide||!!complete||guide.readiness()!=='Ready');
+  setAttr(target,'transform',`rotate(${!guide||guide.neutral?0:guide.step%2===0?35:-35})`);
   // Schematic magnitude only: labels give the actual requested 3D direction.
-  this.host.querySelector('[data-guide-live]')?.setAttribute('transform',`rotate(${(guide&&guide.step%2?-1:1)*Math.min(60,(raw?.length()??0)*180/Math.PI)})`);
+  setAttr(this.host.querySelector('[data-guide-live]'),'transform',`rotate(${(guide&&guide.step%2?-1:1)*Math.min(60,(raw?.length()??0)*180/Math.PI)})`);
  }
  private captureGuide(){
   // Capture the stable window that enabled the displayed button. Do not add a
