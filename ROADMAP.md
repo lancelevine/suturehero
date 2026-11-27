@@ -50,6 +50,7 @@ Last updated: 2026-11-27
 - **Edges of different thickness:** thick flap edge to thinner skin; coaches a deeper bite on the thin side, scored by step-off and bite depth.
 - **Stitch density by tension:** reads tension along the wound first, suggests closer spacing where pull is highest, and scores whether density matched.
 - **Vessel twist check:** before the first stitches, marks rotation between the two ends and flags stay sutures placed out of line.
+- **Needle type and curve (upgrade the existing needle choice):** 3/8 vs 1/2 circle, cutting vs taper point; arc and tissue behavior change to match.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
