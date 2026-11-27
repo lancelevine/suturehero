@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: roadmap triage notes
+- Looked at "Needle regrasp check": `NeedleGrasp.heldPoint` (needle-local) gives where the needle is gripped, but which end of `needle.points` is the tip needs tracing through the needle model; a longer job, not started.
+- Remaining roadmap items mostly need new physics or knot-engine signals (knot position, air knot, tension along the wound, running stitches, vessel clamp/dilation/flip). Good next candidates that are mostly UI/scoring: needle regrasp check (above), Sandbox gap scan, bite ruler overlay.
+
 ### 2026-11-27 — Claude: gap scan drawn on the wound
 - New `src/scene/GapScanView.ts` (+test): red bars over open spans, following the course site like the other stitch views. `src/main.ts` shows it for a finished skin 3-stitch session; the scan reruns only when `course.tissueSites` changes.
 - Checked: tsc, GapScanView test, check-guided-thread, check-sandbox, check-layout.
