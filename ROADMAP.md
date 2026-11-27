@@ -51,6 +51,7 @@ Last updated: 2026-11-27
 - **Stitch density by tension:** reads tension along the wound first, suggests closer spacing where pull is highest, and scores whether density matched.
 - **Vessel twist check:** before the first stitches, marks rotation between the two ends and flags stay sutures placed out of line.
 - **Needle type and curve (upgrade the existing needle choice):** 3/8 vs 1/2 circle, cutting vs taper point; arc and tissue behavior change to match.
+- **Tail control on pull-through:** tracks the near-side tail while drawing the suture through; flags pulling it out or leaving too much to tie.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
