@@ -41,6 +41,7 @@ Last updated: 2026-11-27
 - **Gap scan for skin:** after a closure, sweeps the wound and highlights any spot where the edges aren't touching between stitches.
 - **Continuous anastomosis:** one running suture around the vessel; scored on even spacing, purse-string narrowing and slack before the final tie.
 - **Subcuticular start and finish:** buried anchor knot to start, Aberdeen knot or buried exit to finish; scored on holding and staying hidden.
+- **Driver grip force:** needle driver jaw sensor flags clamping hard enough to bend a fine needle or so light it spins mid-bite.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
