@@ -63,6 +63,7 @@ Last updated: 2026-11-27
 - **Running stitch tie-off:** tie the free end to a last loop left long; checks loop size, that the knot holds without cinching the last bite, and slack along the line.
 - **Forehand and backhand bites:** reads needle orientation in the driver against bite direction; flags awkward forehand bites where backhand would be cleaner.
 - **Dead space check:** after closure, finds gaps between the wound floor and the stitched surface in the cutaway and points to the bites too shallow to close them.
+- **Suture breaking strength:** each suture size gets a real breaking load; the thread snaps if a pull or knot throw exceeds it, with a gauge showing how close each pull came.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
