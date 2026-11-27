@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {markerGroupsFor} from './input/markerGroups';
 import {stereoIndicator} from './input/stereoIndicator';
 import {faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
@@ -149,15 +150,9 @@ type InstrumentName='needleDriver'|'forceps'|'scissors';
 const trackerTypeSelect=document.querySelector<HTMLSelectElement>('#tracker-type')!;
 const trackerTypeStatus=document.querySelector<HTMLElement>('#tracker-type-status')!;
 let trackerType:TrackerType='prism';
-const ringMarkerGroups:Record<InstrumentName,readonly number[]>={
- needleDriver:[0,1,2,3,4,5,6,7],
- forceps:[10,11,12,13,14,15,16,17],
- scissors:[20,21,22,23,24,25,26,27]
-};
-const sixMarkerGroups:Record<InstrumentName,readonly number[]>={needleDriver:[0,1,2,3,4,5],forceps:[10,11,12,13,14,15],scissors:[20,21,22,23,24,25]};
 /** Marker groups for the decode region search: each instrument's ring plus its handle prism, so a hidden handle face is not treated as a lost object (which forces whole-frame scans). */
 const decodeSearchGroups=()=>Object.values(markerGroups()).map(ids=>[...ids]);
-const markerGroups=():Record<InstrumentName,readonly number[]>=>trackerType==='ring8'?ringMarkerGroups:trackerType==='ring6'?sixMarkerGroups:MARKER_GROUPS;
+const markerGroups=():Record<InstrumentName,readonly number[]>=>markerGroupsFor(trackerType);
 function updateTrackerDescription(){
  const geometry=trackerGeometry(trackerType),groups=markerGroups(),spacing=THREE.MathUtils.radToDeg(geometry.sideStepRadians).toFixed(0);
  trackerTypeStatus.textContent=`${geometry.faceCount}-face ${trackerType==='prism'?'prism':'ring'} · ${spacing}° side spacing for all instruments · `+(['needleDriver','forceps','scissors'] as const).map(n=>`${n==='needleDriver'?'Needle driver':n==='forceps'?'Forceps':'Scissors'} IDs ${groups[n][0]}–${groups[n].at(-1)}`).join(' · ');

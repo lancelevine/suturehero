@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — marker ID tables out of tracking.ts
+
+- `src/input/markerGroups.ts` (+test): ring8 / ring6 / prism marker IDs and `markerGroupsFor`.
+  No behaviour change. Checked: ring-configuration, ring-markers, ring-handoffs, tracking-motion,
+  iphone-start.
+
 ### 2026-11-27 — Claude — filter and face-overlap readouts out of tracking.ts
 
 - `filterDiagnosticsText` and `faceOverlapText` in `src/ui/trackingReadouts.ts` (+tests); no
