@@ -87,6 +87,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — "Start 2 cameras" orchestration out of tracking.ts
+
+- `src/input/startBothCameras.ts` (+test). Checked: stereo-shortcut, stereo-motion.
+
 ### 2026-11-27 — Claude — slider readouts and depth lock out of tracking.ts
 
 - `src/ui/trackingControls.ts` (+test): slider value readouts and the all-instruments depth lock

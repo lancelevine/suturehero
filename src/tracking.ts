@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {startBothCameras} from './input/startBothCameras';
 import {bindDepthLock,bindSliderReadouts,trackingModeDescription} from './ui/trackingControls';
 import {createTrackingLabBridge} from './trackingLab/bridge';
 import {getOrCreate} from './util/getOrCreate';
@@ -300,24 +301,15 @@ const stereoQuick=document.querySelector<HTMLButtonElement>('#start-stereo-all')
 const stereoQuickStatus=document.querySelector<HTMLElement>('#stereo-quick-status')!;
 stereoQuick.addEventListener('click',async()=>{
  stereoQuick.disabled=true;
- try{
-  trackingMode.value='stereo';trackingMode.dispatchEvent(new Event('change'));
-  simulation.checked=false;simulation.dispatchEvent(new Event('change'));
-  stereoSetup.enabled.checked=true;stereoSetup.enabled.dispatchEvent(new Event('change'));
-  stereoQuickStatus.textContent='Starting both cameras…';
-  await refreshCameras();await refreshSecondCameraList();
-  if(!select2.value||(select.value&&select.value===select2.value)){
-   stereoQuickStatus.textContent='Select a second camera distinct from camera 1, then press this button again.';
-   return;
-  }
-  if(!stream)await startPrimaryCamera();
-  if(!stream2)await startSecondaryCamera();
-  stereoQuickStatus.textContent=stereoSetup.calibration
-   ?'Both cameras started; metric 3D enabled. Waiting for valid stereo marker matches.'
-   :'Both cameras started. Import a solved stereo calibration to enable metric triangulation.';
- }catch(error){stereoQuickStatus.textContent='Stereo start failed: '+String(error);}
+ // src/input/startBothCameras.ts
+ try{await startBothCameras({trackingMode,simulation,stereoEnabled:stereoSetup.enabled,
+  refreshCameraLists:async()=>{await refreshCameras();await refreshSecondCameraList();},
+  selectedCameras:()=>({first:select.value,second:select2.value}),running:camera=>!!(camera?stream2:stream),
+  startPrimary:startPrimaryCamera,startSecondary:startSecondaryCamera,calibrated:()=>!!stereoSetup.calibration,
+  setStatus:text=>{stereoQuickStatus.textContent=text;}});}
  finally{stereoQuick.disabled=false;}
 });
+
 select2.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_SECONDARY,select2.value);if(stream2)void stopSecondCamera();});
 async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
