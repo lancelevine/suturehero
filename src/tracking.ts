@@ -17,7 +17,7 @@ import {bitmapRequests} from './input/bitmapRequests';
 import {RotationStageReadout} from './ui/rotationStageReadout';
 import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
-import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport} from './input/stereoIndicator';
+import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport,stereoMatchText} from './input/stereoIndicator';
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {changeThrottle} from './util/changeThrottle';
@@ -265,10 +265,8 @@ let secondaryObservations:MarkerObservation[]=[];
 let secondaryObservationsAt=0;
 const stereoStatus=document.querySelector<HTMLElement>('#stereo-match-status')!;
 function updateStereoMatches(){
- if(!stream||!stream2||!observationsAt||!secondaryObservationsAt){stereoStatus.textContent='Stereo matching: waiting for both camera detections.';return;}
- const delta=Math.abs(observationsAt-secondaryObservationsAt);
- const matches=liveMarkers().filter(primary=>liveSecondMarkers().some(secondary=>secondary.id===primary.id)).map(marker=>marker.id);
- stereoStatus.textContent='Stereo: '+(delta<=250?'':'frames not synchronized · ')+(matches.length?'shared marker IDs '+matches.join(', '):'no shared marker IDs')+' · frame offset '+Math.round(delta)+' ms · calibration required for 3D';
+ const offset=stream&&stream2&&observationsAt&&secondaryObservationsAt?Math.abs(observationsAt-secondaryObservationsAt):null;
+ setText(stereoStatus,stereoMatchText(offset,liveMarkers().map(m=>m.id),liveSecondMarkers().map(m=>m.id)));
 }
 
 

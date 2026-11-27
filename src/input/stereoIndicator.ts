@@ -64,3 +64,18 @@ export function stereoInstrumentReport(
   if (!seen || !rejection) return { note: null, fitErrorPx: null };
   return { note: name + ' · stereo not used: ' + rejection, fitErrorPx: fitErrorFromReason(rejection) };
 }
+
+/** Camera frames further apart than this (ms) are reported as not synchronized. */
+export const STEREO_SYNC_WARNING_MS = 250;
+
+/**
+ * The "#stereo-match-status" line (moved out of src/tracking.ts, 2026-11-27): marker IDs seen by
+ * both cameras and the frame offset; `null` offset while either camera has no detections yet.
+ */
+export function stereoMatchText(offsetMs: number | null, primaryIds: readonly number[], secondaryIds: readonly number[]) {
+  if (offsetMs === null) return 'Stereo matching: waiting for both camera detections.';
+  const shared = primaryIds.filter((id) => secondaryIds.includes(id));
+  const sync = offsetMs <= STEREO_SYNC_WARNING_MS ? '' : 'frames not synchronized · ';
+  const ids = shared.length ? 'shared marker IDs ' + shared.join(', ') : 'no shared marker IDs';
+  return 'Stereo: ' + sync + ids + ' · frame offset ' + Math.round(offsetMs) + ' ms · calibration required for 3D';
+}

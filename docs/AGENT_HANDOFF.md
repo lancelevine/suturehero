@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: stereo match line via stereoIndicator
+- `stereoMatchText` (`src/input/stereoIndicator.ts`, +test, `STEREO_SYNC_WARNING_MS=250`) builds the "#stereo-match-status" line; `src/tracking.ts` now writes it with `setText` (skips same-text DOM writes each frame). Same text as before.
+- Checked: tsc, stereoIndicator test, check-stereo-motion.
+
 ### 2026-11-27 — Claude: stereo tip dots via ringAxisOverlay
 - The tip-dot loop in `drawTipDots` (`src/tracking.ts`) moved to `drawStereoTipDots` (`src/ui/ringAxisOverlay.ts`, projection passed in). Test added. No visible change.
 - Checked: tsc, ringAxisOverlay test, check-stereo-motion, check-tracking-motion.

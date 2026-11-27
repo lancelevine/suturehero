@@ -28,3 +28,10 @@ it('reports each instrument for the triangulation status and the camera-moved mo
   expect(stereoInstrumentReport('scissors', null, pair, [20], 'too few faces')).toEqual({ note: null, fitErrorPx: null });
   expect(stereoInstrumentReport('forceps', null, null, [10], 'x')).toEqual({ note: null, fitErrorPx: null });
 });
+
+it('describes shared stereo markers and the frame offset', async () => {
+  const { stereoMatchText } = await import('./stereoIndicator');
+  expect(stereoMatchText(null, [], [])).toBe('Stereo matching: waiting for both camera detections.');
+  expect(stereoMatchText(12.4, [1, 2, 3], [3, 1])).toBe('Stereo: shared marker IDs 1, 3 · frame offset 12 ms · calibration required for 3D');
+  expect(stereoMatchText(300, [1], [2])).toBe('Stereo: frames not synchronized · no shared marker IDs · frame offset 300 ms · calibration required for 3D');
+});
