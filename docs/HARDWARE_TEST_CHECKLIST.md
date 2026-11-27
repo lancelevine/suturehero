@@ -66,6 +66,9 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **Stereo setup unchanged.** If you use two cameras: importing or removing a
       stereo calibration, the workspace axes and "Start 2 cameras + metric 3D" behave as
       before.
+- [ ] **Camera capture restructured (2026-11-27).** Both cameras' frame capture now runs through
+      one shared module. Tracking should look and feel exactly as before with one camera and with
+      two; Diagnostics → profile should still list Camera 1 / Camera 2 rows.
 - [ ] **Depth range.** Near / Far / Reset depth range and the working-depth field
       behave as before.
 - [ ] **OV9281 (when they arrive).** Start one: Camera settings → Camera type switches

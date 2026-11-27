@@ -87,6 +87,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — per-camera capture pipeline out of tracking.ts (−82 lines)
+
+- `src/input/CameraCapture.ts` (+test): one class per camera for what both detect functions
+  did identically: capture timing (`captureDue`), duplicate counters, video snapshot, flow-frame
+  resize, flow request (bitmap or readback) and decode request (bitmap or crop), with the same
+  profiler names. Camera-specific result handling stays in `detectFrame` / `detectSecondFrame`.
+  Removed ~30 per-camera variables from tracking.ts (canvases, busy flags, budgets, searches).
+- Checked: tsc; tracking-motion, performance, predictive-decode, stereo-motion,
+  stereo-capture-quality, dual-camera-fit, ring-handoffs, driver-depth, profiler,
+  detection-previews, camera-controls (all pass).
+- Lance: real-camera check in HARDWARE_TEST_CHECKLIST section 4 (single and two cameras).
+
 ### 2026-11-27 — Claude — bitmap flow/decode requests out of tracking.ts
 
 - `src/input/bitmapRequests.ts` (+test): `postFlowBitmap` and `decodeViaBitmap`, unchanged logic;
