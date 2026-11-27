@@ -72,6 +72,7 @@ Last updated: 2026-11-27
 - **Daily challenge:** the same wound for everyone each day, with a leaderboard.
 - **Supermicrosurgery drill:** 0.3 to 0.8 mm vessels at lymphaticovenous anastomosis scale, 11-0 or 12-0 suture, higher magnification.
 - **Multi-layer closure:** buried deep dermal stitches first, then a skin layer; scored on whether the deep layer took tension off the skin.
+- **Buried knot check:** each deep dermal stitch goes deep to superficial, then superficial to deep, so the knot lands at the bottom of the wound.
 - **Instrument tie speed drills:** timed knots scored on speed and on whether each is square and lies flat.
 
 ## Long term
