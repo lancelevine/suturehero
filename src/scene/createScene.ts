@@ -19,6 +19,7 @@ const SHADOW_INTENSITY=0.7;
 const SCENE_BACKDROP=0x060b16;
 const FLOOR_COLOR=0x0a1426;
 const TRAY_COLOR=0x23344d;
+const FLOOR_GRID_SIZE=24,FLOOR_GRID_DIVISIONS=48,FLOOR_GRID_COLOR=0x3fd8ff,FLOOR_GRID_OPACITY=0.09;
 export function createScene(container: HTMLElement) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color(SCENE_BACKDROP); scene.fog=new THREE.Fog(SCENE_BACKDROP,18,40);
   const camera=new THREE.PerspectiveCamera(42,1,0.1,100); camera.position.set(7,8,10);
@@ -53,6 +54,10 @@ export function createScene(container: HTMLElement) {
     });
   };
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:FLOOR_COLOR,roughness:1})); floor.receiveShadow=true; floor.rotation.x=-Math.PI/2; floor.position.y=-0.1; scene.add(floor);
+  // Faint cyan floor grid (2026-11-27, dark theme): reads as a "high-tech" work surface.
+  const grid=new THREE.GridHelper(FLOOR_GRID_SIZE,FLOOR_GRID_DIVISIONS,FLOOR_GRID_COLOR,FLOOR_GRID_COLOR);
+  for(const material of [grid.material].flat()){material.transparent=true;material.opacity=FLOOR_GRID_OPACITY;material.depthWrite=false;}
+  grid.position.y=-0.095;scene.add(grid);
   const tray=new THREE.Mesh(new THREE.BoxGeometry(7,0.12,5),new THREE.MeshStandardMaterial({color:TRAY_COLOR,metalness:0.05,roughness:0.9,bumpMap:clothTexture(),bumpScale:0.012})); tray.receiveShadow=true; tray.position.y=-0.02; scene.add(tray);
   let lastWidth=0,lastHeight=0;
   const resize=new ResizeObserver(()=>{
@@ -79,5 +84,5 @@ export function createScene(container: HTMLElement) {
   };
   renderer.domElement.addEventListener('webglcontextlost',lost);
   renderer.domElement.addEventListener('webglcontextrestored',restored);
-  return {scene,camera,renderer,controls,get renderingAvailable(){return contextAvailable;},setFastGraphics,setMicrosurgery:(enabled:boolean)=>{tray.position.y=enabled?MICRO_TRAY_Y:-.02;floor.position.y=enabled?MICRO_FLOOR_Y:-.1;},microCloseUp:()=>{controls.target.set(0,.25,0);camera.position.set(-1.8,1.6,2.6);controls.update();},edgeCloseUp:(target:THREE.Vector3)=>{controls.target.copy(target);camera.position.copy(target).add(new THREE.Vector3(-2.2,1.25,1.2));controls.update();},closeUp:(target: THREE.Vector3)=>{controls.target.copy(target); camera.position.copy(target).add(new THREE.Vector3(-2.2,4,3)); controls.update();},resetCamera:()=>{camera.position.set(7,8,10); controls.target.set(0,0.5,0); controls.update();}};
+  return {scene,camera,renderer,controls,get renderingAvailable(){return contextAvailable;},setFastGraphics,setMicrosurgery:(enabled:boolean)=>{tray.position.y=enabled?MICRO_TRAY_Y:-.02;floor.position.y=enabled?MICRO_FLOOR_Y:-.1;grid.position.y=floor.position.y+.005;},microCloseUp:()=>{controls.target.set(0,.25,0);camera.position.set(-1.8,1.6,2.6);controls.update();},edgeCloseUp:(target:THREE.Vector3)=>{controls.target.copy(target);camera.position.copy(target).add(new THREE.Vector3(-2.2,1.25,1.2));controls.update();},closeUp:(target: THREE.Vector3)=>{controls.target.copy(target); camera.position.copy(target).add(new THREE.Vector3(-2.2,4,3)); controls.update();},resetCamera:()=>{camera.position.set(7,8,10); controls.target.set(0,0.5,0); controls.update();}};
 }

@@ -48,6 +48,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.233: overhaul polish
+
+- Floor grid (createScene.ts, follows the floor in microsurgery); meters/progress styled; glass
+  instruction strip; Production mode palette mapped to the shared tokens; side-panel height fix.
+- Checked: render-recovery, practice-setup, layout, production-mode, iphone-start, guided-thread,
+  sandbox, free-tying; screenshots.
+
 ### 2026-11-27 — Claude — overhaul polish: Tracking Lab and phone
 
 - The blur fix deployed (CI green), so builds 0.229–0.232 are live.

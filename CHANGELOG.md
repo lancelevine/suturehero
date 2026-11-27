@@ -5,6 +5,14 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.233 — New look, polished
+
+- Faint cyan grid on the floor around the tray.
+- Meters and progress bars glow green on dark tracks; the instruction strip under the scene is a glass bar.
+- Production mode and the iPhone start button use the same dark navy and cyan as the rest of the app.
+- Side-panel sections use the whole panel height (they were squeezed into a small scrolling box); Tracking Lab's live view no longer shows the HUD; on phones the stat card sits under the timer.
+- Panels over the plain page no longer blur what is behind them (it showed nothing and slowed rendering).
+
 ## Build 0.232 — Microsurgery HUD
 
 - In microsurgery the stat card shows Alignment (remaining gap plus edge step between the vessel ends, ≈ mm), Score (how fully the ends are brought together, %) and Progress out of 8 sutures; the challenge card shows the anastomosis goal (8 sutures, within 10:00, align within 0.2 mm).
