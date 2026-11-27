@@ -79,6 +79,7 @@ Last updated: 2026-11-27
 - **Back wall first:** for vessels that can't be flipped, the clamp locks and the far wall is sewn first from inside the lumen; grades bite order, eversion and back-wall catches from the inside view.
 - **Allgöwer stitch:** half-buried vertical mattress that exits skin on one side only, keeping track marks off a flap edge; scores buried-side depth, eversion on both sides, and that the visible side stayed on the healthier edge.
 - **Fragile skin mode:** thin, papery skin (elderly forearm, long steroid use) with low tear strength; narrow bites and tight knots cut through, wide bites and gentle knots are rewarded.
+- **Tissue tenting before puncture:** skin dents and stretches under the needle tip as force builds, then gives with a pop; deeper tent and later pop for a dull needle, shallow angle or loose tissue.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
