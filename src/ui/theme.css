@@ -145,3 +145,10 @@ dialog::backdrop{background:rgba(2,6,14,.6);backdrop-filter:blur(4px)}
    while the camera is set up), and boxes inside it do not get a second glass outline. */
 .workspace-side-panel .workspace-disclosure[open]{max-height:none!important;overflow:visible!important}
 :is(#app,#tracking-app) .workspace-side-panel :is(.lesson,.sandbox-summary,.practice-setup,.course-controls,.stitch-summary,.bite-planning){background:transparent;box-shadow:none;border:0;padding-left:0;padding-right:0}
+
+/* Production mode uses the shared palette (its own was teal-green). */
+body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,var(--sh-bg) 70%);--production-bg:var(--sh-bg);--production-ink:var(--sh-text);--production-muted:var(--sh-muted);--production-accent:var(--sh-cyan);--production-line:rgba(63,216,255,.16)}
+.production-tab[aria-selected=true]{background:var(--sh-cyan-soft);color:var(--sh-cyan)}
+.production-stage .iphone-start button{background:linear-gradient(180deg,#3fdcff,#1ea8e0)!important;color:#03101d!important;box-shadow:0 0 18px rgba(63,216,255,.4)}
+
+.iphone-start p{background:var(--sh-panel)!important;color:var(--sh-text)!important;box-shadow:var(--sh-glow)}
