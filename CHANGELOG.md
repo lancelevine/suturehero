@@ -8,6 +8,7 @@ commit `bde9116`.
 ## Build 0.235 — Stitch angle across the wound
 
 - Microsurgery: green Acland double clamp on the vessel. The "Acland clamp" slider (50–150%) pushes the vessel ends closer or spreads them apart, which sets how far the stitch must pull; changing it restarts the stitch (roadmap: "Adjustable green double Acland clamp").
+- Microsurgery: "Stay sutures" choice (none, 2 at 180°, 3 at 120°) marks where the stays go on both vessel ends (roadmap: "Stay sutures planning"; scoring the remaining bites needs a full anastomosis).
 
 - Sandbox: each completed needle pass is drawn as a line across the wound, green when it is square to the wound and amber when it is more than 10° off (roadmap: "Stitch angle across the wound"). Approximate practice measure.
 - 3-stitch session: the closure review now ends with a gap scan along the whole wound, listing where the edges are still apart (roadmap: "Gap scan for skin"); when the session is finished (or in Sandbox once two stitches are tied), the open stretches are marked with red bars on the wound.

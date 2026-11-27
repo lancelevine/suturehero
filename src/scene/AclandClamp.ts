@@ -6,7 +6,7 @@ import { disposeChildren } from './disposeChildren';
 const CLAMP_COLOR = 0x2e9d55;
 /** Distance from each vessel's cut end to its clamp (scene units). */
 const CLAMP_INSET = 0.55;
-const CLAMP_THICKNESS = 0.09;
+const CLAMP_THICKNESS = 0.06;
 const BAR_RADIUS = 0.04;
 
 export class AclandClamp {
@@ -25,7 +25,7 @@ export class AclandClamp {
     if (!visible || key === this.key) return;
     this.key = key;
     disposeChildren(this.root, new Set([this.material]));
-    const size = profile.outerRadius * 1.7;
+    const size = profile.outerRadius * 2.3;
     const x = profile.gap / 2 + CLAMP_INSET;
     for (const side of [-1, 1]) {
       const head = new THREE.Mesh(new THREE.BoxGeometry(CLAMP_THICKNESS, size, size), this.material);

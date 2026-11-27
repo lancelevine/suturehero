@@ -157,3 +157,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: in Sandbox, make a wide deep pass across the wound, then a narrow shallow pass back at the same spot; the summary lists a vertical mattress with its checks. Two similar passes back and forth ~5 mm apart read as a horizontal mattress.
 - Build 0.235: in Sandbox, three passes from the same side about 5 mm apart read as "running"; alternating bites that stay under the skin on each side read as "running subcuticular".
 - Build 0.235: in Microsurgery, a green clamp sits on each vessel end; moving the "Acland clamp" slider to 60% brings the ends closer (Alignment readout drops) and to 140% spreads them.
+- Build 0.235: in Microsurgery, set "Stay sutures" to 3 · 120°; three cyan marks appear on each vessel end, one at the top.

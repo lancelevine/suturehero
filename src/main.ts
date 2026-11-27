@@ -35,6 +35,7 @@ import {DEFAULT_BITE_WIDTH} from './tissue/BitePlan';
 import {CompletedStitchesView} from './scene/CompletedStitchesView';
 import {MICRO_TARGETS,microProfile,resolveMicroTarget,setClampSpread} from './environments/MicroTargets';
 import {AclandClamp} from './scene/AclandClamp';
+import {StaySutureMarks,type StayPlan} from './scene/StaySutureMarks';
 import {Scissors} from './instruments/Scissors';
 import {InstrumentControls} from './input/InstrumentControls';
 import {FragmentView} from './scene/FragmentView';
@@ -102,7 +103,10 @@ try {
   const tissue=new TissuePatch();const artery=new ArteryTissue();artery.root.visible=false;
   // Adjustable Acland double clamp on the vessel (src/scene/AclandClamp.ts, src/environments/MicroTargets.ts).
   const aclandClamp=new AclandClamp();
-  view.scene.add(tissue.root,artery.root,aclandClamp.root,needle.root,...tools.map(tool=>tool.root));
+  // Stay suture plan marks on the vessel ends (src/scene/StaySutureMarks.ts).
+  const stayMarks=new StaySutureMarks();
+  const stayPlan=()=>{const v=document.querySelector<HTMLSelectElement>('#stay-plan')?.value;return (v==='180'||v==='120'?v:'none') as StayPlan;};
+  view.scene.add(tissue.root,artery.root,aclandClamp.root,stayMarks.root,needle.root,...tools.map(tool=>tool.root));
   const scissors=new Scissors();view.scene.add(scissors.root);
   const fragmentsView=new FragmentView();view.scene.add(fragmentsView.root);
   const input=new InstrumentControls(new KeyboardInput()); const session=new PracticeSession(input,tools,grasp);
@@ -193,6 +197,8 @@ try {
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro);
+    (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
+    stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),micro);
     (document.querySelector('#skin-type-field') as HTMLElement).hidden=micro;
     document.querySelector('.scene-heading h2')!.textContent=texts.heading;
     const tag=document.querySelector('.scene-tag')!;tag.textContent=texts.tag;tag.setAttribute('title',texts.tagTitle);
@@ -206,6 +212,7 @@ try {
     if(micro)view.microCloseUp();else view.resetCamera();
   };
   microSelect.addEventListener('change',()=>switchEnvironment('microsurgery'));
+  document.querySelector('#stay-plan')!.addEventListener('change',()=>stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),session.environment.id==='microsurgery'));
   {const clampInput=document.querySelector<HTMLInputElement>('#clamp-spread')!,clampValue=document.querySelector<HTMLOutputElement>('#clamp-spread-value')!;
    clampInput.addEventListener('change',()=>{const factor=setClampSpread(Number(clampInput.value)/100);clampValue.textContent=`${Math.round(factor*100)}%`;switchEnvironment('microsurgery');});}
   document.querySelector('#switch-environment')!.addEventListener('click',()=>{const url=new URL(location.href);url.searchParams.set('environment',session.environment.id==='skin'?'microsurgery':'skin');url.searchParams.set('skin',skinSelect.value);url.searchParams.set('needle',needleSelect.value);url.searchParams.set('suture',materialSelect.value);url.searchParams.set('technique',techniqueSelect.value);url.searchParams.set('target',microSelect.value);location.assign(url.href);});

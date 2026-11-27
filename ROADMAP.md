@@ -22,7 +22,7 @@ Last updated: 2026-11-27
 - **Figure-of-eight and purse-string stitches:** for fascia, bleeders and round defects; each scored on its own geometry.
 - **Step-off check:** compares the height of the two wound edges at each stitch and flags any step-off from uneven bite depth. *(First version in build 0.235: per-stitch edge height difference in the closure review and Sandbox spacing line.)*
 - **Back-wall catch alert:** during an anastomosis, flags any bite that catches the opposite vessel wall, on that bite rather than at the patency test.
-- **Stay suture planning:** pick 180 or 120 degree stays before an anastomosis; the sim marks where they go and scores how evenly the remaining bites fill the gaps.
+- **Stay suture planning:** pick 180 or 120 degree stays before an anastomosis; the sim marks where they go and scores how evenly the remaining bites fill the gaps. *(First version in build 0.235: choose 180° or 120° stays and see them marked on both vessel ends; scoring the fill needs multiple vessel stitches.)*
 - **Vessel grasp check:** flags forceps grabs that pinch the full vessel wall instead of adventitia or lumen counterpressure.
 - **Thread management scoring:** flags tangles, suture catching on instruments or dragging across the field, and pulls that saw through tissue.
 - **Microsurgical bite geometry:** each vessel bite measured against wall thickness (about 2x from the edge, equal both sides, needle perpendicular to the wall).

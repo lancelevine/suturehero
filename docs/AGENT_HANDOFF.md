@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: stay suture planning marks (roadmap #2, step 2)
+- New `src/scene/StaySutureMarks.ts` (+test): marks at 0/180° or 0/120/240° (0 = top) on both cut faces. Practice setup select `#stay-plan` (microsurgery only). Clamp plates made thinner (0.06) at 2.3× vessel radius after a too-small size hid them.
+- Checked: tsc, tests, screenshots, check-practice-setup, check-layout. Next: multiple vessel stitches (full anastomosis), which unlocks stay fill scoring, stitch count, flip and back wall.
+
 ### 2026-11-27 — Claude: Acland double clamp (roadmap #2, full anastomosis, step 1)
 - `src/environments/MicroTargets.ts`: clamp spread 0.5–1.5 (default 1) and `microProfile(target)` with the clamped gap (+test); ArteryTissue, PracticeSession (wound.initialGap) and createMicroEnvironment read the gap through it. ArteryTissue rebuilds when the gap changes.
 - New `src/scene/AclandClamp.ts` (+test): green clamp head on each end and a joining bar. Practice setup slider "Acland clamp" (`#clamp-spread`, microsurgery only); changing it re-runs `switchEnvironment('microsurgery')`, which restarts the stitch.
