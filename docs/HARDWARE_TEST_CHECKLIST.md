@@ -140,3 +140,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
   assessment.
 
 - Build 0.234: on a phone, the practice scene beside the camera panel shows only the timer and Reset view / Reset needle / Demo, with nothing overlapping.
+- Build 0.235: in Sandbox, make a straight pass and a deliberately slanted one; the straight one gets a green line across the wound, the slanted one amber, and the Targets list shows "Square to wound" with the worst angle.

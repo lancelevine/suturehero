@@ -29,6 +29,20 @@ export interface SandboxSummary {
   secureKnots: number;
   /** Gaps between neighbouring tied stitches along the wound (mm), in order along it. */
   spacingMm: number[];
+  /** Largest angle of a completed pass's entry→exit line off square to the wound (degrees); absent in summaries saved before 2026-11-27. */
+  worstSquareOffDeg?: number | null;
+}
+
+/**
+ * How far a stitch's entry→exit line is from square (90°) across the wound, in degrees (0 = square).
+ * The wound runs along z, so only the horizontal (x, z) direction counts. Practice measure from
+ * the 3D scene; approximate.
+ */
+export function stitchSquareOffDeg(entry: { x: number; z: number }, exit: { x: number; z: number }) {
+  const across = Math.abs(exit.x - entry.x);
+  const along = Math.abs(exit.z - entry.z);
+  if (across === 0 && along === 0) return 0;
+  return (Math.atan2(along, across) * 180) / Math.PI;
 }
 
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : null);
@@ -38,6 +52,7 @@ export function summarizeSandbox(passes: readonly FreePassRecord[], torn: readon
   const bites = passes.flatMap((p) => [p.entryEdge, ...(p.exitEdge !== null ? [p.exitEdge] : [])]).map(mm);
   const asymmetry = passes.filter((p) => p.exitEdge !== null).map((p) => Math.abs(mm(p.entryEdge) - mm(p.exitEdge!)));
   const sorted = [...stitches].sort((a, b) => a.siteZ - b.siteZ);
+  const squareOff = passes.filter((p) => p.exit).map((p) => stitchSquareOffDeg(p.entry, p.exit!));
   return {
     at,
     passes: passes.length,
@@ -51,6 +66,7 @@ export function summarizeSandbox(passes: readonly FreePassRecord[], torn: readon
     stitches: stitches.length,
     secureKnots: stitches.filter((s) => s.review.some((line) => line.startsWith('Knot: secure'))).length,
     spacingMm: sorted.slice(1).map((s, i) => mm(s.siteZ - sorted[i].siteZ)),
+    worstSquareOffDeg: squareOff.length ? Math.max(...squareOff) : null,
   };
 }
 
@@ -72,10 +88,12 @@ export interface SandboxTargets {
   maxTears: number;
   /** Largest allowed spread between stitch gaps (mm). */
   maxSpacingSpreadMm: number;
+  /** Largest allowed angle of a stitch off square to the wound (degrees). */
+  maxSquareOffDeg: number;
 }
 
-/** Defaults: common skin teaching guidance (bites ≈ 4–8 mm, symmetric, near-perpendicular entry). */
-export const DEFAULT_TARGETS: SandboxTargets = { biteMinMm: 4, biteMaxMm: 8, maxAsymmetryMm: 2, minEntryAngleDeg: 70, maxTears: 0, maxSpacingSpreadMm: 2 };
+/** Defaults: common skin teaching guidance (bites ≈ 4–8 mm, symmetric, near-perpendicular entry, stitches square to the wound within 10°). */
+export const DEFAULT_TARGETS: SandboxTargets = { biteMinMm: 4, biteMaxMm: 8, maxAsymmetryMm: 2, minEntryAngleDeg: 70, maxTears: 0, maxSpacingSpreadMm: 2, maxSquareOffDeg: 10 };
 
 export interface TargetResult {
   label: string;
@@ -85,6 +103,7 @@ export interface TargetResult {
 
 export function checkTargets(summary: SandboxSummary, targets: SandboxTargets): TargetResult[] {
   const n = (v: number | null, f = 1) => (v === null ? 'n/a' : v.toFixed(f));
+  const squareOff = summary.worstSquareOffDeg ?? null;
   const spread = summary.spacingMm.length > 1 ? Math.max(...summary.spacingMm) - Math.min(...summary.spacingMm) : null;
   return [
     { label: `Bite ${targets.biteMinMm}–${targets.biteMaxMm} mm`, met: summary.meanBiteMm === null ? null : summary.meanBiteMm >= targets.biteMinMm && summary.meanBiteMm <= targets.biteMaxMm, detail: summary.meanBiteMm === null ? 'no passes yet' : `mean ${n(summary.meanBiteMm)} mm` },
@@ -92,6 +111,7 @@ export function checkTargets(summary: SandboxSummary, targets: SandboxTargets): 
     { label: `Entry angle ≥ ${targets.minEntryAngleDeg}°`, met: summary.meanEntryAngleDeg === null ? null : summary.meanEntryAngleDeg >= targets.minEntryAngleDeg, detail: summary.meanEntryAngleDeg === null ? 'no passes yet' : `mean ${n(summary.meanEntryAngleDeg, 0)}°` },
     { label: `Tears ≤ ${targets.maxTears}`, met: summary.passes + summary.tears + summary.cutThroughs === 0 ? null : summary.tears + summary.cutThroughs <= targets.maxTears, detail: `${summary.tears} torn · ${summary.cutThroughs} cut through` },
     { label: `Even spacing (within ${targets.maxSpacingSpreadMm} mm)`, met: spread === null ? null : spread <= targets.maxSpacingSpreadMm, detail: spread === null ? 'tie 3 stitches' : `spread ${spread.toFixed(1)} mm` },
+    { label: `Square to wound (within ${targets.maxSquareOffDeg}°)`, met: squareOff === null ? null : squareOff <= targets.maxSquareOffDeg, detail: squareOff === null ? 'no passes yet' : `worst ${n(squareOff, 0)}° off` },
   ];
 }
 

@@ -52,6 +52,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: build 0.235, stitch angle across the wound (roadmap)
+- `src/gameplay/sandboxSummary.ts`: `stitchSquareOffDeg` (entry→exit line vs square to the wound, which runs along z), summary `worstSquareOffDeg` (optional, older saved summaries lack it), target `maxSquareOffDeg` = 10° (editable in `SandboxSummaryPanel`). Tests added; the trend test's "targets met" counts rose by one (new target met in both sessions), thresholds unchanged.
+- `src/scene/freePassMarks.ts`: a flat line per completed pass, green when square, amber when off (+test).
+- Build 0.235, CHANGELOG, ROADMAP note, hardware checklist item.
+- Checked: tsc, sandboxSummary + freePassMarks tests, check-sandbox, check-free-tying, check-layout. Not seen in a screenshot (needs a real pass); Lance to look.
+- 10° is my reading of "a few degrees"; change `DEFAULT_TARGETS.maxSquareOffDeg` if you want it stricter.
+
 ### 2026-11-27 — Claude: fewer per-frame allocations in main.ts
 - `src/main.ts`: camera-pose clamp bounds (`CAMERA_POSE_MIN/MAX`) and the skill sampler's driver-tip vector are allocated once instead of every frame. Checked: tsc, check-sandbox, check-camera-controls. Also passed today: check-iphone-start, check-hall-sensor, check-ov9281-detect.
 

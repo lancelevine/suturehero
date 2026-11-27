@@ -30,6 +30,7 @@ const TARGET_FIELDS: { key: keyof SandboxTargets; label: string; step: number }[
   { key: 'minEntryAngleDeg', label: 'Min entry angle (°)', step: 5 },
   { key: 'maxTears', label: 'Max tears', step: 1 },
   { key: 'maxSpacingSpreadMm', label: 'Max spacing spread (mm)', step: 0.5 },
+  { key: 'maxSquareOffDeg', label: 'Max stitch angle off square (°)', step: 5 },
 ];
 
 const browserStorage = () => {

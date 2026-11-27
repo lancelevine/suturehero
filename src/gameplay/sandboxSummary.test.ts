@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { FreePassRecord } from '../tissue/FreeNeedlePass';
-import { appendProgress, checkTargets, DEFAULT_TARGETS, describeSpacing, describeTrend, loadProgress, loadTargets, saveTargets, summarizeSandbox } from './sandboxSummary';
+import { appendProgress, checkTargets, stitchSquareOffDeg, DEFAULT_TARGETS, describeSpacing, describeTrend, loadProgress, loadTargets, saveTargets, summarizeSandbox } from './sandboxSummary';
 
 const tract = { centre: new THREE.Vector3(), axis: new THREE.Vector3(0, 0, 1), start: new THREE.Vector3(-0.3, 0, 0), exitAngle: 1 };
 const pass = (entryMm: number, exitMm: number, angle = 80, extra: Partial<FreePassRecord> = {}): FreePassRecord => ({
@@ -45,6 +45,22 @@ describe('sandbox summary', () => {
     appendProgress(storage, summarizeSandbox([pass(2, 9, 45)], [pass(1, 1, 30, { torn: true })], [], 'a'));
     const history = appendProgress(storage, summarizeSandbox([pass(6, 5)], [], [], 'b'));
     expect(loadProgress(storage).map((s) => s.at)).toEqual(['a', 'b']);
-    expect(describeTrend(history, DEFAULT_TARGETS)).toMatch(/Last 2 sessions · targets met 1 → 4 · tears 1 → 0/);
+    expect(describeTrend(history, DEFAULT_TARGETS)).toMatch(/Last 2 sessions · targets met 2 → 5 · tears 1 → 0/);
+  });
+});
+
+describe('stitch angle across the wound', () => {
+  it('measures how far a stitch line is from square to the wound', () => {
+    expect(stitchSquareOffDeg({ x: -1, z: 0 }, { x: 1, z: 0 })).toBe(0);
+    expect(stitchSquareOffDeg({ x: -1, z: 0 }, { x: 1, z: 2 })).toBeCloseTo(45);
+    expect(stitchSquareOffDeg({ x: 0, z: 0 }, { x: 0, z: 0 })).toBe(0);
+  });
+  it('flags the worst slanted pass against the target', () => {
+    const slanted = pass(5, 5, 80, { exit: new THREE.Vector3(5 / 27, 0.41, 0.07) });
+    const summary = summarizeSandbox([pass(5, 5), slanted], [], []);
+    expect(summary.worstSquareOffDeg).toBeGreaterThan(10);
+    const result = checkTargets(summary, DEFAULT_TARGETS).find((r) => r.label.startsWith('Square'))!;
+    expect(result.met).toBe(false);
+    expect(checkTargets({ ...summary, worstSquareOffDeg: undefined }, DEFAULT_TARGETS).find((r) => r.label.startsWith('Square'))!.met).toBeNull();
   });
 });

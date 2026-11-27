@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.235 — Stitch angle across the wound
+
+- Sandbox: each completed needle pass is drawn as a line across the wound, green when it is square to the wound and amber when it is more than 10° off (roadmap: "Stitch angle across the wound"). Approximate practice measure.
+- Sandbox targets: new "Square to wound (within 10°)" target with the worst pass shown; the limit is editable with the other targets.
+- Fewer per-frame allocations in the render loop.
+
 ## Build 0.234 — Tidy narrow scene
 
 - When the 3D scene is narrow (a phone, with the camera panel beside it), the stat and challenge cards, legend and extra buttons are hidden, the timer shrinks, and Reset view / Reset needle / Demo stay as small buttons, so nothing overlaps.
