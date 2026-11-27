@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {RotationStageReadout} from './ui/rotationStageReadout';
 import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoIndicator} from './input/stereoIndicator';
@@ -690,31 +691,12 @@ function updateLiveTargets(){
   liveTargets.set(name,{position,quaternion,lastSeen:now,id:pose.id,pose});
  }
 }
-// Diagnostic only: raw solver, accepted target and rendered mesh orientation.
-// Each stage is relative to its own first sample; no tracking behavior changes.
-const rotationStageRaw=new Map<InstrumentName,THREE.Quaternion>();
-const rotationStageBaselines=new Map<string,THREE.Quaternion>();
-const rotationStageStatus=new Map<InstrumentName,string>();
-function stageAngles(name:InstrumentName,stage:string,q:THREE.Quaternion):string{
- const key=name+':'+stage;
- let base=rotationStageBaselines.get(key);
- if(!base){base=q.clone();rotationStageBaselines.set(key,base);}
- const relative=base.clone().invert().multiply(q);
- const e=new THREE.Euler().setFromQuaternion(relative,'XYZ');
- return [e.x,e.y,e.z].map(v=>THREE.MathUtils.radToDeg(v).toFixed(0).padStart(4)).join(' / ');
-}
+// Diagnostic rotation stages: raw solver, accepted target, rendered mesh (src/ui/rotationStageReadout.ts).
+const rotationStages=new RotationStageReadout<InstrumentName>();
+const rotationStageRaw=rotationStages.raw,rotationStageStatus=rotationStages.status;
 function updateRotationStageReadout(){
- const lines:string[]=['Relative XYZ Euler (pitch/yaw axes depend on model frame)'];
- for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
-  const raw=rotationStageRaw.get(name),accepted=liveTargets.get(name);
-  if(!raw&&!accepted)continue;
-  lines.push(name+' · '+(rotationStageStatus.get(name)??'waiting'));
-  lines.push(' raw      '+(raw?stageAngles(name,'raw',raw):'—'));
-  lines.push(' accepted '+(accepted?stageAngles(name,'accepted',accepted.quaternion):'—'));
-  lines.push(' rendered '+stageAngles(name,'rendered',mesh.quaternion));
- }
  const el=document.querySelector<HTMLElement>('#rotation-stage-readout');
- if(el)el.textContent=lines.join('\n');
+ if(el)el.textContent=rotationStages.text([['needleDriver',driver],['forceps',forceps],['scissors',scissors]],name=>liveTargets.get(name)?.quaternion);
 }
 /** Send a calibrated jaw opening (camera or Bluetooth jaw sensor) to the previews and the practice scene. */
 function sendJawOpening(name:BallInstrumentName,opening:number,cameras:number[]){

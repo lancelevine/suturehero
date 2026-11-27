@@ -87,6 +87,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — rotation-stage diagnostic out of tracking.ts
+
+- `src/ui/rotationStageReadout.ts` (+test): raw / accepted / rendered rotation readout
+  (diagnostic only). Checked: tracking-motion, calibration-rotation, rotation-frame, tracking-panels.
+
 ### 2026-11-27 — Claude — marker selection out of tracking.ts
 
 - `src/input/verifiedMarkers.ts` (+test): `selectVerifiedMarkers` (per-instrument ranking by
