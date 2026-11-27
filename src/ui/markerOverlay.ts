@@ -2,20 +2,23 @@ import type { MarkerObservation } from '../input/arucoTracking';
 
 /** Colour of a recognised marker's outline and ID label. */
 export const DETECTED_MARKER_COLOUR = '#18e89d';
+/** Colour when another face of the same instrument is also verified (face overlap). */
+export const OVERLAP_MARKER_COLOUR = '#ffc14d';
 
-/** Green outline and "ID n" label for one recognised marker (camera view overlay). */
-export function drawDetectedMarker(context: CanvasRenderingContext2D, marker: MarkerObservation) {
+/** Green outline and "ID n" label for one recognised marker (camera view overlay); amber "OVERLAP ID n" when `overlap`. */
+export function drawDetectedMarker(context: CanvasRenderingContext2D, marker: MarkerObservation, overlap = false) {
+  const colour = overlap ? OVERLAP_MARKER_COLOUR : DETECTED_MARKER_COLOUR;
   const corners = marker.corners;
   context.beginPath();
   context.moveTo(corners[0].x, corners[0].y);
   for (let i = 1; i < corners.length; i++) context.lineTo(corners[i].x, corners[i].y);
   context.closePath();
-  context.strokeStyle = DETECTED_MARKER_COLOUR;
+  context.strokeStyle = colour;
   context.lineWidth = 3;
   context.stroke();
   context.font = 'bold 20px sans-serif';
-  context.fillStyle = DETECTED_MARKER_COLOUR;
-  context.fillText('ID ' + marker.id, corners[0].x, Math.max(22, corners[0].y - 8));
+  context.fillStyle = colour;
+  context.fillText((overlap ? 'OVERLAP ' : '') + 'ID ' + marker.id, corners[0].x, Math.max(22, corners[0].y - 8));
 }
 
 /** Camera status line: frame size, tracked marker IDs, and decode / flow rates over the last `seconds`. */
@@ -47,10 +50,10 @@ export function drawCornerMarks(context: CanvasRenderingContext2D, corners: Mark
 export const DECODED_OUTLINE_MS = 650;
 
 /**
- * Clear a camera overlay and outline its recently decoded markers (camera 2; moved out of
- * src/tracking.ts, 2026-11-27). An optical-flow prediction of an old marker is not outlined.
+ * Clear a camera overlay and outline its recently decoded markers (both cameras; moved out of
+ * src/tracking.ts, 2026-11-27). `overlapping(id)` marks face overlaps amber (camera 1). An optical-flow prediction of an old marker is not outlined.
  */
-export function drawDecodedMarkers(context: CanvasRenderingContext2D, markers: readonly MarkerObservation[], decodedAgeMs: (id: number) => number, width: number, height: number) {
+export function drawDecodedMarkers(context: CanvasRenderingContext2D, markers: readonly MarkerObservation[], decodedAgeMs: (id: number) => number, width: number, height: number, overlapping: (id: number) => boolean = () => false) {
   context.clearRect(0, 0, width, height);
-  for (const marker of markers) if (decodedAgeMs(marker.id) <= DECODED_OUTLINE_MS) drawDetectedMarker(context, marker);
+  for (const marker of markers) if (decodedAgeMs(marker.id) <= DECODED_OUTLINE_MS) drawDetectedMarker(context, marker, overlapping(marker.id));
 }

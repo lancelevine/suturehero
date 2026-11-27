@@ -16,3 +16,11 @@ it('formats the camera status line', () => {
   expect(cameraStatusText('Camera 2', 960, 540, [3, 4], 12, 30, 1.2)).toBe('Camera 2: 960 × 540 · 2 tracked · IDs 3, 4 · 10.0 decode FPS · 25.0 flow FPS');
   expect(cameraStatusText('Camera 2', 960, 540, [], 0, 0, 1)).toBe('Camera 2: 960 × 540 · 0 tracked · IDs none · 0.0 decode FPS · 0.0 flow FPS');
 });
+
+it('labels and colours an overlapping face amber', () => {
+  const texts: string[] = [];
+  const context = { beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, stroke() {}, fillText: (text: string) => texts.push(text) } as unknown as CanvasRenderingContext2D;
+  drawDetectedMarker(context, { id: 3, corners: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }] }, true);
+  expect(texts).toEqual(['OVERLAP ID 3']);
+  expect(context.strokeStyle).toBe('#ffc14d');
+});

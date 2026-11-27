@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: camera 1 marker outlines via markerOverlay
+- Camera 1's outline/"OVERLAP ID" drawing moved from `src/tracking.ts` to `drawDecodedMarkers` (`src/ui/markerOverlay.ts`, new `overlapping` argument; verified IDs computed once per frame instead of per marker). Test added.
+- Checked: tsc, markerOverlay test, check-tracking-motion, check-ring-handoffs. No visible change.
+
 ### 2026-11-27 — Claude: Skill Analysis ideal path follows the needle entries
 - `src/gameplay/skillAnalysis.ts`: `report()` takes the free-pass entry points (mm, seen from above) and the ideal route runs start → each entry → end instead of a straight line. Test added.
 - `src/main.ts` passes `session.freePass.passes` entries; panel tooltip/aria text updated.

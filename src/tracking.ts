@@ -18,7 +18,7 @@ import {RotationStageReadout} from './ui/rotationStageReadout';
 import {selectVerifiedMarkers} from './input/verifiedMarkers';
 import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport} from './input/stereoIndicator';
-import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
+import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
 import {cameraStatusText,drawCornerMarks,drawDecodedMarkers} from './ui/markerOverlay';
 import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
@@ -603,12 +603,11 @@ function drawTipDots(context:CanvasRenderingContext2D,camera:1|2,width:number,he
 }
 function drawDetections(){
  const overlayStarted=performance.now();
- const w=overlay.width,h=overlay.height;overlayContext.clearRect(0,0,w,h);
  pruneMarkers();
- for(const marker of observations){
-  // A flow-only outline is not proof that the printed face is still visible.
-  if(performance.now()-(markerLastDecoded.get(marker.id)??-Infinity)>650)continue;
-  const pts=marker.corners;traceQuad(overlayContext,pts);const group=(Object.keys(markerGroups()) as Array<keyof typeof MARKER_GROUPS>).find(name=>(markerGroups()[name] as readonly number[]).includes(marker.id));const overlap=group&&verifiedMarkers().filter(m=>(markerGroups()[group] as readonly number[]).includes(m.id)).length>1;const stale=false;overlayContext.strokeStyle=stale?'#8b929c':overlap?'#ffc14d':'#18e89d';overlayContext.lineWidth=3;overlayContext.stroke();overlayContext.fillStyle=overlayContext.strokeStyle;overlayContext.font='bold 20px sans-serif';overlayContext.fillText((overlap?'OVERLAP ':'')+'ID '+marker.id,pts[0].x,Math.max(22,pts[0].y-8));}
+ // A flow-only outline is not proof that the printed face is still visible (src/ui/markerOverlay.ts).
+ const verifiedIds=verifiedMarkers().map(m=>m.id);
+ const overlapping=(id:number)=>{const group=Object.values(markerGroups()).find(ids=>(ids as readonly number[]).includes(id)) as readonly number[]|undefined;return !!group&&verifiedIds.filter(v=>group.includes(v)).length>1;};
+ drawDecodedMarkers(overlayContext,observations,id=>performance.now()-(markerLastDecoded.get(id)??-Infinity),overlay.width,overlay.height,overlapping);
  drawRingAxes();
  drawCornerDebug();
  perf.sample('Marker overlay drawing',performance.now()-overlayStarted);
