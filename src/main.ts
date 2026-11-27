@@ -35,6 +35,7 @@ import {DEFAULT_BITE_WIDTH} from './tissue/BitePlan';
 import {CompletedStitchesView} from './scene/CompletedStitchesView';
 import {MICRO_TARGETS,microProfile,resolveMicroTarget,setClampSpread} from './environments/MicroTargets';
 import {AclandClamp} from './scene/AclandClamp';
+import {VesselFrame} from './scene/VesselFrame';
 import {StaySutureMarks,type StayPlan} from './scene/StaySutureMarks';
 import {Scissors} from './instruments/Scissors';
 import {InstrumentControls} from './input/InstrumentControls';
@@ -103,10 +104,16 @@ try {
   const tissue=new TissuePatch();const artery=new ArteryTissue();artery.root.visible=false;
   // Adjustable Acland double clamp on the vessel (src/scene/AclandClamp.ts, src/environments/MicroTargets.ts).
   const aclandClamp=new AclandClamp();
+  // Turn / flip the vessel (microsurgery only): the next stitch site comes to the top, as with the double clamp.
+  const vesselTurnButtons=([['Turn vessel 45°',Math.PI/4],['Flip vessel',Math.PI]] as const).map(([label,turn])=>{
+   const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
+   button.addEventListener('click',()=>vesselFrame.turnBy(turn));document.querySelector('.workspace-view-tools')?.prepend(button);return button;});
   // Stay suture plan marks on the vessel ends (src/scene/StaySutureMarks.ts).
   const stayMarks=new StaySutureMarks();
   const stayPlan=()=>{const v=document.querySelector<HTMLSelectElement>('#stay-plan')?.value;return (v==='180'||v==='120'?v:'none') as StayPlan;};
-  view.scene.add(tissue.root,artery.root,aclandClamp.root,stayMarks.root,needle.root,...tools.map(tool=>tool.root));
+  // Vessel, clamp and stay marks turn together about the vessel axis (src/scene/VesselFrame.ts).
+  const vesselFrame=new VesselFrame();vesselFrame.root.add(artery.root,aclandClamp.root,stayMarks.root);
+  view.scene.add(tissue.root,vesselFrame.root,needle.root,...tools.map(tool=>tool.root));
   const scissors=new Scissors();view.scene.add(scissors.root);
   const fragmentsView=new FragmentView();view.scene.add(fragmentsView.root);
   const input=new InstrumentControls(new KeyboardInput()); const session=new PracticeSession(input,tools,grasp);
@@ -197,6 +204,8 @@ try {
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro);
+    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);
+    for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
     stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),micro);
     (document.querySelector('#skin-type-field') as HTMLElement).hidden=micro;

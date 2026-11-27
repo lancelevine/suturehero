@@ -158,3 +158,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: in Sandbox, three passes from the same side about 5 mm apart read as "running"; alternating bites that stay under the skin on each side read as "running subcuticular".
 - Build 0.235: in Microsurgery, a green clamp sits on each vessel end; moving the "Acland clamp" slider to 60% brings the ends closer (Alignment readout drops) and to 140% spreads them.
 - Build 0.235: in Microsurgery, set "Stay sutures" to 3 · 120°; three cyan marks appear on each vessel end, one at the top.
+- Build 0.235: in Microsurgery, "Turn vessel 45°" turns the clamp and stay marks around the vessel; "Flip vessel" turns it half way round. The needle still works on the top of the vessel.

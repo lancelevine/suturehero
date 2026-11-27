@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: vessel turn / flip (anastomosis plan step 1)
+- New `src/scene/VesselFrame.ts` (+test): group pivoting on the vessel axis; `src/main.ts` puts the artery, clamp and stay marks in it and adds "Turn vessel 45°" / "Flip vessel" view buttons (microsurgery only); switching environment resets the turn. The vessel is a cylinder, so pass physics are unchanged.
+- Checked: tsc, test, screenshot after a 45° turn, check-practice-setup, check-layout, check-sandbox. Next: plan step 2 (retain vessel stitches and turn them with the vessel).
+
 ### 2026-11-27 — Claude: plan for the multi-stitch anastomosis (roadmap #2, next step)
 - Finding: the microsurgery stitch reuses the skin pass mechanics on the vessel's top (anterior) wall; `NeedlePass`, `purchaseY`, `surfaceAt` and `loadBearing` all assume the stitch site faces up.
 - Plan (rotate the vessel, not the pass, as surgeons do with the clamp):
