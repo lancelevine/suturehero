@@ -47,6 +47,7 @@ Last updated: 2026-11-27
 - **Hand-sewn vein anastomosis:** vein mode on the vessel with a thin wall that collapses unless held open with forceps counterpressure; all vessel checks apply.
 - **Diseased artery mode:** stiff, plaque-lined vessel; bites must pin plaque and intima to the wall; flags separated intima.
 - **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert.
+- **Edges of different thickness:** thick flap edge to thinner skin; coaches a deeper bite on the thin side, scored by step-off and bite depth.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
