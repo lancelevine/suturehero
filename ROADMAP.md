@@ -71,6 +71,7 @@ Last updated: 2026-11-27
 - **Needle dulling:** the needle wears with every pass (faster for cutting points and re-bites); shows the extra force needed and suggests a fresh needle once dull.
 - **Closing the wound ends:** marks each apex, checks the end stitches sit at or just past it at full depth, and shows any opening left at either end.
 - **Stay tails as handles:** counts how often the vessel is turned by pulling its long stay tails versus grasping the wall; flags tail pulls hard enough to tear the bite.
+- **Lumen narrowing score:** after the last vessel stitch, measures the open lumen at the join against the original vessel, shows percent narrowed and points to bites that took too much wall or cinched too tight.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
