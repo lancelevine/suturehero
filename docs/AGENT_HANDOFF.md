@@ -87,6 +87,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — check-performance updated (test only)
+
+- It expected build `0.82`, a "Camera 1 flow readback" row (frames now reach the flow worker as an
+  ImageBitmap, with no main-thread readback), and the second-camera button inside a `<details>`.
+  Now: any `0.x` build; each capture is sent to the flow worker once, by bitmap or readback (same
+  ±2 tolerance as before); the details step is optional. Passed 2/2 here. Not yet in CI.
+
 ### 2026-11-27 — Claude — Build 0.225: 26 more browser checks in CI; Tracking menu focus
 
 - Swept 32 browser checks twice. 26 that passed both times (and again through
