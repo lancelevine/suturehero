@@ -33,6 +33,7 @@ Last updated: 2026-11-27
 - **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot.
 - **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep.
 - **Landmark alignment:** on wounds crossing a line like the vermilion border, brow or crease, the first stitch lines it up; scored on millimetres off.
+- **Needle direction check (vessel):** outside-in on the first wall, inside-out on the second; flags any bite that goes the wrong way.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
