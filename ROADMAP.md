@@ -13,6 +13,7 @@ Last updated: 2026-11-27
 - **Body sites with different skin:** presets for dermal thickness, tension and Langer's lines, tissue mechanics, curvature and backing, with site-specific scoring. Open question: fixed sites or sliders with presets.
 - **Live tension heatmap** per stitch.
 - **Adjustable green double Acland clamp** on the microsurgery vessel. Pushing in brings the ends closer, pushing out spreads them, which sets the tension needed to secure the knot. Default: vessel ends a little apart; the clamp is for small adjustments, not a difficulty setting.
+- **Vessel dilation step:** dilate each vessel end before suturing; too little narrows the lumen, too much tears the intima and raises clot risk.
 - **Nerve repair:** align fascicles and place epineurial stitches without twist. Reuses the microsurgery scene.
 - **5-minute warm-up drill** with a daily log.
 - **More stitch patterns:** vertical and horizontal mattress, running, running subcuticular, each scored.
