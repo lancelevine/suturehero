@@ -30,6 +30,7 @@ Last updated: 2026-11-27
 - **Live tremor meter:** instrument tip tremor gauge and per-session tremor score, mainly for microsurgery.
 - **Plan vs actual:** mark planned stitch spots before closing, then overlay the plan on what you did.
 - **Setup check before each session:** confirm every marker is seen by both cameras, flag poor lighting or a smudged lens, warn on calibration drift.
+- **Eversion score:** after each stitch, check whether the edges are slightly everted, flat or inverted.
 - **Endurance mode:** a 20 to 30 stitch incision, graphing how precision, tremor and speed drift.
 
 ## Mid term
