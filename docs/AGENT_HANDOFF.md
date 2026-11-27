@@ -54,6 +54,9 @@ entry when finishing.
 - Tracking Lab's small live view hides the HUD and view buttons (they crowded it).
 - Phone width: the HUD stat card sits under the timer (it covered the view buttons).
 - Checked: tracking-lab, tracking-lab-layout, production-mode, layout, iphone-start; screenshots.
+- Side panel sections were clipped to 28dvh with an inner scrollbar (old camera-setup rule)
+  and had nested glass outlines; fixed in theme.css. Checked: sandbox, course-export,
+  practice-setup, layout.
 
 ### 2026-11-27 — Claude — fix: deploys 0.229–0.230 failed check-rotation-frame (theme blur)
 
