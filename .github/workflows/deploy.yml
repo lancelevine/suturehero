@@ -75,10 +75,16 @@ jobs:
         run: npm ci
       - name: Build (check-layout uses the production preview)
         run: npx vite build
+      - name: Fetch js-aruco2 2.0.0 for marker checks (check-full-scan)
+        run: |
+          mkdir -p "$RUNNER_TEMP/aruco"
+          cd "$RUNNER_TEMP/aruco"
+          npm pack js-aruco2@2.0.0
+          tar xzf js-aruco2-2.0.0.tgz
       - name: Run browser checks
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
-        run: node scripts/ci-browser-checks.mjs
+        run: ARUCO_LIBRARY_DIR="$RUNNER_TEMP/aruco/package/src" node scripts/ci-browser-checks.mjs
 
   deploy:
     needs: [build, browser-checks]
