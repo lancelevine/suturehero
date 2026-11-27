@@ -87,6 +87,21 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — check-knot-worker cause found: Demo + late corrections (no code change)
+
+- Reproduced in Node with the Demo unit test on `claude-worker` through `SlowKnotPort`: an answer
+  every frame passes (seated); an answer every 3rd frame locks but never seats, as in the browser.
+  Turning off `applyCorrections` makes even the every-frame case fail, so the worker's instrument
+  corrections are what pull the knot down onto the skin in the Demo.
+- Why only the Demo: its `moveTo` segments start from the instrument's *current* (corrected)
+  position, so corrections accumulate into its motion; applied every 3rd frame they change the
+  whole path. Camera tracking sets absolute poses each frame and the worker corrects each replayed
+  frame itself, so a trainee should not be affected (unverified by hand).
+- Tried and reverted: re-applying the last correction every frame (Demo then ties a single throw
+  instead of a surgeon's knot), and re-applying only its vertical part (same). A real fix would
+  make the Demo independent of corrections or move correction ownership into the worker.
+- Separately: at 20 fps the Demo fails to lock with *any* engine, including the default (only 2 throws).
+
 ### 2026-11-27 — Claude — check-knot-worker: real failure in background engines (no code change)
 
 - With a 25 min limit the check completes (Demo ~5.5 min) but fails on both background engines:
