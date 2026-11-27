@@ -87,6 +87,16 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — overlay helpers and getOrCreate
+
+- `drawCornerMarks` (markerOverlay.ts) and `drawRingAxes` (ringAxisOverlay.ts), tested; five
+  get-or-create blocks in tracking.ts use `src/util/getOrCreate.ts`. No behaviour change.
+- Checked: tracking-motion, ring-handoffs, ring-configuration, and a scripted run with corner debug
+  on (status updates, overlay drawn, no errors).
+- Efficiency note: the tracking page's biggest main-thread costs in this sandbox (flow bitmap
+  request ~5 ms, tracking frame ~7.6 ms) are dominated by software GPU work; not tuned here, as
+  real-GPU numbers will differ.
+
 ### 2026-11-27 — Claude — decode diagnostics and stereo positions out of tracking.ts
 
 - `decodeDiagnosticsText` (+test) in `src/ui/trackingReadouts.ts`: the eight decoder rows.

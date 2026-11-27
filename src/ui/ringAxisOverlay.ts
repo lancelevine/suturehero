@@ -67,3 +67,25 @@ export function lineIntersection(p: { a: Pixel; b: Pixel }, q: { a: Pixel; b: Pi
   const t = ((q.a.x - p.a.x) * d2y - (q.a.y - p.a.y) * d2x) / denominator;
   return { x: p.a.x + t * d1x, y: p.a.y + t * d1y };
 }
+
+/** A decoded marker counts for the axis this long after its last decode (ms). */
+export const RING_AXIS_DECODE_MS = 650;
+
+/**
+ * Draw each instrument's ring axis (moved out of src/tracking.ts, 2026-11-27), keeping each
+ * ring's last pose in `poses` to seed the next fit. On the 8-face ring the side faces are
+ * preferred over the inclined end faces.
+ */
+export function drawRingAxes<Name extends string>(context: CanvasRenderingContext2D, groups: Readonly<Record<Name, readonly number[]>>, markers: readonly MarkerObservation[], decodedAgeMs: (id: number) => number, type: TrackerType, width: number, height: number, poses: Map<Name, PrismPose>) {
+  for (const [name, ids] of Object.entries(groups) as Array<[Name, readonly number[]]>) {
+    const visible = markers.filter((m) => ids.includes(m.id) && decodedAgeMs(m.id) <= RING_AXIS_DECODE_MS);
+    const side = type === 'ring8' ? visible.filter((m) => m.id - ids[0] < 6) : visible;
+    const segment = ringAxisSegment(side.length ? side : visible, ids[0], type, width, height, poses.get(name));
+    if (!segment) {
+      poses.delete(name);
+      continue;
+    }
+    poses.set(name, segment.pose);
+    drawRingAxis(context, segment);
+  }
+}

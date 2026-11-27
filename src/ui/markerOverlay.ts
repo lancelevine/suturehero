@@ -23,3 +23,22 @@ export function cameraStatusText(label: string, width: number, height: number, t
   const ids = trackedIds.join(', ') || 'none';
   return `${label}: ${width} × ${height} · ${trackedIds.length} tracked · IDs ${ids} · ${(decodes / seconds).toFixed(1)} decode FPS · ${(flows / seconds).toFixed(1)} flow FPS`;
 }
+
+/** Corner-debug view: a marker's outline and corner dots, or only larger dots (`pointsOnly`). */
+export function drawCornerMarks(context: CanvasRenderingContext2D, corners: MarkerObservation['corners'], color: string, pointsOnly = false) {
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = 2;
+  if (!pointsOnly) {
+    context.beginPath();
+    context.moveTo(corners[0].x, corners[0].y);
+    for (let i = 1; i < 4; i++) context.lineTo(corners[i].x, corners[i].y);
+    context.closePath();
+    context.stroke();
+  }
+  for (const p of corners) {
+    context.beginPath();
+    context.arc(p.x, p.y, pointsOnly ? 4 : 3, 0, Math.PI * 2);
+    context.fill();
+  }
+}

@@ -15,7 +15,7 @@ import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoBlockedReason,stereoIndicator} from './input/stereoIndicator';
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText,traceQuad} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
-import {cameraStatusText,drawDetectedMarker} from './ui/markerOverlay';
+import {cameraStatusText,drawCornerMarks,drawDetectedMarker} from './ui/markerOverlay';
 import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {chooseFace,faceCandidates} from './input/rotationTracking';
@@ -51,7 +51,7 @@ import {mountMotionMetricsPanel} from './ui/MotionMetricsPanel';
 import {cameraMode} from './input/cameraDevices';
 import {DISCOVERY_INTERVAL_MS} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
-import {drawRingAxis,ringAxisSegment,drawTipDot,TIP_DOT_COLORS} from './ui/ringAxisOverlay';
+import {drawRingAxes as drawRingAxesOverlay,drawTipDot,TIP_DOT_COLORS} from './ui/ringAxisOverlay';
 import {LiveProfiler} from './diagnostics/LiveProfiler';
 import {mountProfilerPanel} from './ui/ProfilerPanel';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
@@ -585,11 +585,7 @@ function sendJawOpening(name:BallInstrumentName,opening:number,cameras:number[])
 function drawCornerDebug(){
  if(!cornerDebug.checked)return;
  const now=performance.now();
- const drawCorners=(pts:MarkerObservation['corners'],color:string,pointsOnly=false)=>{
-  overlayContext.strokeStyle=color;overlayContext.fillStyle=color;overlayContext.lineWidth=2;
-  if(!pointsOnly){traceQuad(overlayContext,pts);overlayContext.stroke();}
-  for(const p of pts){overlayContext.beginPath();overlayContext.arc(p.x,p.y,pointsOnly?4:3,0,Math.PI*2);overlayContext.fill();}
- };
+ const drawCorners=(pts:MarkerObservation['corners'],color:string,pointsOnly=false)=>drawCornerMarks(overlayContext,pts,color,pointsOnly);
  let recent=0;
  for(const [id,entry] of rawDecodedCorners){
   if(now-entry.receivedAt>650){rawDecodedCorners.delete(id);continue;}
@@ -604,14 +600,7 @@ function drawCornerDebug(){
 /** Black line along each visible ring's shaft axis. */
 const ringAxisPoses=new Map<InstrumentName,PrismPose>();
 function drawRingAxes(){
- for(const [name,ids] of Object.entries(markerGroups()) as Array<[InstrumentName,readonly number[]]>){
-  const visible=observations.filter(m=>ids.includes(m.id)&&performance.now()-(markerLastDecoded.get(m.id)??-Infinity)<=650);
-  const side=trackerType==='ring8'?visible.filter(m=>m.id-ids[0]<6):visible;
-  const segment=ringAxisSegment(side.length?side:visible,ids[0],trackerType,overlay.width,overlay.height,ringAxisPoses.get(name));
-  if(!segment){ringAxisPoses.delete(name);continue;}
-  ringAxisPoses.set(name,segment.pose);
-  drawRingAxis(overlayContext,segment);
- }
+ drawRingAxesOverlay(overlayContext,markerGroups(),observations,id=>performance.now()-(markerLastDecoded.get(id)??-Infinity),trackerType,overlay.width,overlay.height,ringAxisPoses);
  drawTipDots(overlayContext,1,overlay.width,overlay.height);
 }
 /** Calibrated stereo tips as dots in a camera view (src/input/stereoProjection.ts). */
