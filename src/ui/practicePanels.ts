@@ -1,6 +1,9 @@
+import { setDisabled, setHidden, setText } from './setText';
+
 /**
  * Per-frame updates of practice-page panels (moved out of src/main.ts's render loop, 2026-11-27).
- * Each writes to the DOM only when a value changed.
+ * Each writes to the DOM only when a value changed (assigning an unchanged `hidden`/`disabled`
+ * is still a DOM mutation in Chromium, so those go through src/ui/setText.ts too).
  */
 type Query = <E extends Element = Element>(selector: string) => E | null;
 
@@ -17,7 +20,7 @@ export function tensionMeterValue(tension: StrandTension) {
 
 /** The free-tying tension panel: hidden without an active knot, else both strand meters and the cue. */
 export function updateTensionPanel(query: Query, knot: { tension: Record<'long' | 'short', StrandTension>; tensionHint: string } | null) {
-  query<HTMLElement>('#tension-panel')!.hidden = !knot;
+  setHidden(query<HTMLElement>('#tension-panel'), !knot);
   if (!knot) return;
   for (const side of ['long', 'short'] as const) {
     const tension = knot.tension[side];
@@ -62,13 +65,13 @@ export interface CourseButtonState {
 export function updateCourseButtons(query: Query, state: CourseButtonState) {
   const start = query<HTMLButtonElement>('#start-course')!;
   const next = query<HTMLButtonElement>('#next-stitch')!;
-  start.disabled = !state.skin || (state.active && !state.finished);
-  start.textContent = state.finished ? 'New 3-stitch session' : 'Start 3-stitch session';
-  next.disabled = !state.canAdvance;
-  next.textContent = state.index === 2 ? 'Finish session' : 'Save & next stitch';
-  next.hidden = !state.active;
+  setDisabled(start, !state.skin || (state.active && !state.finished));
+  setText(start, state.finished ? 'New 3-stitch session' : 'Start 3-stitch session');
+  setDisabled(next, !state.canAdvance);
+  setText(next, state.index === 2 ? 'Finish session' : 'Save & next stitch');
+  setHidden(next, !state.active);
   const tying = query<HTMLButtonElement>('#free-tying')!;
-  tying.disabled = state.active;
+  setDisabled(tying, state.active);
   const tyingText = state.canFinishSandboxStitch ? 'Finish stitch · next' : state.canTieFreePass ? 'Tie knot on this stitch' : 'Free tying lab';
   if (tying.textContent !== tyingText) tying.textContent = tyingText;
 }
@@ -100,12 +103,12 @@ export function skinTractionText(input: {
 export function updateSandboxViewTools(query: Query, state: { replaying: boolean; replayAvailable: boolean; replayProgress: number; sandbox: boolean; undoable: boolean }) {
   const replay = query<HTMLButtonElement>('#replay');
   if (replay) {
-    replay.disabled = !state.replaying && !state.replayAvailable;
+    setDisabled(replay, !state.replaying && !state.replayAvailable);
     const label = state.replaying ? `Stop replay ${Math.round(state.replayProgress * 100)}%` : 'Replay ½×';
     if (replay.textContent !== label) replay.textContent = label;
   }
   const reset = query<HTMLButtonElement>('#reset-needle');
-  if (reset) reset.disabled = !state.sandbox;
+  setDisabled(reset, !state.sandbox);
   const undo = query<HTMLButtonElement>('#undo-pass');
-  if (undo) undo.disabled = !state.sandbox || !state.undoable;
+  setDisabled(undo, !state.sandbox || !state.undoable);
 }

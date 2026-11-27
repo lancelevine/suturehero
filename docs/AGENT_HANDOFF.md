@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: practicePanels guarded writes
+- `src/ui/practicePanels.ts`: tension panel, course buttons and sandbox view tools use `setHidden`/`setDisabled`/`setText` (several unguarded per-frame writes). Checked: tsc, practicePanels test, check-sandbox, check-guided-thread, check-free-tying.
+
 ### 2026-11-27 — Claude: HUD and stereo dot writes
 - `src/ui/practiceHud.ts`: elements looked up once per HUD; bar widths written only on change. `src/tracking.ts`: the stereo view dot colour is written only when it changes (remembered in `data-color`, since `style.background` reads back normalised).
 - Checked: tsc, practiceHud test, check-layout, check-status-strip, check-stereo-motion, check-sandbox.
