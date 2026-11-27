@@ -48,6 +48,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.228: softer shadows
+
+- `light.shadow.intensity = 0.7` (createScene.ts, `SHADOW_INTENSITY`): shadows partly lit instead
+  of black. Checked by screenshot; render-recovery, layout, production-mode pass.
+- check-knot-worker on claude-worker still fails after the 0.227 regrasp fix (expected: that
+  failure is the late instrument corrections, see earlier entry).
+
 ### 2026-11-27 — Claude — Build 0.227: Demo works down to ~20 fps
 
 - Cause found: `gripEnd` (src/demo/freeKnotDemo.ts) decided to close the jaws from the distance

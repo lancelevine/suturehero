@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.228 — Softer shadows
+
+- Cast shadows are partly lit by the room instead of solid black, so instrument shadows on the tray and skin look like shadows rather than holes (Standard graphics).
+
 ## Build 0.227 — Demo works on slower computers
 
 - The Demo now ties its knot at frame rates down to about 20 fps (it used to fail below 25 fps: the forceps missed the thread end when regrasping).

@@ -105,6 +105,8 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 
 - [ ] **Steel instruments.** On Standard graphics the instruments look like polished steel, the
       skin colour is unchanged, and the frame rate is no worse than before.
+- [ ] **Softer shadows (0.228).** Instrument shadows are lighter than before but still show where
+      the instruments are. Say if you prefer the old darker ones.
 
 ## 9. Older items still worth checking (optional)
 

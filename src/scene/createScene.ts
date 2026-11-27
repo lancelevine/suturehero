@@ -13,6 +13,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const REFLECTIVE_METALNESS=0.5;
 /** Strength of those reflections. */
 const METAL_REFLECTION_INTENSITY=0.45;
+/** Cast shadows are partly lit by the room (2026-11-27): fully black ones read as holes in the tray. */
+const SHADOW_INTENSITY=0.7;
 export function createScene(container: HTMLElement) {
   const scene=new THREE.Scene(); scene.background=new THREE.Color(0x101f27); scene.fog=new THREE.Fog(0x101f27,18,40);
   const camera=new THREE.PerspectiveCamera(42,1,0.1,100); camera.position.set(7,8,10);
@@ -34,7 +36,7 @@ export function createScene(container: HTMLElement) {
   scene.add(new THREE.HemisphereLight(0xd7efff,0x34434b,2.5));
   const light=new THREE.DirectionalLight(0xffeee4,4); light.position.set(2,8,4); light.castShadow=true; light.shadow.mapSize.set(1024,1024);
   light.shadow.camera.left=-6; light.shadow.camera.right=6; light.shadow.camera.top=6; light.shadow.camera.bottom=-6;
-  light.shadow.camera.near=0.1; light.shadow.camera.far=22; light.shadow.normalBias=0.015; light.shadow.bias=-0.0001; scene.add(light);
+  light.shadow.camera.near=0.1; light.shadow.camera.far=22; light.shadow.normalBias=0.015; light.shadow.bias=-0.0001; light.shadow.intensity=SHADOW_INTENSITY; scene.add(light);
   let studio:THREE.Texture|null=null;
   const metalReflections=(enabled:boolean)=>{
     if(enabled&&!studio){const pmrem=new THREE.PMREMGenerator(renderer);studio=pmrem.fromScene(new RoomEnvironment(),0.04).texture;pmrem.dispose();}
