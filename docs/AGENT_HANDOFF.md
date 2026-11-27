@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: back-wall catch alert (anastomosis)
+- New `src/gameplay/backWallCatch.ts` (+test): the guided arc's lowest point at or below vessel centre − inner radius catches the back wall. `src/main.ts` prefixes the exercise readout with a warning while passing in microsurgery. The default guided vessel pass does not trigger it. Checked: tsc, test, check-practice-setup, check-guided-thread.
+
 ### 2026-11-27 — Claude: save vessel stitches around the vessel (anastomosis plan step 2)
 - `PracticeSession`: `vesselStitches`, `canSaveVesselStitch` (microsurgery + stitch complete), `saveVesselStitch()` (count, `resetCurrent()`, clock keeps running); reset on environment switch (+test, Node 24).
 - `src/main.ts`: "Save stitch & turn" view button freezes the knot geometry into a `CompletedStitchesView` inside the vessel frame (compensated so it turns with the vessel), then turns 45° (360°/8). HUD microsurgery progress counts `vesselStitches`.
