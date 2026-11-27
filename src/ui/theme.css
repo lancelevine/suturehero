@@ -87,3 +87,29 @@ dialog::backdrop{background:rgba(2,6,14,.6);backdrop-filter:blur(4px)}
 :is(#app,#tracking-app) .primary-action{background:linear-gradient(180deg,#3fdcff,#1ea8e0)!important;border-color:transparent!important;color:#03101d!important;font-weight:700;box-shadow:0 0 18px rgba(63,216,255,.35)}
 :is(#app,#tracking-app) .primary-action:disabled{background:rgba(14,26,46,.72)!important;color:var(--sh-muted)!important;border-color:var(--sh-line)!important;box-shadow:none}
 :is(#app,#tracking-app) .calibration-live-preview>svg{background:#050b17;border:1px solid rgba(63,216,255,.16)}
+
+/* 9. In-scene HUD (src/ui/practiceHud.ts) */
+.practice-hud{position:absolute;inset:0;pointer-events:none;z-index:3;font-family:var(--sh-font)}
+.practice-hud .hud-timer{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:7px 18px;border-radius:999px;background:var(--sh-panel);box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur);color:var(--sh-text);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.practice-hud .hud-timer svg{width:18px;height:18px;color:var(--sh-cyan);filter:drop-shadow(0 0 4px rgba(63,216,255,.6))}
+.practice-hud .hud-card{position:absolute;background:var(--sh-panel);box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur);border-radius:var(--sh-radius);padding:12px 14px;color:var(--sh-text)}
+.practice-hud .hud-stats{right:14px;top:96px;width:210px;display:grid;gap:11px}
+.practice-hud .hud-stat{display:grid;grid-template-columns:22px 1fr auto;align-items:center;column-gap:8px;row-gap:5px}
+.practice-hud .hud-icon svg{width:18px;height:18px;color:var(--sh-cyan)}
+.practice-hud .hud-label{font-size:11px;color:var(--sh-muted);letter-spacing:.4px}
+.practice-hud .hud-stat strong{font-size:15px;font-variant-numeric:tabular-nums}
+.practice-hud .hud-stat strong.good{color:var(--sh-green)}
+.practice-hud .hud-bar,.practice-hud .hud-segments{grid-column:1/-1;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;display:flex;gap:3px}
+.practice-hud .hud-bar i{display:block;height:100%;width:0;background:var(--sh-green);box-shadow:0 0 8px rgba(62,229,154,.7);transition:width .25s}
+.practice-hud .hud-bar i.warn{background:var(--sh-amber);box-shadow:0 0 8px rgba(255,198,92,.6)}
+.practice-hud .hud-segments{background:none}
+.practice-hud .hud-segments i{flex:1;height:100%;border-radius:2px;background:rgba(255,255,255,.1)}
+.practice-hud .hud-segments i.done{background:var(--sh-green);box-shadow:0 0 6px rgba(62,229,154,.7)}
+.practice-hud .hud-challenge{left:14px;top:112px;width:200px}
+.practice-hud .hud-eyebrow{display:block;font-size:10px;letter-spacing:1.6px;color:var(--sh-cyan);margin-bottom:4px}
+.practice-hud .hud-challenge strong{font-size:13px}
+.practice-hud .hud-challenge ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px;font-size:12px;color:var(--sh-text)}
+.practice-hud .hud-challenge li span{display:inline-block;width:16px;color:var(--sh-muted)}
+.practice-hud .hud-challenge li.met span,.practice-hud .hud-challenge li.met{color:var(--sh-green)}
+.practice-hud .hud-challenge li.missed span{color:var(--sh-red)}
+@media(max-width:760px){.practice-hud .hud-stats{top:auto;bottom:44px;right:8px;width:150px;padding:8px;gap:6px}.practice-hud .hud-challenge{display:none}.practice-hud .hud-timer{top:8px;font-size:14px;padding:5px 12px}}

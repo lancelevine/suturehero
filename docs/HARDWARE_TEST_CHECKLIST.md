@@ -113,6 +113,9 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **Readable everywhere.** Practice page, Tracking Lab, Production and the tracking page all
       use the dark theme; no white panels left, text readable, buttons clearly clickable.
 - [ ] **Camera views.** Camera previews and overlays still look right on the dark panels.
+- [ ] **HUD (0.230).** Timer counts up; Precision fills after a needle pass; Tension moves while
+      tying; Progress fills a segment per kept stitch; the dashed line runs along the wound. Say
+      whether the challenge targets (6 sutures, 10:00, ±1.0 mm) are the ones you want.
 
 ## 9. Older items still worth checking (optional)
 

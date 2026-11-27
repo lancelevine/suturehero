@@ -48,6 +48,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.230: visual overhaul step 2 (in-scene HUD)
+
+- `src/ui/practiceHud.ts` (+test): timer pill, stat card (Precision, Tension, Progress with
+  segments), challenge card; refreshed every 250 ms from values the session already computes
+  (Precision = last completed pass's |entry − exit| edge distance in mm; Tension = held strand
+  tautness while tying; Progress = kept stitches / goal). Goals are display constants
+  (6 Sandbox / 3 course, 10:00, ±1.0 mm) — Lance to confirm.
+- `src/scene/IdealSuturePath.ts` (+test): dashed cyan ribbon line with chevrons along the wound
+  (skin only), following the course stitch site.
+- Checked: layout, sandbox, production-mode, practice-setup, free-tying, guided-thread,
+  render-recovery; screenshots.
+
 ### 2026-11-27 — Claude — Build 0.229: visual overhaul step 1 (shared styling)
 
 - Lance (via another session): top priority is a visual overhaul after his mockup "Practice.

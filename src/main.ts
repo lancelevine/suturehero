@@ -1,4 +1,8 @@
 import {knotEngineEntry} from './knot/engines';
+import {IdealSuturePath} from './scene/IdealSuturePath';
+import {SKIN_SURFACE_Y} from './tissue/FreeNeedlePass';
+import {mountPracticeHud} from './ui/practiceHud';
+import {SCENE_MM_PER_UNIT} from './setup/sceneScale';
 import {setText} from './ui/setText';
 import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
@@ -57,7 +61,7 @@ import { mountCourseExport } from './ui/courseExport';
 import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
-const APP_BUILD='0.229';
+const APP_BUILD='0.230';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -190,6 +194,8 @@ try {
     if(session.positionForceps() && session.positioningSkin){closeUp=true;closeUpButton.setAttribute('aria-pressed','true');closeUpButton.textContent='Wide view';view.edgeCloseUp(session.eversion.target);}
   });
   const passGuide=new PassGuide(session.pass); view.scene.add(passGuide.root);
+  // Dashed cyan ideal suture line along the wound (src/scene/IdealSuturePath.ts).
+  const idealPath=new IdealSuturePath(SKIN_SURFACE_Y); view.scene.add(idealPath.root);
   // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
   view.scene.add(replay.paths);
   let demo:DemoControl|null=null;
@@ -318,6 +324,15 @@ try {
   };
   let last=performance.now();
   // Per-frame element lookups are cached (src/ui/cachedQuery.ts).
+  // In-scene HUD: timer, live stats, challenge (src/ui/practiceHud.ts). Display only.
+  mountPracticeHud(document.querySelector<HTMLElement>('#viewport')!,()=>{
+   const last=[...session.freePass.passes].reverse().find(p=>p.exitEdge!==null);
+   const free=session.freeKnot;
+   return {seconds:session.clock.secondsSoFar,
+    precisionMm:last&&last.exitEdge!==null?Math.abs(last.entryEdge-last.exitEdge)*SCENE_MM_PER_UNIT:null,
+    tension:free.active?Math.max(free.tension.long.tautness,free.tension.short.tautness):null,
+    stitches:session.course.completed.length,course:session.course.active};
+  });
   const frameQuery=cachedQuery();
   view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){if(demo?.running){/* The demo's knot physics is tuned at 1/60 s steps (src/demo/freeKnotDemo.test.ts): slice longer frames. */const slices=Math.max(1,Math.ceil(dt*60-1e-6));for(let i=0;i<slices;i++){demo.step(dt/slices);session.update(dt/slices);}}else session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){
@@ -397,6 +412,7 @@ try {
     }
     (frameQuery('#stitch-stage') as HTMLElement).dataset.complete=String(assessment.complete||assessment.labFinished);
     // Strand tension meters and cue (src/ui/practicePanels.ts).
+    idealPath.update(session.environment.id==='skin',session.course.siteZ);
     updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);
     const edge=session.eversion;
     const skinContext=session.environment.id==='skin'&&!knot.active&&!course.finished&&!session.freeKnot.grips.has('left')&&grasp.holder?.kind!=='forceps'&&!(session.pass.phase==='complete'&&session.pull.phase==='waiting'&&!edge.held);

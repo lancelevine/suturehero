@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.230 — In-scene HUD
+
+- A timer pill at the top of the 3D view, a live stat card (Precision in mm, Tension in %, Progress as stitches placed out of the goal) and a challenge card (place 6 sutures in the Sandbox or 3 in the course, within 10:00, within ±1.0 mm), all in the new glass style.
+- A dashed cyan line with chevrons along the wound shows where the row of stitches goes.
+- Display only: Precision is the last needle pass's entry/exit symmetry, Tension the held strand's tautness; the challenge targets are shown, not scored.
+
 ## Build 0.229 — New look: dark, glowing, high-tech
 
 - Whole app restyled after the "Practice. Play. Get better." mockup: near-black navy background, frosted-glass panels with thin cyan outlines and a soft glow, rounded corners, white text with cyan section labels, green for good values. The 3D scene's backdrop, floor and tray are dark to match.
