@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: motion metrics panel guarded writes
+- `src/ui/MotionMetricsPanel.ts`: toggle label, sample count and summary table written only on change. Idle standalone tracking page: 9 mutation records per 3 s before, the remaining ones are the 1 s FPS tooltip. Checked: tsc, check-tracking-panels, manual Start/Stop recording in the browser (no unit test or browser check covers this panel).
+
 ### 2026-11-27 — Claude: idle DOM mutations several hundred → 15 per 3 s
 - Measured with a MutationObserver on the idle practice page (1440×900, camera off): several hundred mutation records in 3 s before this series, 15 after.
 - `src/ui/setText.ts`: `setAttr`, `setMarkup` (remembers what it last wrote per element), plus tests. Used in `InstrumentCalibrationPanel.ts` (100 ms refresh: buttons, guide text, SVG transforms), `CalibrationPreview.ts` (per-frame SVG, values table, data attributes), `TrackingStatusBadge.ts`, `StatusStrip.ts`, `courseExport.ts`, `MotionMetricsPanel.ts`, and the stitch-position slider / placement progress in `src/main.ts`.
