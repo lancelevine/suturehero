@@ -15,7 +15,7 @@ Last updated: 2026-11-27
 - **Adjustable green double Acland clamp** on the microsurgery vessel. Pushing in brings the ends closer, pushing out spreads them, which sets the tension needed to secure the knot. Default: vessel ends a little apart; the clamp is for small adjustments, not a difficulty setting.
 - **Vessel dilation step:** dilate each vessel end before suturing; too little narrows the lumen, too much tears the intima and raises clot risk.
 - **Nerve repair:** align fascicles and place epineurial stitches without twist. Reuses the microsurgery scene.
-- **5-minute warm-up drill** with a daily log.
+- **5-minute warm-up drill** with a daily log. *(First version in build 0.235: Sandbox warm-up timer, per-day log in browser storage and a streak.)*
 - **More stitch patterns:** vertical and horizontal mattress, running, running subcuticular, each scored.
 - **Corner stitch:** half-buried horizontal mattress through the tip of a V-shaped or stellate wound; scored on the tip sitting flush without being strangled.
 - **Bite consistency score:** ruler overlay of each stitch's distance from the edge on both sides and spacing between stitches, outliers highlighted. *(First version in build 0.235: Sandbox summary line and red rings on outlier bites vs the median bite; a full ruler overlay is still to do.)*

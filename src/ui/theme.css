@@ -194,3 +194,6 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 #tracking-app>.tracking-status-strip{padding:0 14px}
 #tracking-app>header a[href="./"]:not(.brand){text-decoration:none;border:1px solid var(--sh-line);border-radius:10px;color:var(--sh-text)}
 #tracking-app>header a[href="./"]:not(.brand):hover{border-color:var(--sh-cyan);color:var(--sh-cyan)}
+/* Sandbox 5-minute warm-up row. */
+.sandbox-warmup{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:6px 0 10px}
+.sandbox-warmup-status{font-size:12px;color:var(--sh-muted)}

@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: 5-minute warm-up drill (roadmap, build 0.235)
+- New `src/gameplay/warmupLog.ts` (+tests): log in `suturehero.warmupLog.v1` (day, passes, mean bite; last 100), daily streak, summary line. `src/ui/SandboxSummaryPanel.ts`: Start/Stop warm-up button and countdown; a finished warm-up logs the passes made during it (stopping early does not log). Styles in `src/ui/theme.css`.
+- Checked: tsc, warmupLog test, browser (start → countdown → stop), check-sandbox, check-layout. CHANGELOG 0.235, ROADMAP note, checklist item.
+
 ### 2026-11-27 — Claude: instrument tip collisions (roadmap, build 0.235)
 - New `src/gameplay/tipCollisions.ts` (+test): contact below 3 mm, released above 5 mm, not counted when the needle is within 15 mm of both tips (handoff). `src/main.ts` feeds it from the skill sampler and adds `tipCollisions` to the Skill Analysis report; `skillRows` shows it when present (+test).
 - Checked: tsc, SkillAnalysisPanel/skillAnalysis/tipCollisions tests, browser (row shows 0, no page errors), check-sandbox. The handoff test is approximate (needle root position); Lance to try with real instruments.

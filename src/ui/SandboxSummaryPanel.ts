@@ -1,3 +1,6 @@
+import { describeWarmups, loadWarmups, localDay, saveWarmup, WARMUP_SECONDS } from '../gameplay/warmupLog';
+import { formatClock } from './practiceHud';
+import { setText } from './setText';
 import { describeBiteConsistency } from '../gameplay/biteConsistency';
 import { describeStitchOrder } from '../gameplay/stitchOrder';
 import { appendProgress, checkTargets, describeSpacing, describeTrend, loadProgress, loadTargets, saveTargets, summarizeSandbox, type SandboxStitchInfo, type SandboxSummary, type SandboxTargets } from '../gameplay/sandboxSummary';
@@ -45,6 +48,8 @@ const browserStorage = () => {
 
 /** How often the panel refreshes (ms). */
 const REFRESH_MS = 500;
+/** How often the warm-up countdown updates (ms). */
+const WARMUP_TICK_MS = 1000;
 
 export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSource) {
   const storage = browserStorage();
@@ -52,7 +57,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
   const panel = document.createElement('section');
   panel.className = 'sandbox-summary';
   panel.setAttribute('aria-label', 'Sandbox session summary');
-  panel.innerHTML = `<h3>Sandbox session</h3><p class="sandbox-summary-line" role="status"></p><p class="sandbox-spacing"></p><p class="sandbox-bites"></p><ul class="sandbox-targets"></ul>
+  panel.innerHTML = `<h3>Sandbox session</h3><div class="sandbox-warmup"><button type="button" data-action="warmup">Start 5-minute warm-up</button><span class="sandbox-warmup-status" role="status"></span></div><p class="sandbox-summary-line" role="status"></p><p class="sandbox-spacing"></p><p class="sandbox-bites"></p><ul class="sandbox-targets"></ul>
 <details><summary>Instructor targets</summary><form class="sandbox-target-form">${TARGET_FIELDS.map((f) => `<label>${f.label} <input type="number" name="${f.key}" step="${f.step}" min="0"></label>`).join('')}<button type="button" data-action="defaults">Defaults</button></form></details>
 <label class="sandbox-trainee">Trainee name or ID <input type="text" name="trainee" maxlength="80" autocomplete="off"></label>
 <div class="sandbox-summary-actions"><button type="button" data-action="save">Save session to progress</button><button type="button" data-action="export">Export session JSON</button><button type="button" data-action="stitches-csv">Export stitches CSV</button><button type="button" data-action="progress-csv">Export progress CSV</button></div><p class="sandbox-trend"></p>
@@ -76,9 +81,43 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
   const download = downloadText;
   const current = (): SandboxSummary => summarizeSandbox(source.passes(), source.torn(), source.stitches());
   const saved = (): SavedSession => ({ ...current(), trainee: trainee() || undefined, durationSeconds: Math.round(source.sessionSeconds()) });
+  // 5-minute warm-up drill and daily log (src/gameplay/warmupLog.ts): counts the passes made during it.
+  const warmupButton = panel.querySelector<HTMLButtonElement>('[data-action="warmup"]')!;
+  const warmupStatus = panel.querySelector<HTMLElement>('.sandbox-warmup-status')!;
+  let warmup: { startedAt: number; firstPass: number } | null = null;
+  const finishWarmup = (completed: boolean) => {
+    if (!warmup) return;
+    const passes = source.passes().slice(warmup.firstPass);
+    warmup = null;
+    if (completed) saveWarmup(storage, { day: localDay(new Date()), passes: passes.length, meanBiteMm: summarizeSandbox(passes, [], []).meanBiteMm });
+    setText(warmupButton, 'Start 5-minute warm-up');
+    updateWarmup();
+  };
+  const updateWarmup = () => {
+    if (!warmup) {
+      setText(warmupStatus, describeWarmups(loadWarmups(storage), new Date()));
+      return;
+    }
+    const left = WARMUP_SECONDS - (performance.now() - warmup.startedAt) / 1000;
+    if (left <= 0) {
+      finishWarmup(true);
+      return;
+    }
+    const passes = source.passes().length - warmup.firstPass;
+    setText(warmupStatus, `Warm-up ${formatClock(left)} left · ${passes} pass${passes === 1 ? '' : 'es'} so far · keep bites even and square to the wound`);
+  };
+  setInterval(updateWarmup, WARMUP_TICK_MS);
+  updateWarmup();
   panel.addEventListener('click', (event) => {
     const action = (event.target as HTMLElement).closest('button')?.dataset.action;
-    if (action === 'defaults') {
+    if (action === 'warmup') {
+      if (warmup) finishWarmup(false);
+      else {
+        warmup = { startedAt: performance.now(), firstPass: source.passes().length };
+        setText(warmupButton, 'Stop warm-up');
+        updateWarmup();
+      }
+    } else if (action === 'defaults') {
       targets = loadTargets(null);
       saveTargets(storage, targets);
       fillForm();
