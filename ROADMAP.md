@@ -25,6 +25,7 @@ Last updated: 2026-11-27
 - **Stay suture planning:** pick 180 or 120 degree stays before an anastomosis; the sim marks where they go and scores how evenly the remaining bites fill the gaps.
 - **Vessel grasp check:** flags forceps grabs that pinch the full vessel wall instead of adventitia or lumen counterpressure.
 - **Thread management scoring:** flags tangles, suture catching on instruments or dragging across the field, and pulls that saw through tissue.
+- **Microsurgical bite geometry:** each vessel bite measured against wall thickness (about 2x from the edge, equal both sides, needle perpendicular to the wall).
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
