@@ -20,9 +20,10 @@ import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport,stereoMatchText} from './input/stereoIndicator';
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
+import {CameraMarkerState} from './input/CameraMarkerState';
 import {changeThrottle} from './util/changeThrottle';
 import {cameraStatusText,drawCornerDebug,drawDecodedMarkers} from './ui/markerOverlay';
-import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
+import {offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {chooseFace,faceCandidates} from './input/rotationTracking';
 import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
@@ -221,12 +222,12 @@ function stereoPrismRotation(name:InstrumentName,now:number):StereoRotation|null
 function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
  if(!stereoSetup.calibration)return [];
  const cal=stereoSetup.calibration;
- const key=`${observationsAt}:${secondaryObservationsAt}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`;
+ const key=`${observationsAt}:${markers2.at}:${trackerType}:${overlay.width}:${overlay.height}:${overlay2.width}:${overlay2.height}`;
  const cached=stereoMonoCache.get(name);if(cached?.key===key&&cached.calibration===cal)return cached.views.filter(v=>now-v.at<MONO_VIEW_MAX_AGE_MS);
  // Each camera's own pose estimate (src/input/stereoMonoViews.ts).
  const views=monoViewsFromCameras(cal,markerGroups()[name],trackerType,[
   {at:observationsAt,size:{width:overlay.width,height:overlay.height},markers:liveMarkers()},
-  {at:secondaryObservationsAt,size:{width:overlay2.width,height:overlay2.height},markers:liveSecondMarkers()},
+  {at:markers2.at,size:{width:overlay2.width,height:overlay2.height},markers:liveSecondMarkers()},
  ],now);
  stereoMonoCache.set(name,{key,calibration:cal,views});return views;
 }
@@ -255,17 +256,12 @@ stereoSetup.enabled.addEventListener('change',resetTrackerPose);
 stereoSetup.restoreSaved();
 const overlayContext2=overlay2.getContext('2d')!;
 let stream2:MediaStream|null=null,ready2=false,lastDetection2=0,session2=0;
-let latestFlowAt2=0;
-let decodedFrames2=0,flowFrames2=0,statsAt2=performance.now();
-const confirmed2=new Map<number,number>();
-const decoded2=new Map<number,number>();
-const MARKER_LIVE_MS_SECONDARY=140;
-const liveSecondMarkers=()=>secondaryObservations.filter(m=>performance.now()-(confirmed2.get(m.id)??-Infinity)<=MARKER_LIVE_MS_SECONDARY);
-let secondaryObservations:MarkerObservation[]=[];
-let secondaryObservationsAt=0;
+// Camera 2's tracked markers and status-line counts (src/input/CameraMarkerState.ts).
+const markers2=new CameraMarkerState(performance.now());
+const liveSecondMarkers=()=>markers2.live(performance.now());
 const stereoStatus=document.querySelector<HTMLElement>('#stereo-match-status')!;
 function updateStereoMatches(){
- const offset=stream&&stream2&&observationsAt&&secondaryObservationsAt?Math.abs(observationsAt-secondaryObservationsAt):null;
+ const offset=stream&&stream2&&observationsAt&&markers2.at?Math.abs(observationsAt-markers2.at):null;
  setText(stereoStatus,stereoMatchText(offset,liveMarkers().map(m=>m.id),liveSecondMarkers().map(m=>m.id)));
 }
 
@@ -276,9 +272,9 @@ async function refreshSecondCameraList(){
  fillCameraSelect(select2,await availableCameras(),current,'Choose second camera');
 }
 async function stopSecondCamera(){stereoPositions.clear();stereoFrames.clear();detector2.dispose();fastTracker2.dispose();
- capture2.stopRequests();capture2.decodeBusy=false;latestFlowAt2=0;confirmed2.clear();decoded2.clear();decodedFrames2=0;flowFrames2=0;statsAt2=performance.now();
+ capture2.stopRequests();capture2.decodeBusy=false;markers2.reset(performance.now());
  session2++;ready2=false;stream2?.getTracks().forEach(track=>track.stop());stream2=null;
- video2.srcObject=null;secondaryObservations=[];secondaryObservationsAt=0;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
+ video2.srcObject=null;updateStereoMatches();overlayContext2.clearRect(0,0,overlay2.width,overlay2.height);
  start2.disabled=false;stop2.disabled=true;
  document.querySelector<HTMLElement>('#camera-placeholder-2')!.style.display='';
  status2.textContent='Second camera stopped';renderCameraSettings();
@@ -314,7 +310,7 @@ stereoQuick.addEventListener('click',async()=>{
 select2.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_SECONDARY,select2.value);if(stream2)void stopSecondCamera();});
 async function detectSecondFrame(now:number){
  if(!stream2||!ready2||!video2.videoWidth)return;
- const recovering=!liveSecondMarkers().length||now-latestFlowAt2>120;
+ const recovering=!liveSecondMarkers().length||now-markers2.latestFlowAt>120;
  const frame=capture2.begin(now,recovering);if(!frame)return;
  const currentSession=session2;
  const {doFlow:doFast,doDecode:doSlow,w,h,toNative,toFlow,capturedAt:secondaryCaptureAt,pairAt:secondaryPairAt}=frame;
@@ -322,29 +318,21 @@ async function detectSecondFrame(now:number){
  try{
  const render=()=>{
   const fresh=liveSecondMarkers();
-  drawDecodedMarkers(overlayContext2,fresh,id=>performance.now()-(decoded2.get(id)??-Infinity),w,h);
+  drawDecodedMarkers(overlayContext2,fresh,id=>markers2.decodedAge(id,performance.now()),w,h);
   drawTipDots(overlayContext2,2,w,h);
-  const stamp=performance.now();
-  if(stamp-statsAt2>=1000){
-   const seconds=(stamp-statsAt2)/1000;
-   status2.textContent=cameraStatusText('Camera 2',w,h,fresh.map(m=>m.id),decodedFrames2,flowFrames2,seconds);
-   statsAt2=stamp;decodedFrames2=0;flowFrames2=0;
-  }
+  const rates=markers2.takeRates(performance.now());
+  if(rates)status2.textContent=cameraStatusText('Camera 2',w,h,fresh.map(m=>m.id),rates.decodes,rates.flows,rates.seconds);
   updateStereoMatches();
  };
  if(doFast){
   const flowResult=capture2.requestFlow(frame,now);
   void flowResult.then(found=>{
    if(currentSession!==session2)return;
-   perf.sample('Camera 2 flow frame age',performance.now()-secondaryCaptureAt);const stamp=performance.now();flowFrames2++;
-   if(found.length){
-    for(const marker of found)confirmed2.set(marker.id,stamp);
-    secondaryObservations=found;secondaryObservationsAt=stamp;latestFlowAt2=stamp;stereoFrames.push(1,secondaryPairAt,found);
-    detector2.seed(toNative(found));
-   }else{
-    secondaryObservations=[];confirmed2.clear();secondaryObservationsAt=stamp;stereoFrames.push(1,secondaryPairAt,[]);
-    capture2.lastDecodeAt=Math.min(capture2.lastDecodeAt,stamp-65);
-   }
+   perf.sample('Camera 2 flow frame age',performance.now()-secondaryCaptureAt);const stamp=performance.now();
+   markers2.applyFlow(found,stamp);
+   stereoFrames.push(1,secondaryPairAt,found);
+   if(found.length)detector2.seed(toNative(found));
+   else capture2.lastDecodeAt=Math.min(capture2.lastDecodeAt,stamp-65);
    render();
   }).catch(error=>{if(currentSession===session2)status2.textContent='Camera 2 flow error: '+String(error);})
    .finally(()=>{if(currentSession===session2)capture2.flowBusy=false;});
@@ -354,17 +342,12 @@ async function detectSecondFrame(now:number){
   const {left,top}=region;
   void decodeRequest2.then(nativeFound=>{
    if(currentSession!==session2)return;
-   perf.sample('Camera 2 decode frame age',performance.now()-secondaryCaptureAt);decodedFrames2++;
+   perf.sample('Camera 2 decode frame age',performance.now()-secondaryCaptureAt);markers2.countDecode();
    const nativeMarkers=offsetMarkers(nativeFound,left,top);capture2.search.result(nativeMarkers);perf.sample('Camera 2 '+region.kind+' decode worker',detector2.diagnostics.durationMs);
    const found=toFlow(nativeMarkers),stamp=performance.now();
    if(found.length&&stamp-secondaryCaptureAt<180)stereoFrames.push(1,secondaryPairAt,found);
-   if(found.length){
-    for(const marker of found)decoded2.set(marker.id,stamp);
-    fastTracker2.seed(found,flowSeedFrame);
-    const {merged,added}=mergeNewMarkers(liveSecondMarkers(),found);
-    for(const marker of added)confirmed2.set(marker.id,stamp);
-    secondaryObservations=merged;secondaryObservationsAt=stamp;
-   }
+   if(found.length)fastTracker2.seed(found,flowSeedFrame);
+   markers2.applyDecode(found,stamp);
    render();
   }).catch(error=>{if(currentSession===session2)status2.textContent='Camera 2 decode error: '+String(error);})
    .finally(()=>{if(currentSession===session2)capture2.decodeBusy=false;});
@@ -739,7 +722,7 @@ let last=performance.now();
 let lastPoseMessage=0;
 let lastEmbeddedFpsReport=0;
 let embeddedFrames=0;
-function animate(now:number){const loopStarted=performance.now();perf.tick('Tracking loop');perf.sample('Tracking frame interval',Math.max(0,now-last));if(stream&&lastAppliedFrameAt>0)perf.sample('Camera 1 applied image age',Math.max(0,performance.now()-lastAppliedFrameAt));if(stream2&&observationsAt&&secondaryObservationsAt)perf.sample('Camera accepted-update skew',Math.abs(observationsAt-secondaryObservationsAt));const dt=Math.min((now-last)/1000,.05);last=now;
+function animate(now:number){const loopStarted=performance.now();perf.tick('Tracking loop');perf.sample('Tracking frame interval',Math.max(0,now-last));if(stream&&lastAppliedFrameAt>0)perf.sample('Camera 1 applied image age',Math.max(0,performance.now()-lastAppliedFrameAt));if(stream2&&observationsAt&&markers2.at)perf.sample('Camera accepted-update skew',Math.abs(observationsAt-markers2.at));const dt=Math.min((now-last)/1000,.05);last=now;
  updateRotationStageReadout();
  if(!simulation.checked){
   for(const [name,mesh] of [['needleDriver',driver],['forceps',forceps],['scissors',scissors]] as const){
@@ -871,7 +854,7 @@ export const trackingLabBridge=createTrackingLabBridge({
  primaryDeviceId:()=>stream?.getVideoTracks()[0]?.getSettings().deviceId??select.value,
  secondarySelect:select2,availableCameras,
  instrumentProfiles:()=>Object.fromEntries((['needleDriver','forceps','scissors'] as const).map(name=>[name,instrumentCalibration.profile(name)])),
- observationsAt:camera=>camera?secondaryObservationsAt:observationsAt,
+ observationsAt:camera=>camera?markers2.at:observationsAt,
  workers:camera=>camera?[detector2,fastTracker2]:[detector,fastTracker],
  presentedAt:camera=>frameClock(camera?video2:video)?.presentedAt,
  liveMarkers:camera=>camera?liveSecondMarkers():liveMarkers(),

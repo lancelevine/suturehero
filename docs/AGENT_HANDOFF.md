@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: camera 2 marker state as CameraMarkerState
+- New `src/input/CameraMarkerState.ts` (+3 tests) holds camera 2's observations, confirm/decode times, live filter (140 ms) and status-line counts; `src/tracking.ts` drops eight loose variables and the inline flow/decode bookkeeping in `detectSecondFrame`. No behaviour change intended.
+- Checked: tsc, unit test, check-stereo-motion, check-stereo-rig-faces, check-camera-controls, check-tracking-motion. Lance: two-camera mode should behave as before (hardware item already on the checklist).
+
 ### 2026-11-27 — Claude: CameraCapture.stopRequests
 - `CameraCapture.stopRequests()` (+test) replaces the per-field resets in `stopCamera`/`stopSecondCamera` (`src/tracking.ts`). Camera 1 still leaves `decodeBusy` as before; camera 2 still clears it. No behaviour change.
 - Checked: tsc, CameraCapture test, check-camera-controls, check-stereo-motion.
