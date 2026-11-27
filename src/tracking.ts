@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {mountTrackingStatusStrip} from './ui/trackingStatusStrip';
 import {stereoTipPose} from './input/stereoTipPose';
 import {driftCorrections,meanCornerDistance} from './input/driftCorrection';
 import {moveSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
@@ -19,8 +20,7 @@ import {mountDetectionPreviews} from './ui/detectionPreviews';
 import {mountDepthRangeControls} from './input/depthRangeControls';
 import {mountStereoCalibrationPanel} from './input/stereoCalibrationPanel';
 import {steadyCaptureFrame} from './input/sizeDepthEstimator';
-import {mountStatusStrip} from './ui/StatusStrip';
-import {CameraMovedMonitor,fitErrorFromReason,holdingReasons,setupChecklist,type HealthInput} from './ui/trackingHealth';
+import {CameraMovedMonitor,fitErrorFromReason} from './ui/trackingHealth';
 import {markerReadoutText} from './input/markerReadout';
 import {snapshotTrackingStorage} from './trackingLab/configuration';
 import {cameraImage,recordedInput} from './trackingLab/runtime';
@@ -989,54 +989,25 @@ mountHallSensorPanel(document.querySelector<HTMLElement>('#jaw-sensor-controls')
 mountMotionMetricsPanel(diagnosticsHost,()=>performanceContext().build);
 // Live profiler (Diagnostics → Performance): off by default, measurement only.
 mountProfilerPanel(diagnosticsHost,new LiveProfiler(perf,[{index:1,video},{index:2,video:video2}]),performanceContext);
-// Main-screen status strip: setup checklist, camera-moved warning, holding reasons (src/ui/trackingHealth.ts).
-{
- const workspaceStage=document.querySelector('.workspace-stage');
- const stripParent=(workspaceStage?.parentElement??document.querySelector<HTMLElement>('#tracking-app'))!;
- const openCalibration=(pane:'pose'|'jaws')=>{
-  const toggle=document.querySelector<HTMLButtonElement>('#workspace-calibrate-toggle');
-  if(toggle&&toggle.getAttribute('aria-expanded')!=='true')toggle.click();
-  document.querySelector<HTMLButtonElement>(`[data-calibration-pane="${pane}"]`)?.click();
- };
- const strip=mountStatusStrip(stripParent,workspaceStage??stripParent.firstElementChild,{
-  cameras:()=>(trackingMode.value==='stereo'?document.querySelector<HTMLButtonElement>('#start-stereo-all'):document.querySelector<HTMLButtonElement>('#start-camera'))?.click(),
-  stereo:()=>document.querySelector<HTMLButtonElement>('#tracking-setup-panel-toggle')?.click(),
-  neutral:()=>openCalibration('pose'),
-  jaws:()=>openCalibration('jaws'),
-  // Guided stereo steps (trackingHealth.ts): workspace in Tracking setup; tips and table in Calibrate's tip section.
-  workspace:()=>document.querySelector<HTMLButtonElement>('#tracking-setup-panel-toggle')?.click(),
-  tips:()=>openCalibration('pose'),
-  table:()=>openCalibration('pose'),
+// Main-screen status strip: setup checklist, camera-moved warning, holding reasons (src/ui/trackingStatusStrip.ts).
+mountTrackingStatusStrip(()=>{
+ const stereoMode=trackingMode.value==='stereo',metric=stereoMode&&!!stereoSetup.calibration;
+ const instrument=(name:InstrumentName)=>({
+  lastSeen:liveTargets.get(name)?.lastSeen,
+  neutralSaved:!!instrumentCalibration.savedNeutral(name,metric),
+  depthSource:filterMeasurements.get(name)?.source,
+  markerSidePx:markerSides.get(name),
+  stereoRejection:stereoRejections.get(name),
+  tipCalibrated:!!stereoTipCalibration.saved(name,trackerType),
  });
- const labels={needleDriver:'Needle driver',forceps:'Forceps',scissors:'Scissors'} as const;
- const STATUS_STRIP_INTERVAL_MS=500;
- setInterval(()=>{
-  const now=performance.now(),stereoMode=trackingMode.value==='stereo';
-  const camera1Running=!!stream&&video.videoWidth>0,camera2Running=!!stream2&&video2.videoWidth>0;
-  const stereoCalibrationProblem=!stereoSetup.calibration?'No stereo calibration loaded':calibrationMatches(stereoSetup.calibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)||null;
-  const metric=stereoMode&&!!stereoSetup.calibration;
-  const health:HealthInput={
-   stereoMode,camera1Running,camera2Running,stereoCalibrationProblem,
-   pairingFailure:stereoMode?latestPairingFailure:null,
-   workspaceSet:stereoMode&&!!stereoSetup.calibration?!!stereoSetup.workspace:undefined,
-   tableSet:stereoMode&&!!stereoSetup.calibration?tableHeight.points().length>=TABLE_POINTS:undefined,
-   instruments:(['needleDriver','forceps','scissors'] as const).map(name=>{
-    const target=liveTargets.get(name);
-    return {
-     label:labels[name],
-     lastSeenAgoMs:target&&camera1Running?Math.max(0,now-target.lastSeen):null,
-     neutralSaved:!!instrumentCalibration.savedNeutral(name,metric),
-     jawsCalibrated:null,
-     depthHeld:!stereoMode&&/depth held/.test(filterMeasurements.get(name)?.source??''),
-     markerSidePx:markerSides.get(name)??null,
-     stereoRejection:stereoMode?stereoRejections.get(name)??null:null,
-     tipCalibrated:stereoMode&&name!=='scissors'?!!stereoTipCalibration.saved(name,trackerType):undefined,
-    };
-   }),
-  };
-  strip.update({checklist:setupChecklist(health),warning:stereoMode&&camera1Running&&camera2Running?cameraMovedMonitor.check(now):null,holding:camera1Running?holdingReasons(health):[]});
- },STATUS_STRIP_INTERVAL_MS);
-}
+ return {
+  stereoMode,camera1Running:!!stream&&video.videoWidth>0,camera2Running:!!stream2&&video2.videoWidth>0,
+  stereoCalibrated:!!stereoSetup.calibration,
+  calibrationMismatch:stereoSetup.calibration?calibrationMatches(stereoSetup.calibration,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)||null:null,
+  pairingFailure:latestPairingFailure,workspaceSet:!!stereoSetup.workspace,tableSet:tableHeight.points().length>=TABLE_POINTS,
+  instruments:{needleDriver:instrument('needleDriver'),forceps:instrument('forceps'),scissors:instrument('scissors')},
+ };
+},now=>cameraMovedMonitor.check(now));
 
 /** Narrow lab bridge: images and timestamps change; live tracking algorithms do not. */
 export const trackingLabBridge = {

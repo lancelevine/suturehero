@@ -87,6 +87,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — status strip wiring out of tracking.ts
+
+- `src/ui/trackingStatusStrip.ts` (+test): strip button wiring, 500 ms refresh, and `healthInput`
+  (page state → health checks), same rules as before. tracking.ts only gathers the raw state.
+- Checked: status-strip, calibration-ui, layout, tracking-panels, stereo-shortcut.
+
 ### 2026-11-27 — Claude — stereo tip pose out of animate()
 
 - `src/input/stereoTipPose.ts` (+test): with a calibrated stereo tip, the instrument's shared-frame
