@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Demo at 15 fps: slicing tried again, reverted (no code change)
+
+- Slicing long frames with interpolated instrument poses (as KnotHost does) made 15 fps no better
+  and broke 20 fps (which passes since 0.227). Reverted. 15 fps remains a known limit.
+
 ### 2026-11-27 — Claude — tracking main-thread CPU profile; calibration preview visibility
 
 - CDP CPU profile of the practice page with the synthetic camera (10 s): JS is small; 82% is
