@@ -108,6 +108,12 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **Softer shadows (0.228).** Instrument shadows are lighter than before but still show where
       the instruments are. Say if you prefer the old darker ones.
 
+## 8b. New look (build 0.229)
+
+- [ ] **Readable everywhere.** Practice page, Tracking Lab, Production and the tracking page all
+      use the dark theme; no white panels left, text readable, buttons clearly clickable.
+- [ ] **Camera views.** Camera previews and overlays still look right on the dark panels.
+
 ## 9. Older items still worth checking (optional)
 
 Moved here from the handoff Status block on 2026-11-27; details are in

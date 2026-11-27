@@ -42,6 +42,7 @@ import { HandoffGuide } from './scene/HandoffGuide';
 import { PassGuide } from './scene/PassGuide';
 import { PlacementGuide } from './scene/PlacementGuide';
 import './style.css';
+import './ui/theme.css';
 declare const __SUTUREHERO_BUILD__: string;
 declare const __SUTUREHERO_REVISION__: string;
 import { createScene } from './scene/createScene';
@@ -56,7 +57,7 @@ import { mountCourseExport } from './ui/courseExport';
 import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
-const APP_BUILD='0.228';
+const APP_BUILD='0.229';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);

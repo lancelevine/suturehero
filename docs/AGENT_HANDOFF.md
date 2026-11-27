@@ -48,6 +48,24 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.229: visual overhaul step 1 (shared styling)
+
+- Lance (via another session): top priority is a visual overhaul after his mockup "Practice.
+  Play. Get better." — dark navy, frosted glass, cyan glow; then in-scene HUD (timer pill, stat
+  card, challenge card, dashed ideal suture path), Skill Analysis view, microsurgery view.
+  Styling and layout only; tracking and scoring logic unchanged.
+- Step 1 done: `src/ui/theme.css` (loaded last on both pages) with shared tokens (`--sh-*`). A
+  zero-specificity reset under `#app` / `#tracking-app` makes the old light containers
+  transparent; panels, controls and accents are restyled after it. Scene backdrop/floor/tray
+  darkened (`createScene.ts`).
+- Two fixes found by the checks: the header's blur made a stacking context, so the Tracking menu
+  slid under the status strip (header now z-index 40); and the side panel only appeared on the
+  async `toggle` event, so a section opened during start-up could leave it hidden (now also a
+  MutationObserver on `open`, plus an initial sync).
+- Checked: layout, production-mode, tracking-panels, calibration-ui, status-strip,
+  tracking-lab-layout, iphone-start, practice-setup, sandbox, stereo-shortcut, performance,
+  predictive-decode, driver-depth; screenshots of the practice and tracking pages.
+
 ### 2026-11-27 — Claude — Demo at 15 fps: slicing tried again, reverted (no code change)
 
 - Slicing long frames with interpolated instrument poses (as KnotHost does) made 15 fps no better

@@ -52,8 +52,13 @@ export function mountWorkspaceLayout(app:HTMLElement){
  };
  for(const [button,details] of sections){
   app.querySelector<HTMLButtonElement>('#'+button)!.onclick=()=>{details.open=!details.open;};
-  details.addEventListener('toggle',()=>{if(details.open)for(const [,other] of sections)if(other!==details&&other.open)other.open=false;syncSide();});
+  const onChange=()=>{if(details.open)for(const [,other] of sections)if(other!==details&&other.open)other.open=false;syncSide();};
+  details.addEventListener('toggle',onChange);
+  // The toggle event arrives a task later; the attribute observer shows the panel as soon as a
+  // section opens, including when page code opens one during start-up (2026-11-27).
+  new MutationObserver(onChange).observe(details,{attributes:true,attributeFilter:['open']});
  }
+ syncSide();
  app.querySelector('#close-side-panel')!.addEventListener('click',()=>{for(const [,details] of sections)details.open=false;});
  const trackingMenu=app.querySelector<HTMLDetailsElement>('#workspace-tracking-menu')!;
  // The menu stays open while one of its panels (a dialog) is in use, so closing the panel can return

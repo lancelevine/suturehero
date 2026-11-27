@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.229 — New look: dark, glowing, high-tech
+
+- Whole app restyled after the "Practice. Play. Get better." mockup: near-black navy background, frosted-glass panels with thin cyan outlines and a soft glow, rounded corners, white text with cyan section labels, green for good values. The 3D scene's backdrop, floor and tray are dark to match.
+- Tracking and scoring are unchanged; this is styling only.
+
 ## Build 0.228 — Softer shadows
 
 - Cast shadows are partly lit by the room instead of solid black, so instrument shadows on the tray and skin look like shadows rather than holes (Standard graphics).

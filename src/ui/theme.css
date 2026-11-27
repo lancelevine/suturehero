@@ -1,0 +1,89 @@
+/*
+ * SutureHero visual theme (2026-11-27, "Practice. Play. Get better." mockup): dark navy app,
+ * frosted-glass panels with thin cyan outlines and a soft glow, white type, cyan section labels,
+ * green for good values. Loaded after the older stylesheets.
+ *
+ * How it overrides the older light styles: under the app roots, a zero-specificity reset makes
+ * containers transparent and text inherit the theme colour (the root id outranks their class
+ * rules); panels, controls and accents are then styled again here at a higher specificity.
+ * Shared tokens (--sh-*) are reused by the HUD, Skill Analysis and microsurgery views.
+ */
+:root{
+  --sh-bg:#060b16;
+  --sh-bg-2:#0a1324;
+  --sh-panel:rgba(12,22,40,.74);
+  --sh-panel-deep:rgba(6,12,24,.82);
+  --sh-panel-hover:rgba(22,40,68,.85);
+  --sh-line:rgba(64,214,255,.36);
+  --sh-line-strong:rgba(64,214,255,.78);
+  --sh-cyan:#3fd8ff;
+  --sh-cyan-soft:rgba(63,216,255,.13);
+  --sh-green:#3ee59a;
+  --sh-amber:#ffc65c;
+  --sh-red:#ff6b7a;
+  --sh-text:#eaf3fb;
+  --sh-muted:#8ea3bd;
+  --sh-dim:#5f7390;
+  --sh-radius:14px;
+  --sh-radius-sm:9px;
+  --sh-glow:0 0 0 1px var(--sh-line),0 0 18px rgba(63,216,255,.12),inset 0 0 24px rgba(63,216,255,.035);
+  --sh-glow-strong:0 0 0 1px var(--sh-line-strong),0 0 22px rgba(63,216,255,.3);
+  --sh-blur:blur(14px) saturate(140%);
+  --sh-font:'Inter','DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+html,body{background:radial-gradient(1200px 700px at 70% -10%,#10234a 0%,transparent 60%),var(--sh-bg)!important;color:var(--sh-text);font-family:var(--sh-font)}
+
+/* 1. Reset the older light styles inside the app roots. */
+:is(#app,#tracking-app) :where(div,section,aside,article,main,header,footer,nav,fieldset,details,form,ul,ol,li,dl,dt,dd,figure,table,thead,tbody,tr,td,th,label,p,span,small,strong,b,em,h1,h2,h3,h4,h5,summary,legend,output,blockquote){
+  background-color:transparent;color:inherit;border-color:rgba(63,216,255,.16)}
+:is(#app,#tracking-app){color:var(--sh-text);font-family:var(--sh-font)}
+
+/* 2. Type and accents */
+:is(#app,#tracking-app) :is(.eyebrow,.tag,.lab,.workspace-drawer-bar,summary,legend,.workspace-side-title){color:var(--sh-cyan)}
+:is(#app,#tracking-app) :is(.intro,.muted,small,.hint,.camera-hint,.scene-label,.legend,.lesson p,#exercise-readout,#grasp-status){color:var(--sh-muted)}
+:is(#app,#tracking-app) a{color:var(--sh-cyan)}
+:is(#app,#tracking-app) :is(.met,.ok,.good,[data-state=ok]){color:var(--sh-green)}
+:is(#app,#tracking-app) :is(.missed,.bad,[data-state=error]){color:var(--sh-red)}
+:is(#app,#tracking-app) :is(.pending,.warn){color:var(--sh-amber)}
+.brand,.brand .muted{color:var(--sh-text)!important}
+.brand-icon{color:var(--sh-cyan)!important;filter:drop-shadow(0 0 6px rgba(63,216,255,.55))}
+
+/* 3. Header (above the page: its blur makes a stacking context, so its menus need this) */
+:is(#app,#tracking-app)>header{position:relative;z-index:40;background:rgba(6,11,22,.8);border-bottom:1px solid rgba(63,216,255,.16);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur)}
+:is(#app,#tracking-app) .version{background:var(--sh-cyan-soft);color:var(--sh-cyan);border:1px solid var(--sh-line);border-radius:999px}
+
+/* 4. Buttons and controls */
+:is(#app,#tracking-app,dialog) :is(button,.button,.workspace-menu>summary){background:rgba(14,26,46,.72);color:var(--sh-text);border:1px solid var(--sh-line);border-radius:var(--sh-radius-sm);transition:box-shadow .15s,border-color .15s,background .15s}
+:is(#app,#tracking-app,dialog) :is(button,.button):hover:not(:disabled){background:var(--sh-panel-hover);border-color:var(--sh-line-strong);box-shadow:0 0 14px rgba(63,216,255,.22)}
+:is(#app,#tracking-app,dialog) button:disabled{opacity:.42;box-shadow:none}
+:is(#app,#tracking-app,dialog) :is(button[aria-pressed=true],button[aria-expanded=true],.workspace-menu[open]>summary){background:var(--sh-cyan-soft);border-color:var(--sh-line-strong);color:var(--sh-cyan);box-shadow:0 0 14px rgba(63,216,255,.25)}
+:is(#app,#tracking-app) :is(#begin-pass,#knot-action,button.primary):not(:disabled){background:linear-gradient(180deg,#3fdcff,#1ea8e0);color:#03101d;border-color:transparent;font-weight:700;box-shadow:0 0 18px rgba(63,216,255,.42)}
+:is(#app,#tracking-app,dialog) :is(select,input[type=text],input[type=number],input[type=search],textarea){background:rgba(6,13,26,.9);color:var(--sh-text);border:1px solid var(--sh-line);border-radius:var(--sh-radius-sm)}
+:is(#app,#tracking-app,dialog) :is(input[type=range],input[type=checkbox],input[type=radio],meter,progress){accent-color:var(--sh-cyan)}
+:is(#app,#tracking-app) .workspace-menu-items{background:var(--sh-panel-deep);border:0;box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur)}
+
+/* 5. Frosted glass panels */
+:is(#app,#tracking-app) :is(.workspace-calibration-drawer,.workspace-camera-dock,.tracking-panel,.tracking-camera-card,.tracking-virtual-card,.tracking-calibration-card,.lesson,.tracking-status-strip,.calibration-live-preview,.sandbox-summary),
+dialog,.tracking-tools-panel{
+  background:var(--sh-panel);color:var(--sh-text);border:0;border-radius:var(--sh-radius);box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur)}
+:is(#app,#tracking-app) :is(.tracking-details,.workspace-disclosure,.camera-device-card){border:1px solid rgba(63,216,255,.2);border-radius:var(--sh-radius-sm)}
+dialog::backdrop{background:rgba(2,6,14,.6);backdrop-filter:blur(4px)}
+:is(#app,#tracking-app) :is(video,canvas#primary-camera-preview,.tracking-camera-stage){background:#02060d}
+
+/* 6. The 3D view */
+:is(#app,#tracking-app) #viewport{border-radius:var(--sh-radius);box-shadow:var(--sh-glow);overflow:hidden}
+:is(#app,#tracking-app) :is(.workspace-view-tools button,.scene-tag,.status-badge){background:rgba(6,13,26,.62);border-color:var(--sh-line);color:var(--sh-text);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur)}
+
+/* 7. Coach strip and status chips */
+:is(#app,#tracking-app) .workspace-coach{border-top:1px solid rgba(63,216,255,.12)}
+:is(#app,#tracking-app) .tracking-status-strip :is(button,span){border-radius:999px}
+
+/* Scrollbars */
+*{scrollbar-color:rgba(63,216,255,.35) transparent;scrollbar-width:thin}
+
+/* 8. Specific older widgets */
+:is(#app,#tracking-app) :is(.lab-tab,[role=tab])[aria-selected=true]{background:var(--sh-cyan-soft);color:var(--sh-cyan);border-color:var(--sh-line-strong);box-shadow:0 0 14px rgba(63,216,255,.25)}
+:is(#app,#tracking-app) .primary-action{background:linear-gradient(180deg,#3fdcff,#1ea8e0)!important;border-color:transparent!important;color:#03101d!important;font-weight:700;box-shadow:0 0 18px rgba(63,216,255,.35)}
+:is(#app,#tracking-app) .primary-action:disabled{background:rgba(14,26,46,.72)!important;color:var(--sh-muted)!important;border-color:var(--sh-line)!important;box-shadow:none}
+:is(#app,#tracking-app) .calibration-live-preview>svg{background:#050b17;border:1px solid rgba(63,216,255,.16)}

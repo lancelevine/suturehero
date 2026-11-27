@@ -15,8 +15,12 @@ const REFLECTIVE_METALNESS=0.5;
 const METAL_REFLECTION_INTENSITY=0.45;
 /** Cast shadows are partly lit by the room (2026-11-27): fully black ones read as holes in the tray. */
 const SHADOW_INTENSITY=0.7;
+/** Dark navy theme (2026-11-27, src/ui/theme.css): backdrop and floor near black, tray dark slate blue. */
+const SCENE_BACKDROP=0x060b16;
+const FLOOR_COLOR=0x0a1426;
+const TRAY_COLOR=0x23344d;
 export function createScene(container: HTMLElement) {
-  const scene=new THREE.Scene(); scene.background=new THREE.Color(0x101f27); scene.fog=new THREE.Fog(0x101f27,18,40);
+  const scene=new THREE.Scene(); scene.background=new THREE.Color(SCENE_BACKDROP); scene.fog=new THREE.Fog(SCENE_BACKDROP,18,40);
   const camera=new THREE.PerspectiveCamera(42,1,0.1,100); camera.position.set(7,8,10);
   const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'default'});
   let fastGraphics=false,contextAvailable=true;
@@ -48,8 +52,8 @@ export function createScene(container: HTMLElement) {
       }
     });
   };
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x172e38,roughness:1})); floor.receiveShadow=true; floor.rotation.x=-Math.PI/2; floor.position.y=-0.1; scene.add(floor);
-  const tray=new THREE.Mesh(new THREE.BoxGeometry(7,0.12,5),new THREE.MeshStandardMaterial({color:0x41626b,metalness:0.05,roughness:0.9,bumpMap:clothTexture(),bumpScale:0.012})); tray.receiveShadow=true; tray.position.y=-0.02; scene.add(tray);
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:FLOOR_COLOR,roughness:1})); floor.receiveShadow=true; floor.rotation.x=-Math.PI/2; floor.position.y=-0.1; scene.add(floor);
+  const tray=new THREE.Mesh(new THREE.BoxGeometry(7,0.12,5),new THREE.MeshStandardMaterial({color:TRAY_COLOR,metalness:0.05,roughness:0.9,bumpMap:clothTexture(),bumpScale:0.012})); tray.receiveShadow=true; tray.position.y=-0.02; scene.add(tray);
   let lastWidth=0,lastHeight=0;
   const resize=new ResizeObserver(()=>{
     const width=Math.floor(container.clientWidth),height=Math.floor(container.clientHeight);
