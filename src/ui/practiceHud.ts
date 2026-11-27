@@ -106,13 +106,24 @@ export function mountPracticeHud(viewport: HTMLElement, read: () => HudInput) {
 </section>
 <section class="hud-card hud-challenge" aria-label="Challenge"><span class="hud-eyebrow">CHALLENGE</span><strong data-hud="challenge-title"></strong><ul data-hud="challenge"></ul></section>`;
   viewport.append(hud);
+  // Elements are looked up once; values are written only when they change.
+  const elements = new Map<string, HTMLElement>();
+  const find = (selector: string) => {
+    let element = elements.get(selector);
+    if (!element) {
+      element = hud.querySelector<HTMLElement>(selector)!;
+      elements.set(selector, element);
+    }
+    return element;
+  };
   const text = (key: string, value: string) => {
-    const element = hud.querySelector(`[data-hud="${key}"]`)!;
+    const element = find(`[data-hud="${key}"]`);
     if (element.textContent !== value) element.textContent = value;
   };
   const bar = (key: string, fraction: number, good = true) => {
-    const element = hud.querySelector<HTMLElement>(`[data-hud-bar="${key}"]`)!;
-    element.style.width = `${Math.round(fraction * 100)}%`;
+    const element = find(`[data-hud-bar="${key}"]`);
+    const width = `${Math.round(fraction * 100)}%`;
+    if (element.style.width !== width) element.style.width = width;
     element.classList.toggle('warn', !good);
   };
   let segmentKey = '';
@@ -124,7 +135,7 @@ export function mountPracticeHud(viewport: HTMLElement, read: () => HudInput) {
     text('label-precision', state.micro ? 'Alignment' : 'Precision');
     text('precision', first.value);
     bar('precision', first.fraction, first.good || first.value === '–');
-    hud.querySelector('[data-hud="precision"]')!.classList.toggle('good', first.good);
+    find('[data-hud="precision"]').classList.toggle('good', first.good);
     text('label-tension', state.micro ? 'Score' : 'Tension');
     text('tension', state.micro ? state.micro.score.value : state.tension.value);
     bar('tension', state.micro ? state.micro.score.fraction : state.tension.fraction);
@@ -132,13 +143,13 @@ export function mountPracticeHud(viewport: HTMLElement, read: () => HudInput) {
     const key = `${state.progress.done}/${state.progress.goal}`;
     if (key !== segmentKey) {
       segmentKey = key;
-      hud.querySelector('[data-hud="segments"]')!.innerHTML = Array.from({ length: state.progress.goal }, (_, i) => `<i class="${i < state.progress.done ? 'done' : ''}"></i>`).join('');
+      find('[data-hud="segments"]').innerHTML = Array.from({ length: state.progress.goal }, (_, i) => `<i class="${i < state.progress.done ? 'done' : ''}"></i>`).join('');
     }
     text('challenge-title', state.challenge.title);
     const lines = JSON.stringify(state.challenge.lines);
     if (lines !== challengeKey) {
       challengeKey = lines;
-      hud.querySelector('[data-hud="challenge"]')!.innerHTML = state.challenge.lines.map((line) => `<li class="${line.met === true ? 'met' : line.met === false ? 'missed' : ''}"><span>${line.met === true ? '✓' : line.met === false ? '✗' : '○'}</span>${line.text}</li>`).join('');
+      find('[data-hud="challenge"]').innerHTML = state.challenge.lines.map((line) => `<li class="${line.met === true ? 'met' : line.met === false ? 'missed' : ''}"><span>${line.met === true ? '✓' : line.met === false ? '✗' : '○'}</span>${line.text}</li>`).join('');
     }
   };
   render();

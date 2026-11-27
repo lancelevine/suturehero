@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: HUD and stereo dot writes
+- `src/ui/practiceHud.ts`: elements looked up once per HUD; bar widths written only on change. `src/tracking.ts`: the stereo view dot colour is written only when it changes (remembered in `data-color`, since `style.background` reads back normalised).
+- Checked: tsc, practiceHud test, check-layout, check-status-strip, check-stereo-motion, check-sandbox.
+
 ### 2026-11-27 — Claude: setData for per-frame data attributes
 - `setData` (`src/ui/setText.ts`); the knot-state phase, stitch-complete and pass-support `data-*` writes in the `src/main.ts` render loop now skip unchanged values. Checked: tsc, check-free-tying, check-guided-thread, check-sandbox.
 

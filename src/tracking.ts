@@ -245,7 +245,7 @@ function updateStereoViewIndicator(now:number){
  const fresh=[...stereoFallbackStatus].filter(([,source])=>source==='stereo').map(([name])=>name);
  const mismatch=configured?calibrationMatches(stereoSetup.calibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight):null;
  const indicator=stereoIndicator({configured,fallback,fresh,mismatch,monoStreaming:!!stream&&!simulation.checked});
- stereoViewDot.style.background=indicator.color;
+ if(stereoViewDot.dataset.color!==indicator.color){stereoViewDot.dataset.color=indicator.color;stereoViewDot.style.background=indicator.color;}
  setText(stereoViewLabel,indicator.label);
  const state=indicator.state;
  const detail:TrackingStatusMessage={type:TRACKING_MESSAGE.status,state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
