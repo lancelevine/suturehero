@@ -73,6 +73,7 @@ Last updated: 2026-11-27
 - **Stay tails as handles:** counts how often the vessel is turned by pulling its long stay tails versus grasping the wall; flags tail pulls hard enough to tear the bite.
 - **Lumen narrowing score:** after the last vessel stitch, measures the open lumen at the join against the original vessel, shows percent narrowed and points to bites that took too much wall or cinched too tight.
 - **Wrap placement in the instrument tie:** tracks where the thread wraps on the driver and how far from the wound; flags wraps that slip off or miss the short tail.
+- **Overlapping edges:** checks each skin stitch for one edge riding up over the other instead of meeting it, and marks it.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
