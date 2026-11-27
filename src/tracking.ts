@@ -39,7 +39,7 @@ import {solveStereoRigPose,type StereoRigDiagnostics,type StereoRigPose} from '.
 import {StereoPositions} from './input/stereoPositions';
 import {RingPoseTracker} from './input/RingPoseTracker';
 import {StereoFrames} from './input/StereoFrames';
-import {StereoFallback,type MonoView} from './input/StereoFallback';
+import type {StereoFallback,MonoView} from './input/StereoFallback';
 import {stereoBoard} from './input/stereoBoard';
 import {trackingPageMarkup} from './ui/trackingPageMarkup';
 import {WorkerDetector} from './input/WorkerDetector';
@@ -57,7 +57,6 @@ import {motionRecorder} from './gameplay/motionMetrics';
 import {mountMotionMetricsPanel} from './ui/MotionMetricsPanel';
 import {cameraMode} from './input/cameraDevices';
 import {DISCOVERY_INTERVAL_MS} from './input/PredictiveDecodeSearch';
-import {RestLock} from './input/RestLock';
 import {drawRingAxes as drawRingAxesOverlay,drawStereoTipDots} from './ui/ringAxisOverlay';
 import {LiveProfiler} from './diagnostics/LiveProfiler';
 import {mountProfilerPanel} from './ui/ProfilerPanel';
@@ -66,7 +65,6 @@ import {mountHallSensorPanel} from './ui/HallSensorPanel';
 import {mountPerformancePanel} from './ui/PerformancePanel';
 import {MarkerRestLatch} from './input/MarkerRestLatch';
 import {MonocularDepthFilter} from './input/MonocularDepthFilter';
-import {TrackedPoseFilter} from './input/TrackedPoseFilter';
 import {instrumentCalibration} from './input/InstrumentCalibration';
 import {mountTrackingLayout} from './ui/TrackingLayout';
 import './ui/workspace.css';
@@ -85,6 +83,7 @@ import './style.css';
 import './tracking.css';
 import './ui/theme.css';
 import {stereoPairingStep} from './input/stereoPairingStep';
+import {RenderedPoseState} from './input/RenderedPoseState';
 
 declare const __SUTUREHERO_BUILD__: string;
 declare const __SUTUREHERO_REVISION__: string;
@@ -167,7 +166,7 @@ function updateTrackerDescription(){
 }
 
 function resetTrackerPose(){
- instrumentCalibration.clearSessions();rawRenderedPoses.clear();ringPoseTrackers.clear();stereoFallbacks.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();distanceTracks.resetSizeEstimators();capture1.search.reset();capture2.search.reset();
+ instrumentCalibration.clearSessions();renderedPoses.reset();ringPoseTrackers.clear();stereoFallbackStatus.clear();stereoFrames.clear();monoDepthFilters.clear();distanceTracks.resetSizeEstimators();capture1.search.reset();capture2.search.reset();
  rotationTracker.reset();
  liveTargets.clear();stereoPositions.reset();
  
@@ -194,7 +193,6 @@ const stereoPositions=new StereoPositions<InstrumentName>();
 type StereoRotation=StereoRigPose;
 const ringPoseTrackers=new Map<InstrumentName,RingPoseTracker>();
 const stereoFrames=new StereoFrames();
-const stereoFallbacks=new Map<InstrumentName,StereoFallback>();
 const stereoFallbackStatus=new Map<InstrumentName,string>();
 const stereoMonoCache=new Map<InstrumentName,{key:string;calibration:StereoCalibration;views:MonoView[]}>();
 const stereoPoseCache=new StereoPoseMemory<InstrumentName,StereoRotation,StereoCalibration>();
@@ -701,13 +699,11 @@ async function detectFrame(now:number){
  }finally{frame.close();}
 }
 
-const rawRenderedPoses=new Map<InstrumentName,TrackedPoseFilter>();
-const restLocks=new Map<InstrumentName,RestLock>();
+// Per-instrument fallback, rest lock and rendered-pose filter (src/input/RenderedPoseState.ts).
+const renderedPoses=new RenderedPoseState<InstrumentName>();
 let last=performance.now();
 let lastPoseMessage=0;
 const embeddedFps=new FpsCounter(performance.now());
-/** Stereo practice position → the fallback controller's frame (mm, y and z flipped); allocated once, not per frame. */
-const STEREO_FALLBACK_SCALE=new THREE.Vector3(200,-200,-200);
 function animate(now:number){const loopStarted=performance.now();perf.tick('Tracking loop');perf.sample('Tracking frame interval',Math.max(0,now-last));if(stream&&lastAppliedFrameAt>0)perf.sample('Camera 1 applied image age',Math.max(0,performance.now()-lastAppliedFrameAt));if(stream2&&observationsAt&&markers2.at)perf.sample('Camera accepted-update skew',Math.abs(observationsAt-markers2.at));const dt=Math.min((now-last)/1000,.05);last=now;
  updateRotationStageReadout();
  if(!simulation.checked){
@@ -716,20 +712,14 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    const metric=stereoActive(),stereo=metric?stereoPositions.get(name):undefined;
    let fallback:ReturnType<StereoFallback['update']>=null;
    if(metric){
-    const fusion=getOrCreate(stereoFallbacks,name,()=>new StereoFallback());
-    fallback=perf.measure('Stereo fusion (render loop)',()=>{
-     const views=stereoMonoViews(name,now);
-     const orientation=stereo?.quaternion;
-     return fusion.update(stereo&&orientation?{position:stereo.position.clone().multiply(STEREO_FALLBACK_SCALE),quaternion:orientation,at:stereo.lastSeen}:undefined,views,now);
-    });
+    fallback=perf.measure('Stereo fusion (render loop)',()=>renderedPoses.fuse(name,now,stereo,stereoMonoViews(name,now)));
     stereoFallbackStatus.set(name,fallback?.source??'lost');
    }
    if(metric?!!fallback:target&&now-target.lastSeen<trackingHoldMs){
-    const raw=getOrCreate(rawRenderedPoses,name,()=>new TrackedPoseFilter());
     if(fallback?.source==='stereo'&&name==='needleDriver')stereoSetup.feedWorkspace(fallback.position,now);
     // Stereo: hold a still instrument steady against small-marker pose wobble.
-    const stereoPose=fallback?getOrCreate(restLocks,name,()=>new RestLock()).update(fallback.position,fallback.quaternion):undefined;
-    raw.update(stereoPose?workspacePracticePosition(stereoPose.position,stereoSetup.workspace):target!.position,stereoPose?.quaternion??target!.quaternion,now);
+    const stereoPose=fallback?renderedPoses.steady(name,fallback.position,fallback.quaternion):undefined;
+    const raw=renderedPoses.filter(name,stereoPose?workspacePracticePosition(stereoPose.position,stereoSetup.workspace):target!.position,stereoPose?.quaternion??target!.quaternion,now);
     const calibrated=instrumentCalibration.transform(name,raw.position,raw.quaternion,fallback?.at??target!.lastSeen,metric);
     // Stereo tip calibration (src/input/stereoTipCalibration.ts): feed rocking poses; with a calibrated
     // tip, place the instrument at its real tip in the shared workspace (src/input/sharedTipFrame.ts).

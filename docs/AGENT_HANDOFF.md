@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: RenderedPoseState for the render loop
+- `src/input/RenderedPoseState.ts` (+2 tests) owns each instrument's stereo fallback, rest lock and rendered-pose filter (three maps and the scale vector left `src/tracking.ts`). `reset()` keeps the old behaviour: filters and fallbacks cleared, rest locks kept.
+- Finding (not changed): `resetTrackerPose` never cleared the stereo rest locks, so a reset can briefly hold the pre-reset still pose. Worth a look with real stereo.
+- Checked: tsc, unit test, check-stereo-motion, check-stereo-rig-faces, check-tracking-motion, check-driver-depth, check-ring-handoffs.
+
 ### 2026-11-27 — Claude: render-loop pose block tidy; follow-up noted
 - `src/tracking.ts` render loop: rest lock and stereo fallback use `getOrCreate` (three statements removed). No behaviour change. Checked: tsc, check-stereo-motion, check-tracking-motion.
 - Follow-up: the per-instrument rendered-pose block in `animate` (~40 lines: fallback fusion, rest lock, calibration transform, stereo tip frame, publish) is the largest piece left in tracking.ts. Moving it out needs ~10 dependencies passed in; worth doing as a class owning `rawRenderedPoses`/`restLocks`/`stereoFallbacks`, with a test, in its own commit.
