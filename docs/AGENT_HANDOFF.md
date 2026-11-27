@@ -87,6 +87,17 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Correction: Demo frame-rate limit is 20 fps, not 25 (no code change)
+
+- The earlier "fails at 25 fps" runs used Node 22 (this shell's default); AGENTS.md warns physics
+  tests differ there. On Node 24 the Demo passes at 60, 40, 30 and 25 fps; fails at 20 fps (after
+  the first throw the forceps never regrasps the long strand: `gripEnd` retries ~7 s, gives up,
+  only 2 throws, not locked) and at 15 fps (square instead of surgeon's).
+- Next suspect: `gripEnd` (src/demo/freeKnotDemo.ts) counts frames (`GRIP_CONFIRM_FRAMES`,
+  `REOPEN_FRAMES`), not seconds.
+- Also measured: caching `PracticeSession.knotTissue` gave no speed gain (reverted).
+- Run Node 24 explicitly here: `npx -y node@24 node_modules/vitest/vitest.mjs run <file>`.
+
 ### 2026-11-27 — Claude — Build 0.226: metal reflections; CI fix; small tracking.ts extraction
 
 - CI had not deployed since 0.224: `check-full-scan` needs `ARUCO_LIBRARY_DIR`. The workflow now
