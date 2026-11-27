@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { disposeChildren } from './disposeChildren';
 import type { FreePassRecord, SkinRent } from '../tissue/FreeNeedlePass';
 
 /** Entry (teal) and exit (amber) points of Sandbox needle passes, drawn just above the skin. */
@@ -30,7 +31,8 @@ export class FreePassMarks {
     const key = passes.map((p) => `${p.entry.toArray().join()}|${p.exit?.toArray().join() ?? ''}|${p.torn ? 't' : ''}`).join(';') + `#${rents.length}`;
     if (key === this.key) return;
     this.key = key;
-    this.root.clear();
+    // Marks share one geometry and material set; tear meshes own their geometry (freed here).
+    disposeChildren(this.root, new Set([this.entryMaterial, this.exitMaterial, this.tornMaterial, this.rentMaterial]), new Set([this.geometry]));
     for (const pass of passes) {
       for (const [point, material] of [[pass.entry, pass.torn ? this.tornMaterial : this.entryMaterial], [pass.exit, this.exitMaterial]] as const) {
         if (!point) continue;

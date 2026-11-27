@@ -52,6 +52,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: GPU memory leaks in pass marks and replay paths
+- New `src/scene/disposeChildren.ts` (+test): empties a group and frees child geometry/materials (shared ones kept). Used by `FreePassMarks` (skin-tear geometry was never freed on rebuild) and `ReplayController` (replay path lines and materials were never freed on stop). Regression tests added for both (they failed before the fix).
+- Also new: `src/scene/freePassMarks.test.ts`.
+- Checked: tsc, the three tests, check-sandbox, check-layout; full check-demo passed on the code just before this commit (all of today's DOM-write changes).
+
 ### 2026-11-27 — Claude: motion metrics panel guarded writes
 - `src/ui/MotionMetricsPanel.ts`: toggle label, sample count and summary table written only on change. Idle standalone tracking page: 9 mutation records per 3 s before, the remaining ones are the 1 s FPS tooltip. Checked: tsc, check-tracking-panels, manual Start/Stop recording in the browser (no unit test or browser check covers this panel).
 

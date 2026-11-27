@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ReplayBuffer, ReplayPlayer } from '../gameplay/replayBuffer';
 import type { Instrument } from '../instruments/Instrument';
 import type { SutureModel } from '../suture/SutureModel';
+import { disposeChildren } from './disposeChildren';
 
 /**
  * Slow-motion replay of the last REPLAY_SECONDS of the Sandbox (2026-11-15):
@@ -93,7 +94,7 @@ export class ReplayController {
       this.needle.refreshThread();
     }
     this.live = null;
-    this.paths.clear();
+    disposeChildren(this.paths);
   }
 
   clear() {
@@ -115,7 +116,7 @@ export class ReplayController {
   }
 
   private drawPaths() {
-    this.paths.clear();
+    disposeChildren(this.paths);
     const frames = this.buffer.all();
     this.tools.forEach((_, i) => {
       const geometry = new THREE.BufferGeometry().setFromPoints(frames.map((f) => f.tools[i].tip));

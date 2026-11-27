@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest';
+import type * as THREE from 'three';
+import { expect, it, vi } from 'vitest';
 import { Instrument } from '../instruments/Instrument';
 import { SutureModel } from '../suture/SutureModel';
 import { ReplayController } from './ReplayController';
@@ -26,4 +27,19 @@ it('replays recorded instrument motion and restores the live pose afterwards', (
   expect(replay.paths.children).toHaveLength(0);
   replay.clear();
   expect(replay.available).toBe(false);
+});
+
+it('frees the replay path lines when replay stops', () => {
+  const tool = new Instrument('left', 0);
+  const replay = new ReplayController([tool], new SutureModel());
+  for (let frame = 0; frame <= 120; frame++) {
+    tool.root.position.set(frame / 100, 0, 0);
+    replay.record(frame / 60);
+  }
+  replay.start();
+  const line = replay.paths.children[0] as THREE.Line;
+  const geometryDispose = vi.spyOn(line.geometry, 'dispose');
+  const materialDispose = vi.spyOn(line.material as THREE.Material, 'dispose');
+  replay.stop();
+  expect([geometryDispose.mock.calls.length, materialDispose.mock.calls.length]).toEqual([1, 1]);
 });
