@@ -61,6 +61,7 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Undermining before closure:** free the edges at the right plane and watch tension drop.
 - **Full skin excision:** 3:1 ellipse along tension lines, incise, remove, undermine, close.
 - **Perforator dissection:** follow a perforator through muscle and fascia like a DIEP harvest; scored on vessel injury and motor nerve preservation.
+- **Recipient vessel prep:** expose the internal mammary vessels by removing rib cartilage, separate artery and vein without tearing the vein.
 - **Procedures beyond skin closure:** flaps and full microsurgical anastomoses.
 - **Vessel anastomosis with patency test:** release the clamp; leaks or clots show back-walled stitches or gaps.
 - **Vessel size mismatch:** bigger-to-smaller pairs, wider bites on the large side, spatulation.
