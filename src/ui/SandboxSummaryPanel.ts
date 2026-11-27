@@ -1,3 +1,4 @@
+import { describeStitchOrder } from '../gameplay/stitchOrder';
 import { appendProgress, checkTargets, describeSpacing, describeTrend, loadProgress, loadTargets, saveTargets, summarizeSandbox, type SandboxStitchInfo, type SandboxSummary, type SandboxTargets } from '../gameplay/sandboxSummary';
 import type { FreePassRecord } from '../tissue/FreeNeedlePass';
 import { sessionsCsv, stitchesCsv, type ExportStitch, type SavedSession } from '../gameplay/sessionRecord';
@@ -98,12 +99,12 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     panel.hidden = !source.active();
     if (panel.hidden) return;
     const s = current();
-    const nextKey = JSON.stringify([s.passes, s.tears, s.cutThroughs, s.stitches, s.meanBiteMm, s.spacingMm]);
+    const nextKey = JSON.stringify([s.passes, s.tears, s.cutThroughs, s.stitches, s.meanBiteMm, s.spacingMm, s.worstSquareOffDeg, s.stitchOrder]);
     if (!force && nextKey === key) return;
     key = nextKey;
     const n = (v: number | null, digits = 1, unit = ' mm') => (v === null ? '–' : `${v.toFixed(digits)}${unit}`);
     panel.querySelector('.sandbox-summary-line')!.textContent = `${s.passes} pass${s.passes === 1 ? '' : 'es'} · ${s.tears} torn · ${s.cutThroughs} cut through · mean bite ${n(s.meanBiteMm)} · depth ${n(s.meanDepthMm)} · entry ${n(s.meanEntryAngleDeg, 0, '°')} · ${s.stitches} tied (${s.secureKnots} secure)`;
-    panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm);
+    panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '');
     panel.querySelector('.sandbox-targets')!.innerHTML = checkTargets(s, targets).map((r) => `<li class="${r.met === null ? 'pending' : r.met ? 'met' : 'missed'}">${r.met === null ? '○' : r.met ? '✓' : '✗'} ${r.label} · ${r.detail}</li>`).join('');
     panel.querySelector('.sandbox-trend')!.textContent = describeTrend(loadProgress(storage), targets);
   };

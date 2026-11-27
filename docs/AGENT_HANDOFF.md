@@ -52,6 +52,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: stitch order coaching (roadmap, build 0.235)
+- New `src/gameplay/stitchOrder.ts` (+4 tests): checks each tied stitch against the largest open gap (within 20% of its middle, gap ≥ 80% of the largest); wound ends ±1.1 as `StitchCourse`. `summarizeSandbox` adds `stitchOrder` (optional for older saves); the Sandbox summary's spacing line shows it. The panel's re-render key now includes the new fields.
+- Checked: tsc, sandboxSummary + stitchOrder tests, check-sandbox, check-free-tying. CHANGELOG 0.235, ROADMAP note, checklist item.
+
 ### 2026-11-27 — Claude: build 0.235, stitch angle across the wound (roadmap)
 - `src/gameplay/sandboxSummary.ts`: `stitchSquareOffDeg` (entry→exit line vs square to the wound, which runs along z), summary `worstSquareOffDeg` (optional, older saved summaries lack it), target `maxSquareOffDeg` = 10° (editable in `SandboxSummaryPanel`). Tests added; the trend test's "targets met" counts rose by one (new target met in both sessions), thresholds unchanged.
 - `src/scene/freePassMarks.ts`: a flat line per completed pass, green when square, amber when off (+test).

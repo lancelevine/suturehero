@@ -1,5 +1,6 @@
 import { formatMm, SCENE_MM_PER_UNIT } from '../setup/sceneScale';
 import type { FreePassRecord } from '../tissue/FreeNeedlePass';
+import { reviewStitchOrder, type StitchOrderReview } from './stitchOrder';
 
 /**
  * Sandbox session summary, instructor targets and progress over time
@@ -31,6 +32,8 @@ export interface SandboxSummary {
   spacingMm: number[];
   /** Largest angle of a completed pass's entry→exit line off square to the wound (degrees); absent in summaries saved before 2026-11-27. */
   worstSquareOffDeg?: number | null;
+  /** Middle-first, then halving the gaps (src/gameplay/stitchOrder.ts); absent in older saved summaries. */
+  stitchOrder?: StitchOrderReview;
 }
 
 /**
@@ -67,6 +70,7 @@ export function summarizeSandbox(passes: readonly FreePassRecord[], torn: readon
     secureKnots: stitches.filter((s) => s.review.some((line) => line.startsWith('Knot: secure'))).length,
     spacingMm: sorted.slice(1).map((s, i) => mm(s.siteZ - sorted[i].siteZ)),
     worstSquareOffDeg: squareOff.length ? Math.max(...squareOff) : null,
+    stitchOrder: reviewStitchOrder(stitches.map((s) => s.siteZ)),
   };
 }
 
