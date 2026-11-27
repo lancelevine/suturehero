@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: fewer per-frame allocations in main.ts
+- `src/main.ts`: camera-pose clamp bounds (`CAMERA_POSE_MIN/MAX`) and the skill sampler's driver-tip vector are allocated once instead of every frame. Checked: tsc, check-sandbox, check-camera-controls. Also passed today: check-iphone-start, check-hall-sensor, check-ov9281-detect.
+
 ### 2026-11-27 — Claude: GPU memory leaks in pass marks and replay paths
 - New `src/scene/disposeChildren.ts` (+test): empties a group and frees child geometry/materials (shared ones kept). Used by `FreePassMarks` (skin-tear geometry was never freed on rebuild) and `ReplayController` (replay path lines and materials were never freed on stop). Regression tests added for both (they failed before the fix).
 - Also new: `src/scene/freePassMarks.test.ts`.

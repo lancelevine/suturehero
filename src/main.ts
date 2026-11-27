@@ -64,6 +64,8 @@ import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, fre
 import {FpsCounter} from './diagnostics/FrameRates';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
+/** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
+const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
 const APP_BUILD='0.234';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
@@ -316,7 +318,7 @@ try {
    // retaining the instrument's current depth and subsequent relative motion.
    // A shared-frame pose is the real tip in the common stereo workspace: no per-instrument offset.
    const desiredPosition=pose.shared?pose.position.clone():bridge.target(pose.position,object.position);
-   desiredPosition.clamp(new THREE.Vector3(-4,.15,-3),new THREE.Vector3(4,4,4));
+   desiredPosition.clamp(CAMERA_POSE_MIN,CAMERA_POSE_MAX);
    // Use the same neutral handle-up mounting orientation as the lab previews.
    const desiredRotation=trackedInstrumentRotation(pose.quaternion);
    // Suppress subpixel bridge jitter without introducing another long
@@ -341,11 +343,13 @@ try {
   });
   // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
   const skillRecorder=new SkillRecorder();
+  /** Needle-driver tip in its local frame (scene units); reused vector for the per-frame sample. */
+  const DRIVER_TIP_LOCAL=new THREE.Vector3(0,0,.05),skillTip=new THREE.Vector3();
   let skillClock=0;
   const sampleSkill=()=>{
    const t=session.clock.secondsSoFar;if(t<skillClock)skillRecorder.clear();skillClock=t;
    tools[1].root.updateWorldMatrix(true,false);
-   const tip=tools[1].root.localToWorld(new THREE.Vector3(0,0,.05)).multiplyScalar(SCENE_MM_PER_UNIT);
+   const tip=tools[1].root.localToWorld(skillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
    const hold=session.eversion;
    skillRecorder.add({t,x:tip.x,z:tip.z,holding:hold.held,safeHold:hold.held&&!['stretching','slipping','slipped'].includes(hold.traction.state)});
   };
