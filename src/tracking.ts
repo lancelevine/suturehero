@@ -27,7 +27,7 @@ import {cameraStatusText,drawCornerDebug,drawDecodedMarkers} from './ui/markerOv
 import {offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
 import {chooseFace,faceCandidates} from './input/rotationTracking';
-import {createTrackedInstrument,createTrackedScissors,setScissorsOpening} from './scene/trackingInstrumentModels';
+import {createTrackingPreviewScene} from './scene/trackingPreviewScene';
 import {mountDetectionPreviews} from './ui/detectionPreviews';
 import {mountDepthRangeControls} from './input/depthRangeControls';
 import {mountStereoCalibrationPanel} from './input/stereoCalibrationPanel';
@@ -73,7 +73,6 @@ import './ui/workspace.css';
 import {trackedInstrumentRotation} from './input/trackingFrame';
 import * as THREE from 'three';
 import {calibrationMatches,type StereoCalibration} from './input/stereoGeometry';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {MARKER_GROUPS,type MarkerObservation} from './input/arucoTracking';
 import {availableCameras,openCamera,fillCameraSelect,savedCamera,rememberCamera,CAMERA_STORAGE_PRIMARY,CAMERA_STORAGE_SECONDARY} from './input/cameraDevices';
 import {createCameraSettingsPanel} from './ui/CameraSettingsPanel';
@@ -81,7 +80,6 @@ import {publishTrackingMessage,TRACKING_MESSAGE,type TrackingStatusMessage} from
 import {readStored,writeStored,parseTrackerType,trackerTypeStorageKey} from './input/trackingStorage';
 import {estimateMarkerPose} from './input/markerPose';
 import {RING_LAYOUT_REVISION,trackerGeometry,type PrismPose,type TrackerType} from './input/prismPose';
-import {Instrument} from './instruments/Instrument';
 import type {BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
 import './tracking.css';
@@ -452,26 +450,12 @@ stop.addEventListener('click',stopCamera);
 select.addEventListener('change',()=>{rememberCamera(CAMERA_STORAGE_PRIMARY,select.value);if(stream)void stopCamera();});
 void refreshCameras();
 const embeddedTracking=window.parent!==window||root.dataset.embedded==='true';
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x060b16);// dark theme (src/ui/theme.css)
-const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,4.5,7.6);camera.lookAt(0,0,0);
-// Embedded tracking publishes poses into the main scene; it needs no second GPU context.
-const renderer=embeddedTracking?null:new THREE.WebGLRenderer({antialias:true});
-renderer?.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
-const mount=document.querySelector<HTMLElement>('#tracking-scene')!;
-if(embeddedTracking)mount.style.display='none';else if(renderer)mount.append(renderer.domElement);
-const orbit=renderer?new OrbitControls(camera,renderer.domElement):null;
-if(orbit){orbit.enableDamping=true;orbit.minDistance=1.4;orbit.maxDistance=18;orbit.target.set(0,.5,0);orbit.update();}
-document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>{camera.position.set(0,3.7,6);orbit?.target.set(0,.5,0);orbit?.update();});
-scene.add(new THREE.HemisphereLight(0xffffff,0x63788a,2));
-const grid=new THREE.GridHelper(5,10,0x2a8fb0,0x16324a);scene.add(grid);
-const previewInstrumentModels=new Map<'left'|'right',Instrument>();
-const driverModel=createTrackedInstrument(scene,'right',0xe3b47e),forcepsModel=createTrackedInstrument(scene,'left',0x68d1bb);
-previewInstrumentModels.set('right',driverModel.model);previewInstrumentModels.set('left',forcepsModel.model);
-const driver=driverModel.group,forceps=forcepsModel.group;
-
-const scissors=createTrackedScissors(scene);
-const previewScissorOpening=(value:number)=>setScissorsOpening(scissors,value);
-driver.position.z=-.85;forceps.position.z=.15;scissors.position.z=1.05;
+// 3D instrument preview (src/scene/trackingPreviewScene.ts).
+const preview=createTrackingPreviewScene(document.querySelector<HTMLElement>('#tracking-scene')!,embeddedTracking);
+const {renderer,orbit,driver,forceps,scissors}=preview;
+const previewInstrumentModels=preview.models;
+const previewScissorOpening=preview.setScissorsOpening;
+document.querySelector<HTMLButtonElement>('#reset-view')!.addEventListener('click',()=>preview.resetView());
 const keys=new Set<string>();window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>keys.clear());
 document.querySelector('#reset-sim')!.addEventListener('click',()=>{resetTrackerPose();driver.position.set(0,.25,-.65);forceps.position.set(0,.25,.15);scissors.position.set(0,.25,1.05);});
@@ -717,7 +701,6 @@ async function detectFrame(now:number){
  }finally{frame.close();}
 }
 
-const resize=new ResizeObserver(()=>{if(!renderer)return;const w=mount.clientWidth,h=mount.clientHeight;if(w<1||h<1)return;renderer.setDrawingBufferSize(w,h,Math.min(window.devicePixelRatio,1.5,Math.sqrt(1500000/(w*h))));camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix();});if(!embeddedTracking)resize.observe(mount);
 const rawRenderedPoses=new Map<InstrumentName,TrackedPoseFilter>();
 const restLocks=new Map<InstrumentName,RestLock>();
 let last=performance.now();
@@ -800,7 +783,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
   }
  }
  updateStereoViewIndicator(now);
- if(renderer){orbit?.update();perf.measure('Tracking render submission',()=>renderer!.render(scene,camera));}
+ if(renderer)perf.measure('Tracking render submission',()=>preview.render());
  else{
   const fps=embeddedFps.tick(now);
   if(fps!==null)publishTrackingMessage({type:TRACKING_MESSAGE.fps,fps},root.dataset.embedded==='true');
@@ -809,7 +792,7 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
  if(!recordedInput())requestAnimationFrame(animate);
 }
 if(!recordedInput())requestAnimationFrame(animate);
-window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();resize.disconnect();orbit?.dispose();renderer?.dispose();});
+window.addEventListener('pagehide',()=>{detector.dispose();detector2.dispose();void stopCamera();void stopSecondCamera();preview.resize.disconnect();orbit?.dispose();renderer?.dispose();});
 
 renderCameraSettings();
 const {diagnosticsHost}=mountTrackingLayout(root);

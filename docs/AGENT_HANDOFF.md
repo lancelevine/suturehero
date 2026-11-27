@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: tracking preview scene as a module
+- `src/scene/trackingPreviewScene.ts` (+test): the tracking page's 3D preview (scene, camera, renderer, orbit, grid, instrument models, resize observer, reset view, render) moved out of `src/tracking.ts`; named constants for the pixel caps. No visible change.
+- Checked: tsc, unit test, check-tracking-motion, check-tracking-panels, check-performance, check-stereo-motion, standalone page screenshot with Reset view (no page errors).
+
 ### 2026-11-27 — Claude: ideal path merged into two meshes
 - `src/scene/IdealSuturePath.ts`: dash and chevron ribbons merged (`mergeGeometries`) into one glow and one core mesh (≈60 → 2 draw calls); chevrons drop the additive glow that blew out to white where arms overlapped. Test updated.
 - Checked: tsc, unit test, `npm run build`, close-up screenshot, check-layout, check-performance. In CHANGELOG 0.234.
