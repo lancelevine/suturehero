@@ -34,13 +34,17 @@ entry when finishing.
     distances in mono mode are scaled by this guess. Don't change it without
     re-checking depth calibration; new code must use the same model
     (`defaultIntrinsics` in `src/input/bodyGeometry.ts`).
-  - `src/tracking.ts` (~900 lines) and `src/main.ts` (~465 lines) are still the largest files
+  - `src/tracking.ts` (~840 lines) and `src/main.ts` (~500 lines) are still the largest files
     (split further on 2026-11-27) and the most likely place for merge conflicts.
+  - Stereo rest locks are not cleared by `resetTrackerPose` (kept as before in
+    `RenderedPoseState`); camera 1 does not clear `decodeBusy` on stop, camera 2 does. Both
+    unchanged; check with real cameras before changing.
   - The Demo fails below about 20 fps (a wrap is lost at 15 fps), on every engine.
 - **Next up (proposed, not started):**
-  3. Continue splitting `src/tracking.ts`: the shared capture pipeline and rotation tracking are
-     done (2026-11-27); left are camera 1's decode-result merge, the depth step and the render
-     loop, which hold most of the live state (needs real-camera testing after).
+  3. Continue splitting `src/tracking.ts`: capture pipeline, rotation, camera 2 marker state,
+     stereo pairing step, render-loop pose state and the 3D preview are done (2026-11-27); left
+     are camera 1's frame handler (`detectFrame`), the depth step in `updateLiveTargets` and the
+     rest of the render loop, which hold most of the live state (needs real-camera testing after).
   4. Add a code formatter in one dedicated commit (agree with Lance first).
   5. When the OV9281 cameras arrive: the OV9281 camera type (1280×800 @ 120
      fps) is chosen automatically by name (build 0.216); recalibrate and retest
