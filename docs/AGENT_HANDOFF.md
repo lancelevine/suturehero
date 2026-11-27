@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: calibration panel tabs in the theme
+- `src/ui/theme.css`: the generic button theme had boxed the calibration Pose/Jaws/Axis tabs (1 px side padding); they are underline tabs with a cyan active line again, and the neutral-pose block is inset 12 px. Added to the 0.234 CHANGELOG entry. Checked: screenshot, check-calibration-preview.
+
 ### 2026-11-27 — Claude: build 0.234, narrow-scene overlays
 - `src/ui/theme.css`: `#viewport` is a size container; below 520 px scene width the HUD stat/challenge cards, legend, tracking pill and Close-up/Undo/Replay buttons are hidden and the timer and remaining buttons shrink (they overlapped on a 390 px phone). Desktop unchanged.
 - Build 0.234 (`APP_BUILD`, tracking `performanceContext`), CHANGELOG entry (also lists the Skill Analysis ideal path).

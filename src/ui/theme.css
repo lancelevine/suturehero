@@ -181,3 +181,8 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 .workspace-first .workspace-view-tools{bottom:6px;right:6px;left:6px;max-width:none;gap:4px}
 #viewport .workspace-view-tools button{font-size:10px;padding:3px 6px}
 }
+/* Instrument calibration panel: underline tabs and inset neutral-pose block (the generic button theme boxed the tabs). */
+#app .calibration-tabs{border-color:var(--sh-line)}
+#app .calibration-tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;box-shadow:none;padding:10px 4px;color:var(--sh-muted)}
+#app .calibration-tabs button[aria-pressed=true]{border-bottom-color:var(--sh-cyan);color:var(--sh-text)}
+#app .calibration-neutral-action{padding:0 12px}
