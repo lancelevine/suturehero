@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: stereo tip dots via ringAxisOverlay
+- The tip-dot loop in `drawTipDots` (`src/tracking.ts`) moved to `drawStereoTipDots` (`src/ui/ringAxisOverlay.ts`, projection passed in). Test added. No visible change.
+- Checked: tsc, ringAxisOverlay test, check-stereo-motion, check-tracking-motion.
+
 ### 2026-11-27 — Claude: tracking status resend throttle as a module
 - `src/util/changeThrottle.ts` (+test) replaces the hand-rolled "resend on change or every 500 ms" state in `updateStereoViewIndicator` (`src/tracking.ts`); `TRACKING_STATUS_REPEAT_MS=500`. No behaviour change.
 - Checked: tsc, unit test, check-status-strip, check-tracking-panels.

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { expect, it } from 'vitest';
 import { localCorners } from '../input/prismPose';
 import { defaultIntrinsics, projectBodyPoint, type BodyPose } from '../input/bodyGeometry';
-import { lineIntersection, ringAxisSegment, RING_AXIS_HALF_LENGTH_MM } from './ringAxisOverlay';
+import { drawStereoTipDots, lineIntersection, ringAxisSegment, RING_AXIS_HALF_LENGTH_MM } from './ringAxisOverlay';
 
 it('draws the ring shaft axis through the projected ring centre', () => {
   const k = defaultIntrinsics(960, 540);
@@ -23,4 +23,16 @@ it('finds where two image lines cross, and refuses near-parallel lines', () => {
   expect(crossing.x).toBeCloseTo(5, 9);
   expect(crossing.y).toBeCloseTo(5, 9);
   expect(lineIntersection({ a: { x: 0, y: 0 }, b: { x: 100, y: 0 } }, { a: { x: 0, y: 5 }, b: { x: 100, y: 6 } })).toBeNull();
+});
+
+it('draws only fresh stereo tips that project into the view', () => {
+  const arcs: number[] = [];
+  const context = { save() {}, restore() {}, setLineDash() {}, beginPath() {}, fill() {}, stroke() {}, arc: (x: number) => arcs.push(x) } as unknown as CanvasRenderingContext2D;
+  const tips = new Map([
+    ['forceps', { mm: new THREE.Vector3(1, 0, 0), at: 900 }],
+    ['scissors', { mm: new THREE.Vector3(2, 0, 0), at: 0 }],
+    ['needleDriver', { mm: new THREE.Vector3(3, 0, 0), at: 950 }],
+  ]);
+  drawStereoTipDots(context, tips, 1000, 200, ([x]) => (x === 3 ? null : { x: x * 10, y: 0 }));
+  expect(arcs).toEqual([10]);
 });

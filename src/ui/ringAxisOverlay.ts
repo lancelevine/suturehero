@@ -57,6 +57,24 @@ export function drawTipDot(context: CanvasRenderingContext2D, at: Pixel, color: 
   context.restore();
 }
 
+/**
+ * Calibrated stereo tips as dots in one camera view (moved out of src/tracking.ts, 2026-11-27).
+ * Tips older than `maxAgeMs` are skipped; `project` maps a tip (mm) to a pixel, or null when off-view.
+ */
+export function drawStereoTipDots(
+  context: CanvasRenderingContext2D,
+  tips: ReadonlyMap<string, { mm: Vector3; at: number }>,
+  now: number,
+  maxAgeMs: number,
+  project: (mm: [number, number, number]) => Pixel | null,
+) {
+  for (const [name, tip] of tips) {
+    if (now - tip.at > maxAgeMs) continue;
+    const pixel = project(tip.mm.toArray() as [number, number, number]);
+    if (pixel) drawTipDot(context, pixel, TIP_DOT_COLORS[name] ?? '#fff');
+  }
+}
+
 /** Where two image lines (each through two points) cross, or null if (nearly) parallel. */
 export function lineIntersection(p: { a: Pixel; b: Pixel }, q: { a: Pixel; b: Pixel }): Pixel | null {
   const d1x = p.b.x - p.a.x, d1y = p.b.y - p.a.y, d2x = q.b.x - q.a.x, d2y = q.b.y - q.a.y;

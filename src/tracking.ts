@@ -56,7 +56,7 @@ import {mountMotionMetricsPanel} from './ui/MotionMetricsPanel';
 import {cameraMode} from './input/cameraDevices';
 import {DISCOVERY_INTERVAL_MS} from './input/PredictiveDecodeSearch';
 import {RestLock} from './input/RestLock';
-import {drawRingAxes as drawRingAxesOverlay,drawTipDot,TIP_DOT_COLORS} from './ui/ringAxisOverlay';
+import {drawRingAxes as drawRingAxesOverlay,drawStereoTipDots} from './ui/ringAxisOverlay';
 import {LiveProfiler} from './diagnostics/LiveProfiler';
 import {mountProfilerPanel} from './ui/ProfilerPanel';
 import {trackingPerformance as perf} from './diagnostics/TrackingPerformance';
@@ -582,13 +582,9 @@ function drawRingAxes(){
 }
 /** Calibrated stereo tips as dots in a camera view (src/input/stereoProjection.ts). */
 function drawTipDots(context:CanvasRenderingContext2D,camera:1|2,width:number,height:number){
- if(!stereoSetup.calibration||!width||!height)return;
- const now=performance.now();
- for(const [name,tip] of latestStereoTips){
-  if(now-tip.at>TIP_READOUT_MAX_AGE_MS)continue;
-  const pixel=projectToCamera(stereoSetup.calibration,tip.mm.toArray() as [number,number,number],camera,{width,height});
-  if(pixel)drawTipDot(context,pixel,TIP_DOT_COLORS[name]??'#fff');
- }
+ const calibration=stereoSetup.calibration;
+ if(!calibration||!width||!height)return;
+ drawStereoTipDots(context,latestStereoTips,performance.now(),TIP_READOUT_MAX_AGE_MS,mm=>projectToCamera(calibration,mm,camera,{width,height}));
 }
 function drawDetections(){
  const overlayStarted=performance.now();
