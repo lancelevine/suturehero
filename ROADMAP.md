@@ -38,6 +38,7 @@ Last updated: 2026-11-27
 - **Pulley stitch:** far-near-near-far bite for high-tension edges; scored on bite order and tension taken off.
 - **Edge presentation:** grades how forceps or a skin hook lift and evert the edge before each bite, grabbing dermis rather than pinching epidermis.
 - **Last stitches left loose:** final two or three anastomosis stitches placed untied with loops open to see the lumen, then tied; grades order, tying before checking, and tangles.
+- **Gap scan for skin:** after a closure, sweeps the wound and highlights any spot where the edges aren't touching between stitches.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
