@@ -8,6 +8,7 @@ commit `bde9116`.
 ## Build 0.235 — Stitch angle across the wound
 
 - Microsurgery: green Acland double clamp on the vessel. The "Acland clamp" slider (50–150%) pushes the vessel ends closer or spreads them apart, which sets how far the stitch must pull; changing it restarts the stitch (roadmap: "Adjustable green double Acland clamp").
+- Microsurgery: vessel eversion. After saving vessel stitches, the instruction line says how many were everted and names any inverted ones (roadmap: "Vessel eversion"; no ring view yet).
 - Microsurgery: back-wall catch alert. While a vessel bite is being passed, the instruction line warns if the needle's arc reaches through the lumen to the opposite wall (roadmap: "Back-wall catch alert").
 - Microsurgery: multi-stitch anastomosis, first version. Once a vessel stitch is complete, "Save stitch & turn" keeps it on the vessel, starts a fresh stitch and turns the vessel 45° so the next site is on top; the HUD counts stitches toward 8.
 - Microsurgery: "Turn vessel 45°" and "Flip vessel" buttons turn the vessel, clamp and stay marks about the vessel axis, so the next stitch site comes to the top (roadmap: "Flip the vessel", first step; retaining stitches around the vessel comes next).

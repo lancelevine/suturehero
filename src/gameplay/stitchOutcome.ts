@@ -54,9 +54,20 @@ export function assessEdges(closure: number, eversion: number, mismatch: number)
   const notes: string[] = [];
   const meet = closure > 0.9;
   notes.push(closure > 1.02 ? 'Edges overlap · ease the knot tension' : meet ? 'Edges meet' : closure > 0.5 ? 'Small gap between the edges · tighten a little more' : 'Edges gap open · the stitch is not closing the wound');
-  const everted = eversion > 0.004;
+  const everted = eversion > EVERTED_ABOVE;
   notes.push(everted ? 'Edges everted (good)' : eversion < -0.002 ? 'Edges inverted · take a wider, deeper bite' : 'Edges flat · aim for slight eversion (wider at depth than at the surface)');
   const level = Math.abs(mismatch) < 0.006;
   notes.push(level ? 'Edges level' : `${mismatch > 0 ? 'Left' : 'Right'} edge higher · match bite depth on both sides`);
   return { notes, good: meet && everted && level };
+}
+
+/** Edge eversion above this (scene units) counts as everted (as `assessEdges`). */
+export const EVERTED_ABOVE = 0.004;
+
+/** Vessel eversion across the saved anastomosis stitches (roadmap "Vessel eversion", 2026-11-27). */
+export function describeVesselEversion(eversions: readonly number[]) {
+  if (!eversions.length) return '';
+  const everted = eversions.filter((e) => e > EVERTED_ABOVE).length;
+  const inverted = eversions.map((e, i) => ({ e, stitch: i + 1 })).filter((x) => x.e < -0.002).map((x) => x.stitch);
+  return `Vessel eversion: ${everted}/${eversions.length} stitches everted${inverted.length ? ` · inverted at stitch ${inverted.join(', ')}` : ''}`;
 }

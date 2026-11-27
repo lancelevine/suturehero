@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: vessel eversion per saved stitch
+- `PracticeSession.vesselEversions` records `tissueResponse.eversion` per saved vessel stitch; `describeVesselEversion` (`src/gameplay/stitchOutcome.ts`, shares `EVERTED_ABOVE` with `assessEdges`, +test) shown at the start of the microsurgery instruction line. Checked: tsc, stitchOutcome + PracticeSession tests (Node 24), check-practice-setup, check-guided-thread, check-sandbox.
+
 ### 2026-11-27 — Claude: back-wall catch alert (anastomosis)
 - New `src/gameplay/backWallCatch.ts` (+test): the guided arc's lowest point at or below vessel centre − inner radius catches the back wall. `src/main.ts` prefixes the exercise readout with a warning while passing in microsurgery. The default guided vessel pass does not trigger it. Checked: tsc, test, check-practice-setup, check-guided-thread.
 

@@ -30,3 +30,9 @@ describe('edge approximation', () => {
     expect(assessEdges(0.97, 0.01, 0.02).notes[2]).toMatch(/Left edge higher/);
   });
 });
+
+it('summarises eversion over saved vessel stitches', async () => {
+  const { describeVesselEversion } = await import('./stitchOutcome');
+  expect(describeVesselEversion([])).toBe('');
+  expect(describeVesselEversion([0.01, 0.001, -0.01])).toBe('Vessel eversion: 1/3 stitches everted · inverted at stitch 3');
+});
