@@ -31,6 +31,7 @@ Last updated: 2026-11-27
 - **Needle regrasp check:** grab the needle behind the tip on exit and follow its curve on pull-through; graded per bite, skin and vessel.
 - **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen.
 - **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot.
+- **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
