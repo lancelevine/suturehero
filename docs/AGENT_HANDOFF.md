@@ -87,6 +87,15 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Demo below 30 fps (no code change)
+
+- Demo unit test with a fixed frame step: passes at 60, 40 and 30 fps; fails at 25 and 20 fps on the
+  default engine (first throw counts, the 2nd and 3rd wraps never register, so no lock).
+- Ruled out: the physics step cap (`MAX_TIME_STEPS` 6 still fails) and instrument jumps between
+  frames (slicing long frames with interpolated instrument poses, like `KnotHost`, still fails).
+  Both reverted. Next suspect: the Demo choreography's wrap/regrasp segments at coarse time steps.
+- Matters for slow laptops pressing Demo; hands-on tying at 25 fps is untested.
+
 ### 2026-11-27 — Claude — check-knot-worker cause found: Demo + late corrections (no code change)
 
 - Reproduced in Node with the Demo unit test on `claude-worker` through `SlowKnotPort`: an answer
