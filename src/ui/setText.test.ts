@@ -11,3 +11,18 @@ it('writes only changed text', () => {
   expect([writes, text]).toEqual([1, 'b']);
   setText(null, 'c');
 });
+
+it('writes hidden and disabled only when they change', async () => {
+  const { setDisabled, setHidden } = await import('./setText');
+  let writes = 0;
+  const element = {
+    _hidden: false,
+    get hidden() { return this._hidden; },
+    set hidden(value: boolean) { writes++; this._hidden = value; },
+    disabled: true,
+  };
+  setHidden(element, false);
+  setHidden(element, true);
+  setDisabled(element, true);
+  expect([writes, element.hidden, element.disabled]).toEqual([1, true, true]);
+});

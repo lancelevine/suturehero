@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: setHidden / setDisabled in the practice render loop
+- Measured in Chromium (MutationObserver): assigning `hidden`, `disabled` or a meter `value` to its current value still records an attribute mutation. New `setHidden`/`setDisabled` (`src/ui/setText.ts`, +test) skip same-value writes; the 19 per-frame `.hidden=`/`.disabled=` assignments in the `src/main.ts` render loop use them.
+- Checked: tsc, setText test, check-sandbox, check-guided-thread, check-free-tying, check-practice-setup, check-layout.
+
 ### 2026-11-27 — Claude: fewer per-frame DOM writes
 - `src/main.ts`: the stitch-step list (`[data-stitch-step]`) is queried once and re-marked only when the step changes (was `querySelectorAll` + marking every frame).
 - `src/tracking.ts` (previous commit d66333f): decode diagnostics lines written with `setText`.

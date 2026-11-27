@@ -5,7 +5,7 @@ import {IdealSuturePath} from './scene/IdealSuturePath';
 import {SKIN_SURFACE_Y} from './tissue/FreeNeedlePass';
 import {mountPracticeHud} from './ui/practiceHud';
 import {MICRO_MM_PER_UNIT,SCENE_MM_PER_UNIT} from './setup/sceneScale';
-import {setText} from './ui/setText';
+import {setDisabled,setHidden,setText} from './ui/setText';
 import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
@@ -379,8 +379,8 @@ try {
     if(scissorsJaw&&time-scissorsJaw.seenAt<350)scissors.setTrackedOpening(scissorsJaw.opening);
     if(cameraEnabled)applyCameraPose('scissors',scissors.root);
     const cuttingButton=frameQuery('#select-scissors') as HTMLButtonElement;
-    cuttingButton.disabled=!canUseScissors();setText(cuttingButton,input.scissorsActive?'Use needle driver':'Use scissors');const scissorsPressed=String(input.scissorsActive);if(cuttingButton.getAttribute('aria-pressed')!==scissorsPressed)cuttingButton.setAttribute('aria-pressed',scissorsPressed);
-    (frameQuery('#position-scissors') as HTMLButtonElement).disabled=!canUseScissors();
+    setDisabled(cuttingButton,!canUseScissors());setText(cuttingButton,input.scissorsActive?'Use needle driver':'Use scissors');const scissorsPressed=String(input.scissorsActive);if(cuttingButton.getAttribute('aria-pressed')!==scissorsPressed)cuttingButton.setAttribute('aria-pressed',scissorsPressed);
+    setDisabled((frameQuery('#position-scissors') as HTMLButtonElement),!canUseScissors());
     const cut=scissors.findCut(input.scissorsActive?(session.freeKnot.active?session.freeKnot.strands:[session.knotSlack.short,session.knotSlack.long]):[]);
     if(cut){
       if(session.freeKnot.active){session.freeKnot.cut(cut.strand,cut.coordinate);cutFeedback=session.freeKnot.cutMessage;}
@@ -388,25 +388,25 @@ try {
     }
     fragmentsView.update(session.freeKnot.active?session.freeKnot.fragments:session.knotSlack.fragments);
     setText(frameQuery('#right-tool-name'),input.scissorsActive?(session.environment.id==='microsurgery'?'Westcott scissors':'Mayo scissors'):session.environment.id==='microsurgery'?'Castroviejo driver':'Right needle driver'); if(session.environment.id==='skin'){tissue.setTargets(session.pass.entry,session.pass.exit);tissue.update(session.wound,session.eversion,session.course.tissueSites,session.course.siteZ,session.tissueField);}else artery.update(session.wound,session.eversion);
-    crossSectionToggle.parentElement!.hidden=session.environment.id!=='skin';
-    crossSectionPanel.hidden=session.environment.id!=='skin'||!crossSectionToggle.checked;
+    setHidden(crossSectionToggle.parentElement!,session.environment.id!=='skin');
+    setHidden(crossSectionPanel,session.environment.id!=='skin'||!crossSectionToggle.checked);
     if(!crossSectionPanel.hidden)crossSection.update(session.tissueField,session.course.siteZ,session.pass,session.eversion);
     epidermalGuide.root.visible=session.environment.id==='skin'&&session.pass.phase==='passing'&&session.oppositeEdgeRequired;
     if(epidermalGuide.root.visible){const a=session.epidermalAlignment;epidermalGuide.update(a.left,a.right,session.oppositeEdgeReady);}
-    (frameQuery('#guided-technique-field') as HTMLElement).hidden=session.freeKnot.active;
+    setHidden((frameQuery('#guided-technique-field') as HTMLElement),session.freeKnot.active);
     const knot=session.knot;
     const knotState=frameQuery('#knot-state') as HTMLElement;
-    knotState.hidden=!session.freeKnot.active;
+    setHidden(knotState,!session.freeKnot.active);
     const handlingHint=session.freeKnot.active?session.freeKnot.handlingHint:'';
     if(session.freeKnot.active){
       const free=session.freeKnot,state=free.retainedThrow.phase;
       setText(knotState,freeKnotStateText({phase:state,knotAtTissue:free.knotAtTissue,throws:free.sequence?.throws.length,label:free.sequence?.label,hasOpening:free.passage.hasOpening,handlingHint}));
       knotState.dataset.phase=state==='seated'&&!free.knotAtTissue?'tightened':state;
     }
-    (frameQuery('#begin-free-knot') as HTMLButtonElement).disabled=!session.canBeginKnot;
+    setDisabled((frameQuery('#begin-free-knot') as HTMLButtonElement),!session.canBeginKnot);
     const course=session.course;
-    (frameQuery('.bite-planning') as HTMLElement).hidden=session.environment.id!=='skin';
-    (frameQuery('#bite-controls') as HTMLFieldSetElement).disabled=!session.canPlanBites;
+    setHidden((frameQuery('.bite-planning') as HTMLElement),session.environment.id!=='skin');
+    setDisabled((frameQuery('#bite-controls') as HTMLFieldSetElement),!session.canPlanBites);
     for(const [input,output,value] of [[rightBite,'#right-bite-value',session.pass.entry.x/DEFAULT_BITE_WIDTH],[leftBite,'#left-bite-value',-session.pass.exit.x/DEFAULT_BITE_WIDTH]] as const){
       const percent=String(Math.round(value*100));if(input.value!==percent)input.value=percent;setPlanText(output,`${percent}%`);
     }
@@ -414,12 +414,12 @@ try {
     setPlanText('#stitch-position-value',course.siteZ.toFixed(2));
     setPlanText('#bite-plan-status',!session.canPlanBites?'Bite plan locked for this stitch':session.bitePlanLimited?'Widths adjusted to fit the needle and preserve dermal purchase.':'Bite widths are relative to the default bite; position uses practice units.');
     setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)}`:'Start a 3-stitch session to review spacing.');
-    (frameQuery('.course-controls') as HTMLElement).hidden=session.environment.id!=='skin';
+    setHidden((frameQuery('.course-controls') as HTMLElement),session.environment.id!=='skin');
     completedView.update(course.completed.length,course.siteZ);
     updateCourseButtons(frameQuery,{skin:session.environment.id==='skin',active:course.active,finished:course.finished,index:course.index,canAdvance:session.canAdvanceStitch,canFinishSandboxStitch:session.canFinishSandboxStitch,canTieFreePass:session.canTieFreePass});
     if(courseStatus.textContent!==course.status)courseStatus.textContent=course.status;
     if(courseRevision!==course.revision){
-      courseRevision=course.revision;courseReview.replaceChildren(...course.completed.map(stitch=>{const item=document.createElement('li');item.textContent=`Stitch ${stitch.number} · ${stitch.review.join(' · ')}`;return item;}));courseReview.hidden=!course.completed.length;
+      courseRevision=course.revision;courseReview.replaceChildren(...course.completed.map(stitch=>{const item=document.createElement('li');item.textContent=`Stitch ${stitch.number} · ${stitch.review.join(' · ')}`;return item;}));setHidden(courseReview,!course.completed.length);
     }
     const assessment=session.stitchAssessment;
     const currentStep=Number(assessment.stage.match(/^(\d)/)?.[1]??0);
@@ -437,7 +437,7 @@ try {
     const skinContext=session.environment.id==='skin'&&!knot.active&&!course.finished&&!session.freeKnot.grips.has('left')&&grasp.holder?.kind!=='forceps'&&!(session.pass.phase==='complete'&&session.pull.phase==='waiting'&&!edge.held);
     const tractionAlert=skinContext&&['stretching','slipping','slipped'].includes(edge.traction.state);
     const skinPanel=frameQuery('#skin-handling') as HTMLElement;
-    skinPanel.hidden=!skinContext||!edge.active&&edge.traction.state!=='slipped';
+    setHidden(skinPanel,!skinContext||!edge.active&&edge.traction.state!=='slipped');
     if(!skinPanel.hidden){
       const traction=edge.traction,meter=frameQuery('#skin-traction') as HTMLMeterElement;
       if(Math.abs(meter.value-traction.load)>.001)meter.value=traction.load;
@@ -447,19 +447,19 @@ try {
     }
     edgeMarker.visible=!knot.active && (session.preparingEdge || edge.held || tractionAlert);
     edgeMarker.position.copy(edge.target);edgeMarker.material.color.setHex(tractionAlert?(edge.traction.state==='stretching'?0xf4b95d:0xf08b86):edge.held?0x65df9b:0xf7ce73);
-    (frameQuery('#eversion-note') as HTMLElement).hidden=!session.preparingEdge && session.pass.phase!=='passing';
+    setHidden((frameQuery('#eversion-note') as HTMLElement),!session.preparingEdge && session.pass.phase!=='passing');
     const knotAction=frameQuery('#knot-action') as HTMLButtonElement;
-    knotAction.disabled=!session.canKnotAction;
+    setDisabled(knotAction,!session.canKnotAction);
     setText(knotAction,knotActionLabel({loadTestActive:session.loadTest.active,releaseCheckState:session.releaseCheck.state,knotPhase:knot.phase,technique:knot.sequence?.technique,throws:knot.throws}));
-    (frameQuery('.grip-settings') as HTMLElement).hidden=knot.active || session.freeKnot.active || session.positioningSkin;
-    (frameQuery('#free-note') as HTMLElement).hidden=!session.freeKnot.active;
-    (frameQuery('#knot-note') as HTMLElement).hidden=!knot.active;
+    setHidden((frameQuery('.grip-settings') as HTMLElement),knot.active || session.freeKnot.active || session.positioningSkin);
+    setHidden((frameQuery('#free-note') as HTMLElement),!session.freeKnot.active);
+    setHidden((frameQuery('#knot-note') as HTMLElement),!knot.active);
     needle.root.updateWorldMatrix(true,false);
     knotView.update(knot,tools,session.wound.deformPoint(session.pass.entry),session.wound.deformPoint(session.pass.exit),needle.points[0].clone().applyMatrix4(needle.root.matrixWorld),session.knotSlack,session.pass.halfWidth);
     const exercise=session.placement; const pose=needle.getTipPose(); guide.update(pose.position,exercise);
     const title=frameQuery('#exercise-title')!;
     const pass=session.pass; passGuide.update(pass); if(session.canPlanBites)passGuide.root.visible=true; if(session.sandbox)passGuide.root.visible=false; if(!showNeedleGuide.checked || knot.active || session.freeKnot.active) passGuide.root.visible=false;
-    (frameQuery('#begin-pass') as HTMLButtonElement).disabled=!session.canBeginPass;
+    setDisabled((frameQuery('#begin-pass') as HTMLButtonElement),!session.canBeginPass);
     updateSandboxViewTools(frameQuery,{replaying:replay.replaying,replayAvailable:replay.available,replayProgress:replay.progress,sandbox:session.sandbox,
      undoable:session.freePass.inTissue||session.freePass.passes.length>0||session.freePass.torn.length>0});
     setText(frameQuery('#begin-pass'),session.sandbox?'Start guided exercise':session.preparingEdge?'Begin needle pass':'Start guided pass');
@@ -467,7 +467,7 @@ try {
     {const label=Array.from(frameQuery('.toolbar > span')?.childNodes??[]).find(n=>n.nodeType===Node.TEXT_NODE&&n.textContent!.trim());const labelText=session.sandbox?' Sandbox ':' Guided stitch ';if(label&&label.textContent!==labelText)label.textContent=labelText;}
     setText(frameQuery('#position-forceps'),pass.phase==='passing'&&session.oppositeEdgeRequired?'Position forceps at opposite edge':session.positioningSkin?'Position forceps at skin edge':'Position forceps');
     const pull=session.pull;
-    (frameQuery('#position-forceps') as HTMLButtonElement).disabled=!session.canPositionForceps;
+    setDisabled((frameQuery('#position-forceps') as HTMLButtonElement),!session.canPositionForceps);
     const selectedLocal=session.selectedGripPoint;
     graspGuide.update(grasp,selectedLocal,session.canPositionForceps); graspGuide.root.visible=!knot.active && !session.freeKnot.active && !edge.held && !session.positioningSkin && !session.sandbox;
     const selectedWorld=selectedLocal.clone().applyMatrix4(needle.root.matrixWorld);
