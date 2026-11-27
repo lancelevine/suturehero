@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: tracking status resend throttle as a module
+- `src/util/changeThrottle.ts` (+test) replaces the hand-rolled "resend on change or every 500 ms" state in `updateStereoViewIndicator` (`src/tracking.ts`); `TRACKING_STATUS_REPEAT_MS=500`. No behaviour change.
+- Checked: tsc, unit test, check-status-strip, check-tracking-panels.
+
 ### 2026-11-27 — Claude: corner-debug drawing via markerOverlay
 - Corner-debug drawing moved from `src/tracking.ts` to `drawCornerDebug` (`src/ui/markerOverlay.ts`), named constants for colours and the 650 ms keep time. Test added. No visible change.
 - Checked: tsc, markerOverlay test, check-tracking-motion.

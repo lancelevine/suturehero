@@ -20,6 +20,7 @@ import {markerGroupsFor,trackerDescriptionText} from './input/markerGroups';
 import {stereoBlockedReason,stereoIndicator,stereoInstrumentReport} from './input/stereoIndicator';
 import {decodeDiagnosticsText,faceOverlapText,filterDiagnosticsText,poseReadoutText} from './ui/trackingReadouts';
 import {orientationNote} from './input/iphoneCamera';
+import {changeThrottle} from './util/changeThrottle';
 import {cameraStatusText,drawCornerDebug,drawDecodedMarkers} from './ui/markerOverlay';
 import {mergeNewMarkers,offsetMarkers} from './input/flowScale';
 import {DistanceTracks,measureTrackerDistance} from './input/trackerDistance';
@@ -233,7 +234,9 @@ function stereoMonoViews(name:InstrumentName,now:number):MonoView[]{
 const stereoActive=()=>stereoSetup.enabled.checked&&!!stereoSetup.calibration&&trackingMode.value==='stereo'&&!simulation.checked;
 const stereoViewDot=document.querySelector<HTMLElement>('#stereo-view-dot')!;
 const stereoViewLabel=document.querySelector<HTMLElement>('#stereo-view-label')!;
-let lastTrackingStatus='',lastTrackingStatusAt=0;
+/** The embedded status message is resent when it changes, else every this many ms. */
+const TRACKING_STATUS_REPEAT_MS=500;
+const trackingStatusDue=changeThrottle(TRACKING_STATUS_REPEAT_MS);
 function updateStereoViewIndicator(now:number){
  const configured=stereoActive();
  const fallback=[...stereoFallbackStatus].filter(([,source])=>source==='camera1'||source==='camera2');
@@ -245,11 +248,7 @@ function updateStereoViewIndicator(now:number){
  const state=indicator.state;
  const detail:TrackingStatusMessage={type:TRACKING_MESSAGE.status,state,label:stereoViewLabel.textContent,sources:Object.fromEntries(stereoFallbackStatus)};
  const key=JSON.stringify(detail);
- if(embeddedTracking&&!recordedInput()&&(key!==lastTrackingStatus||now-lastTrackingStatusAt>500)){
-  lastTrackingStatus=key;lastTrackingStatusAt=now;
-  publishTrackingMessage(detail,root.dataset.embedded==='true');
- }
-
+ if(embeddedTracking&&!recordedInput()&&trackingStatusDue(key,now))publishTrackingMessage(detail,root.dataset.embedded==='true');
 }
 
 stereoSetup.enabled.addEventListener('change',resetTrackerPose);
