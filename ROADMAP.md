@@ -64,6 +64,7 @@ Last updated: 2026-11-27
 - **Forehand and backhand bites:** reads needle orientation in the driver against bite direction; flags awkward forehand bites where backhand would be cleaner.
 - **Dead space check:** after closure, finds gaps between the wound floor and the stitched surface in the cutaway and points to the bites too shallow to close them.
 - **Suture breaking strength:** each suture size gets a real breaking load; the thread snaps if a pull or knot throw exceeds it, with a gauge showing how close each pull came.
+- **Stitch count for the vessel:** suggests a stitch count from vessel diameter and wall (about 8 for a 1 mm artery) and scores the count placed; too few leaks, too many narrows the lumen.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
