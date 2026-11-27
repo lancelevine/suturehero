@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {stereoTipPose} from './input/stereoTipPose';
 import {driftCorrections,meanCornerDistance} from './input/driftCorrection';
 import {moveSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
 import {CameraCapture,type CaptureEnvironment} from './input/CameraCapture';
@@ -40,10 +41,7 @@ import {captureSettings,FLOW_MIN_INTERVAL_MS,frameDrivenEnabled} from './input/c
 import {trackProcessor} from './input/trackFrames';
 import {latestStereoTips,stereoTipCalibration,TIP_READOUT_MAX_AGE_MS} from './input/stereoTipCalibration';
 import {projectToCamera} from './input/stereoProjection';
-import {tipPosition} from './input/pivotCalibration';
-import {alignShaft} from './input/sharedTipFrame';
-import {bodyToModel,levelJawPose,modelPose} from './input/jawRoll';
-import {TABLE_POINTS,tableHeight,tableOffsetUnits} from './input/tableHeight';
+import {TABLE_POINTS,tableHeight} from './input/tableHeight';
 import {motionRecorder} from './gameplay/motionMetrics';
 import {mountMotionMetricsPanel} from './ui/MotionMetricsPanel';
 import {cameraMode} from './input/cameraDevices';
@@ -904,24 +902,13 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
     // Stereo tip calibration (src/input/stereoTipCalibration.ts): feed rocking poses; with a calibrated
     // tip, place the instrument at its real tip in the shared workspace (src/input/sharedTipFrame.ts).
     if(fallback?.source==='stereo')stereoTipCalibration.feed(name,{position:fallback.position,quaternion:fallback.quaternion},now);
-    const tipInBody=stereoPose?stereoTipCalibration.tip(name,trackerType):null;
-    let sharedFrame=false;
-    if(stereoPose&&tipInBody){
-     const tipMm=tipPosition(stereoPose,tipInBody);
-     // Table height as the skin surface (src/input/tableHeight.ts): one vertical shift for the shared space.
-     const tableShift=new THREE.Vector3(0,tableOffsetUnits(tableHeight.points(),stereoSetup.workspace),0);
-     const tipScene=workspacePracticePosition(tipMm,stereoSetup.workspace).add(tableShift);
-     const ringScene=workspacePracticePosition(stereoPose.position,stereoSetup.workspace).add(tableShift);
-     calibrated.position.copy(tipScene);
-     // Jaw orientation (src/input/jawRoll.ts): capture on request, then follow the ring's rotation, roll included.
-     const shaftScene=ringScene.clone().sub(tipScene);
-     const jawRequest=stereoTipCalibration.takeJawRequest(name);
-     if(jawRequest){const level=levelJawPose(shaftScene);stereoTipCalibration.saveJawOrientation(name,jawRequest,level?bodyToModel(stereoPose.quaternion,stereoSetup.workspace,level):null);}
-     const jawOrientation=stereoTipCalibration.jawOrientation(name,trackerType);
-     calibrated.quaternion.copy(jawOrientation?modelPose(stereoPose.quaternion,stereoSetup.workspace,jawOrientation):alignShaft(calibrated.quaternion,shaftScene));
-     latestStereoTips.set(name,{mm:tipMm.clone(),at:now});
-     motionRecorder.add(name,tipMm,now);
-     sharedFrame=true;
+    // Shared practice frame at the calibrated tip (src/input/stereoTipPose.ts).
+    const shared=stereoPose?stereoTipPose(name,stereoPose,trackerType,stereoTipCalibration,stereoSetup.workspace,tableHeight.points(),calibrated.quaternion):null;
+    const sharedFrame=!!shared;
+    if(shared){
+     calibrated.position.copy(shared.position);calibrated.quaternion.copy(shared.quaternion);
+     latestStereoTips.set(name,{mm:shared.tipMm.clone(),at:now});
+     motionRecorder.add(name,shared.tipMm,now);
     }else latestStereoTips.delete(name);
     mesh.position.copy(calibrated.position);mesh.quaternion.copy(calibrated.quaternion);
     // The standalone lab remains the camera/diagnostic owner. When embedded,

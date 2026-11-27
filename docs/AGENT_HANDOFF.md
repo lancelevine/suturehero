@@ -87,6 +87,14 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — stereo tip pose out of animate()
+
+- `src/input/stereoTipPose.ts` (+test): with a calibrated stereo tip, the instrument's shared-frame
+  position (tip + table shift) and orientation (saved jaw orientation, else shaft toward the ring),
+  including saving a pending jaw-orientation request. Same order and arithmetic as before.
+- Checked: unit tests; stereo-motion, stereo-rig-faces, stereo-shortcut. No browser check covers
+  stereo tip calibration; added to the hardware checklist.
+
 ### 2026-11-27 — Claude — decoder drift correction out of tracking.ts
 
 - `src/input/driftCorrection.ts` (+test): `driftCorrections` (which decoded markers reset their
