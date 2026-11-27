@@ -13,6 +13,9 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   await installSyntheticCamera(page);
   await page.goto(new URL('?graphics=low', base).href);
+  // Since build 0.224 the shortcut is in the header's Tracking menu.
+  await page.waitForSelector('#workspace-tracking-menu');
+  await page.evaluate(() => { document.querySelector('#workspace-tracking-menu').open = true; });
   const shortcut = page.getByRole('button', {name: 'Start 2 cameras + metric 3D', exact: true});
   await shortcut.waitFor({state: 'visible', timeout: 15000});
   // Pick distinct devices first, as a user with two cameras would have.

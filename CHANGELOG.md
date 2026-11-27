@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.225 — Tracking menu keeps keyboard focus
+
+- After closing Tracking setup or Diagnostics (opened from the Tracking ▾ menu), focus returns to its button.
+- The automatic checks run before each deploy now cover 40 browser checks (camera calibration, markers, stereo, tracking panels and more).
+
 ## Build 0.224 — Cleaner layout: no more cards under the scene
 
 - Practice setup, Stitch plan, Review and Guide are now buttons in the header. Each opens in a panel beside the scene (one at a time; ✕ or Esc closes it) instead of the row of cards under the scene.

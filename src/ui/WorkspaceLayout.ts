@@ -56,8 +56,9 @@ export function mountWorkspaceLayout(app:HTMLElement){
  }
  app.querySelector('#close-side-panel')!.addEventListener('click',()=>{for(const [,details] of sections)details.open=false;});
  const trackingMenu=app.querySelector<HTMLDetailsElement>('#workspace-tracking-menu')!;
- trackingMenu.addEventListener('click',e=>{if((e.target as HTMLElement).closest('.workspace-menu-items button'))trackingMenu.open=false;});
- document.addEventListener('click',e=>{if(trackingMenu.open&&!trackingMenu.contains(e.target as Node))trackingMenu.open=false;});
+ // The menu stays open while one of its panels (a dialog) is in use, so closing the panel can return
+ // focus to its button; any other click outside closes it.
+ document.addEventListener('click',e=>{const target=e.target as HTMLElement;if(trackingMenu.open&&!trackingMenu.contains(target)&&!target.closest('dialog'))trackingMenu.open=false;});
  function toggleCalibration(open?:boolean){calibration.hidden=open===undefined?!calibration.hidden:!open;app.querySelector('#workspace-calibrate-toggle')!.setAttribute('aria-expanded',String(!calibration.hidden));if(!calibration.hidden)for(const [,details] of sections)if(details.open)details.open=false;}
  app.querySelector('#close-calibration')!.addEventListener('click',()=>toggleCalibration(false));
  app.querySelector('#workspace-calibrate-toggle')!.addEventListener('click',()=>{const open=calibration.hidden;toggleCalibration(open);if(open)window.dispatchEvent(new Event('suturehero:open-camera-setup'));});

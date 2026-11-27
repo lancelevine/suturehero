@@ -34,7 +34,7 @@ try{
   return {diagnostics:document.querySelector('#tracking-filter-diagnostics').textContent,position:preview?.position.toArray(),movement:preview?.movement.toArray(),locked:preview?.depthLocked,scene:window.__depthTools[1].root.position.toArray()};
  });
  if(process.env.SUTURE_SIZE_CALIBRATE){
-  await page.getByRole('button',{name:'Tracking setup',exact:true}).click();
+  await (await page.evaluate(()=>{const menu=document.querySelector('#workspace-tracking-menu');if(menu)menu.open=true;}),page.getByRole('button',{name:'Tracking setup',exact:true})).click();
   await page.locator('#set-depth-near').evaluate(e=>e.closest('details').open=true);
   await page.evaluate(()=>window.__ballScene.scale=1.15);await page.waitForTimeout(900);
   await page.locator('#set-depth-near').click();assert.match(await page.locator('#depth-range-status').textContent(),/Near size captured/);

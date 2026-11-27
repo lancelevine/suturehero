@@ -19,6 +19,7 @@ try{
  for(const width of [1440,900,390]){
   await page.setViewportSize({width,height:1000});
   for(const title of ['Tracking setup','Diagnostics']){
+   await page.evaluate(()=>{const menu=document.querySelector('#workspace-tracking-menu');if(menu)menu.open=true;});
    await page.getByRole('button',{name:title,exact:true}).click();
    const dialog=page.getByRole('dialog',{name:title,exact:true});assert(await dialog.isVisible());
    assert(await dialog.evaluate(d=>{const r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1;}),'Panel must fit the viewport');
@@ -35,13 +36,13 @@ try{
  }
  await page.setViewportSize({width:1440,height:1000});
  await page.getByRole('button',{name:'Hide camera',exact:true}).click();assert(!(await page.locator('#camera-tracking-panel').isVisible()));
- await page.getByRole('button',{name:'Diagnostics',exact:true}).click();assert(await page.getByRole('dialog',{name:'Diagnostics',exact:true}).isVisible(),'Diagnostics is independent of camera panel visibility');await page.keyboard.press('Escape');
+ await (await page.evaluate(()=>{const menu=document.querySelector('#workspace-tracking-menu');if(menu)menu.open=true;}),page.getByRole('button',{name:'Diagnostics',exact:true})).click();assert(await page.getByRole('dialog',{name:'Diagnostics',exact:true}).isVisible(),'Diagnostics is independent of camera panel visibility');await page.keyboard.press('Escape');
  await page.getByRole('button',{name:'Camera',exact:true}).click();assert(await page.locator('#camera-tracking-panel').isVisible());
  assert(await page.evaluate(()=>document.querySelector('#camera-video').srcObject===window.__panelStream&&window.__panelStream.active),'Panel navigation must preserve the camera stream');
  await page.locator('#stop-camera').click();await page.waitForFunction(()=>!document.querySelector('#camera-video').srcObject);
  await page.goto(new URL('tracking.html',base).href);
- await page.getByRole('button',{name:'Tracking setup',exact:true}).click();
+ await (await page.evaluate(()=>{const menu=document.querySelector('#workspace-tracking-menu');if(menu)menu.open=true;}),page.getByRole('button',{name:'Tracking setup',exact:true})).click();
  await page.locator('#tracker-type').selectOption('ring6');assert.match(await page.locator('#tracker-type-status').innerText(),/6-face/);
- await page.keyboard.press('Escape');await page.getByRole('button',{name:'Diagnostics',exact:true}).click();assert(await page.locator('#tracking-performance').isVisible());
+ await page.keyboard.press('Escape');await (await page.evaluate(()=>{const menu=document.querySelector('#workspace-tracking-menu');if(menu)menu.open=true;}),page.getByRole('button',{name:'Diagnostics',exact:true})).click();assert(await page.locator('#tracking-performance').isVisible());
  assert.deepEqual(errors,[]);console.log('Passed: separate camera/setup/diagnostics panels, report copying, responsive bounds, focus return, stream-preserving hide/show, stop, and standalone marker setup.');
 }finally{await browser.close();}

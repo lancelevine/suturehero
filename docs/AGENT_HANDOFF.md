@@ -87,6 +87,21 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.225: 26 more browser checks in CI; Tracking menu focus
+
+- Swept 32 browser checks twice. 26 that passed both times (and again through
+  `ci-browser-checks.mjs`) were added to `DEFAULT_CHECKS` (40 total, about 8 extra minutes in CI).
+- Seven checks that clicked Tracking setup / Diagnostics / Start 2 cameras now open the new
+  Tracking ▾ menu first. `check-rotation-frame` defaulted to port 5180; now 5173.
+- `check-tracking-panels` found that focus could not return to a menu button after its panel
+  closed (the menu had closed). The menu now stays open while its dialog is in use
+  (`src/ui/WorkspaceLayout.ts`).
+- Not added (follow-ups): `check-knot-worker` times out (331 s, then 600 s);
+  `check-performance` expects a "Camera 1 flow readback" row that no longer appears (likely the
+  prepared-seed path skips main-thread readback; check probably stale; it failed before 0.224 too).
+- Graphics: tried a studio environment map for steel reflections (three variants). Each washed
+  out skin and shadows; reverted, nothing shipped. Needs Lance's eye on what he wants changed.
+
 ### 2026-11-27 — Claude — Build 0.224: cleaner practice layout
 
 - Lance disliked the buttons under the scene. Setup, Stitch plan, Review and Guide are now header

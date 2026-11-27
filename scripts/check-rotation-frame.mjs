@@ -5,7 +5,7 @@ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??'
 try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>localStorage.setItem('suturehero.instrument-calibration.v1',JSON.stringify({needleDriver:{rotationAxes:[2,1,0],rotationInvert:[false,false,false]}})));
- await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5180/').href);
+ await page.goto(new URL('?graphics=low',process.env.SUTURE_TEST_URL??'http://127.0.0.1:5173/').href);
  await page.locator('[data-calibration-pane=axes]').click();
  assert.deepEqual(await page.locator('[data-axis=rotation]').evaluateAll(els=>els.map(e=>e.value)),['0','2','1']);
  assert(await page.locator('[data-invert=rotation][data-index="1"]').isChecked(),'stored X/Z swap needs a companion roll correction');
