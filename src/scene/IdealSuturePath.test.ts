@@ -4,7 +4,8 @@ import { IdealSuturePath, PATH_HALF_LENGTH } from './IdealSuturePath';
 
 it('lays dashes and chevrons flat on the skin along the wound', () => {
   const path = new IdealSuturePath(0.42);
-  expect(path.root.children.length).toBeGreaterThan(20);
+  // Two merged meshes (glow, core): two draw calls however many dashes and chevrons.
+  expect(path.root.children.map((c) => c.name)).toEqual(['ideal-path-glow', 'ideal-path-core']);
   const box = new THREE.Box3().setFromObject(path.root);
   expect(box.min.y).toBeGreaterThan(0.42);
   expect(box.max.y - box.min.y).toBeLessThan(0.01);

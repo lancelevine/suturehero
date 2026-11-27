@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: ideal path merged into two meshes
+- `src/scene/IdealSuturePath.ts`: dash and chevron ribbons merged (`mergeGeometries`) into one glow and one core mesh (≈60 → 2 draw calls); chevrons drop the additive glow that blew out to white where arms overlapped. Test updated.
+- Checked: tsc, unit test, `npm run build`, close-up screenshot, check-layout, check-performance. In CHANGELOG 0.234.
+
 ### 2026-11-27 — Claude: stereo pairing step as a module
 - `src/input/stereoPairingStep.ts` (+2 tests): the render loop's pair → solve → accept-once-per-pair → status-line step, moved out of `animate` in `src/tracking.ts` (dependencies passed in; `stereoPrismRotation` unchanged so check-stereo-motion's patch still matches). Same status text.
 - Checked: tsc, unit test, check-stereo-motion, check-stereo-rig-faces, check-status-strip.

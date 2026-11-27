@@ -13,6 +13,7 @@ commit `bde9116`.
 - Tracking page: "Return to practice" is a header button, the status strip is inset from the edge, and the calibration tabs match the practice page.
 - Skill Analysis: before the needle driver has moved, the path chart says "Move the needle driver to draw its path" instead of showing a dot; the Ideal legend swatch is visibly dashed.
 - Microsurgery: the vessel wall and lumen have a soft wet highlight instead of a flat matte look.
+- Ideal suture line: chevrons are clean cyan arrows (their overlapping glow had turned white), and the line draws in 2 GPU draw calls instead of about 60.
 - Skill Analysis: the dashed ideal path now runs through your needle entry points instead of straight from start to end.
 
 ## Build 0.233 — New look, polished

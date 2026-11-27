@@ -1,10 +1,12 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /**
  * The ideal suture line (2026-11-27, mockup): a dashed cyan line along the wound on the skin
  * surface, with chevrons pointing along it, showing where the row of stitches should go. Built
  * from flat ribbons (WebGL lines are one pixel wide), unlit and not tone-mapped so it glows on
- * the skin. Visual guide only.
+ * the skin. Visual guide only. All ribbons are merged into one mesh per material (two draw calls);
+ * chevrons have no additive glow, since overlapping glow at their tips blew out to white.
  */
 export const PATH_COLOR = 0x3fd8ff;
 /** Half the length of the drawn line along the wound (scene units). */
@@ -19,14 +21,23 @@ const GLOW_WIDTH = 0.08;
 const SURFACE_LIFT = 0.014;
 const CHEVRON_ARM = 0.11;
 
-function ribbon(from: THREE.Vector3, to: THREE.Vector3, width: number, material: THREE.Material) {
-  const length = from.distanceTo(to);
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, length), material);
-  mesh.position.copy(from).add(to).multiplyScalar(0.5);
+/** A flat ribbon from `from` to `to` on the skin, as geometry in the path's frame. */
+function ribbon(from: THREE.Vector3, to: THREE.Vector3, width: number) {
+  const geometry = new THREE.PlaneGeometry(width, from.distanceTo(to));
   // Lie flat (plane faces +Y), then turn the plane's long axis (local Y → world Z) toward `to`.
-  mesh.rotation.order = 'YXZ';
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
+  const placement = new THREE.Object3D();
+  placement.position.copy(from).add(to).multiplyScalar(0.5);
+  placement.rotation.order = 'YXZ';
+  placement.rotation.x = -Math.PI / 2;
+  placement.rotation.y = Math.atan2(to.x - from.x, to.z - from.z);
+  placement.updateMatrix();
+  return geometry.applyMatrix4(placement.matrix);
+}
+
+function mergedMesh(geometries: THREE.BufferGeometry[], material: THREE.Material, name: string) {
+  const mesh = new THREE.Mesh(mergeGeometries(geometries), material);
+  for (const geometry of geometries) geometry.dispose();
+  mesh.name = name;
   mesh.renderOrder = 2;
   return mesh;
 }
@@ -39,17 +50,21 @@ export class IdealSuturePath {
     const y = surfaceY + SURFACE_LIFT;
     const core = new THREE.MeshBasicMaterial({ color: PATH_COLOR, transparent: true, opacity: 0.95, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
     const glow = new THREE.MeshBasicMaterial({ color: PATH_COLOR, transparent: true, opacity: 0.18, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const coreParts: THREE.BufferGeometry[] = [];
+    const glowParts: THREE.BufferGeometry[] = [];
     for (let z = -PATH_HALF_LENGTH; z + DASH <= PATH_HALF_LENGTH; z += DASH + GAP) {
       const from = new THREE.Vector3(0, y, z), to = new THREE.Vector3(0, y, z + DASH);
-      this.root.add(ribbon(from, to, GLOW_WIDTH, glow), ribbon(from, to, WIDTH, core));
+      glowParts.push(ribbon(from, to, GLOW_WIDTH));
+      coreParts.push(ribbon(from, to, WIDTH));
     }
     for (let z = -PATH_HALF_LENGTH + CHEVRON_SPACING / 2; z < PATH_HALF_LENGTH; z += CHEVRON_SPACING) {
       const tip = new THREE.Vector3(0, y + 0.001, z);
       for (const side of [-1, 1]) {
         const end = new THREE.Vector3(side * CHEVRON_ARM, y + 0.001, z - CHEVRON_ARM);
-        this.root.add(ribbon(end, tip, GLOW_WIDTH, glow), ribbon(end, tip, WIDTH, core));
+        coreParts.push(ribbon(end, tip, WIDTH));
       }
     }
+    this.root.add(mergedMesh(glowParts, glow, 'ideal-path-glow'), mergedMesh(coreParts, core, 'ideal-path-core'));
   }
 
   /** Follow the current stitch site along the pad (`siteZ`, as the session's course does). */
