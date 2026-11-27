@@ -86,6 +86,7 @@ import type {BallInstrumentName} from './input/ballTrackingSlots';
 import './style.css';
 import './tracking.css';
 import './ui/theme.css';
+import {stereoPairingStep} from './input/stereoPairingStep';
 
 declare const __SUTUREHERO_BUILD__: string;
 declare const __SUTUREHERO_REVISION__: string;
@@ -785,19 +786,17 @@ function animate(now:number){const loopStarted=performance.now();perf.tick('Trac
    mismatch:()=>calibrationMatches(stereoSetup.calibration!,select.value,select2.value,video.videoWidth,video.videoHeight,video2.videoWidth,video2.videoHeight)});
   if(blocked)setText(stereoSetup.triangulationStatus,blocked);
   else{
-    const synchronized=stereoFrames.pair(now),notes:string[]=[];
-    if(!synchronized)notes.push('No time-matched camera pair: '+(stereoFrames.lastFailure??'unknown'));
-    latestPairingFailure=synchronized?null:stereoFrames.lastFailure??'unknown';
-    for(const name of ['needleDriver','forceps','scissors'] as const){
-     const rigid=stereoPrismRotation(name,now);
-     // Status note and the fit error the camera-moved monitor watches (src/input/stereoIndicator.ts).
-     const report=stereoInstrumentReport(name,rigid,synchronized,markerGroups()[name],stereoRejections.get(name));
-     if(report.note)notes.push(report.note);
-     if(report.fitErrorPx!==null)cameraMovedMonitor.feed(now,report.fitErrorPx);
-     if(!rigid||!synchronized)continue;
-     if(stereoPositions.get(name)?.lastSample!==synchronized.at)stereoPositions.accept(name,stereoPracticePosition(rigid.translation),rigid.quaternion,synchronized.at);
-    }
-    setText(stereoSetup.triangulationStatus,notes.length?notes.join(' | '):'Waiting for a consistent rigid stereo pose. Each camera may see different tracker faces; both views must fit the calibrated geometry.');
+    // Pair, solve and accept each instrument (src/input/stereoPairingStep.ts).
+    const step=stereoPairingStep(now,['needleDriver','forceps','scissors'] as const,{
+     pair:at=>stereoFrames.pair(at),lastFailure:()=>stereoFrames.lastFailure,
+     rigid:(name,at)=>stereoPrismRotation(name,at),
+     report:(name,rigid,synchronized)=>stereoInstrumentReport(name,rigid,synchronized,markerGroups()[name],stereoRejections.get(name)),
+     feedFitError:(at,px)=>cameraMovedMonitor.feed(at,px),
+     lastSample:name=>stereoPositions.get(name)?.lastSample,
+     accept:(name,rigid,at)=>stereoPositions.accept(name,stereoPracticePosition(rigid.translation),rigid.quaternion,at),
+    });
+    latestPairingFailure=step.pairingFailure;
+    setText(stereoSetup.triangulationStatus,step.status);
   }
  }
  updateStereoViewIndicator(now);

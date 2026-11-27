@@ -48,6 +48,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: stereo pairing step as a module
+- `src/input/stereoPairingStep.ts` (+2 tests): the render loop's pair → solve → accept-once-per-pair → status-line step, moved out of `animate` in `src/tracking.ts` (dependencies passed in; `stereoPrismRotation` unchanged so check-stereo-motion's patch still matches). Same status text.
+- Checked: tsc, unit test, check-stereo-motion, check-stereo-rig-faces, check-status-strip.
+
 ### 2026-11-27 — Claude: simulator FPS counter and scissors button writes
 - `src/main.ts`: simulator FPS readout uses `FpsCounter`; the scissors button's `aria-pressed` is written only when it changes (was every frame).
 - Checked: tsc, check-sandbox, check-free-tying, check-camera-controls.
