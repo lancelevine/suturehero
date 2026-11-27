@@ -48,6 +48,8 @@ const DEFAULT_CHECKS = [
   'check-tracking-lab-layout',
   'check-tracking-motion',
   'check-tracking-panels',
+  // Updated for bitmap flow frames (2026-11-27); passed 4/4 here.
+  'check-performance',
 ];
 const PORT = 5173;
 const SERVER_START_TIMEOUT_MS = 60_000;
