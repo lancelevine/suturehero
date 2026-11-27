@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import {MICRO_TARGETS,type MicroTarget} from '../environments/MicroTargets';
 import type {WoundApproximation} from './WoundApproximation';
 import type {EdgeEversion} from './EdgeEversion';
+/** Vessel wall and lumen roughness (wet tissue reads as slightly glossy). */
+const VESSEL_WALL_ROUGHNESS=.48;
+const VESSEL_LUMEN_ROUGHNESS=.6;
 /** Two hollow arterial ends. Outer wall, lumen and cut faces remain separate. */
 export class ArteryTissue {
  readonly root=new THREE.Group();
@@ -16,8 +19,9 @@ export class ArteryTissue {
  }
  private build(){
   const ARTERY=MICRO_TARGETS[this.target];
-  const outer=new THREE.MeshStandardMaterial({color:ARTERY.color,roughness:.72});
-  const inner=new THREE.MeshStandardMaterial({color:ARTERY.innerColor,roughness:.82,side:THREE.BackSide});
+  // Moist adventitia: a softer highlight than dry skin (roughness .72 looked matte and flat).
+  const outer=new THREE.MeshStandardMaterial({color:ARTERY.color,roughness:VESSEL_WALL_ROUGHNESS});
+  const inner=new THREE.MeshStandardMaterial({color:ARTERY.innerColor,roughness:VESSEL_LUMEN_ROUGHNESS,side:THREE.BackSide});
   const cut=new THREE.MeshStandardMaterial({color:ARTERY.cutColor,roughness:.8,side:THREE.DoubleSide});
   for(const side of [-1,1]){
    const x=side*(ARTERY.gap/2+ARTERY.length/2);

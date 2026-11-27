@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: glossier vessel wall
+- `src/tissue/ArteryTissue.ts`: wall roughness .72 → .48, lumen .82 → .6 (named constants). Visual only. Checked: tsc, screenshot. In CHANGELOG 0.234.
+
 ### 2026-11-27 — Claude: Skill Analysis empty state
 - `src/ui/SkillAnalysisPanel.ts`: below 0.5 cm path length (`EMPTY_PATH_CM`) the path chart shows a hint and hides its lines; the stat list is rebuilt only when its HTML changes. `src/ui/theme.css`: dashed Ideal legend swatch drawn with a gradient (the 2 px dashed border looked solid).
 - Checked: tsc, SkillAnalysisPanel test, screenshots. In CHANGELOG 0.234.

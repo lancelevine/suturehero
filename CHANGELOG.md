@@ -12,6 +12,7 @@ commit `bde9116`.
 - Sandbox: the instruction strip no longer shows an empty progress bar labelled "Sandbox" (progress is on the stat card). The camera name chip uses the dark theme.
 - Tracking page: "Return to practice" is a header button, the status strip is inset from the edge, and the calibration tabs match the practice page.
 - Skill Analysis: before the needle driver has moved, the path chart says "Move the needle driver to draw its path" instead of showing a dot; the Ideal legend swatch is visibly dashed.
+- Microsurgery: the vessel wall and lumen have a soft wet highlight instead of a flat matte look.
 - Skill Analysis: the dashed ideal path now runs through your needle entry points instead of straight from start to end.
 
 ## Build 0.233 — New look, polished
