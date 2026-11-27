@@ -29,7 +29,18 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Test
-        run: npm test
+        # Node 24 occasionally aborts a Vitest worker inside V8 ("Fatal error ... unreachable code",
+        # then "Channel closed"; twice on 2026-11-27). Retry once only for that crash; real test
+        # failures still fail the job.
+        run: |
+          set -o pipefail
+          if npm test 2>&1 | tee test-output.log; then exit 0; fi
+          if grep -qE "Fatal error in|ERR_IPC_CHANNEL_CLOSED" test-output.log; then
+            echo "::warning::Vitest worker crashed inside V8; retrying the unit tests once."
+            npm test
+          else
+            exit 1
+          fi
       # Cache the compiled WASM across workflow runs. The key changes only when
       # the OpenCV build scripts/config or pinned toolchain change.
       - name: Restore compiled OpenCV.js
