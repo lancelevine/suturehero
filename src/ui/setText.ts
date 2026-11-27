@@ -16,3 +16,8 @@ export function setHidden(element: { hidden: boolean } | null | undefined, hidde
 export function setDisabled(element: { disabled: boolean } | null | undefined, disabled: boolean) {
   if (element && element.disabled !== disabled) element.disabled = disabled;
 }
+
+/** Set a `data-*` value only when it changes (same reason as setHidden). */
+export function setData(element: HTMLElement | null | undefined, key: string, value: string) {
+  if (element && element.dataset[key] !== value) element.dataset[key] = value;
+}

@@ -48,6 +48,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: setData for per-frame data attributes
+- `setData` (`src/ui/setText.ts`); the knot-state phase, stitch-complete and pass-support `data-*` writes in the `src/main.ts` render loop now skip unchanged values. Checked: tsc, check-free-tying, check-guided-thread, check-sandbox.
+
 ### 2026-11-27 — Claude: setHidden / setDisabled in the practice render loop
 - Measured in Chromium (MutationObserver): assigning `hidden`, `disabled` or a meter `value` to its current value still records an attribute mutation. New `setHidden`/`setDisabled` (`src/ui/setText.ts`, +test) skip same-value writes; the 19 per-frame `.hidden=`/`.disabled=` assignments in the `src/main.ts` render loop use them.
 - Checked: tsc, setText test, check-sandbox, check-guided-thread, check-free-tying, check-practice-setup, check-layout.

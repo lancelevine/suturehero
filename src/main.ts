@@ -5,7 +5,7 @@ import {IdealSuturePath} from './scene/IdealSuturePath';
 import {SKIN_SURFACE_Y} from './tissue/FreeNeedlePass';
 import {mountPracticeHud} from './ui/practiceHud';
 import {MICRO_MM_PER_UNIT,SCENE_MM_PER_UNIT} from './setup/sceneScale';
-import {setDisabled,setHidden,setText} from './ui/setText';
+import {setData,setDisabled,setHidden,setText} from './ui/setText';
 import {markStitchSteps,skinTractionText,updateCourseButtons,updateSandboxViewTools,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
@@ -401,7 +401,7 @@ try {
     if(session.freeKnot.active){
       const free=session.freeKnot,state=free.retainedThrow.phase;
       setText(knotState,freeKnotStateText({phase:state,knotAtTissue:free.knotAtTissue,throws:free.sequence?.throws.length,label:free.sequence?.label,hasOpening:free.passage.hasOpening,handlingHint}));
-      knotState.dataset.phase=state==='seated'&&!free.knotAtTissue?'tightened':state;
+      setData(knotState,'phase',state==='seated'&&!free.knotAtTissue?'tightened':state);
     }
     setDisabled((frameQuery('#begin-free-knot') as HTMLButtonElement),!session.canBeginKnot);
     const course=session.course;
@@ -428,7 +428,7 @@ try {
     for(const [selector,text] of [['#stitch-stage',assessment.stage],['#stitch-quality',[...assessment.feedback,...(session.freeKnot.active&&session.freeKnot.sequence?.locked?[`Release hold: ${Math.round(session.freeReleaseProgress*100)}%`]:[])].join(' · ')]]){
       const element=frameQuery(selector)!;if(element.textContent!==text)element.textContent=text;
     }
-    (frameQuery('#stitch-stage') as HTMLElement).dataset.complete=String(assessment.complete||assessment.labFinished);
+    setData((frameQuery('#stitch-stage') as HTMLElement),'complete',String(assessment.complete||assessment.labFinished));
     // Strand tension meters and cue (src/ui/practicePanels.ts).
     idealPath.update(session.environment.id==='skin',session.course.siteZ);
     sampleSkill();
@@ -485,7 +485,7 @@ try {
     const sandboxMessage=sandboxTitle({now:performance.now(),cutMessageUntil,tornMessageUntil,rejection:freePass.rejection,inSkin,forcingWarning:freePass.forcingWarning,threadGripIds:[...session.threadGrasp.grips.keys()],holder:grasp.holder,heldPoint:grasp.heldPoint,candidate:grasp.candidate});
     const message=exerciseTitle({sandbox:session.sandbox,sandboxTitle:sandboxMessage,edge,tractionAlert,preparingEdge:session.preparingEdge,passPhase:pass.phase,pullPhase:pull.phase,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,tailsTrimmed:session.knotSlack.trimmed,trimmedTails:session.knotSlack.trimmedTails.size,stitchComplete:assessment.complete,freeKnotActive:session.freeKnot.active,knot,forcepsOpenness:tools[0].openness,loadTest:session.loadTest,releaseInstruction:session.releaseCheck.instruction,holderKind:grasp.holder?.kind??null,candidateKind:grasp.candidate?.kind??null,hasReceiver:!!grasp.receiver});
     if(title.textContent!==message) title.textContent=message;
-    (frameQuery('#exercise-title') as HTMLElement).dataset.passSupport=pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle';
+    setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
      setText(frameQuery('#exercise-readout'),exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
