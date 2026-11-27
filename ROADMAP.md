@@ -43,6 +43,7 @@ Last updated: 2026-11-27
 - **Subcuticular start and finish:** buried anchor knot to start, Aberdeen knot or buried exit to finish; scored on holding and staying hidden.
 - **Driver grip force:** needle driver jaw sensor flags clamping hard enough to bend a fine needle or so light it spins mid-bite.
 - **Instrument tip collisions:** flags driver and forceps tips bumping, crossing or blocking each other; count per closure with replay markers.
+- **Edges of unequal length:** measures both edges, shows the spacing needed to absorb the difference, and scores how evenly it was spread.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
