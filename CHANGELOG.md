@@ -16,7 +16,7 @@ commit `bde9116`.
 - Skill Analysis: new "Blind exits", needle exits that were hidden behind an instrument from the current view when they happened (roadmap: "Blind bite flag"; uses the 3D view, approximate).
 - Skill Analysis: new "Regrasp on tip", how many in-tissue needle regrasps gripped the last 10% of the needle (the tip) instead of behind it (roadmap: "Needle regrasp check"; following the curve on pull-through is not graded yet).
 - Skill Analysis: new "Tip collisions" count, the times the needle-driver and forceps tips bumped together (within about 3 mm) outside a needle handoff (roadmap: "Instrument tip collisions"; no replay markers yet).
-- Sandbox: bite consistency. The summary compares every bite (entry and exit distance from the edge) with your median bite and lists any more than 1.5 mm off (roadmap: "Bite consistency score"); outlier bites are also circled in red on the skin.
+- Sandbox: bite consistency. The summary compares every bite (entry and exit distance from the edge) with your median bite and lists any more than 1.5 mm off (roadmap: "Bite consistency score"); outlier bites are also circled in red on the skin, and each completed stitch line carries a millimetre ruler out from the wound centre (longer tick every 5 mm).
 - Sandbox: stitch order coaching. After you tie stitches, the summary says whether you started in the middle and then halved the largest gap each time, and from which stitch you didn't (roadmap: "Stitch order coaching").
 - Sandbox targets: new "Square to wound (within 10°)" target with the worst pass shown; the limit is editable with the other targets.
 - Fewer per-frame allocations in the render loop.

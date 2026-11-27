@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: bite ruler overlay (roadmap item now done)
+- `src/scene/freePassMarks.ts`: one merged "bite-ruler" mesh with a tick every 1 mm (longer every 5 mm) along each completed stitch line, out from where it crosses the wound centre (+test). ROADMAP "Bite consistency score" marked done. Checked: tsc, test, check-sandbox, check-layout.
+
 ### 2026-11-27 — Claude: edge presentation (roadmap, build 0.235)
 - New `src/gameplay/edgePresentation.ts` (+test): at each needle entry, grade the eversion hold (everted / flat / over-pulled / not held) with `EdgeEversion.ready`. Skill Analysis row "Edge presented". Checked: tsc, tests, check-sandbox, check-guided-thread.
 

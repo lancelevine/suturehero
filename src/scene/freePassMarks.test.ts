@@ -9,8 +9,8 @@ const pass = (entryX: number, exit: boolean, torn = false, entryEdge = 0.15, exi
 it('marks entry and exit points and rebuilds only when the passes change', () => {
   const marks = new FreePassMarks();
   marks.update([pass(0, true), pass(1, false)]);
-  // Entry + exit marks, the line across the wound for the completed pass, and the in-progress entry.
-  expect(marks.root.children).toHaveLength(4);
+  // Entry + exit marks, the stitch line and bite ruler for the completed pass, and the in-progress entry.
+  expect(marks.root.children).toHaveLength(5);
   const first = marks.root.children[0];
   marks.update([pass(0, true), pass(1, false)]);
   expect(marks.root.children[0]).toBe(first);
@@ -40,4 +40,12 @@ it('rings bites far from the median bite', () => {
   const marks = new FreePassMarks();
   marks.update([pass(0, true), pass(1, true), pass(2, true, false, 0.15, 0.4)]);
   expect(marks.root.children.filter((c) => c.name === 'bite-outlier')).toHaveLength(1);
+});
+
+it('draws a bite ruler with a tick per millimetre out from the wound centre', () => {
+  const marks = new FreePassMarks();
+  // Entry at x = -0.15 and exit at x = 0.15: about 4 mm each side at 27 mm per unit.
+  marks.update([{ ...pass(-0.15, true), exit: new THREE.Vector3(0.15, 0.4, 0) } as FreePassRecord]);
+  const ruler = marks.root.getObjectByName('bite-ruler') as THREE.Mesh;
+  expect(ruler.geometry.getIndex()!.count / 6).toBe(8);
 });

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { biteConsistency } from '../gameplay/biteConsistency';
 import { DEFAULT_TARGETS, stitchSquareOffDeg } from '../gameplay/sandboxSummary';
 import { SCENE_MM_PER_UNIT } from '../setup/sceneScale';
@@ -22,6 +23,13 @@ const STITCH_LINE_WIDTH = 0.012;
 /** Ring around a bite more than BITE_OUTLIER_MM from the median bite (src/gameplay/biteConsistency.ts). */
 const OUTLIER_COLOR = 0xff5a4f;
 const OUTLIER_RING_RADIUS = 0.045;
+/** Bite ruler: a tick across each stitch line every RULER_STEP_MM from the wound centre, longer every RULER_MAJOR. */
+const RULER_COLOR = 0xe8f6ff;
+const RULER_STEP_MM = 1;
+const RULER_MAJOR = 5;
+const TICK_HALF = 0.012;
+const MAJOR_TICK_HALF = 0.024;
+const TICK_WIDTH = 0.004;
 
 export class FreePassMarks {
   readonly root = new THREE.Group();
@@ -33,6 +41,7 @@ export class FreePassMarks {
   private readonly rentMaterial = new THREE.MeshBasicMaterial({ color: RENT_COLOR, side: THREE.DoubleSide });
   private readonly squareMaterial = new THREE.MeshBasicMaterial({ color: SQUARE_COLOR, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
   private readonly outlierGeometry = new THREE.RingGeometry(OUTLIER_RING_RADIUS * 0.75, OUTLIER_RING_RADIUS, 24).rotateX(-Math.PI / 2);
+  private readonly rulerMaterial = new THREE.MeshBasicMaterial({ color: RULER_COLOR, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
   private readonly outlierMaterial = new THREE.MeshBasicMaterial({ color: OUTLIER_COLOR, side: THREE.DoubleSide });
   private readonly slantedMaterial = new THREE.MeshBasicMaterial({ color: SLANTED_COLOR, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
 
@@ -46,7 +55,7 @@ export class FreePassMarks {
     if (key === this.key) return;
     this.key = key;
     // Marks share one geometry and material set; tear meshes own their geometry (freed here).
-    disposeChildren(this.root, new Set([this.entryMaterial, this.exitMaterial, this.tornMaterial, this.rentMaterial, this.squareMaterial, this.slantedMaterial, this.outlierMaterial]), new Set([this.geometry, this.outlierGeometry]));
+    disposeChildren(this.root, new Set([this.entryMaterial, this.exitMaterial, this.tornMaterial, this.rentMaterial, this.squareMaterial, this.slantedMaterial, this.outlierMaterial, this.rulerMaterial]), new Set([this.geometry, this.outlierGeometry]));
     for (const pass of passes) {
       for (const [point, material] of [[pass.entry, pass.torn ? this.tornMaterial : this.entryMaterial], [pass.exit, this.exitMaterial]] as const) {
         if (!point) continue;
@@ -61,6 +70,8 @@ export class FreePassMarks {
       this.root.add(this.stitchLine(pass.entry, pass.exit, square ? this.squareMaterial : this.slantedMaterial, square));
     }
     const completed = passes.filter((p) => p.exit && !p.torn);
+    const ruler = this.rulerMesh(completed.map((p) => [p.entry, p.exit!] as const));
+    if (ruler) this.root.add(ruler);
     const bites = biteConsistency(completed.map((p) => ({ entryMm: p.entryEdge * SCENE_MM_PER_UNIT, exitMm: p.exitEdge === null ? null : p.exitEdge * SCENE_MM_PER_UNIT })));
     for (const outlier of bites.outliers) {
       const pass = completed[outlier.pass - 1];
@@ -70,6 +81,38 @@ export class FreePassMarks {
       this.root.add(ring);
     }
     for (const rent of rents) this.root.add(this.rentMesh(rent));
+  }
+
+  /** Ruler ticks across every completed stitch line, measured out from the wound centre (x = 0); one merged mesh. */
+  private rulerMesh(lines: ReadonlyArray<readonly [THREE.Vector3, THREE.Vector3]>) {
+    const ticks: THREE.BufferGeometry[] = [];
+    const stepUnits = RULER_STEP_MM / SCENE_MM_PER_UNIT;
+    for (const [entry, exit] of lines) {
+      const along = exit.clone().sub(entry);
+      if (Math.abs(along.x) < 1e-6) continue;
+      const across = new THREE.Vector3(-along.z, 0, along.x).normalize();
+      // Where the stitch line crosses the wound centre, then step outward to each end.
+      const crossing = entry.clone().lerp(exit, -entry.x / along.x);
+      for (const end of [entry, exit]) {
+        const length = crossing.distanceTo(end);
+        const outward = end.clone().sub(crossing).normalize();
+        for (let n = 1; n * stepUnits <= length + 1e-9; n++) {
+          const half = n % RULER_MAJOR === 0 ? MAJOR_TICK_HALF : TICK_HALF;
+          const centre = crossing.clone().addScaledVector(outward, n * stepUnits).add(new THREE.Vector3(0, LIFT * 1.5, 0));
+          const a = centre.clone().addScaledVector(across, half);
+          const b = centre.clone().addScaledVector(across, -half);
+          const side = outward.clone().multiplyScalar(TICK_WIDTH / 2);
+          const tick = new THREE.BufferGeometry().setFromPoints([a.clone().add(side), a.clone().sub(side), b.clone().add(side), b.clone().sub(side)]);
+          tick.setIndex([0, 1, 2, 1, 3, 2]);
+          ticks.push(tick);
+        }
+      }
+    }
+    if (!ticks.length) return null;
+    const mesh = new THREE.Mesh(mergeGeometries(ticks), this.rulerMaterial);
+    for (const tick of ticks) tick.dispose();
+    mesh.name = 'bite-ruler';
+    return mesh;
   }
 
   /** A flat ribbon on the skin from entry to exit (Sandbox stitch angle across the wound). */
