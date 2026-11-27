@@ -52,6 +52,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: outlier bites ringed on the skin
+- `src/scene/freePassMarks.ts`: a red ring (shared geometry/material) on each completed pass's entry/exit bite that `biteConsistency` flags as an outlier (+test). Checked: tsc, freePassMarks test, check-sandbox, check-layout.
+
 ### 2026-11-27 — Claude: bite consistency (roadmap, build 0.235)
 - New `src/gameplay/biteConsistency.ts` (+tests): every entry/exit bite vs the median bite, outliers beyond `BITE_OUTLIER_MM` = 1.5 mm. `summarizeSandbox` adds optional `biteConsistency`; Sandbox summary panel shows a "Bite consistency" line. The roadmap's ruler overlay is not done yet.
 - Checked: tsc, sandboxSummary/biteConsistency/stitchOrder tests, check-sandbox. CHANGELOG 0.235, ROADMAP note, checklist item.

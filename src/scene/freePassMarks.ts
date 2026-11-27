@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { biteConsistency } from '../gameplay/biteConsistency';
 import { DEFAULT_TARGETS, stitchSquareOffDeg } from '../gameplay/sandboxSummary';
+import { SCENE_MM_PER_UNIT } from '../setup/sceneScale';
 import { disposeChildren } from './disposeChildren';
 import type { FreePassRecord, SkinRent } from '../tissue/FreeNeedlePass';
 
@@ -17,6 +19,9 @@ const LIFT = 0.004;
 const SQUARE_COLOR = 0x4fe0a0;
 const SLANTED_COLOR = 0xf2a33a;
 const STITCH_LINE_WIDTH = 0.012;
+/** Ring around a bite more than BITE_OUTLIER_MM from the median bite (src/gameplay/biteConsistency.ts). */
+const OUTLIER_COLOR = 0xff5a4f;
+const OUTLIER_RING_RADIUS = 0.045;
 
 export class FreePassMarks {
   readonly root = new THREE.Group();
@@ -27,6 +32,8 @@ export class FreePassMarks {
   private readonly tornMaterial = new THREE.MeshBasicMaterial({ color: TORN_COLOR });
   private readonly rentMaterial = new THREE.MeshBasicMaterial({ color: RENT_COLOR, side: THREE.DoubleSide });
   private readonly squareMaterial = new THREE.MeshBasicMaterial({ color: SQUARE_COLOR, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+  private readonly outlierGeometry = new THREE.RingGeometry(OUTLIER_RING_RADIUS * 0.75, OUTLIER_RING_RADIUS, 24).rotateX(-Math.PI / 2);
+  private readonly outlierMaterial = new THREE.MeshBasicMaterial({ color: OUTLIER_COLOR, side: THREE.DoubleSide });
   private readonly slantedMaterial = new THREE.MeshBasicMaterial({ color: SLANTED_COLOR, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
 
   constructor() {
@@ -39,7 +46,7 @@ export class FreePassMarks {
     if (key === this.key) return;
     this.key = key;
     // Marks share one geometry and material set; tear meshes own their geometry (freed here).
-    disposeChildren(this.root, new Set([this.entryMaterial, this.exitMaterial, this.tornMaterial, this.rentMaterial, this.squareMaterial, this.slantedMaterial]), new Set([this.geometry]));
+    disposeChildren(this.root, new Set([this.entryMaterial, this.exitMaterial, this.tornMaterial, this.rentMaterial, this.squareMaterial, this.slantedMaterial, this.outlierMaterial]), new Set([this.geometry, this.outlierGeometry]));
     for (const pass of passes) {
       for (const [point, material] of [[pass.entry, pass.torn ? this.tornMaterial : this.entryMaterial], [pass.exit, this.exitMaterial]] as const) {
         if (!point) continue;
@@ -52,6 +59,15 @@ export class FreePassMarks {
       if (!pass.exit || pass.torn) continue;
       const square = stitchSquareOffDeg(pass.entry, pass.exit) <= maxSquareOffDeg;
       this.root.add(this.stitchLine(pass.entry, pass.exit, square ? this.squareMaterial : this.slantedMaterial, square));
+    }
+    const completed = passes.filter((p) => p.exit && !p.torn);
+    const bites = biteConsistency(completed.map((p) => ({ entryMm: p.entryEdge * SCENE_MM_PER_UNIT, exitMm: p.exitEdge === null ? null : p.exitEdge * SCENE_MM_PER_UNIT })));
+    for (const outlier of bites.outliers) {
+      const pass = completed[outlier.pass - 1];
+      const ring = new THREE.Mesh(this.outlierGeometry, this.outlierMaterial);
+      ring.name = 'bite-outlier';
+      ring.position.copy(outlier.side === 'entry' ? pass.entry : pass.exit!).add(new THREE.Vector3(0, LIFT, 0));
+      this.root.add(ring);
     }
     for (const rent of rents) this.root.add(this.rentMesh(rent));
   }

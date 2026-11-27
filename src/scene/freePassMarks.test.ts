@@ -3,8 +3,8 @@ import { expect, it, vi } from 'vitest';
 import type { FreePassRecord } from '../tissue/FreeNeedlePass';
 import { FreePassMarks } from './freePassMarks';
 
-const pass = (entryX: number, exit: boolean, torn = false) =>
-  ({ entry: new THREE.Vector3(entryX, 0.4, 0), exit: exit ? new THREE.Vector3(entryX + 0.3, 0.4, 0) : null, torn }) as unknown as FreePassRecord;
+const pass = (entryX: number, exit: boolean, torn = false, entryEdge = 0.15, exitEdge = 0.15) =>
+  ({ entry: new THREE.Vector3(entryX, 0.4, 0), exit: exit ? new THREE.Vector3(entryX + 0.3, 0.4, 0) : null, torn, entryEdge, exitEdge: exit ? exitEdge : null }) as unknown as FreePassRecord;
 
 it('marks entry and exit points and rebuilds only when the passes change', () => {
   const marks = new FreePassMarks();
@@ -34,4 +34,10 @@ it('draws each completed stitch across the wound, amber when it is off square', 
   const slanted = { ...pass(0, true), exit: new THREE.Vector3(0.3, 0.4, 0.2) } as FreePassRecord;
   marks.update([pass(0, true), slanted]);
   expect(marks.root.children.map((c) => c.name).filter((n) => n.startsWith('stitch-line'))).toEqual(['stitch-line-square', 'stitch-line-slanted']);
+});
+
+it('rings bites far from the median bite', () => {
+  const marks = new FreePassMarks();
+  marks.update([pass(0, true), pass(1, true), pass(2, true, false, 0.15, 0.4)]);
+  expect(marks.root.children.filter((c) => c.name === 'bite-outlier')).toHaveLength(1);
 });
