@@ -48,6 +48,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: sandbox strip and camera chip polish
+- `src/main.ts`: the `.hold-progress` bar is hidden in Sandbox (it only repeated "Sandbox" at 0; the HUD stat card has progress). Written only when the value changes.
+- `src/ui/theme.css`: camera name chip (`.tracking-video:after`) in theme colours (previous commit c355d44).
+- Checked: tsc, screenshot, check-sandbox, check-free-tying, check-layout. In CHANGELOG 0.234.
+
 ### 2026-11-27 — Claude: calibration panel tabs in the theme
 - `src/ui/theme.css`: the generic button theme had boxed the calibration Pose/Jaws/Axis tabs (1 px side padding); they are underline tabs with a cyan active line again, and the neutral-pose block is inset 12 px. Added to the 0.234 CHANGELOG entry. Checked: screenshot, check-calibration-preview.
 
