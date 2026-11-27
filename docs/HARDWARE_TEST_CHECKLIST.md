@@ -116,6 +116,8 @@ Setup: Chrome or Edge on the Windows PC; both boards charged.
 - [ ] **HUD (0.230).** Timer counts up; Precision fills after a needle pass; Tension moves while
       tying; Progress fills a segment per kept stitch; the dashed line runs along the wound. Say
       whether the challenge targets (6 sutures, 10:00, ±1.0 mm) are the ones you want.
+- [ ] **Skill Analysis (0.231).** Analysis → values update while you practise; the path chart
+      follows the needle driver; check the definitions suit you (tooltips on each row).
 
 ## 9. Older items still worth checking (optional)
 

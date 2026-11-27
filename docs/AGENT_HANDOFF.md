@@ -48,6 +48,18 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — Build 0.231: visual overhaul step 3 (Skill Analysis)
+
+- `src/gameplay/skillAnalysis.ts` (+test): `SkillRecorder` samples the needle-driver tip (20 Hz,
+  last 120 s) and forceps hold state; report gives path length, smoothness (share of moving
+  samples without a >60 mm/s speed jump), accuracy (mean pass entry/exit symmetry), jaws control
+  (share of hold samples not stretching/slipping), path + straight ideal, speed series.
+- `src/ui/SkillAnalysisPanel.ts` (+test): stat list and SVG charts; new header button
+  "Analysis" opens it in the side panel (WorkspaceLayout); redraws only while open.
+- View tools moved to the bottom right of the scene (theme.css).
+- Checked: sandbox, layout, practice-setup, production-mode, free-tying, guided-thread,
+  course-export; screenshot with movement.
+
 ### 2026-11-27 — Claude — Build 0.230: visual overhaul step 2 (in-scene HUD)
 
 - `src/ui/practiceHud.ts` (+test): timer pill, stat card (Precision, Tension, Progress with

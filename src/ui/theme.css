@@ -93,7 +93,7 @@ dialog::backdrop{background:rgba(2,6,14,.6);backdrop-filter:blur(4px)}
 .practice-hud .hud-timer{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:7px 18px;border-radius:999px;background:var(--sh-panel);box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur);color:var(--sh-text);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.5px}
 .practice-hud .hud-timer svg{width:18px;height:18px;color:var(--sh-cyan);filter:drop-shadow(0 0 4px rgba(63,216,255,.6))}
 .practice-hud .hud-card{position:absolute;background:var(--sh-panel);box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur);border-radius:var(--sh-radius);padding:12px 14px;color:var(--sh-text)}
-.practice-hud .hud-stats{right:14px;top:96px;width:210px;display:grid;gap:11px}
+.practice-hud .hud-stats{right:14px;top:14px;width:210px;display:grid;gap:11px}
 .practice-hud .hud-stat{display:grid;grid-template-columns:22px 1fr auto;align-items:center;column-gap:8px;row-gap:5px}
 .practice-hud .hud-icon svg{width:18px;height:18px;color:var(--sh-cyan)}
 .practice-hud .hud-label{font-size:11px;color:var(--sh-muted);letter-spacing:.4px}
@@ -113,3 +113,25 @@ dialog::backdrop{background:rgba(2,6,14,.6);backdrop-filter:blur(4px)}
 .practice-hud .hud-challenge li.met span,.practice-hud .hud-challenge li.met{color:var(--sh-green)}
 .practice-hud .hud-challenge li.missed span{color:var(--sh-red)}
 @media(max-width:760px){.practice-hud .hud-stats{top:auto;bottom:44px;right:8px;width:150px;padding:8px;gap:6px}.practice-hud .hud-challenge{display:none}.practice-hud .hud-timer{top:8px;font-size:14px;padding:5px 12px}}
+
+/* 10. Skill Analysis (src/ui/SkillAnalysisPanel.ts) */
+.skill-analysis{display:grid;gap:14px;padding:4px 0}
+.skill-analysis .skill-stats{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.skill-analysis .skill-stats li{display:flex;justify-content:space-between;align-items:baseline;padding:8px 2px;border-bottom:1px solid rgba(63,216,255,.1);font-size:13px;color:var(--sh-muted)}
+.skill-analysis .skill-stats strong{font-size:17px;color:var(--sh-text);font-variant-numeric:tabular-nums}
+.skill-analysis .skill-stats strong.good{color:var(--sh-green)}
+.skill-analysis .skill-chart{background:var(--sh-panel-deep);border-radius:var(--sh-radius-sm);box-shadow:var(--sh-glow);padding:10px}
+.skill-analysis .skill-chart-head{display:flex;justify-content:space-between;font-size:11px;color:var(--sh-cyan);letter-spacing:1px;margin-bottom:6px}
+.skill-analysis .skill-legend{color:var(--sh-muted);display:flex;align-items:center;gap:6px}
+.skill-analysis .skill-legend i{display:inline-block;width:16px;height:0;border-top:2px solid #4f8dff}
+.skill-analysis .skill-legend i.ideal{border-top:2px dashed var(--sh-cyan)}
+.skill-analysis svg{width:100%;height:auto;display:block}
+.skill-analysis polyline{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.skill-analysis polyline.actual{stroke:#4f8dff;stroke-width:2;filter:drop-shadow(0 0 3px rgba(79,141,255,.7))}
+.skill-analysis polyline.ideal{stroke:var(--sh-cyan);stroke-width:1.6;stroke-dasharray:6 5;opacity:.9}
+.skill-analysis polyline.speed{stroke:var(--sh-green);stroke-width:1.6;filter:drop-shadow(0 0 3px rgba(62,229,154,.6))}
+.skill-analysis small{color:var(--sh-dim)}
+
+/* View buttons move to the bottom right so the timer and stat card own the top (mockup). */
+.workspace-first .workspace-view-tools{top:auto;bottom:38px;right:14px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 300px)}
+@media(max-width:760px){.workspace-first .workspace-view-tools{max-width:none}}

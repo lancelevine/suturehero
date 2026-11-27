@@ -6,7 +6,7 @@ export function mountWorkspaceLayout(app:HTMLElement){
  const header=app.querySelector('header')!;
  header.querySelector('.lab')?.remove();header.querySelector('.status')?.remove();
  const buttons=document.createElement('div');buttons.className='workspace-header-actions';
- buttons.innerHTML='<button id="workspace-setup-toggle" type="button" aria-expanded="false">Setup</button><button id="workspace-plan-toggle" type="button" aria-expanded="false">Stitch plan</button><button id="workspace-review-toggle" type="button" aria-expanded="false">Review</button><button id="workspace-calibrate-toggle" type="button" aria-expanded="false">⊕ Calibrate</button><button id="workspace-guide-toggle" type="button" aria-expanded="false">? Guide</button>'
+ buttons.innerHTML='<button id="workspace-setup-toggle" type="button" aria-expanded="false">Setup</button><button id="workspace-plan-toggle" type="button" aria-expanded="false">Stitch plan</button><button id="workspace-review-toggle" type="button" aria-expanded="false">Review</button><button id="workspace-analysis-toggle" type="button" aria-expanded="false">Analysis</button><button id="workspace-calibrate-toggle" type="button" aria-expanded="false">⊕ Calibrate</button><button id="workspace-guide-toggle" type="button" aria-expanded="false">? Guide</button>'
   // Less-used tracking tools (added by TrackingLayout) live in one menu (2026-11-27).
   +'<details class="workspace-menu" id="workspace-tracking-menu"><summary>Tracking ▾</summary><div class="workspace-menu-items"></div></details>';
  buttons.prepend(app.querySelector('#camera-tracking-toggle')!);header.append(buttons);
@@ -34,6 +34,9 @@ export function mountWorkspaceLayout(app:HTMLElement){
  const setupBox=drawer('workspace-practice-setup','Practice setup',[setup]);
  const plan=drawer('workspace-stitch-plan','Stitch plan',[workspace.querySelector('.bite-planning')!]);
  const course=drawer('workspace-session-review','Session & stitch review',[workspace.querySelector('.course-controls')!,workspace.querySelector('.stitch-summary')!]);
+ // Skill Analysis (src/ui/SkillAnalysisPanel.ts) fills this host.
+ const analysisHost=document.createElement('div');analysisHost.id='skill-analysis-host';
+ const analysis=drawer('workspace-skill-analysis','Skill analysis',[analysisHost]);
  const grip=workspace.querySelector('.grip-settings')!;
  const notes=Array.from(workspace.querySelectorAll('.knot-note'));
  const guide=drawer('workspace-guide','Guide & controls',[lesson,...notes,grip,workspace.querySelector('.controls')!]);
@@ -42,7 +45,7 @@ export function mountWorkspaceLayout(app:HTMLElement){
  workspace.replaceChildren(stage,coach);
  lesson.classList.add('workspace-lesson');
  const reset=workspace.querySelector('#reset')!;buttons.append(reset);
- const sections=[['workspace-setup-toggle',setupBox],['workspace-plan-toggle',plan],['workspace-review-toggle',course],['workspace-guide-toggle',guide]] as const;
+ const sections=[['workspace-setup-toggle',setupBox],['workspace-plan-toggle',plan],['workspace-review-toggle',course],['workspace-analysis-toggle',analysis],['workspace-guide-toggle',guide]] as const;
  const syncSide=()=>{
   const open=sections.find(([,details])=>details.open)?.[1];
   side.hidden=!open;

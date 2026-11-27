@@ -5,6 +5,12 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.231 — Skill Analysis
+
+- New Analysis button: a Skill Analysis panel with Time, Path length (cm), Smoothness, Accuracy (mm) and Jaws control (%), an instrument path chart (actual path solid blue, straight start-to-end line dashed cyan, seen from above) and a small velocity graph.
+- Definitions: path and speed are the needle-driver tip in the 3D scene; Smoothness is the share of movement without abrupt speed changes; Accuracy is the mean entry/exit symmetry of completed passes; Jaws control is the share of forceps hold time without over-stretching or slipping the skin. Approximate practice measures, not a validated assessment.
+- The scene's view buttons moved to the bottom right, so the timer and stat card own the top.
+
 ## Build 0.230 — In-scene HUD
 
 - A timer pill at the top of the 3D view, a live stat card (Precision in mm, Tension in %, Progress as stitches placed out of the goal) and a challenge card (place 6 sutures in the Sandbox or 3 in the course, within 10:00, within ±1.0 mm), all in the new glass style.

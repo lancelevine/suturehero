@@ -1,4 +1,6 @@
 import {knotEngineEntry} from './knot/engines';
+import {SkillRecorder} from './gameplay/skillAnalysis';
+import {mountSkillAnalysisPanel} from './ui/SkillAnalysisPanel';
 import {IdealSuturePath} from './scene/IdealSuturePath';
 import {SKIN_SURFACE_Y} from './tissue/FreeNeedlePass';
 import {mountPracticeHud} from './ui/practiceHud';
@@ -61,7 +63,7 @@ import { mountCourseExport } from './ui/courseExport';
 import { exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
-const APP_BUILD='0.230';
+const APP_BUILD='0.231';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -333,6 +335,18 @@ try {
     tension:free.active?Math.max(free.tension.long.tautness,free.tension.short.tautness):null,
     stitches:session.course.completed.length,course:session.course.active};
   });
+  // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
+  const skillRecorder=new SkillRecorder();
+  let skillClock=0;
+  const sampleSkill=()=>{
+   const t=session.clock.secondsSoFar;if(t<skillClock)skillRecorder.clear();skillClock=t;
+   tools[1].root.updateWorldMatrix(true,false);
+   const tip=tools[1].root.localToWorld(new THREE.Vector3(0,0,.05)).multiplyScalar(SCENE_MM_PER_UNIT);
+   const hold=session.eversion;
+   skillRecorder.add({t,x:tip.x,z:tip.z,holding:hold.held,safeHold:hold.held&&!['stretching','slipping','slipped'].includes(hold.traction.state)});
+  };
+  const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
+  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>skillRecorder.report(session.clock.secondsSoFar,passSymmetries()),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
   view.renderer.setAnimationLoop((time)=>{if(!view.renderingAvailable||(document.body.classList.contains('tracking-lab-active')&&!viewInLab())){last=time;return;}const frameStarted=performance.now();perf.sample('Simulator frame interval',Math.max(0,time-last));const dt=Math.min((time-last)/1000,.05);frameDt=dt;heldDisplay.restore();if(!replay.step(dt)){if(demo?.running){/* The demo's knot physics is tuned at 1/60 s steps (src/demo/freeKnotDemo.test.ts): slice longer frames. */const slices=Math.max(1,Math.ceil(dt*60-1e-6));for(let i=0;i<slices;i++){demo.step(dt/slices);session.update(dt/slices);}}else session.update(dt);if(session.sandbox||session.freeKnot.active)replay.record(time/1000);} last=time;
     if(cameraEnabled){
@@ -413,6 +427,7 @@ try {
     (frameQuery('#stitch-stage') as HTMLElement).dataset.complete=String(assessment.complete||assessment.labFinished);
     // Strand tension meters and cue (src/ui/practicePanels.ts).
     idealPath.update(session.environment.id==='skin',session.course.siteZ);
+    sampleSkill();
     updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);
     const edge=session.eversion;
     const skinContext=session.environment.id==='skin'&&!knot.active&&!course.finished&&!session.freeKnot.grips.has('left')&&grasp.holder?.kind!=='forceps'&&!(session.pass.phase==='complete'&&session.pull.phase==='waiting'&&!edge.held);
