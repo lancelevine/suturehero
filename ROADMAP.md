@@ -58,6 +58,7 @@ Last updated: 2026-11-27
 - **Blind bite flag:** flags each bite where the needle tip was hidden from view as it exited.
 - **Vessel eversion:** extends the eversion score to every vessel stitch, with a ring view marking any spot where an edge rolled in.
 - **Set-back dermal stitch:** buried stitch with bites 2 to 3 mm back from the edge under the dermis; scored on set-back distance and the eversion it gives.
+- **Thread budget:** each running closure starts with a fixed suture length, like an 18 inch pack; tracks thread used per stitch and flags wasteful pull-throughs.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
