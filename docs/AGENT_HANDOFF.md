@@ -87,6 +87,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude — decoder drift correction out of tracking.ts
+
+- `src/input/driftCorrection.ts` (+test): `driftCorrections` (which decoded markers reset their
+  flow-tracked corners) with named thresholds, and `meanCornerDistance` (also used for flow
+  speed). Same arithmetic. Checked: tracking-motion, marker-rest, ring-handoffs,
+  predictive-decode, marker-motion.
+
 ### 2026-11-27 — Claude — simulated input and stereo prerequisites out of animate()
 
 - `src/input/simulatedInstruments.ts` (+test): keyboard-driven simulated instruments and readout.

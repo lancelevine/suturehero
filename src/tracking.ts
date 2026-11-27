@@ -1,4 +1,5 @@
 import {markerSidePx} from './input/trackerDistance';
+import {driftCorrections,meanCornerDistance} from './input/driftCorrection';
 import {moveSimulatedInstruments,simulatedReadout} from './input/simulatedInstruments';
 import {CameraCapture,type CaptureEnvironment} from './input/CameraCapture';
 import {bitmapRequests} from './input/bitmapRequests';
@@ -770,7 +771,7 @@ async function detectFrame(now:number){
    if(found.length){
     for(const m of found){
      const prev=flowMotion.get(m.id);
-     const displacement=prev?m.corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-prev.corners[i].x,p.y-prev.corners[i].y),0)/4:0;
+     const displacement=prev?meanCornerDistance(m.corners,prev.corners):0;
      const speed=prev?displacement/Math.max(1,stamp-prev.at):Infinity;
      flowMotion.set(m.id,{corners:m.corners.map(p=>({...p})),at:stamp,speed});
      markerLastConfirmed.set(m.id,stamp);
@@ -830,15 +831,7 @@ async function detectFrame(now:number){
     if(recoveryFresh)fastTracker.seed(found,flowSeedFrame);
     // Correct drift only when the marker has been nearly stationary across
     // flow frames and the decoder image is recent. Never rewind a moving track.
-    const correctionCandidates=arucoCorrection.checked&&decodeStamp-capturedAt<180
-     ?found.filter(marker=>{
-       const flow=active.find(m=>m.id===marker.id);
-       const motion=flowMotion.get(marker.id);
-       if(!flow||!motion||decodeStamp-motion.at>120||motion.speed>0.035)return false;
-       const error=marker.corners.reduce((sum,p,i)=>sum+Math.hypot(p.x-flow.corners[i].x,p.y-flow.corners[i].y),0)/4;
-       return error>1.5&&error<45;
-      }):[];
-    const corrected=correctionCandidates.map(marker=>({id:marker.id,corners:marker.corners.map(p=>({...p}))}));
+    const corrected=arucoCorrection.checked?driftCorrections(found,active,flowMotion,decodeStamp,capturedAt):[];
     const applyCorrections=()=>{
      if(!corrected.length)return;
      const ids=new Set(corrected.map(m=>m.id));
