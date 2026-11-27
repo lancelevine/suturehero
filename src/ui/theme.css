@@ -126,7 +126,9 @@ dialog::backdrop{background:rgba(2,6,14,.6);backdrop-filter:blur(4px)}
 .skill-analysis .skill-chart-head{display:flex;justify-content:space-between;font-size:11px;color:var(--sh-cyan);letter-spacing:1px;margin-bottom:6px}
 .skill-analysis .skill-legend{color:var(--sh-muted);display:flex;align-items:center;gap:6px}
 .skill-analysis .skill-legend i{display:inline-block;width:16px;height:0;border-top:2px solid #4f8dff}
-.skill-analysis .skill-legend i.ideal{border-top:2px dashed var(--sh-cyan)}
+.skill-analysis .skill-legend i.ideal{border-top:0;width:18px;height:2px;background:repeating-linear-gradient(90deg,var(--sh-cyan) 0 4px,transparent 4px 7px)}
+.skill-analysis svg:not(.empty) .skill-empty,.skill-analysis svg.empty polyline{display:none}
+.skill-analysis .skill-empty{fill:var(--sh-muted);font-size:12px;font-family:var(--sh-font)}
 .skill-analysis svg{width:100%;height:auto;display:block}
 .skill-analysis polyline{fill:none;stroke-linejoin:round;stroke-linecap:round}
 .skill-analysis polyline.actual{stroke:#4f8dff;stroke-width:2;filter:drop-shadow(0 0 3px rgba(79,141,255,.7))}

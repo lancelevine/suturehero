@@ -43,24 +43,35 @@ export function speedLine(speed: ReadonlyArray<{ t: number; v: number }>, width 
   return speed.map((s) => `${(((s.t - t0) / Math.max(1e-6, t1 - t0)) * width).toFixed(1)},${(height - 4 - (s.v / top) * (height - 8)).toFixed(1)}`).join(' ');
 }
 
+/** Below this path length (cm) the chart shows a hint instead of a dot. */
+const EMPTY_PATH_CM = 0.5;
+
 export function mountSkillAnalysisPanel(host: HTMLElement, report: () => SkillReport, isOpen: () => boolean) {
   const panel = document.createElement('div');
   panel.className = 'skill-analysis';
   panel.innerHTML = `
 <ul class="skill-stats" data-skill="stats"></ul>
 <div class="skill-chart"><div class="skill-chart-head"><span>Instrument path</span><span class="skill-legend" title="Ideal: the shortest route through your needle entry points"><i class="actual"></i>Actual <i class="ideal"></i>Ideal</span></div>
-<svg viewBox="0 0 ${CHART_W} ${CHART_H}" role="img" aria-label="Needle-driver tip path seen from above, with the shortest route through the needle entry points"><polyline class="ideal" data-skill="ideal"/><polyline class="actual" data-skill="path"/></svg></div>
+<svg viewBox="0 0 ${CHART_W} ${CHART_H}" role="img" aria-label="Needle-driver tip path seen from above, with the shortest route through the needle entry points"><polyline class="ideal" data-skill="ideal"/><polyline class="actual" data-skill="path"/><text class="skill-empty" data-skill="path-empty" x="${CHART_W / 2}" y="${CHART_H / 2}" text-anchor="middle">Move the needle driver to draw its path</text></svg></div>
 <div class="skill-chart"><div class="skill-chart-head"><span>Velocity</span><span data-skill="peak"></span></div>
 <svg viewBox="0 0 ${CHART_W} ${SPEED_H}" role="img" aria-label="Tip speed over time"><polyline class="speed" data-skill="speed"/></svg></div>
 <small>Approximate practice measures from the 3D scene; not a validated assessment.</small>`;
   host.append(panel);
+  let lastRows = '';
+  const pathEmpty = panel.querySelector<SVGTextElement>('[data-skill="path-empty"]')!;
   const render = () => {
     if (!isOpen()) return;
     const data = report();
-    panel.querySelector('[data-skill="stats"]')!.innerHTML = skillRows(data).map((row) => `<li title="${row.help}"><span>${row.label}</span><strong class="${row.good ? 'good' : ''}">${row.value}</strong></li>`).join('');
+    const rows = skillRows(data).map((row) => `<li title="${row.help}"><span>${row.label}</span><strong class="${row.good ? 'good' : ''}">${row.value}</strong></li>`).join('');
+    // Rebuild the stat list only when it changed (it is refreshed several times a second).
+    if (rows !== lastRows) {
+      panel.querySelector('[data-skill="stats"]')!.innerHTML = rows;
+      lastRows = rows;
+    }
     const fitted = fitPath(data.path, data.ideal ?? []);
     panel.querySelector('[data-skill="path"]')!.setAttribute('points', fitted.path);
     panel.querySelector('[data-skill="ideal"]')!.setAttribute('points', fitted.ideal);
+    pathEmpty.parentElement!.classList.toggle('empty', data.pathLengthCm < EMPTY_PATH_CM);
     panel.querySelector('[data-skill="speed"]')!.setAttribute('points', speedLine(data.speed));
     const peak = data.speed.length ? Math.max(...data.speed.map((s) => s.v)) : 0;
     panel.querySelector('[data-skill="peak"]')!.textContent = data.speed.length ? `peak ${Math.round(peak)} mm/s` : '';
