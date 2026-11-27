@@ -55,6 +55,7 @@ Last updated: 2026-11-27
 - **Stitch angle across the wound:** draws each skin stitch's line across the wound and flags any more than a few degrees off 90.
 - **Needle pickup and transfer:** under the scope, pick up the needle with forceps, pass to the driver and load it without setting it down; times it and counts drops and re-grabs.
 - **Tension hold on running stitches:** tracks strand tension between bites; shows earlier loops going slack or the wound bunching.
+- **Blind bite flag:** flags each bite where the needle tip was hidden from view as it exited.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
