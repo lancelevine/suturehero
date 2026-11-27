@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { markStitchSteps, tensionMeterValue, updateCourseButtons, updateTensionPanel } from './practicePanels';
+import { markStitchSteps, skinTractionText, tensionMeterValue, updateCourseButtons, updateTensionPanel } from './practicePanels';
 
 function element() {
   const classes = new Set<string>();
@@ -50,4 +50,13 @@ it('labels the course and free-tying buttons', () => {
   expect([elements.get('#start-course')!.disabled, elements.get('#next-stitch')!.textContent, elements.get('#free-tying')!.textContent, elements.get('#free-tying')!.disabled]).toEqual([true, 'Finish session', 'Tie knot on this stitch', true]);
   updateCourseButtons(query, { skin: true, active: false, finished: true, index: 0, canAdvance: false, canFinishSandboxStitch: true, canTieFreePass: false });
   expect([elements.get('#start-course')!.textContent, elements.get('#next-stitch')!.hidden, elements.get('#free-tying')!.textContent]).toEqual(['New 3-stitch session', true, 'Finish stitch · next']);
+});
+
+it('explains the skin hold', () => {
+  const base = { alert: false, instruction: 'Ease off', held: true, ready: false, state: 'holding', progress: 0, edgesShown: false };
+  expect(skinTractionText(base)).toEqual({ state: 'Gentle skin traction', hint: 'A small lift everts the skin. Shift slows movement; Q lowers the forceps.' });
+  expect(skinTractionText({ ...base, progress: 0.42 }).hint).toBe('Slip buildup: 42% · Ease the pull to recover.');
+  expect(skinTractionText({ ...base, alert: true, state: 'slipped' })).toEqual({ state: 'Ease off', hint: 'Open the forceps with X, use Position forceps if needed, then close Z and lift gently.' });
+  expect(skinTractionText({ ...base, edgesShown: true }).hint).toMatch(/^Amber rings/);
+  expect(skinTractionText({ ...base, held: false, ready: true })).toEqual({ state: 'Skin released · Traction easing', hint: 'Edge everted · Keep this gentle hold for the needle pass.' });
 });

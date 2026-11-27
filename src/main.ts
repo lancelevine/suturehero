@@ -1,5 +1,5 @@
 import {knotEngineEntry} from './knot/engines';
-import {markStitchSteps,updateCourseButtons,updateTensionPanel} from './ui/practicePanels';
+import {markStitchSteps,skinTractionText,updateCourseButtons,updateTensionPanel} from './ui/practicePanels';
 import {cachedQuery} from './ui/cachedQuery';
 import {mountIphoneStart} from './ui/iphoneStart';
 import {cameraMode as deviceCameraMode} from './input/cameraDevices';
@@ -405,8 +405,8 @@ try {
       const traction=edge.traction,meter=frameQuery('#skin-traction') as HTMLMeterElement;
       if(Math.abs(meter.value-traction.load)>.001)meter.value=traction.load;
       if(meter.dataset.state!==traction.state)meter.dataset.state=traction.state;
-      setPlanText('#skin-traction-state',tractionAlert?edge.instruction:edge.held?'Gentle skin traction':'Skin released · Traction easing');
-      setPlanText('#skin-traction-hint',session.oppositeEdgeRequired&&session.pass.phase==='passing'&&!tractionAlert?'Amber rings mark the visible epidermal edges; green means flush. Pull D gently; E/Q adjusts surface height.':traction.state==='slipped'?'Open the forceps with X, use Position forceps if needed, then close Z and lift gently.':traction.progress>0&&edge.held?`Slip buildup: ${Math.round(traction.progress*100)}% · Ease the pull to recover.`:edge.ready?'Edge everted · Keep this gentle hold for the needle pass.':'A small lift everts the skin. Shift slows movement; Q lowers the forceps.');
+      const text=skinTractionText({alert:tractionAlert,instruction:edge.instruction,held:edge.held,ready:edge.ready,state:traction.state,progress:traction.progress,edgesShown:session.oppositeEdgeRequired&&session.pass.phase==='passing'});
+      setPlanText('#skin-traction-state',text.state);setPlanText('#skin-traction-hint',text.hint);
     }
     edgeMarker.visible=!knot.active && (session.preparingEdge || edge.held || tractionAlert);
     edgeMarker.position.copy(edge.target);edgeMarker.material.color.setHex(tractionAlert?(edge.traction.state==='stretching'?0xf4b95d:0xf08b86):edge.held?0x65df9b:0xf7ce73);

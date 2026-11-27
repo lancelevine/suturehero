@@ -72,3 +72,26 @@ export function updateCourseButtons(query: Query, state: CourseButtonState) {
   const tyingText = state.canFinishSandboxStitch ? 'Finish stitch · next' : state.canTieFreePass ? 'Tie knot on this stitch' : 'Free tying lab';
   if (tying.textContent !== tyingText) tying.textContent = tyingText;
 }
+
+/** The skin-handling panel's status and hint for the forceps' hold on the wound edge. */
+export function skinTractionText(input: {
+  /** Traction is stretching, slipping or has slipped. */
+  alert: boolean;
+  instruction: string;
+  held: boolean;
+  ready: boolean;
+  state: string;
+  /** Slip buildup, 0–1. */
+  progress: number;
+  /** The amber/green epidermal edge rings are shown (needle pass, opposite edge required). */
+  edgesShown: boolean;
+}): { state: string; hint: string } {
+  const state = input.alert ? input.instruction : input.held ? 'Gentle skin traction' : 'Skin released · Traction easing';
+  let hint: string;
+  if (input.edgesShown && !input.alert) hint = 'Amber rings mark the visible epidermal edges; green means flush. Pull D gently; E/Q adjusts surface height.';
+  else if (input.state === 'slipped') hint = 'Open the forceps with X, use Position forceps if needed, then close Z and lift gently.';
+  else if (input.progress > 0 && input.held) hint = `Slip buildup: ${Math.round(input.progress * 100)}% · Ease the pull to recover.`;
+  else if (input.ready) hint = 'Edge everted · Keep this gentle hold for the needle pass.';
+  else hint = 'A small lift everts the skin. Shift slows movement; Q lowers the forceps.';
+  return { state, hint };
+}

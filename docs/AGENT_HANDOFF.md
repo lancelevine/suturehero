@@ -93,6 +93,8 @@ entry when finishing.
   Checked: free-tying, guided-thread, sandbox, layout.
 - Also `updateCourseButtons` (course and Free tying buttons), tested; checked course-export,
   practice-setup, sandbox, free-tying.
+- Also `skinTractionText` (skin-handling status and hint), tested; checked guided-thread, sandbox,
+  layout.
 
 ### 2026-11-27 — Claude — practice loop: cached element lookups (main.ts)
 
