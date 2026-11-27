@@ -56,6 +56,7 @@ Last updated: 2026-11-27
 - **Needle pickup and transfer:** under the scope, pick up the needle with forceps, pass to the driver and load it without setting it down; times it and counts drops and re-grabs.
 - **Tension hold on running stitches:** tracks strand tension between bites; shows earlier loops going slack or the wound bunching.
 - **Blind bite flag:** flags each bite where the needle tip was hidden from view as it exited.
+- **Vessel eversion:** extends the eversion score to every vessel stitch, with a ring view marking any spot where an edge rolled in.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
