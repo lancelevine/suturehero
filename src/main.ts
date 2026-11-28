@@ -91,6 +91,7 @@ import {describeUnequalEdges} from './gameplay/unequalEdges';
 import {UnequalEdgeMarks} from './scene/UnequalEdgeMarks';
 import {loadSoundOn,saveSoundOn,SoundCues} from './ui/sound';
 import {describeTail,tailLengthMm} from './gameplay/tailLength';
+import {loadBests,recordBest} from './gameplay/personalBest';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -446,6 +447,13 @@ try {
   let last=performance.now();
   // Per-frame element lookups are cached (src/ui/cachedQuery.ts).
   // In-scene HUD: timer, live stats, challenge (src/ui/practiceHud.ts). Display only.
+  // Personal bests (src/gameplay/personalBest.ts): saved once per completion of the HUD challenge.
+  const bestStorage=(()=>{try{return localStorage;}catch{return null;}})();
+  const challengeId=()=>session.environment.id==='microsurgery'?`micro-${microSelect.value}`:session.course.active?'course':'sandbox';
+  const challengeGoal=()=>session.environment.id==='microsurgery'?vesselGoal():session.course.active?3:6;
+  const challengeDone=()=>(session.environment.id==='microsurgery'?session.vesselStitches:session.course.completed.length)>=challengeGoal();
+  let bestRecordedFor='';
+  const challengeBest=()=>{const id=challengeId();if(challengeDone()&&bestRecordedFor!==id){bestRecordedFor=id;recordBest(bestStorage,id,Math.round(session.clock.secondsSoFar));}if(!challengeDone()&&bestRecordedFor===id)bestRecordedFor='';return loadBests(bestStorage)[id];};
   mountPracticeHud(document.querySelector<HTMLElement>('#viewport')!,()=>{
    const last=[...session.freePass.passes].reverse().find(p=>p.exitEdge!==null);
    const free=session.freeKnot;
@@ -453,7 +461,7 @@ try {
     precisionMm:last&&last.exitEdge!==null?Math.abs(last.entryEdge-last.exitEdge)*SCENE_MM_PER_UNIT:null,
     tension:free.active?Math.max(free.tension.long.tautness,free.tension.short.tautness):null,
     stitches:session.environment.id==='microsurgery'?session.vesselStitches:session.course.completed.length,course:session.course.active,
-    micro:session.environment.id==='microsurgery'?{alignmentMm:(session.wound.initialGap*(1-session.wound.closure)+Math.abs(session.wound.edgeMismatch))*MICRO_MM_PER_UNIT,closure:session.wound.closure,goal:vesselGoal()}:undefined};
+    micro:session.environment.id==='microsurgery'?{alignmentMm:(session.wound.initialGap*(1-session.wound.closure)+Math.abs(session.wound.edgeMismatch))*MICRO_MM_PER_UNIT,closure:session.wound.closure,goal:vesselGoal()}:undefined,bestSeconds:challengeBest()};
   });
   // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
   const skillRecorder=new SkillRecorder();

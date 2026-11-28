@@ -27,6 +27,8 @@ export interface HudInput {
   course: boolean;
   /** Microsurgery: remaining gap plus edge step between the vessel ends (mm) and closure (0–1). */
   micro?: { alignmentMm: number; closure: number; /** Suggested stitch count for this vessel (default MICRO_GOAL_STITCHES). */ goal?: number };
+  /** Personal best for this challenge (s), if any (src/gameplay/personalBest.ts). */
+  bestSeconds?: number;
 }
 
 export interface HudState {
@@ -64,7 +66,7 @@ export function hudState(input: HudInput): HudState {
     },
     progress: { value: `${done}/${goal}`, goal, done },
     challenge: {
-      title: input.micro ? 'Anastomosis' : input.course ? '3-stitch course' : 'Sandbox challenge',
+      title: (input.micro ? 'Anastomosis' : input.course ? '3-stitch course' : 'Sandbox challenge') + (input.bestSeconds !== undefined ? ` · best ${formatClock(input.bestSeconds)}` : ''),
       lines: [
         { text: `Place ${goal} sutures`, met: done >= goal ? true : null },
         { text: `Within ${formatClock(GOAL_SECONDS)}`, met: input.seconds <= GOAL_SECONDS ? (done >= goal ? true : null) : false },

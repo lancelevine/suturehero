@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: personal bests (roadmap "Timed challenges")
+- New `src/gameplay/personalBest.ts` (+test), `suturehero.personalBests.v1`; `practiceHud` takes `bestSeconds` for the card title. `src/main.ts` records once per completion (sandbox / course / micro-<target>). Note: the block must sit above `mountPracticeHud` (the HUD renders on mount; placed after, it threw and the page's catch hid it — caught in a browser check of the card title).
+- Checked: tsc, personalBest + practiceHud tests, browser (card title, no console errors), check-sandbox, check-layout, check-practice-setup.
+
 ### 2026-11-28 — Claude: fading guide (roadmap "Needle arc guide")
 - `guideConsistency` + `IdealSuturePath.setConsistency` (+test): share of the last 5 passes within 90 ± 10° entry and ≤ 10° off square; the line's opacity scales down to 20%. Checked: tsc, test, check-sandbox, check-layout.
 
