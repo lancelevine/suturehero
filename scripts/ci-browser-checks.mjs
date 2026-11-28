@@ -55,6 +55,8 @@ const DEFAULT_CHECKS = [
   'check-guided-thread',
   'check-stereo-capture-quality',
   'check-calibration-ui',
+  // Locked running stitch (2026-11-28): 3/3 locally.
+  'check-running-lock',
 ];
 const PORT = 5173;
 const SERVER_START_TIMEOUT_MS = 60_000;

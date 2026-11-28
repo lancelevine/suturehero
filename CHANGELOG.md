@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.264 — Locked running stitch
+
+- Sandbox: after a running bite, passing the needle down through the loop beside the last exit (before the next bite) locks that stitch. With two or more stitches on one thread the instruction line reports how many are locked, whether the lock tension is even, and any lock pulled tight enough to strangle the edge (roadmap: "Running locked stitch"; the lock is detected from the needle's path, the thread is not yet drawn through the loop).
+
 ## Build 0.263 — Throws needed for a secure knot
 
 - Knot review: three good square throws are still enough for a secure knot. Each flawed throw (a granny throw or one not seated down on the knot), up to two, now needs one more throw, so a flawed knot can still be secure with 4–5 throws; the review says how many are needed (Lance, 2026-11-28).

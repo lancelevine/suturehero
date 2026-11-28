@@ -71,6 +71,7 @@ import {CrushScore} from './gameplay/crushScore';
 import {RotationScore} from './gameplay/rotationScore';
 import {MAGNIFICATION_STEPS,nextMagnification} from './scene/magnification';
 import {mountClipButton} from './ui/clipRecorder';
+import {RunningLockTracker,describeLocks} from './gameplay/runningLock';
 import {Bleeder} from './gameplay/bleeder';
 import {examReadout} from './gameplay/examMode';
 import {describeRubric,osatsRubric} from './gameplay/osatsRubric';
@@ -119,7 +120,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.263';
+const APP_BUILD='0.264';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -369,6 +370,18 @@ try {
   {const host=document.querySelector('.workspace-view-tools');let step=0;const button=document.createElement('button');button.type='button';button.className='vessel-turn';
    const show=()=>{const s=MAGNIFICATION_STEPS[step];view.camera.zoom=s.zoom;view.camera.updateProjectionMatrix();button.textContent=`View: ${s.label}`;view.renderer.domElement.parentElement?.classList.toggle('eyepiece-view',s.eyepiece);};
    button.title='Magnify the view like surgical loupes or an operating microscope (tremor is magnified too)';button.addEventListener('click',()=>{step=nextMagnification(step);show();button.blur();});show();host?.prepend(button);}
+  // Locked running stitch (gameplay/runningLock.ts): needle through the last loop before each bite.
+  const runningLocks=new RunningLockTracker();
+  const lockNote=()=>{if(!session.sandbox||session.environment.id!=='skin')return '';
+   const passes=session.freePass.passes.filter(p=>p.exit&&p.order!==undefined);
+   runningLocks.keepOnly(passes.map(p=>p.order!));
+   const threaded=session.freePass.threadedPasses().length;
+   const newest=passes.at(-1);
+   runningLocks.update(newest?{order:newest.order!,exit:newest.exit!}:null,threaded,needle.getTipPose().position,session.freePass.inTissue);
+   const chain=passes.slice(-Math.min(passes.length,threaded));if(chain.length<2)return '';
+   const slack=session.freeThread.loopSlackUnits();
+   const loops=chain.slice(0,-1).map((p,i)=>({locked:runningLocks.locked.has(p.order!),slackMm:(slack[i]??0)*SCENE_MM_PER_UNIT}));
+   const text=describeLocks(loops);return text?text+' · ':'';};
   // Shareable highlight clips (ui/clipRecorder.ts).
   {const host=document.querySelector('.workspace-view-tools');if(host)mountClipButton(host,view.renderer.domElement);}
   // Complication events (gameplay/bleeder.ts): optional bleeder after the third Sandbox pass.
@@ -813,7 +826,7 @@ try {
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
      if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));}
      freshNeedleButton.hidden=!session.sandbox||session.environment.id!=='skin';
-     setText(frameQuery('#exercise-readout'),exam?examText():bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),exam?examText():lockNote()+bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

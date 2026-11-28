@@ -53,6 +53,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Locked running stitch (build 0.264)
+
+- Lance chose item 2 (locked running stitch, running tie-off), then the rest of the roadmap.
+- New `src/gameplay/runningLock.ts` (+ test): `RunningLockTracker` locks the newest pass when the needle tip, out of tissue with the thread through that pass, drops from >0.12 to <0.04 units above its exit within 0.15 units; `describeLocks` uses `FreeThreadGuide.loopSlackUnits()` for even/strangling locks. Wired as `lockNote` in `src/main.ts`.
+- New browser check `scripts/check-running-lock.mjs` (locked and unlocked cases, 3/3), added to CI.
+- Next: draw the thread through the loop at a lock; running tie-off.
+
 ### 2026-11-28 — Claude — Lance's answers; throws needed (build 0.263)
 
 - Lance's answers: leave the knot worker as is (experimental); Microscope ×4 is enough; three good square throws are enough, flawed ones should require 4–5.

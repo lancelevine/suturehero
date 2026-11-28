@@ -208,3 +208,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.261: View button — Loupe ×2.5 and Microscope ×4 zoom in; the microscope shows a round eyepiece; tracking still feels right when zoomed.
 - [ ] Build 0.262: tissue looks moist on the cut faces; frame rate is unchanged on your machine.
 - [ ] Build 0.263: tie a knot with one granny throw — 3 throws read "may slip", adding a 4th makes it secure.
+- [ ] Build 0.264: Sandbox running stitch — after a bite, pass the needle down through the loop at the last exit before the next bite; the line reports locked stitches.
