@@ -111,7 +111,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.246';
+const APP_BUILD='0.247';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -163,7 +163,7 @@ try {
   const freshNeedleButton=document.createElement('button');freshNeedleButton.type='button';freshNeedleButton.textContent='Fresh needle';freshNeedleButton.hidden=true;freshNeedleButton.className='vessel-turn';freshNeedleButton.title='Swap in a new needle (resets needle wear)';
   freshNeedleButton.addEventListener('click',()=>session.needleWear.fresh());document.querySelector('.workspace-view-tools')?.prepend(freshNeedleButton);
   let wornPasses=0;
-  const needleWearNote=()=>{if(!session.sandbox)return '';const count=session.freePass.passes.length;if(count>wornPasses)for(let i=wornPasses;i<count;i++)session.needleWear.addPass();wornPasses=count;freshNeedleButton.hidden=false;const text=session.needleWear.describe();return text?text+' · ':'';};
+  const needleWearNote=()=>{if(!session.sandbox)return '';const count=session.freePass.passes.length;if(count>wornPasses)for(let i=wornPasses;i<count;i++)session.needleWear.addPass();wornPasses=count;freshNeedleButton.hidden=false;const holes=session.nearbyHoles;const text=[session.needleWear.describe(),holes?`${holes} old needle hole${holes===1?'':'s'} near this stitch · tissue cuts through ~${Math.round((1-session.holeStrength)*100)}% sooner`:''].filter(Boolean).join(' · ');return text?text+' · ':'';};
   // Turn / flip the vessel (microsurgery only): the next stitch site comes to the top, as with the double clamp.
   const vesselTurnButtons:HTMLButtonElement[]=([['Turn vessel 45°',Math.PI/4],['Flip vessel',Math.PI]] as const).map(([label,turn])=>{
    const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';

@@ -407,12 +407,29 @@ export class FreeNeedlePass {
     if (lastTorn && (!lastPass || (lastTorn.order ?? 0) > (lastPass.order ?? 0))) {
       this.torn.pop();
       this.rents.pop();
-    } else this.passes.pop();
+    } else {
+      const undone = this.passes.pop()!;
+      // Needle holes that last (tissue/punctureHoles.ts): the punctures stay after an undo.
+      this.undoneHoles.push(undone.entry.clone());
+      if (undone.exit) this.undoneHoles.push(undone.exit.clone());
+    }
     return true;
+  }
+
+  /** Punctures left so far: every pass's entry and exit, torn and undone ones included. */
+  readonly undoneHoles: THREE.Vector3[] = [];
+  holes(): THREE.Vector3[] {
+    const holes = [...this.undoneHoles];
+    for (const record of [...this.passes, ...this.torn]) {
+      holes.push(record.entry);
+      if (record.exit) holes.push(record.exit);
+    }
+    return holes;
   }
 
   /** Ends any pass in progress and forgets completed ones. */
   reset() {
+    this.undoneHoles.length = 0;
     this.engagement = null;
     this.previousTip = null;
     this.passes.length = 0;

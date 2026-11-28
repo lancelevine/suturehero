@@ -1,3 +1,4 @@
+import {holeStrength,holesNear} from '../tissue/punctureHoles';
 import {NeedleWear} from './needleWear';
 import {knotSurfaceAt,type KnotTissue} from '../knot/knotTissue';
 import {createKnotEngine,knotEngineEntry,type KnotEngine} from '../knot/engines';
@@ -184,6 +185,10 @@ export class PracticeSession {
   cutThroughs=0;
   /** Pulling the thread this much past straight (suture/FreeThreadGuide.ts tension) for CUT_SECONDS cuts it through the skin. */
   static readonly CUT_TENSION=1.35;
+  /** Nearby old needle holes around the newest stitch (tissue/punctureHoles.ts). */
+  get nearbyHoles(){const newest=this.freePass.passes.at(-1);return newest?.exit?holesNear([newest.entry,newest.exit],this.freePass.holes()):0;}
+  /** Share of the intact cut-through tension left at the newest stitch. */
+  get holeStrength(){return holeStrength(this.nearbyHoles);}
   static readonly CUT_SECONDS=0.5;
   private threadJaws():JawState[]{
     return this.instruments.map(tool=>{tool.root.updateWorldMatrix(true,false);
@@ -498,7 +503,7 @@ export class PracticeSession {
       if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.threadedPasses(),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact,{grasp:this.threadGrasp,jaws:this.threadJaws()});
       if(this.sandbox){
         // Yanking the thread cuts it through the newest completed pass (approximate: thread tension is geometric, not a force).
-        this.cutTime=this.freeThread.tension>PracticeSession.CUT_TENSION&&!this.freePass.inTissue?this.cutTime+step:0;
+        this.cutTime=this.freeThread.tension>PracticeSession.CUT_TENSION*this.holeStrength&&!this.freePass.inTissue?this.cutTime+step:0;
         if(this.cutTime>=PracticeSession.CUT_SECONDS){this.cutTime=0;if(this.freePass.cutThrough()){this.cutThroughs++;this.freeThread.reset();}}
       }
       else{this.threadGrasp.reset();this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);}

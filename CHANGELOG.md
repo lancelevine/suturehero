@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.247 — Needle holes that last
+
+- Sandbox: every needle entry and exit leaves a hole, even after Undo. Each old hole within about 3 mm of the newest stitch makes the thread cut through there with 8% less pull (down to 70%), and the instruction line says how many old holes are near the stitch (roadmap: "Needle holes that last"; illustrative values; vessel leaks from extra holes not yet).
+
 ## Build 0.246 — Wrap placement in the instrument tie
 
 - Skin knot tying: the instruction line counts wraps on the needle driver for the current throw, flags wraps made more than 25 mm from the stitch, and flags wraps that slip off before the driver has the short tail (roadmap: "Wrap placement in the instrument tie"; approximate, from the knot model's winding and the driver tip; missing the short tail is not detected separately).

@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Needle holes that last (build 0.247)
+
+- New `src/tissue/punctureHoles.ts` (+ test). `FreeNeedlePass.holes()` (passes, torn, and new `undoneHoles` kept through undo). `PracticeSession.nearbyHoles`/`holeStrength` scale `CUT_TENSION` in the cut-through rule; `src/main.ts` shows the count with the needle-wear note.
+- Checked: tissue + gameplay tests (221, Node 24), demo unit test, tsc, check-sandbox, check-free-tying, check-layout.
+- Lance: undo and redo a bite in the same place a few times, then pull: it should cut through sooner.
+
 ### 2026-11-28 — Claude — Wrap placement (build 0.246)
 
 - New `src/gameplay/wrapPlacement.ts` (+ test): wraps from `freeKnot.winding`, far wraps by driver-tip distance to the stitch midpoint, slips when winding drops ≥0.5 turn below 1 without the driver holding the short tail. Wired as `wrapNote` in `src/main.ts` (skin, knot active; reset per seated throw).
