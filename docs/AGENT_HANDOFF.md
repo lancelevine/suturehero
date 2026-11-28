@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: skill tiers (roadmap)
+- New `src/gameplay/skillTiers.ts` (+test): gold/silver/bronze cut-offs for Smoothness (0.9/0.8/0.6), Accuracy (0.5/1/1.5 mm), Jaws control (0.9/0.8/0.6), Tremor (0.05/0.1/0.2 mm); badges in the Skill Analysis rows, styled in `theme.css`. Unlocks deliberately not added. Checked: tsc, tests, check-sandbox.
+
 ### 2026-11-28 — Claude: plan vs actual (roadmap)
 - New `src/gameplay/planVsActual.ts` (+test) and `src/scene/PlanMarks.ts`: planned spots along the wound (click on the skin while "Plan stitches" is on; raycast on the tissue, |x| < 0.8), matched greedily to completed passes within 1 mm. "Clear plan" button. Line leads the instruction readout. Plan is per page load (not saved).
 - Checked: tsc, test, browser (click adds a ring and the line, no console errors), check-sandbox, check-layout. Full CI browser set also passed locally (41/41) before this item.

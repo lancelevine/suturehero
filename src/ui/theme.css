@@ -208,3 +208,8 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 /* Sandbox summary: many short readout lines; keep them compact and drop empty ones. */
 .sandbox-summary p:empty{display:none}
 .sandbox-summary :is(.sandbox-spacing,.sandbox-bites,.sandbox-depths,.sandbox-shapes,.sandbox-patterns,.sandbox-thread,.sandbox-hands){margin:3px 0;font-size:12px;line-height:1.45;color:var(--sh-muted);padding-left:10px;border-left:2px solid var(--sh-line)}
+/* Skill tiers (bronze / silver / gold badges in Skill Analysis). */
+.skill-analysis .skill-tier{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;font-size:9px;font-style:normal;font-weight:700;color:#0b1220;margin-left:6px;vertical-align:1px}
+.skill-analysis .skill-tier.gold{background:#f5c542;box-shadow:0 0 6px rgba(245,197,66,.6)}
+.skill-analysis .skill-tier.silver{background:#c8d3df}
+.skill-analysis .skill-tier.bronze{background:#cd8a52}

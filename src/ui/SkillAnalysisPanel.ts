@@ -1,5 +1,6 @@
 import type { SkillReport } from '../gameplay/skillAnalysis';
 import { formatClock } from './practiceHud';
+import { skillTier } from '../gameplay/skillTiers';
 
 /**
  * Skill Analysis panel (2026-11-27, mockup): stat list, instrument path chart (actual path solid
@@ -82,7 +83,7 @@ export function mountSkillAnalysisPanel(host: HTMLElement, report: () => SkillRe
   const render = () => {
     if (!isOpen()) return;
     const data = report();
-    const rows = skillRows(data).map((row) => `<li title="${row.help}"><span>${row.label}</span><strong class="${row.good ? 'good' : ''}">${row.value}</strong></li>`).join('');
+    const rows = skillRows(data).map((row) => { const tier = skillTier(row.label, data); return `<li title="${row.help}"><span>${row.label}${tier ? ` <i class="skill-tier ${tier}" title="${tier}">${tier[0].toUpperCase()}</i>` : ''}</span><strong class="${row.good ? 'good' : ''}">${row.value}</strong></li>`; }).join('');
     // Rebuild the stat list only when it changed (it is refreshed several times a second).
     if (rows !== lastRows) {
       panel.querySelector('[data-skill="stats"]')!.innerHTML = rows;
