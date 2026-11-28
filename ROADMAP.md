@@ -94,6 +94,7 @@ Last updated: 2026-11-27
 - **Needle tips that don't come out:** a curved needle only travels so far; on a wide bite or thick edge the tip stays buried or exits the wound floor instead of the far skin, so you re-aim or take a smaller bite.
 - **Stitches that share the load:** each tied stitch carries part of the wound's pull and new neighbors take load off it; the first stitch on a tight wound eases as others go in, and stitches beside a gap carry extra and can tear through, shown on the tension heatmap.
 - **Redoing a bad stitch:** cut out a placed stitch with the tracked scissors and pull the thread free; its tension releases, the edges spring apart there, and its holes stay for the replacement bite to work around.
+- **Pull speed that matters:** drag on the suture rises with pull speed; quick smooth pulls are fine in skin, but fast or jerky pulls through a fine vessel wall tear the bite or snap 10-0, judged from the driver's tracked velocity.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
