@@ -5,6 +5,7 @@ import { biteShape, describeBiteShapes } from '../gameplay/biteShape';
 import { describeBiteDepths } from '../gameplay/biteDepth';
 import { describeDeadSpace } from '../gameplay/deadSpace';
 import { describeEdgeShear } from '../gameplay/edgeShear';
+import { describeNextDrill } from '../gameplay/nextDrill';
 import { describeStitchDensity } from '../gameplay/stitchDensity';
 import { PRACTICE_SETUP } from '../setup/PracticeSetup';
 import { SCENE_MM_PER_UNIT } from '../setup/sceneScale';
@@ -163,7 +164,9 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     panel.querySelector('.sandbox-depths')!.textContent = describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT }))) + (source.passes().length ? ' · ' + describeDeadSpace(source.passes().map((p) => p.depth), SCENE_MM_PER_UNIT) : '');
     panel.querySelector('.sandbox-bites')!.textContent = [s.biteConsistency ? describeBiteConsistency(s.biteConsistency) : '', describeEdgeShear(source.passes().map((p) => ({ entryEdgeMm: p.entryEdge * SCENE_MM_PER_UNIT, exitEdgeMm: p.exitEdge === null ? null : p.exitEdge * SCENE_MM_PER_UNIT })))].filter(Boolean).join(' · ');
     panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '') + (s.stitchZ && s.stitchZ.length > 1 ? ' · ' + describeStitchDensity(s.stitchZ, PRACTICE_SETUP.skin.site?.tension ?? 1, SCENE_MM_PER_UNIT) : '');
-    panel.querySelector('.sandbox-targets')!.innerHTML = checkTargets(s, targets).map((r) => `<li class="${r.met === null ? 'pending' : r.met ? 'met' : 'missed'}">${r.met === null ? '○' : r.met ? '✓' : '✗'} ${r.label} · ${r.detail}</li>`).join('');
+    const targetResults = checkTargets(s, targets);
+    const drillNote = describeNextDrill(targetResults);
+    panel.querySelector('.sandbox-targets')!.innerHTML = targetResults.map((r) => `<li class="${r.met === null ? 'pending' : r.met ? 'met' : 'missed'}">${r.met === null ? '○' : r.met ? '✓' : '✗'} ${r.label} · ${r.detail}</li>`).join('') + (drillNote ? `<li class="next-drill">→ ${drillNote}</li>` : '');
     panel.querySelector('.sandbox-trend')!.textContent = describeTrend(loadProgress(storage), targets);
   };
   render(true);

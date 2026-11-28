@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Next drill suggestion (build 0.252)
+
+- New `src/gameplay/nextDrill.ts` (+ test): maps the first missed `checkTargets` result to a drill. Appended as an `<li class="next-drill">` after the targets in `src/ui/SandboxSummaryPanel.ts`.
+- Checked: unit test, ui tests, tsc, check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude — Braided silk suture (build 0.251)
 
 - `SUTURES` in `src/setup/PracticeSetup.ts`: added `silk` (drag .972, bend .7, friction 1.45). Test now requires distinct colour/drag per material instead of exactly 3.
