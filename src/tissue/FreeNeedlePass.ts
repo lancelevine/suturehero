@@ -1,3 +1,4 @@
+import { SKID_MESSAGE, skids } from './needleSkid';
 import * as THREE from 'three';
 import { TISSUE_LAYERS } from './anatomy';
 
@@ -147,6 +148,8 @@ export class FreeNeedlePass {
   readonly rents: SkinRent[] = [];
   /** Why the last attempted entry found no purchase (torn skin), or null. */
   rejection: string | null = null;
+  /** Times the tip skidded off the skin (too flat an entry). */
+  skidCount = 0;
   /**
    * The skin surface height at (x, z), or null where there is no skin (the open wound gap).
    * Set by the session from the live tissue (edge eversion, stitch closure); flat by default.
@@ -307,6 +310,12 @@ export class FreeNeedlePass {
     const tangent = new THREE.Vector3().crossVectors(circleAxis, below.clone().sub(wanted.position)).normalize();
     if (tangent.dot(below.clone().sub(above)) < 0) tangent.negate();
     const entryAngleDeg = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(-tangent.dot(normal), -1, 1)));
+    // Needles that skid (tissue/needleSkid.ts): too flat a tip slides over the skin instead of biting.
+    if (skids(entryAngleDeg)) {
+      this.rejection = SKID_MESSAGE;
+      this.skidCount++;
+      return;
+    }
     this.order++;
     this.engagement = {
       centre: wanted.position.clone(),

@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Needles that skid (build 0.248)
+
+- New `src/tissue/needleSkid.ts` (+ test). `FreeNeedlePass.engage` refuses entries under 20° (sets `rejection = SKID_MESSAGE`, counts `skidCount`); `sandboxTitle` in `src/ui/practiceMessages.ts` shows it (previously every rejection read as torn skin).
+- Checked: tissue + gameplay + demo unit tests (227, Node 24), practiceMessages test, tsc, check-sandbox, check-free-tying, check-guided-thread, check-layout. `check-demo` (12 min) not run; CI runs the fast set.
+- Lance: try a very flat entry; it should skid, then a steeper one should bite.
+
 ### 2026-11-28 — Claude — Needle holes that last (build 0.247)
 
 - New `src/tissue/punctureHoles.ts` (+ test). `FreeNeedlePass.holes()` (passes, torn, and new `undoneHoles` kept through undo). `PracticeSession.nearbyHoles`/`holeStrength` scale `CUT_TENSION` in the cut-through rule; `src/main.ts` shows the count with the needle-wear note.

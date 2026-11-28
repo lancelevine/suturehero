@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.248 — Needles that skid
+
+- Sandbox: a needle tip meeting the skin flatter than 20° skids over the surface instead of biting; the pass does not start and the title says to lift the hand so the tip enters closer to 90° (roadmap: "Needles that skid off the skin"; illustrative limit; the late off-target catch is not modelled).
+
 ## Build 0.247 — Needle holes that last
 
 - Sandbox: every needle entry and exit leaves a hole, even after Undo. Each old hole within about 3 mm of the newest stitch makes the thread cut through there with 8% less pull (down to 70%), and the instruction line says how many old holes are near the stitch (roadmap: "Needle holes that last"; illustrative values; vessel leaks from extra holes not yet).

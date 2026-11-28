@@ -127,3 +127,10 @@ describe('environmentTexts', () => {
     expect(nerve.eversion).toMatch(/^Grasp the outer nerve sheath/);
   });
 });
+
+import { SKID_MESSAGE } from '../tissue/needleSkid';
+import { sandboxTitle as skidTitle } from './practiceMessages';
+it('names a needle skid in the Sandbox title', () => {
+  const title = skidTitle({ now: 0, cutMessageUntil: 0, tornMessageUntil: 0, rejection: SKID_MESSAGE, inSkin: null, forcingWarning: false, threadGripIds: [], holder: null, heldPoint: null, candidate: null } as unknown as Parameters<typeof skidTitle>[0]);
+  expect(title).toContain('skidded');
+});

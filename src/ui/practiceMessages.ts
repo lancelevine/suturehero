@@ -1,3 +1,4 @@
+import { SKID_MESSAGE } from '../tissue/needleSkid';
 import type * as THREE from 'three';
 import { NEEDLE_ARC } from '../suture/needleGeometry';
 import { describeLoading, loadingFraction } from '../suture/needleLoading';
@@ -38,6 +39,7 @@ export function sandboxTitle(input: SandboxTitleInput): string {
   const { now, inSkin, holder, candidate } = input;
   const recentlyTorn = now < input.tornMessageUntil;
   if (now < input.cutMessageUntil) return 'Sandbox · Thread cut through the skin · pulled too fast or too hard through the tissue · pull the suture slowly along its path';
+  if (input.rejection === SKID_MESSAGE && !inSkin) return `Sandbox · ${SKID_MESSAGE}`;
   if (input.rejection && !inSkin && !recentlyTorn) return 'Sandbox · No purchase · torn skin holds no stitch · enter beside the tear, or Undo pass';
   if (recentlyTorn && !inSkin) return 'Sandbox · Tissue torn · the needle was forced off its curve and split the skin (dark red) · torn skin holds no stitch · Undo pass takes it back';
   if (input.forcingWarning) return 'Sandbox · Forcing the needle off its curve · rotate along the curve instead (this would tear tissue)';
