@@ -11,7 +11,7 @@ function plannedShapeText(pass:NeedlePass){
  if(Math.abs(above)>=pass.radius)return '';
  const halfChord=Math.sqrt(pass.radius**2-above**2),depth=surface-(pass.center.y-pass.radius);
  const shape=biteShape(depth,2*halfChord);
- return ` Planned bite: ${shape}${shape==='flask'?' (everts the edges)':shape==='V-shaped'?' (tends to invert the edges)':''}.`;
+ return shape==='flask'?' Planned bite: flask-shaped (everts the edges).':shape==='straight'?' Planned bite: straight-walled.':' Planned bite: shallow (widest at the surface) · a deeper bite gives a flask shape that everts the edges.';
 }
 /** Optional 2D slice of the same geometric tissue field used by the 3D pad. */
 export class CrossSectionView {

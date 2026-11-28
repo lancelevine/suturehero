@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: forehand/backhand (Lance #2) and softer bite label (#5)
+- New `src/gameplay/biteHand.ts` (+test): right-to-left crossing = forehand (Lance). Sandbox summary "Bites" line.
+- `CrossSectionView`: shallow planned bite now reads "shallow (widest at the surface) · a deeper bite gives a flask shape that everts the edges" (my call on #5; the default plan was not changed).
+- Checked: tsc, test, check-sandbox.
+
 ### 2026-11-28 — Claude: phone layout, camera below the scene (Lance #12)
 - `src/ui/theme.css` (≤ 760 px): `.workspace-visuals` one column (scene ≥ 300 px / 48vh, camera dock ≥ 340 px below), stage rows auto (including the `:has(drawer open)` rule), and the app/workspace no longer pinned to one screen height, so the page scrolls. Checked: 390 px full-page screenshot, check-layout, check-iphone-start, check-status-strip.
 
