@@ -8,6 +8,10 @@ import { PRACTICE_SETUP } from '../setup/PracticeSetup';
 import * as THREE from 'three';
 import type { WoundApproximation } from './WoundApproximation';
 /** Three fully split anatomical layers follow the independent approximation model. */
+/** Wet sheen on the cut tissue layers (clear-coat strength and roughness). */
+const WET_CLEARCOAT=0.55,WET_CLEARCOAT_ROUGHNESS=0.3;
+/** Reddish sheen on the skin, standing in for light scattering through it. */
+const SKIN_SHEEN=0.35;
 export class TissuePatch {
   readonly root=new THREE.Group();
   private surfaces: {mesh: THREE.Mesh<THREE.BoxGeometry>;original: Float32Array}[]=[];
@@ -19,14 +23,16 @@ export class TissuePatch {
   private lastResponse=-1;
   constructor() {
   const group=this.root;
+  // Lifelike tissue (roadmap): cut dermis and fat look moist (clear coat); skin gets a faint red sheen
+  // as a cheap stand-in for light scattering through it.
   const skinMaps=skinSurface(PRACTICE_SETUP.skin.look);
   const dermis=tissueSurface('dermis'),fat=tissueSurface('fat');
   // Keep the established surface height and needle entry coordinates. Every
   // layer is split completely; no solid base or wound strip bridges the gap.
   const layers=[
-    {name:'epidermis',...TISSUE_LAYERS.epidermis,material:new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.86,map:skinMaps.color,bumpMap:skinMaps.height,bumpScale:0.035,roughnessMap:skinMaps.roughness})},
-    {name:'dermis',...TISSUE_LAYERS.dermis,material:new THREE.MeshStandardMaterial({map:dermis.color,bumpMap:dermis.height,bumpScale:0.009,roughness:0.85})},
-    {name:'subcutaneous-fat',...TISSUE_LAYERS.fat,material:new THREE.MeshStandardMaterial({map:fat.color,bumpMap:fat.height,bumpScale:0.018,roughness:0.8})},
+    {name:'epidermis',...TISSUE_LAYERS.epidermis,material:new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:0.86,map:skinMaps.color,bumpMap:skinMaps.height,bumpScale:0.035,roughnessMap:skinMaps.roughness,sheen:SKIN_SHEEN,sheenColor:new THREE.Color(0xd8705e),sheenRoughness:0.6})},
+    {name:'dermis',...TISSUE_LAYERS.dermis,material:new THREE.MeshPhysicalMaterial({map:dermis.color,bumpMap:dermis.height,bumpScale:0.009,roughness:0.85,clearcoat:WET_CLEARCOAT,clearcoatRoughness:WET_CLEARCOAT_ROUGHNESS})},
+    {name:'subcutaneous-fat',...TISSUE_LAYERS.fat,material:new THREE.MeshPhysicalMaterial({map:fat.color,bumpMap:fat.height,bumpScale:0.018,roughness:0.8,clearcoat:WET_CLEARCOAT,clearcoatRoughness:WET_CLEARCOAT_ROUGHNESS})},
   ];
   for(const side of [-1,1])for(const layer of layers) {
     const mesh=new THREE.Mesh(new THREE.BoxGeometry(2.62,layer.top-layer.bottom,3.35,24,2,32),layer.material);

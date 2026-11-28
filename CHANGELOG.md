@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.262 — Moist tissue look
+
+- Graphics: the cut dermis and fat now have a wet clear-coat sheen, and the skin has a faint reddish sheen standing in for light passing through it (roadmap: "Lifelike tissue rendering"; a lighting approximation, not true subsurface scattering).
+
 ## Build 0.261 — Loupe and microscope view
 
 - Practice view: new "View" button cycles naked eye → Loupe ×2.5 → Microscope ×4 (relative to the normal view); the microscope step adds a round eyepiece vignette. Hand tremor is magnified on screen by the same factor (roadmap: "Loupe and microscope view"; depth of field is not simulated yet).

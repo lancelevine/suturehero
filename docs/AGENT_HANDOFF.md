@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Moist tissue look (build 0.262)
+
+- `src/tissue/TissuePatch.ts`: layer materials are now `MeshPhysicalMaterial` (clear coat 0.55 on dermis/fat, sheen 0.35 reddish on epidermis).
+- Checked: tissue/scene/environment tests (110, Node 24), tsc, screenshot, check-layout, check-sandbox, check-guided-thread, check-profiler.
+- Lance: check frame rate on your machine; revert to MeshStandardMaterial if it costs too much.
+
 ### 2026-11-28 — Claude — Loupe and microscope view (build 0.261)
 
 - New `src/scene/magnification.ts` (+ test): zoom steps 1 / 2.5 / 4 applied to `view.camera.zoom`; `.eyepiece-view` vignette in `src/ui/theme.css`. Button in `.workspace-view-tools` (`src/main.ts`). Also hid Fresh needle / wear note outside skin.
