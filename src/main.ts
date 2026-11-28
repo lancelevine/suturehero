@@ -100,11 +100,12 @@ import {describeEndurance} from './gameplay/endurance';
 import {TAPER_IN_SKIN_TEAR_FACTOR} from './gameplay/PracticeSession';
 import {describeDilation,dilateStep} from './gameplay/vesselDilation';
 import {describeLumenNarrowing,lumenNarrowingPercent} from './gameplay/lumenNarrowing';
+import {describeVesselBites,vesselBite} from './gameplay/vesselBite';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.235';
+const APP_BUILD='0.236';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -153,6 +154,7 @@ try {
     // The frozen copy is in world coordinates; place it in the turned vessel frame so it turns with the vessel.
     vesselStitchesView.root.updateWorldMatrix(true,false);
     vesselStitchesView.root.children.at(-1)?.applyMatrix4(vesselStitchesView.root.matrixWorld.clone().invert());
+    {const prof=microProfile(resolveMicroTarget(microSelect.value));vesselBites.push(vesselBite(session.pass.entry.x,session.pass.exit.x,prof.gap,prof.outerRadius-prof.innerRadius));}
     vesselAngles.push(vesselFrame.angle);session.saveVesselStitch();resetCourseTools();vesselFrame.turnBy(2*Math.PI/vesselGoal());
   });
   document.querySelector('.workspace-view-tools')?.prepend(saveVesselButton);vesselTurnButtons.push(saveVesselButton);
@@ -164,6 +166,7 @@ try {
   // Saved vessel stitches stay on the vessel and turn with it (anastomosis plan step 2).
   // Saved stitch positions (vessel turn angle at each save) and the suggested count by circumference (src/gameplay/vesselStitchCount.ts).
   const vesselAngles:number[]=[];
+  const vesselBites:ReturnType<typeof vesselBite>[]=[];
   const vesselDiameterMm=()=>2*microProfile(resolveMicroTarget(microSelect.value)).outerRadius*MICRO_MM_PER_UNIT;
   const vesselGoal=()=>suggestedStitchCount(vesselDiameterMm());
   const vesselStitchesView=new CompletedStitchesView();vesselFrame.root.add(vesselStitchesView.root);
@@ -285,7 +288,7 @@ try {
     nerveTwist=micro?startingTwist():0;artery.setFascicleTwist(nerveTwist);
     dilation=1;intimaTorn=false;artery.setDilation(1);dilateButton.hidden=!micro||microSelect.value==='nerve';
     for(const button of nerveButtons)button.hidden=!micro;
-    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;
+    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;vesselBites.length=0;
     for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
     stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),micro);
@@ -572,7 +575,7 @@ try {
   const vesselNote=()=>{if(session.environment.id!=='microsurgery'||!vesselAngles.length)return '';
    // After the last suggested stitch: estimated lumen narrowing at the join (src/gameplay/lumenNarrowing.ts).
    const done=vesselAngles.length>=vesselGoal()?describeLumenNarrowing(lumenNarrowingPercent({dilation,stitches:vesselAngles.length,suggested:vesselGoal(),inverted:session.vesselEversions.filter(e=>e<-0.002).length}))+' · ':'';
-   return done+describeVesselCount(vesselAngles,vesselDiameterMm())+' · '+describeVesselEversion(session.vesselEversions)+' · ';};
+   return done+describeVesselCount(vesselAngles,vesselDiameterMm())+' · '+describeVesselBites(vesselBites)+' · '+describeVesselEversion(session.vesselEversions)+' · ';};
   // Air knot (src/gameplay/airKnot.ts): first throw not seated before the next, from any knot engine.
   const airKnot=new AirKnotWatcher();
   const airKnotNote=()=>{const free=session.freeKnot;if(!free.active){airKnot.reset();return '';}airKnot.update(free.sequence?.throws.length??0,free.seatedThrows,free.sequence?.sliding??false);return airKnot.flagged?AIR_KNOT_WARNING+' · ':'';};

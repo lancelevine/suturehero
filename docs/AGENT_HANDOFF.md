@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Microsurgical bite geometry (build 0.236)
+
+- New `src/gameplay/vesselBite.ts` (+ test): bite distance from the edge as a multiple of wall thickness, good at 1.5–2.5× with sides within 20%. Wired in `src/main.ts` (saved on "Save stitch & turn", shown in the vessel instruction line).
+- Checked: unit test, tsc, browser run ("Bites: 1/1 at ~2× wall"), check-practice-setup, check-guided-thread, check-layout, check-sandbox.
+- Lance: on the microsurgery target, save a few stitches and see if the bite readout matches what you'd judge by eye.
+
 ### 2026-11-28 — Claude: lumen narrowing score (roadmap)
 - New `src/gameplay/lumenNarrowing.ts` (+test): 5% base + 60 × dilation shortfall below 110% + 3 per extra stitch + 8 per inverted stitch, capped 90; ≤ 20% "patent". Weights are my practice estimates (Lance to adjust). Shown at the start of the vessel line once the suggested count is saved. Checked: tsc, test, check-practice-setup.
 

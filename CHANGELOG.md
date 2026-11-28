@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.236 — Microsurgical bite geometry
+
+- Microsurgery: each saved vessel stitch is measured against the wall thickness. The instruction line shows how many bites sit about 1.5–2.5× the wall from the edge with both sides within 20% of each other, plus the last bite's ratio (roadmap: "Microsurgical bite geometry"; approximate, from the needle entry and exit points; needle angle to the wall is not graded yet).
+
 ## Build 0.235 — Stitch angle across the wound
 
 - Unequal edges exercise (Setup): the right edge counts as 25% longer; guide dots show the steps, and each gap between bites is graded on stepping about 1.25× further along the long edge so the extra length spreads evenly (roadmap: "Edges of unequal length"; the pad's edges are drawn the same length).
