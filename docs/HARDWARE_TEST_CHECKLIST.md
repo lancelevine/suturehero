@@ -190,3 +190,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.243: Sandbox with camera — a smooth wrist rotation keeps Skill Analysis "Rotate, not push" high; pushing straight through lowers it.
 - [ ] Build 0.244: Sandbox on the Back preset — evenly spaced stitches should show middle gaps as too wide in the density note.
 - [ ] Build 0.245: tie a skin knot, pulling one throw along the wound and one straight across — only the first should be flagged.
+- [ ] Build 0.246: instrument tie — a wrap close to the wound reads fine, one far away is flagged, and a wrap that slides off the driver before grasping the short tail is flagged as slipped.

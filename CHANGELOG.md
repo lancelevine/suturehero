@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.246 — Wrap placement in the instrument tie
+
+- Skin knot tying: the instruction line counts wraps on the needle driver for the current throw, flags wraps made more than 25 mm from the stitch, and flags wraps that slip off before the driver has the short tail (roadmap: "Wrap placement in the instrument tie"; approximate, from the knot model's winding and the driver tip; missing the short tail is not detected separately).
+
 ## Build 0.245 — Pull direction when tying
 
 - Skin knot tying: as each throw seats, the line between the forceps and driver tips is checked; the instruction line counts throws pulled straight across the wound and flags the last one if it was pulled along the wound or upward (roadmap: "Pull direction when tying"; approximate, from the instrument tips rather than the strands).

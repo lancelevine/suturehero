@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Wrap placement (build 0.246)
+
+- New `src/gameplay/wrapPlacement.ts` (+ test): wraps from `freeKnot.winding`, far wraps by driver-tip distance to the stitch midpoint, slips when winding drops ≥0.5 turn below 1 without the driver holding the short tail. Wired as `wrapNote` in `src/main.ts` (skin, knot active; reset per seated throw).
+- Checked: unit test, tsc, check-free-tying, check-guided-thread, check-sandbox, check-layout, browser with stubbed winding.
+- Lance: make a wrap close to the wound and one far away; let one slide off the driver tip.
+
 ### 2026-11-28 — Claude — Pull direction when tying (build 0.245)
 
 - New `src/gameplay/pullDirection.ts` (+ test): tip-to-tip line classed across / along the wound (>35° off x) / upward (>45° rise). `src/main.ts` samples it when `freeKnot.seatedThrows` rises (skin only) and shows it while the knot is active.
