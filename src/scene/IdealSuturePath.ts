@@ -42,8 +42,20 @@ function mergedMesh(geometries: THREE.BufferGeometry[], material: THREE.Material
   return mesh;
 }
 
+/**
+ * Fading guide (roadmap "Needle arc guide", 2026-11-28): share (0–1) of the last few passes that
+ * went in near 90° and square to the wound; the guide fades toward MIN_GUIDE_OPACITY as it rises.
+ */
+export function guideConsistency(passes: ReadonlyArray<{ entryAngleDeg: number; squareOffDeg: number }>, window = 5) {
+  const recent = passes.slice(-window);
+  if (!recent.length) return 0;
+  return recent.filter((p) => Math.abs(p.entryAngleDeg - 90) <= 10 && p.squareOffDeg <= 10).length / window;
+}
+const MIN_GUIDE_OPACITY = 0.2;
+
 export class IdealSuturePath {
   readonly root = new THREE.Group();
+  private readonly baseOpacity = new Map<THREE.Material, number>();
 
   constructor(surfaceY: number) {
     this.root.name = 'ideal-suture-path';
@@ -65,9 +77,16 @@ export class IdealSuturePath {
       }
     }
     this.root.add(mergedMesh(glowParts, glow, 'ideal-path-glow'), mergedMesh(coreParts, core, 'ideal-path-core'));
+    this.baseOpacity.set(core, core.opacity).set(glow, glow.opacity);
   }
 
   /** Follow the current stitch site along the pad (`siteZ`, as the session's course does). */
+  /** Fade with the trainee's consistency (0 = full guide, 1 = faint). */
+  setConsistency(consistency: number) {
+    const scale = 1 - (1 - MIN_GUIDE_OPACITY) * Math.min(1, Math.max(0, consistency));
+    for (const [material, base] of this.baseOpacity) material.opacity = base * scale;
+  }
+
   update(visible: boolean, siteZ = 0) {
     this.root.visible = visible;
     this.root.position.z = -siteZ;

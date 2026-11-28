@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: fading guide (roadmap "Needle arc guide")
+- `guideConsistency` + `IdealSuturePath.setConsistency` (+test): share of the last 5 passes within 90 ± 10° entry and ≤ 10° off square; the line's opacity scales down to 20%. Checked: tsc, test, check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude: suture cutting check (roadmap)
 - New `src/gameplay/tailLength.ts` (+test): tail = (cut − (minimumCut − 3)) × rest length, graded 3–10 mm. `src/main.ts` appends it to the cut message (messages still start with the engine's text, which check-guided-thread waits for). Checked: tsc, test, check-free-tying, check-knot, check-guided-thread.
 

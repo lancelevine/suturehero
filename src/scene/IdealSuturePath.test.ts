@@ -13,3 +13,14 @@ it('lays dashes and chevrons flat on the skin along the wound', () => {
   path.update(false, 0.3);
   expect([path.root.visible, path.root.position.z]).toEqual([false, -0.3]);
 });
+
+it('fades with consistent near-perpendicular, square passes', async () => {
+  const { guideConsistency } = await import('./IdealSuturePath');
+  expect(guideConsistency([])).toBe(0);
+  const good = { entryAngleDeg: 88, squareOffDeg: 3 };
+  expect(guideConsistency([good, good, { entryAngleDeg: 60, squareOffDeg: 3 }, good, good])).toBeCloseTo(0.8);
+  const path = new IdealSuturePath(0.42);
+  path.setConsistency(1);
+  const core = path.root.children[1] as THREE.Mesh;
+  expect((core.material as THREE.Material).opacity).toBeCloseTo(0.95 * 0.2);
+});

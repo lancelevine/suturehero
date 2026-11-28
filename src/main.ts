@@ -71,6 +71,8 @@ import {BlindBiteCheck} from './scene/blindBite';
 import {EdgePresentationCheck} from './gameplay/edgePresentation';
 import {NeedleHandlingCheck} from './gameplay/needleHandling';
 import {gapScan,type OpenSpan} from './gameplay/gapScan';
+import {guideConsistency} from './scene/IdealSuturePath';
+import {stitchSquareOffDeg} from './gameplay/sandboxSummary';
 import {GapScanView} from './scene/GapScanView';
 import {describeStepOffs} from './gameplay/stepOff';
 import {BACK_WALL_WARNING,catchesBackWall} from './gameplay/backWallCatch';
@@ -596,6 +598,7 @@ try {
     setData((frameQuery('#stitch-stage') as HTMLElement),'complete',String(assessment.complete||assessment.labFinished));
     // Strand tension meters and cue (src/ui/practicePanels.ts).
     idealPath.update(session.environment.id==='skin',session.course.siteZ);
+    idealPath.setConsistency(guideConsistency(session.freePass.passes.filter(p=>p.exit&&!p.torn).map(p=>({entryAngleDeg:p.entryAngleDeg,squareOffDeg:stitchSquareOffDeg(p.entry,p.exit!)}))));
     landmarkLine.update(landmarkExercise&&session.environment.id==='skin',session.course.siteZ);
     unequalMarks.update(unequalExercise&&session.environment.id==='skin',session.course.siteZ);
     {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&(session.course.finished||session.sandbox&&sites.length>=2);if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
