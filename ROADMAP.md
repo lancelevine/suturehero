@@ -86,6 +86,7 @@ Last updated: 2026-11-27
 - **Wet thread that sticks:** a field wetness level makes 9-0 and 10-0 thread cling to the vessel, background and instrument tips and drag instead of dropping; heavier sutures barely affected.
 - **Thread twist:** rotating the driver to follow the needle's curve stores twist in the thread; after several bites the slack curls into loops and kinks that snag, and the twist relaxes when the thread hangs free.
 - **Needle that stays put when released:** a needle let go mid-bite is held by tissue friction and nudged by recoil; in loose tissue or a shallow bite it can slip back out.
+- **Needle holes that last:** every pass leaves a puncture; clusters of holes from re-bites lower tear strength so stitches can tear through on tying, and extra vessel holes leak at the patency test.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
