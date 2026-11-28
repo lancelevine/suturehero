@@ -205,3 +205,6 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 .workspace-first .workspace-stage{align-content:start;flex:none!important}
 .workspace-first .workspace-camera-dock,.workspace-first.camera-setup-active .workspace-camera-dock{min-height:340px}
 }
+/* Sandbox summary: many short readout lines; keep them compact and drop empty ones. */
+.sandbox-summary p:empty{display:none}
+.sandbox-summary :is(.sandbox-spacing,.sandbox-bites,.sandbox-depths,.sandbox-shapes,.sandbox-patterns,.sandbox-thread,.sandbox-hands){margin:3px 0;font-size:12px;line-height:1.45;color:var(--sh-muted);padding-left:10px;border-left:2px solid var(--sh-line)}
