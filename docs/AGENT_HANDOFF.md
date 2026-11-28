@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: nerve repair (big build #6; #4–5 flagged above)
+- New `src/gameplay/nerveAlignment.ts` (+test): random starting twist 12–30° either way, aligned within 5°. `ArteryTissue.setFascicleTwist` rotates the right end's fascicle meshes; `src/main.ts` sets a new twist on each switch to the nerve target, adds ±10° view buttons and leads the instruction line with the alignment; clamp hidden for nerves.
+- Checked: tsc, test, browser (18° → 48° after +30°, screenshot, no errors), check-practice-setup, check-guided-thread, check-layout.
+- Next: vein and diseased-artery modes.
+
 ### 2026-11-28 — Claude: flag — edges of different thickness / unequal length need a tissue-model refactor
 - The skin surface and layer heights are global constants (`TISSUE_LAYERS`, used in ~23 places: pass physics, thread surface, eversion, cross-section, scoring). A thick flap against thin skin needs per-side layer bounds (functions of x), and unequal edge length needs a non-straight wound. Multi-hour, high-risk; postponed until after nerve repair and vessel modes unless Lance wants it first.
 

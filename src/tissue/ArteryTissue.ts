@@ -52,6 +52,11 @@ export class ArteryTissue {
   }
   this.root.name=this.target+'-workspace';
  }
+ /** Nerve repair: turn the right end's fascicle bundles about the nerve axis (degrees). */
+ setFascicleTwist(degrees:number){
+  const radians=THREE.MathUtils.degToRad(degrees);
+  for(const child of this.root.children)if(/^fascicle(-end)?-1-/.test(child.name)){child.rotation.x=radians;child.position.set(0,0,0);}
+ }
  private add(mesh:THREE.Mesh,name:string){mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;this.root.add(mesh);this.surfaces.push({mesh,original:Float32Array.from(mesh.geometry.getAttribute('position').array)});}
  update(wound:WoundApproximation,eversion:EdgeEversion){
   if(wound.closure===this.lastClosure&&eversion.revision===this.lastEversion)return;

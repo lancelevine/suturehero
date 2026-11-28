@@ -84,6 +84,7 @@ import {LandmarkLine} from './scene/LandmarkLine';
 import {BODY_SITES} from './environments/bodySites';
 import {BreakMonitor,describePull,resolveSize} from './gameplay/sutureStrength';
 import {TissueTensionView} from './scene/TissueTensionView';
+import {describeNerveAlignment,normaliseTwist,startingTwist,TWIST_STEP_DEGREES} from './gameplay/nerveAlignment';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -115,6 +116,10 @@ try {
   const tissue=new TissuePatch();const artery=new ArteryTissue();artery.root.visible=false;
   // Adjustable Acland double clamp on the vessel (src/scene/AclandClamp.ts, src/environments/MicroTargets.ts).
   const aclandClamp=new AclandClamp();
+  let nerveTwist=0;
+  const nerveButtons=([['Turn nerve end −10°',-TWIST_STEP_DEGREES],['Turn nerve end +10°',TWIST_STEP_DEGREES]] as const).map(([label,step])=>{
+   const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
+   button.addEventListener('click',()=>{nerveTwist=normaliseTwist(nerveTwist+step);artery.setFascicleTwist(nerveTwist);});document.querySelector('.workspace-view-tools')?.prepend(button);return button;});
   // Turn / flip the vessel (microsurgery only): the next stitch site comes to the top, as with the double clamp.
   const vesselTurnButtons:HTMLButtonElement[]=([['Turn vessel 45°',Math.PI/4],['Flip vessel',Math.PI]] as const).map(([label,turn])=>{
    const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
@@ -252,7 +257,10 @@ try {
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#landmark-exercise') as HTMLElement).hidden=micro;
-    aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro);
+    aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro&&microSelect.value!=='nerve');
+    // Nerve repair: a fresh random fascicle twist on the right end each time (src/gameplay/nerveAlignment.ts).
+    nerveTwist=micro&&microSelect.value==='nerve'?startingTwist():0;artery.setFascicleTwist(nerveTwist);
+    for(const button of nerveButtons)button.hidden=!(micro&&microSelect.value==='nerve');
     vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;
     for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
@@ -472,6 +480,7 @@ try {
   const landmarkNote=()=>{if(!landmarkExercise||session.environment.id!=='skin')return '';const first=session.freePass.passes.find(p=>p.exit&&!p.torn);const z=session.course.completed[0]?.site.siteZ??(first?(first.entry.z+first.exit!.z)/2:null);return describeLandmark(z)+' · ';};
   const tensionHoldNote=()=>{if(!session.sandbox||session.freeKnot.active)return '';const text=describeTensionHold(session.freeThread.loopSlackUnits());return text?text+' · ':'';};
   const pullNote=()=>{const free=session.freeKnot;if(!free.active){breakMonitors.long.reset();breakMonitors.short.reset();return '';}const peak=Math.max(breakMonitors.long.peakShare,breakMonitors.short.peakShare);return peak>0.05?describePull(peak,sutureSize)+' · ':'';};
+  const nerveNote=()=>session.environment.id==='microsurgery'&&microSelect.value==='nerve'?describeNerveAlignment(nerveTwist)+' · ':'';
   const backWallNote=()=>session.environment.id==='microsurgery'&&session.pass.phase==='passing'&&catchesBackWall({centreY:session.pass.center.y,radius:session.pass.radius},microProfile(resolveMicroTarget(microSelect.value)))?BACK_WALL_WARNING+' · ':'';
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;
@@ -613,7 +622,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,
