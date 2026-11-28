@@ -108,7 +108,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.240';
+const APP_BUILD='0.241';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -145,6 +145,11 @@ try {
    const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
    button.addEventListener('click',()=>{nerveTwist=normaliseTwist(nerveTwist+step);artery.setFascicleTwist(nerveTwist);});document.querySelector('.workspace-view-tools')?.prepend(button);return button;});
   let flipWarning={text:'',until:0};
+  // Needle dulling (gameplay/needleWear.ts): each new free pass wears the needle; Fresh needle resets it.
+  const freshNeedleButton=document.createElement('button');freshNeedleButton.type='button';freshNeedleButton.textContent='Fresh needle';freshNeedleButton.hidden=true;freshNeedleButton.className='vessel-turn';freshNeedleButton.title='Swap in a new needle (resets needle wear)';
+  freshNeedleButton.addEventListener('click',()=>session.needleWear.fresh());document.querySelector('.workspace-view-tools')?.prepend(freshNeedleButton);
+  let wornPasses=0;
+  const needleWearNote=()=>{if(!session.sandbox)return '';const count=session.freePass.passes.length;if(count>wornPasses)for(let i=wornPasses;i<count;i++)session.needleWear.addPass();wornPasses=count;freshNeedleButton.hidden=false;const text=session.needleWear.describe();return text?text+' · ':'';};
   // Turn / flip the vessel (microsurgery only): the next stitch site comes to the top, as with the double clamp.
   const vesselTurnButtons:HTMLButtonElement[]=([['Turn vessel 45°',Math.PI/4],['Flip vessel',Math.PI]] as const).map(([label,turn])=>{
    const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
@@ -746,7 +751,8 @@ try {
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
      if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));}
-     setText(frameQuery('#exercise-readout'),(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     freshNeedleButton.hidden=!session.sandbox;
+     setText(frameQuery('#exercise-readout'),needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

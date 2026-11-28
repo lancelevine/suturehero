@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Needle dulling (build 0.241)
+
+- New `src/gameplay/needleWear.ts` (+ test). `PracticeSession.needleWear` multiplies the free-pass tear limits by `tearFactor`; `src/main.ts` adds wear per new free pass and a "Fresh needle" button (Sandbox only).
+- Checked: gameplay + demo + practicePanels tests (157, Node 24), tsc, check-sandbox, check-layout, check-free-tying, browser run of readout and button.
+- Lance: do 8+ passes in Sandbox; the needle should read dull and tear out a bit sooner; Fresh needle should clear it.
+
 ### 2026-11-28 — Claude — Wound ends check (build 0.240)
 
 - `src/gameplay/gapScan.ts`: `woundEndOpenings` / `describeWoundEnds` (+ tests) report open spans that reach either end of `WOUND_ENDS`. Added to `StitchCourse.closureReview`.

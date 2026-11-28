@@ -1,3 +1,4 @@
+import {NeedleWear} from './needleWear';
 import {knotSurfaceAt,type KnotTissue} from '../knot/knotTissue';
 import {createKnotEngine,knotEngineEntry,type KnotEngine} from '../knot/engines';
 import {knotSummary,SessionClock} from './sessionRecord';
@@ -208,6 +209,7 @@ export class PracticeSession {
   readonly releaseCheck=new KnotReleaseCheck();
   readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
+  readonly needleWear=new NeedleWear();
   /** Free passes meet the live skin (tissue/freeSkinSurface.ts) and tear at the skin type's limits. */
   private shapeFreePass(){
     const pass=this.freePass;
@@ -215,7 +217,9 @@ export class PracticeSession {
     // Needle point (roadmap "Needle type and curve", 2026-11-28): a taper point has to push its way through skin,
     // so it tolerates less forcing off the curve before the bite tears out; a cutting point is unchanged.
     const point=this.environment.id==='skin'&&PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1;
-    const steadied=(this.eversion.held?COUNTER_TRACTION_TEAR_FACTOR:1)*point,tear=PRACTICE_SETUP.skin.tear;
+    // Needle dulling (gameplay/needleWear.ts): a worn needle tears out with less forcing.
+    this.needleWear.tip=PRACTICE_SETUP.needle.tip;
+    const steadied=(this.eversion.held?COUNTER_TRACTION_TEAR_FACTOR:1)*point*this.needleWear.tearFactor,tear=PRACTICE_SETUP.skin.tear;
     pass.tearLimits={degrees:tear.degrees*steadied,units:tear.units*steadied,seconds:tear.seconds};
     if(this.environment.id!=='skin'){pass.surfaceAt=()=>SKIN_SURFACE_Y;pass.halfGapAt=()=>0;return;}
     const top=TISSUE_LAYERS.epidermis.top,edge=this.wound.initialGap/2;

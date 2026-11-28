@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.241 — Needle dulling
+
+- Sandbox: the needle wears with every free pass (a cutting point 4% more force per pass, a taper 2.5%, up to 60%). A worn needle tolerates less forcing before the bite tears out. The instruction line shows the wear and suggests a fresh needle from 30%; the new "Fresh needle" button resets it (roadmap: "Needle dulling"; practice model, rates not measured).
+
 ## Build 0.240 — Wound ends check
 
 - Closure review (guided course and Sandbox with two or more stitches): a new "Wound ends" part says whether either apex is left open and by how much, from the gap scan, and coaches placing the end stitch at or just past the apex (roadmap: "Closing the wound ends"; approximate, same model as the gap scan; apex marks on the pad and end-stitch depth not yet).
