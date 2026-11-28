@@ -54,6 +54,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Corner stitch exercise (build 0.283)
+
+- New `src/gameplay/cornerStitch.ts` (+ tests) and `src/scene/CornerFlapMarks.ts`; `?exercise=corner` via `#corner-exercise`. Grades the newest free pass.
+- Checked: unit + scene tests, tsc, browser (simple stitch flagged; V visible), check-sandbox, check-practice-setup, check-layout.
+- Build-order items 1 (thickness, corner) now have first versions; remaining: nerve repair and vein/diseased artery already had first versions.
+
 ### 2026-11-28 — Claude — Edges of different thickness (build 0.282)
 
 - Lighter approach than per-side `TISSUE_LAYERS`: `PracticeSession.thinSideDrop` lowers the Sandbox needle surface for x<0 (`shapeFreePass`), `TissuePatch.setThinSideDrop` lowers the left meshes. New `src/gameplay/edgeThickness.ts` (+ test): per-side depth from the tract, predicted step-off = drop − (thin − thick). `#thickness-exercise` reloads with `?exercise=thickness`.

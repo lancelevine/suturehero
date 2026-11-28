@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.283 — Corner stitch exercise
+
+- Setup: new "Corner stitch exercise" (Sandbox). A V-shaped flap is marked on the right side with its tip (purple dot) at the wound edge. After each pass the instruction line checks the half-buried horizontal mattress: skin entered and exited on the far (left) side only, the flap skin not punctured, and the path passing through the flap tip at dermal depth (roadmap: "Corner stitch"; graded from the needle's path; the flap is marked, not cut, and strangling the tip is not modelled).
+
 ## Build 0.282 — Edges of different thickness
 
 - Setup: new "Thin-edge exercise" (Sandbox). The left wound edge is about 1 mm thinner: the left half of the pad sits lower and the needle meets that skin lower. After each pass the instruction line measures how much deeper (or shallower) the bite went on the thin side, predicts the step-off once tied, and says how much deeper to bite there (roadmap: "Edges of different thickness"; the step-off is predicted from bite depths, the tied edges are not simulated lifting).
