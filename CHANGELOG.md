@@ -7,6 +7,7 @@ commit `bde9116`.
 
 ## Build 0.235 — Stitch angle across the wound
 
+- Tissue tension heatmap: each tied skin stitch gets a soft glow on the skin, green for low tension, amber, red for high (the gap it closed, relative to the standard gap, times how far it closed it) (roadmap: tissue heatmap).
 - Suture size (Setup): 3-0 (default), 4-0, 5-0 or 6-0. Finer sutures snap at a lower pull; holding a pull past the breaking point snaps the strand, and while tying the instruction line shows the peak pull as a share of the breaking point (roadmap: "Suture breaking strength"; relative to the thread model's pull, not a measured force).
 - Running stitches: earlier loops now go slack while the running thread isn't held taut and tighten again when you pull it taut; the instruction line names slack loops (roadmap: "Tension hold on running stitches").
 - Body sites (Setup): Forearm, Face, Scalp, Back of hand and Back presets set three sliders (dermis thickness, toughness against tearing, wound tension), each 0.5–2× standard and adjustable; the pad takes that site's look (tone, pores, creases, freckles, shaved-scalp stubble) (roadmap: "Body sites with different skin"). Approximate practice values; Langer's lines, curvature and backing not yet.

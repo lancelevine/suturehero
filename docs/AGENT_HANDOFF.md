@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: tissue tension heatmap (big build #3)
+- New `src/scene/TissueTensionView.ts` (+test): per tied skin stitch a radial glow on the skin; tension = (initialGap / standard gap) × closure, green ≤ 0.8, red ≥ 1.3. Shown in skin practice for `course.tissueSites` (course and Sandbox). Normal blending (additive washed out on light skin).
+- Checked: tsc, test, screenshot with three forced sites (green/amber/red), check-sandbox, check-guided-thread, check-layout.
+- Next big build: edges of different thickness / unequal length.
+
 ### 2026-11-28 — Claude: suture breaking strength (big build #2); locked/tie-off deferred
 - New `src/gameplay/sutureStrength.ts` (+test): sizes 3-0/4-0/5-0/6-0 with relative breaking points on the thread model's pull demand (1.01/0.85/0.7/0.55), snap after 0.15 s over. Default 3-0 (never snaps), so existing exercises and the Demo are unchanged. `src/main.ts`: Setup "Size" (`?size=`), per-strand `BreakMonitor`, snap = `freeKnot.cut` at 60% along the strand, peak-pull gauge in the instruction line while tying.
 - Locked running stitch and running tie-off not started: they need loop topology in the thread model (noted in ROADMAP).

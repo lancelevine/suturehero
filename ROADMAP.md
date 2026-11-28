@@ -11,7 +11,7 @@ Last updated: 2026-11-27
 
 - **Visual overhaul (top priority):** match the "Practice. Play. Get better." mockup. Dark navy base, thin cyan glowing outlines, frosted glass panels, live stat cards, a dashed ideal suture path. Clean, high tech, cool.
 - **Body sites with different skin:** presets for dermal thickness, tension and Langer's lines, tissue mechanics, curvature and backing, with site-specific scoring. Open question: fixed sites or sliders with presets. *(First version in build 0.235: presets + sliders (Lance) for thickness, toughness and tension, with a matching skin look; Langer's lines, curvature, backing and site-specific scoring not yet.)*
-- **Live tension heatmap** per stitch. *(First version in build 0.235: held strands glow green when taut, red when pulled too hard, during free tying; tissue heatmap around each stitch not yet.)*
+- **Live tension heatmap** per stitch. *(First version in build 0.235: held strands glow by tension while tying, and each tied skin stitch gets a green/amber/red tension glow on the skin.)*
 - **Adjustable green double Acland clamp** on the microsurgery vessel. Pushing in brings the ends closer, pushing out spreads them, which sets the tension needed to secure the knot. Default: vessel ends a little apart; the clamp is for small adjustments, not a difficulty setting. *(First version in build 0.235: green clamp model and a 50–150% slider that sets the vessel gap; changing it restarts the stitch rather than moving the ends live.)*
 - **Vessel dilation step:** dilate each vessel end before suturing; too little narrows the lumen, too much tears the intima and raises clot risk.
 - **Nerve repair:** align fascicles and place epineurial stitches without twist. Reuses the microsurgery scene.

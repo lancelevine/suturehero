@@ -83,6 +83,7 @@ import {describeTensionHold} from './gameplay/tensionHold';
 import {LandmarkLine} from './scene/LandmarkLine';
 import {BODY_SITES} from './environments/bodySites';
 import {BreakMonitor,describePull,resolveSize} from './gameplay/sutureStrength';
+import {TissueTensionView} from './scene/TissueTensionView';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -290,6 +291,8 @@ try {
   landmarkButton.addEventListener('click',()=>{landmarkExercise=!landmarkExercise;const url=new URL(location.href);if(landmarkExercise)url.searchParams.set('exercise','landmark');else url.searchParams.delete('exercise');history.replaceState(null,'',url);showLandmarkState();landmarkButton.blur();});
   // Gap scan after a finished 3-stitch session (src/gameplay/gapScan.ts); recomputed only when the stitch sites change.
   const gapScanView=new GapScanView(SKIN_SURFACE_Y); view.scene.add(gapScanView.root);
+  // Tension heatmap around each tied stitch (src/scene/TissueTensionView.ts).
+  const tensionView=new TissueTensionView(SKIN_SURFACE_Y); view.scene.add(tensionView.root);
   let scannedSites:readonly unknown[]|null=null,openSpans:OpenSpan[]=[];
   // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
   view.scene.add(replay.paths);
@@ -553,6 +556,7 @@ try {
     idealPath.update(session.environment.id==='skin',session.course.siteZ);
     landmarkLine.update(landmarkExercise&&session.environment.id==='skin',session.course.siteZ);
     {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&(session.course.finished||session.sandbox&&sites.length>=2);if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
+    tensionView.update(session.course.tissueSites,session.course.siteZ,session.environment.id==='skin');
     sampleSkill();
     updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);
     const edge=session.eversion;
