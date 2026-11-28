@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Tissue crush score (build 0.258)
+
+- New `src/gameplay/crushScore.ts` (+ test): hold time with forceps openness ≤0.05 while `eversion.held`. Row in `src/ui/SkillAnalysisPanel.ts`; `crushShare` on `SkillReport`; sampled in `sampleSkill`.
+- Checked: unit tests, tsc, check-sandbox, check-layout, check-hall-sensor.
+- Lance: with the Hall-sensor forceps, hold the edge gently vs squeeze fully shut; the row should rise only for the squeeze. The 5% openness limit may need tuning to the sensor.
+
 ### 2026-11-28 — Claude — Bleeder complication (build 0.257)
 
 - New `src/gameplay/bleeder.ts` (+ test). `#complications` toggle (`?complications=1`) in setup; `bleederNote` in `src/main.ts` starts the bleeder at the third pass's exit, grows a `bleeder-pool` mesh, stops after 3 s of closed forceps within reach.

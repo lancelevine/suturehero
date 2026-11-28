@@ -122,7 +122,7 @@ Last updated: 2026-11-27
 - **Real-camera instrument tracking** with the OV9281 stereo pair.
 - **Site-tuned feedback and scoring.**
 - **Procedural wound variety:** lacerations, stellate wounds, ellipses with dog-ears, defects under tension.
-- **Tissue handling score:** forceps crush damage from the jaw sensors.
+- **Tissue handling score:** forceps crush damage from the jaw sensors. *(First version in build 0.258: Skill Analysis share of hold time with the jaws squeezed shut; force is not measured.)*
 - **Knot quality check:** square vs granny, number of throws, slippage.
 - **Complication events mid-closure:** a bleeder, a torn bite, a broken needle. *(First version in build 0.257: optional bleeder after the third Sandbox pass, stopped by forceps pressure; torn bite and broken needle not yet.)*
 - **Loupe and microscope view:** 10 to 20x, shallow depth of field, real tremor scaled up.

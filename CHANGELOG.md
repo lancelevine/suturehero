@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.258 — Tissue crush score
+
+- Skill Analysis: new "Tissue crush" row, the share of skin-hold time with the forceps jaws squeezed fully shut (openness 5% or less), which crushes the edge; green at 10% or less (roadmap: "Tissue handling score"; uses the forceps openness, from the Bluetooth jaw sensor when connected; jaw force itself is not measured).
+
 ## Build 0.257 — Bleeder complication
 
 - Setup: new "Complications" toggle (off by default). When on, the exit of the third Sandbox pass starts to bleed: a dark pool grows there until you hold the closed forceps on it for 3 s; the instruction line coaches the pressure (roadmap: "Complication events mid-closure"; illustrative rates; torn-bite and broken-needle events not yet).

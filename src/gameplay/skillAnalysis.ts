@@ -49,6 +49,8 @@ export interface SkillReport {
   sawingPulls?: number;
   /** Share of in-tissue time following the needle's curve rather than pushing (rotationScore.ts). */
   rotatingShare?: number | null;
+  /** Share of skin-hold time with the forceps jaws squeezed shut (crushScore.ts). */
+  crushShare?: number | null;
   /** In-tissue needle regrasps, and how many landed on the tip (src/suture/gripPosition.ts), when counted. */
   regrasps?: { total: number; onTip: number };
   /** Completed passes, and how many exited behind an instrument from the view camera (src/scene/blindBite.ts). */
