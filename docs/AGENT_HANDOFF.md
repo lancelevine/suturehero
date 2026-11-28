@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: blood at punctures (roadmap lifelike rendering)
+- `src/scene/freePassMarks.ts`: a flattened glossy dark-red bead at each entry/exit (shared geometry/material). Test updated for the extra children (count and finding the entry marker by name). Checked: tsc, test, check-sandbox.
+
 ### 2026-11-28 — Claude: skills in the session export (roadmap)
 - `SandboxSource.skillReport` (optional); `src/main.ts` passes the Skill Analysis report (without path/speed arrays) via `exportSkillReport`. `scripts/check-sandbox.mjs` now asserts `json.skills.seconds`. Checked: tsc, check-sandbox, no console errors on load.
 

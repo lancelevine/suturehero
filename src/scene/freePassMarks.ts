@@ -23,6 +23,9 @@ const STITCH_LINE_WIDTH = 0.012;
 /** Ring around a bite more than BITE_OUTLIER_MM from the median bite (src/gameplay/biteConsistency.ts). */
 const OUTLIER_COLOR = 0xff5a4f;
 const OUTLIER_RING_RADIUS = 0.045;
+/** A small bead of blood at every puncture (roadmap "Lifelike tissue rendering"). */
+const BLOOD_COLOR = 0x7a0d12;
+const BLOOD_RADIUS = 0.028;
 /** Bite ruler: a tick across each stitch line every RULER_STEP_MM from the wound centre, longer every RULER_MAJOR. */
 const RULER_COLOR = 0xe8f6ff;
 const RULER_STEP_MM = 1;
@@ -41,6 +44,8 @@ export class FreePassMarks {
   private readonly rentMaterial = new THREE.MeshBasicMaterial({ color: RENT_COLOR, side: THREE.DoubleSide });
   private readonly squareMaterial = new THREE.MeshBasicMaterial({ color: SQUARE_COLOR, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
   private readonly outlierGeometry = new THREE.RingGeometry(OUTLIER_RING_RADIUS * 0.75, OUTLIER_RING_RADIUS, 24).rotateX(-Math.PI / 2);
+  private readonly bloodGeometry = new THREE.SphereGeometry(BLOOD_RADIUS, 12, 8).scale(1, 0.35, 1);
+  private readonly bloodMaterial = new THREE.MeshStandardMaterial({ color: BLOOD_COLOR, roughness: 0.15, metalness: 0 });
   private readonly rulerMaterial = new THREE.MeshBasicMaterial({ color: RULER_COLOR, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
   private readonly outlierMaterial = new THREE.MeshBasicMaterial({ color: OUTLIER_COLOR, side: THREE.DoubleSide });
   private readonly slantedMaterial = new THREE.MeshBasicMaterial({ color: SLANTED_COLOR, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
@@ -55,10 +60,14 @@ export class FreePassMarks {
     if (key === this.key) return;
     this.key = key;
     // Marks share one geometry and material set; tear meshes own their geometry (freed here).
-    disposeChildren(this.root, new Set([this.entryMaterial, this.exitMaterial, this.tornMaterial, this.rentMaterial, this.squareMaterial, this.slantedMaterial, this.outlierMaterial, this.rulerMaterial]), new Set([this.geometry, this.outlierGeometry]));
+    disposeChildren(this.root, new Set([this.entryMaterial, this.exitMaterial, this.tornMaterial, this.rentMaterial, this.squareMaterial, this.slantedMaterial, this.outlierMaterial, this.rulerMaterial, this.bloodMaterial]), new Set([this.geometry, this.outlierGeometry, this.bloodGeometry]));
     for (const pass of passes) {
       for (const [point, material] of [[pass.entry, pass.torn ? this.tornMaterial : this.entryMaterial], [pass.exit, this.exitMaterial]] as const) {
         if (!point) continue;
+        const blood = new THREE.Mesh(this.bloodGeometry, this.bloodMaterial);
+        blood.position.copy(point).add(new THREE.Vector3(0.012, 0, 0.01));
+        blood.name = 'puncture-blood';
+        this.root.add(blood);
         const mark = new THREE.Mesh(this.geometry, material);
         mark.position.copy(point).add(new THREE.Vector3(0, LIFT, 0));
         this.root.add(mark);

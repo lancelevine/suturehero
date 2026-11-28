@@ -110,7 +110,7 @@ Last updated: 2026-11-27
 - **Sound design:** needle pop-through click, tension tug, timer tick, good-stitch chime. *(First version in build 0.235: synthesized pop, chime and tug cues with an on/off toggle; timer tick left out as likely annoying.)*
 - **Shareable highlight clips:** 15-second replay with the HUD overlaid, ready to post.
 - **Guided first run:** 2-minute walkthrough of camera setup, instrument tracking check, one guided stitch and a first score. *(First version in build 0.235: four-step card with jump buttons, once per browser; not shown to automated browser checks.)*
-- **Lifelike tissue rendering:** light through the skin, wet sheen, blood at punctures, edges that blanch under too much tension.
+- **Lifelike tissue rendering:** light through the skin, wet sheen, blood at punctures, edges that blanch under too much tension. *(Started in build 0.235: blood beads at punctures; earlier builds added wet vessel highlights. Light through the skin and blanching not yet.)*
 - **Live tremor meter:** instrument tip tremor gauge and per-session tremor score, mainly for microsurgery. *(First version in build 0.235: live tremor row in Skill Analysis; per-session score and microscope scaling not yet.)*
 - **Plan vs actual:** mark planned stitch spots before closing, then overlay the plan on what you did. *(First version in build 0.235: click-to-plan spots with rings and a plan-vs-actual line; spots are along the wound only, bite width not planned yet.)*
 - **Setup check before each session:** confirm every marker is seen by both cameras, flag poor lighting or a smudged lens, warn on calibration drift.
