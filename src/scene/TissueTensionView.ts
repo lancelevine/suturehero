@@ -11,6 +11,7 @@ import { disposeChildren } from './disposeChildren';
 export const LOW_TENSION = 0.8;
 export const HIGH_TENSION = 1.3;
 const GLOW_RADIUS = 0.42;
+const BLANCH_RADIUS = 0.16;
 const LOW_COLOUR = new THREE.Color(0x2fe08a);
 const MID_COLOUR = new THREE.Color(0xffc14d);
 const HIGH_COLOUR = new THREE.Color(0xff3b30);
@@ -64,6 +65,14 @@ export class TissueTensionView {
       glow.renderOrder = 1;
       glow.name = 'tension-glow';
       this.root.add(glow);
+      // Over-tight stitches blanch the skin: a pale patch at the centre (roadmap "Lifelike tissue rendering").
+      if (stitchTension(site) >= HIGH_TENSION) {
+        const blanch = new THREE.Mesh(new THREE.PlaneGeometry(BLANCH_RADIUS * 2, BLANCH_RADIUS * 2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: radialGlow(), color: 0xfff4ee, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false }));
+        blanch.position.set(0, this.surfaceY + 0.008, site.siteZ);
+        blanch.renderOrder = 1;
+        blanch.name = 'tension-blanch';
+        this.root.add(blanch);
+      }
     }
   }
 }

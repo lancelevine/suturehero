@@ -9,5 +9,7 @@ it('colours each tied stitch by the tension it holds', () => {
   expect(tensionColour(1.6).r).toBeGreaterThan(tensionColour(1.6).g);
   const view = new TissueTensionView(0.41);
   view.update([site(-0.5, 0.1, 1), site(0.5, 0.14, 1)], 0, true);
-  expect(view.root.children).toHaveLength(2);
+  expect(view.root.children).toHaveLength(3);
+  // Only the over-tight stitch (gap 0.14 closed: tension 1.4) blanches.
+  expect(view.root.children.filter((c) => c.name === 'tension-blanch')).toHaveLength(1);
 });

@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: blanching over tight stitches
+- `TissueTensionView`: stitches at or above HIGH_TENSION also get a pale radial patch (test updated). Checked: tsc, test, check-sandbox.
+
 ### 2026-11-28 — Claude: blood at punctures (roadmap lifelike rendering)
 - `src/scene/freePassMarks.ts`: a flattened glossy dark-red bead at each entry/exit (shared geometry/material). Test updated for the extra children (count and finding the entry marker by name). Checked: tsc, test, check-sandbox.
 
