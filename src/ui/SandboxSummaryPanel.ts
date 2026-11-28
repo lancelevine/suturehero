@@ -7,6 +7,7 @@ import { describeDeadSpace } from '../gameplay/deadSpace';
 import { describeEdgeShear } from '../gameplay/edgeShear';
 import { describeNextDrill } from '../gameplay/nextDrill';
 import { describeFirstPass } from '../gameplay/firstPassRate';
+import { describeHealingOutlook } from '../gameplay/healingOutlook';
 import { addToGallery, galleryCaption, loadGallery } from '../gameplay/closureGallery';
 import { siteTunedTargets } from '../gameplay/siteTargets';
 import { describeRubric, osatsRubric } from '../gameplay/osatsRubric';
@@ -198,6 +199,10 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     panel.querySelector('.sandbox-depths')!.textContent = [source.firstPass ? describeFirstPass(source.passes().length, source.firstPass().backOuts, source.firstPass().undone) : '', describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT })))].filter(Boolean).join(' · ') + (source.passes().length ? ' · ' + describeDeadSpace(source.passes().map((p) => p.depth), SCENE_MM_PER_UNIT) : '');
     panel.querySelector('.sandbox-bites')!.textContent = [s.biteConsistency ? describeBiteConsistency(s.biteConsistency) : '', describeEdgeShear(source.passes().map((p) => ({ entryEdgeMm: p.entryEdge * SCENE_MM_PER_UNIT, exitEdgeMm: p.exitEdge === null ? null : p.exitEdge * SCENE_MM_PER_UNIT })))].filter(Boolean).join(' · ');
     panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '') + (s.stitchZ && s.stitchZ.length > 1 ? ' · ' + describeStitchDensity(s.stitchZ, PRACTICE_SETUP.skin.site?.tension ?? 1, SCENE_MM_PER_UNIT) : '');
+    {
+      const outlook = describeHealingOutlook({ reviews: source.stitches().map((st) => st.review), spacingMm: s.spacingMm });
+      if (outlook) panel.querySelector('.sandbox-spacing')!.textContent += ' · ' + outlook;
+    }
     const targetResults = checkTargets(s, siteTunedTargets(targets, PRACTICE_SETUP.skin.site?.id));
     const drillNote = describeNextDrill(targetResults);
     const skill = source.skillReport?.() as SkillReport | undefined;

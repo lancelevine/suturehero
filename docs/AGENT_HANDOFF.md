@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Healing outlook (build 0.275)
+
+- New `src/gameplay/healingOutlook.ts` (+ test): reads the stitch review lines and spacing; appended to `.sandbox-spacing`. Labelled illustrative, not clinical.
+- Checked: unit + ui tests, tsc, check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude — Sterile field score (build 0.274)
 
 - New `src/gameplay/sterileField.ts` (+ test): tip within 0.03 of the tool's `minimumHeight` outside the pad footprint (±2.67 × ±1.675) counts once per touchdown per instrument. Row in Skill Analysis; sampled in `sampleSkill`.

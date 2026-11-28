@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.275 — Healing outlook
+
+- Sandbox summary: once stitches are tied, the spacing line ends with an illustrative healing outlook ("a fine, flat line" … "a more visible scar") and the reasons: gaps, inverted or uneven edges, overlap, uneven spacing. Teaching feedback, not a clinical prediction (roadmap: "Healing time-lapse", first step; no time-lapse image yet).
+
 ## Build 0.274 — Sterile field score
 
 - Skill Analysis: new "Sterile field" row counts each time an instrument tip touches the table outside the practice pad (roadmap: "Sterile field score"; approximate: the pad is treated as the sterile field).
