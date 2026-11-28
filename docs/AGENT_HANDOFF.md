@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: lumen narrowing score (roadmap)
+- New `src/gameplay/lumenNarrowing.ts` (+test): 5% base + 60 × dilation shortfall below 110% + 3 per extra stitch + 8 per inverted stitch, capped 90; ≤ 20% "patent". Weights are my practice estimates (Lance to adjust). Shown at the start of the vessel line once the suggested count is saved. Checked: tsc, test, check-practice-setup.
+
 ### 2026-11-28 — Claude: vessel dilation step (roadmap)
 - New `src/gameplay/vesselDilation.ts` (+test): 5% steps, good 110–130%, intima torn past 135% (sticky until the target is switched). `ArteryTissue.setDilation` scales both lumens (capped inside the outer wall). `src/main.ts`: "Dilate ends" button (vessels only), reset on environment switch, line in the readout.
 - Checked: tsc, test, browser (120% ✓ after 4 presses, screenshot), check-practice-setup, check-guided-thread, check-layout.

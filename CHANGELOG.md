@@ -8,6 +8,7 @@ commit `bde9116`.
 ## Build 0.235 — Stitch angle across the wound
 
 - Unequal edges exercise (Setup): the right edge counts as 25% longer; guide dots show the steps, and each gap between bites is graded on stepping about 1.25× further along the long edge so the extra length spreads evenly (roadmap: "Edges of unequal length"; the pad's edges are drawn the same length).
+- Microsurgery: lumen narrowing score. Once the suggested number of stitches is saved, the instruction line estimates how much the join narrows the lumen (from dilation, extra stitches and inverted stitches; a practice estimate, not a measurement) (roadmap: "Lumen narrowing score").
 - Microsurgery: vessel dilation step. "Dilate ends" widens the lumen 5% per press; 110–130% is good, under that the lumen stays narrow, past 135% the intima tears (clot risk) (roadmap: "Vessel dilation step"; the cut ring still shows the original wall).
 - Microsurgery: vessel twist check. Each vessel end has a dark ink stripe; the right end starts turned 12–30° and "Turn right end ±10°" lines the stripes up (also used for nerve fascicles), with the twist reported until within 5° (roadmap: "Vessel twist check").
 - Microsurgery: two new anastomosis targets. Vein: thin, bluish wall that sags flat unless the forceps hold it open; Diseased artery: yellow plaque on the lumen wall and a reminder to pin plaque and intima with inside-out bites (roadmap: "Hand-sewn vein anastomosis", "Diseased artery mode"; the needle pass still uses the round vessel shape, and separated intima is not detected yet).

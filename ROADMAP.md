@@ -71,7 +71,7 @@ Last updated: 2026-11-27
 - **Needle dulling:** the needle wears with every pass (faster for cutting points and re-bites); shows the extra force needed and suggests a fresh needle once dull.
 - **Closing the wound ends:** marks each apex, checks the end stitches sit at or just past it at full depth, and shows any opening left at either end.
 - **Stay tails as handles:** counts how often the vessel is turned by pulling its long stay tails versus grasping the wall; flags tail pulls hard enough to tear the bite.
-- **Lumen narrowing score:** after the last vessel stitch, measures the open lumen at the join against the original vessel, shows percent narrowed and points to bites that took too much wall or cinched too tight.
+- **Lumen narrowing score:** after the last vessel stitch, measures the open lumen at the join against the original vessel, shows percent narrowed and points to bites that took too much wall or cinched too tight. *(First version in build 0.235: estimate from dilation, extra and inverted stitches after the last suggested stitch; not a geometric measurement yet.)*
 - **Wrap placement in the instrument tie:** tracks where the thread wraps on the driver and how far from the wound; flags wraps that slip off or miss the short tail.
 - **Overlapping edges:** checks each skin stitch for one edge riding up over the other instead of meeting it, and marks it.
 - **Stray needle touches:** counts each needle contact with the vessel wall outside an intended bite, a clot risk from scratched intima, and marks them on the replay.

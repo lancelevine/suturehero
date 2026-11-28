@@ -99,6 +99,7 @@ import {MistakeLog,mountReplayTimeline} from './ui/replayTimeline';
 import {describeEndurance} from './gameplay/endurance';
 import {TAPER_IN_SKIN_TEAR_FACTOR} from './gameplay/PracticeSession';
 import {describeDilation,dilateStep} from './gameplay/vesselDilation';
+import {describeLumenNarrowing,lumenNarrowingPercent} from './gameplay/lumenNarrowing';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -568,7 +569,10 @@ try {
    const free=session.freeKnot;const over=free.active&&(free.tension.long.state==='excessive'||free.tension.short.state==='excessive');if(over&&!heardOverPull)sound.play('tug');heardOverPull=over;
   };
   // Back-wall catch alert during a vessel bite (src/gameplay/backWallCatch.ts).
-  const vesselNote=()=>{if(session.environment.id!=='microsurgery'||!vesselAngles.length)return '';return describeVesselCount(vesselAngles,vesselDiameterMm())+' · '+describeVesselEversion(session.vesselEversions)+' · ';};
+  const vesselNote=()=>{if(session.environment.id!=='microsurgery'||!vesselAngles.length)return '';
+   // After the last suggested stitch: estimated lumen narrowing at the join (src/gameplay/lumenNarrowing.ts).
+   const done=vesselAngles.length>=vesselGoal()?describeLumenNarrowing(lumenNarrowingPercent({dilation,stitches:vesselAngles.length,suggested:vesselGoal(),inverted:session.vesselEversions.filter(e=>e<-0.002).length}))+' · ':'';
+   return done+describeVesselCount(vesselAngles,vesselDiameterMm())+' · '+describeVesselEversion(session.vesselEversions)+' · ';};
   // Air knot (src/gameplay/airKnot.ts): first throw not seated before the next, from any knot engine.
   const airKnot=new AirKnotWatcher();
   const airKnotNote=()=>{const free=session.freeKnot;if(!free.active){airKnot.reset();return '';}airKnot.update(free.sequence?.throws.length??0,free.seatedThrows,free.sequence?.sliding??false);return airKnot.flagged?AIR_KNOT_WARNING+' · ':'';};
