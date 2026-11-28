@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: roadmap items needing a decision or deeper work
+- Tail control on pull-through: tail length lives inside `FreeThreadGuide`'s thread layout (tail reserve, older-pass costs); exposing "tail left outside the entry" is a thread-model change. Not started.
+- Forehand/backhand bites: needs Lance's definition for the sim (which bite direction counts as forehand for a right-handed driver).
+- Remaining physics items (continuous running thread, suture breaking strength with real loads, tissue tension heatmap, edges of different thickness/length, corner stitch, nerve repair, vein and diseased artery modes) are each multi-session builds; waiting for Lance to order them.
+
 ### 2026-11-28 — Claude: live tension heatmap on the strands
 - New `src/scene/tensionTint.ts` (+test): emissive glow from `StrandTensionView` (none when released/slack, green × tautness when gentle, red when excessive). `FreeKnotView` applies it to the long and short strands each frame. Checked: tsc, test, check-free-tying, check-knot, check-sandbox. Not seen in a screenshot (needs a held, taut strand).
 
