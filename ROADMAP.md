@@ -162,7 +162,7 @@ Bigger goal: cover more types of surgery than just suturing.
 
 - **Expert ghost replay:** follow a recorded expert's instrument motion overlaid on yours.
 - **Healing time-lapse:** likely scar outcome from tension, eversion and spacing. *(First step in build 0.275: illustrative text outlook from the closure review; no time-lapse image yet.)*
-- **Case-based scenarios:** a patient story sets the site, wound and constraints; the trainee picks the closure and suture.
+- **Case-based scenarios:** a patient story sets the site, wound and constraints; the trainee picks the closure and suture. *(First version in build 0.277: five fictional cases set the site and goal; wound shape and suture choice are not set by the case yet.)*
 - **Sterile field score:** flag any time an instrument tip touches something outside the sterile field. *(First version in build 0.274: Skill Analysis counts tip touchdowns on the table outside the pad.)*
 - **Closure gallery:** a top-down snapshot of each finished closure with its score and date, to see progress over time. *(First version in build 0.272: snapshot of the current view on Save session, last 12 kept per browser; not forced top-down.)*
 - **Suture removal drill:** cut one side close to the skin and pull toward the wound, without dragging outside thread through the track.

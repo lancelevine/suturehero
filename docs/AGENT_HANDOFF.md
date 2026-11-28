@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Case scenarios (build 0.277)
+
+- New `src/gameplay/caseScenarios.ts` (+ test): five cases with site, story, goal, stitch count; `#case-scenario` button reloads with `?site=…&case=…`; `caseNote` in `src/main.ts`.
+- Checked: unit test, tsc, browser (case loads and shows), check-practice-setup, check-layout, check-sandbox.
+- Lance: please review the case wording.
+
 ### 2026-11-28 — Claude — Uneven pull warning (build 0.276)
 
 - New `src/gameplay/unevenPull.ts` (+ test): one strand demand ≥0.35 with the other ≤0.1 for 0.5 s with both held. `unevenPullNote` in `src/main.ts`.

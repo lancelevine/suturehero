@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.277 — Case scenarios
+
+- Setup: new "Case scenario" button loads one of five fictional patient cases (kitchen-knife forearm cut, eyebrow split, bleeding scalp, elderly skin tear, back excision under tension). The case sets the body site, and the instruction line shows the story, the goal and stitch progress; you choose the closure (roadmap: "Case-based scenarios"; teaching cases, not clinical guidance).
+
 ## Build 0.276 — Uneven pull warning
 
 - Skin knot tying: while both ends are held, pulling one strand hard with the other nearly slack for half a second shows a warning that the square knot can turn into a slip knot (roadmap: "Square knots that turn into slip knots"; a warning from the relative strand pull; the knot itself is not converted into a slip knot yet).

@@ -219,3 +219,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.273: microsurgery — brush the needle tip against the vessel without biting: the stray touch count rises; normal bites do not count.
 - [ ] Build 0.274: rest an instrument tip on the table beside the pad — Skill Analysis "Sterile field" counts it.
 - [ ] Build 0.276: while snugging a throw, pull one end hard and leave the other slack — the slip-knot warning appears.
+- [ ] Build 0.277: press Case scenario — a patient story with a matching body site and goal appears; does the wording read right?
