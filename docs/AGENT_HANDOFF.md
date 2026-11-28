@@ -54,6 +54,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Back-wall catch uses stay tension (build 0.290)
+
+- `catchesBackWall(pass, vessel, lumenHeight)` (+ test); `src/main.ts` passes `stayShape(artery.stayTension).height`.
+- Checked: unit test, tsc, check-guided-thread, check-practice-setup.
+
 ### 2026-11-28 — Claude — Stay tension (build 0.289)
 
 - New `src/tissue/stayTension.ts` (+ test); `ArteryTissue.stayTension` (default 1 = unchanged shape) scales the vessel root's height (0.8–1) alongside the vein collapse; `#stay-tension` slider; slack warning on the instruction line.

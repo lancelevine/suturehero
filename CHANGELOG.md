@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.290 — Slack stays and the back wall
+
+- Microsurgery: the back-wall catch warning now uses the stay tension: with slack stays the back wall sags closer, so a shallower bite already catches it.
+
 ## Build 0.289 — Stay tension
 
 - Microsurgery setup: new "Stay tension" slider. Taut (the default) keeps the vessel's normal round lumen; slackening the stays lets the front and back walls sag towards each other (up to 20% flatter), and the instruction line warns that the back wall is easy to catch (roadmap: "Stay tension that shapes the lumen"; a shape change only; the back-wall catch check itself does not use it yet).
