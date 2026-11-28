@@ -5,6 +5,8 @@ import {assessEdges,assessKnot,SLIP_CLOSURE_LOSS} from './stitchOutcome';
 import {ThreadGrasp,type JawState} from '../suture/ThreadGrasp';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {shapedSkinSurface} from '../tissue/freeSkinSurface';
+/** Taper-point needles in skin tear out at this share of the skin's tear limits (cutting points: 1). */
+export const TAPER_IN_SKIN_TEAR_FACTOR=.85;
 /** Tear limits are this much higher while the forceps hold the skin edge (counter-traction; approximate). */
 const COUNTER_TRACTION_TEAR_FACTOR=1.3;
 import {SKIN_SURFACE_Y} from '../tissue/FreeNeedlePass';
@@ -210,7 +212,10 @@ export class PracticeSession {
   private shapeFreePass(){
     const pass=this.freePass;
     // Counter-traction: holding the skin edge with the forceps steadies it, so it takes more forcing to tear.
-    const steadied=this.eversion.held?COUNTER_TRACTION_TEAR_FACTOR:1,tear=PRACTICE_SETUP.skin.tear;
+    // Needle point (roadmap "Needle type and curve", 2026-11-28): a taper point has to push its way through skin,
+    // so it tolerates less forcing off the curve before the bite tears out; a cutting point is unchanged.
+    const point=this.environment.id==='skin'&&PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1;
+    const steadied=(this.eversion.held?COUNTER_TRACTION_TEAR_FACTOR:1)*point,tear=PRACTICE_SETUP.skin.tear;
     pass.tearLimits={degrees:tear.degrees*steadied,units:tear.units*steadied,seconds:tear.seconds};
     if(this.environment.id!=='skin'){pass.surfaceAt=()=>SKIN_SURFACE_Y;pass.halfGapAt=()=>0;return;}
     const top=TISSUE_LAYERS.epidermis.top,edge=this.wound.initialGap/2;

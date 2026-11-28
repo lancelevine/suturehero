@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: taper vs cutting point in skin (roadmap needle type)
+- `PracticeSession`: `TAPER_IN_SKIN_TEAR_FACTOR` 0.85 on the free-pass tear limits for taper needles in skin; the readout's tear text uses the same factor. Checked: tsc, PracticeSession tests (Node 24), check-sandbox. Default trainer needle (cutting) unchanged.
+
 ### 2026-11-28 — Claude: endurance run (roadmap)
 - New `src/gameplay/endurance.ts` (+test): passes toward 20; after 10, mean symmetry of the first vs last five (±0.2 mm = steady). Setup button `#endurance-exercise` (`?exercise=endurance`), line leads the instruction readout. Checked: tsc, test, browser (line, no console errors), check-practice-setup, check-sandbox, check-layout.
 
