@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: thread budget (roadmap)
+- Finding: a continuous running thread already exists (Stage B2, `FreeThreadGuide`: untied Sandbox passes share one strand).
+- New `src/gameplay/threadBudget.ts` (+test): per pass arc (|start| × exitAngle) + loose span × 1.05 to the previous pass, against the 3.8-unit strand (~103 mm); warns below 25% left. Sandbox summary "Thread" line. Counts all Sandbox passes (not reset per tied stitch yet).
+- Checked: tsc, test, check-sandbox.
+
 ### 2026-11-28 — Claude: roadmap items needing a decision or deeper work
 - Tail control on pull-through: tail length lives inside `FreeThreadGuide`'s thread layout (tail reserve, older-pass costs); exposing "tail left outside the entry" is a thread-model change. Not started.
 - Forehand/backhand bites: needs Lance's definition for the sim (which bite direction counts as forehand for a right-handed driver).
