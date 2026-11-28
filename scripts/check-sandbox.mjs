@@ -71,6 +71,7 @@ try{
   assert.equal(json.trainee,'Resident, A');
   assert.ok(Number.isFinite(json.sessionSeconds));
   assert.ok(Array.isArray(json.stitchRecords));
+  assert.ok(json.skills&&Number.isFinite(json.skills.seconds),'session export includes the Skill Analysis report');
   assert.equal(await page.evaluate(()=>localStorage.getItem('suturehero.trainee.v1')),'Resident, A');
   assert.deepEqual(errors,[]);
   console.log('Sandbox: free pass with feedback and marks, tear splits the skin, undo, replay and summary passed.');

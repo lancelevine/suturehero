@@ -29,6 +29,8 @@ export interface SandboxSource {
   stitchRecords(): readonly ExportStitch[];
   /** Seconds since the practice session started. */
   sessionSeconds(): number;
+  /** Skill Analysis report for the session export (roadmap "Exportable skills report"). */
+  skillReport?(): unknown;
 }
 
 /** Trainee name or ID, kept in this browser and written into every export (traineeExport.ts). */
@@ -132,7 +134,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
       appendProgress(storage, saved());
       render(true);
     } else if (action === 'export') {
-      const data = { build: source.build(), trainee: trainee() || null, sessionSeconds: Math.round(source.sessionSeconds()), summary: current(), targets, targetResults: checkTargets(current(), targets), passes: source.passes(), torn: source.torn(), stitches: source.stitches(), stitchRecords: source.stitchRecords(), progress: loadProgress(storage) };
+      const data = { build: source.build(), trainee: trainee() || null, sessionSeconds: Math.round(source.sessionSeconds()), summary: current(), targets, targetResults: checkTargets(current(), targets), passes: source.passes(), torn: source.torn(), stitches: source.stitches(), stitchRecords: source.stitchRecords(), progress: loadProgress(storage), skills: source.skillReport?.() ?? null };
       download(JSON.stringify(data, null, 2), 'application/json', fileName('session', 'json'));
     } else if (action === 'stitches-csv') {
       download(stitchesCsv(source.stitchRecords(), trainee(), source.build()), 'text/csv', fileName('stitches', 'csv'));

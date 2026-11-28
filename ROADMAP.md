@@ -126,7 +126,7 @@ Last updated: 2026-11-27
 - **Knot quality check:** square vs granny, number of throws, slippage.
 - **Complication events mid-closure:** a bleeder, a torn bite, a broken needle.
 - **Loupe and microscope view:** 10 to 20x, shallow depth of field, real tremor scaled up.
-- **Exportable skills report:** per-session summary trended over weeks, for program directors or research.
+- **Exportable skills report:** per-session summary trended over weeks, for program directors or research. *(First step in build 0.235: Skill Analysis numbers in the session JSON export; weekly trends not yet.)*
 - **Haptic cues:** vibration in instrument handles for needle pop-through, over-grip and tears.
 - **Phones as cameras:** pair a phone camera by QR code; the stereo rig is the upgrade.
 - **Suture material choice:** thread type and size; monofilament memory, braided drag, track marks.

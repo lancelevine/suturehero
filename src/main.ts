@@ -116,7 +116,7 @@ try {
   // Sandbox session summary, targets, progress and export (ui/SandboxSummaryPanel.ts).
   {const review=document.querySelector('#workspace-session-review');const host=document.createElement('div');if(review)review.querySelector('summary')?.after(host);else document.querySelector('.exercise-feedback')?.after(host);
    // Mounted after the session exists (it is created further down this setup).
-   setTimeout(()=>mountSandboxSummaryPanel(host,{active:()=>session.sandbox||session.canFinishSandboxStitch||session.freePass.passes.length>0,passes:()=>session.freePass.passes,torn:()=>session.freePass.torn,stitches:()=>session.course.active?[]:session.course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review})),build:()=>document.querySelector('.version')?.textContent??'',stitchRecords:()=>session.course.completed.map(r=>({number:r.number,review:r.review,meta:r.meta})),sessionSeconds:()=>session.clock.secondsSoFar}),0);}
+   setTimeout(()=>mountSandboxSummaryPanel(host,{skillReport:()=>exportSkillReport(),active:()=>session.sandbox||session.canFinishSandboxStitch||session.freePass.passes.length>0,passes:()=>session.freePass.passes,torn:()=>session.freePass.torn,stitches:()=>session.course.active?[]:session.course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review})),build:()=>document.querySelector('.version')?.textContent??'',stitchRecords:()=>session.course.completed.map(r=>({number:r.number,review:r.review,meta:r.meta})),sessionSeconds:()=>session.clock.secondsSoFar}),0);}
   /** How long the "tissue torn" message stays (ms), and the torn passes already announced. */
   const TORN_MESSAGE_MS=3500;let tornSeen=0,tornMessageUntil=0,cutSeen=0,cutMessageUntil=0;view.scene.add(passMarks.root);
   const tipMarkers=new TipMarkers([{root:tools[0].root,color:0x65d8c1},{root:tools[1].root,color:0xe65353}]);view.scene.add(tipMarkers.root);
@@ -487,6 +487,8 @@ try {
     micro:session.environment.id==='microsurgery'?{alignmentMm:(session.wound.initialGap*(1-session.wound.closure)+Math.abs(session.wound.edgeMismatch))*MICRO_MM_PER_UNIT,closure:session.wound.closure,goal:vesselGoal()}:undefined,bestSeconds:challengeBest()};
   });
   // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
+  // Skill Analysis report for the session export (the Sandbox panel reads it when exporting).
+  let exportSkillReport:()=>unknown=()=>null;
   const skillRecorder=new SkillRecorder();
   /** Needle-driver tip in its local frame (scene units); reused vector for the per-frame sample. */
   const DRIVER_TIP_LOCAL=new THREE.Vector3(0,0,.05),skillTip=new THREE.Vector3(),forcepsSkillTip=new THREE.Vector3(),needleSkillPoint=new THREE.Vector3();
@@ -518,6 +520,7 @@ try {
   };
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
   mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleLoading:{total:loadingCheck.loads,good:loadingCheck.good},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
+  exportSkillReport=()=>{const r=skillRecorder.report(session.clock.secondsSoFar,passSymmetries());return {...r,path:undefined,ideal:undefined,speed:undefined};};
   const frameQuery=cachedQuery();
   // Guided first run (src/ui/firstRun.ts): once per browser, never for automated checks.
   mountFirstRun(document.querySelector<HTMLElement>('#viewport')!,(()=>{try{return localStorage;}catch{return null;}})(),navigator.webdriver===true);

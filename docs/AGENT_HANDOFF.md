@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: skills in the session export (roadmap)
+- `SandboxSource.skillReport` (optional); `src/main.ts` passes the Skill Analysis report (without path/speed arrays) via `exportSkillReport`. `scripts/check-sandbox.mjs` now asserts `json.skills.seconds`. Checked: tsc, check-sandbox, no console errors on load.
+
 ### 2026-11-28 — Claude: guided first run (roadmap)
 - New `src/ui/firstRun.ts` (+test): four-step card in `#viewport` (camera → calibrate → `#begin-pass` → analysis), `suturehero.firstRun.v1`; skipped when `navigator.webdriver` (so browser checks are unaffected). Styles in theme.css.
 - Checked: tsc, test, screenshot with webdriver overridden (card, Next advances), check-sandbox, check-layout, check-practice-setup.
