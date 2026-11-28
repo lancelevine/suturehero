@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.270 — Fragile skin mode
+
+- Body sites: new "Fragile skin (elderly forearm)" preset: thin, papery, half the tear strength (tears past 18° or 3.5 mm off the curve) and slightly wider bite targets. Thread pulls now cut through according to skin toughness, so on fragile skin a firm pull cuts through (standard skin is unchanged) (roadmap: "Fragile skin mode"; illustrative values; tape support is not modelled).
+
 ## Build 0.269 — First-pass rate
 
 - Sandbox summary: the bite depth line starts with the first-pass rate, the share of bites placed without being backed out, cancelled or undone and re-bitten (roadmap: "First-pass rate"; per session, not yet per site or over time).

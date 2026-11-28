@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Fragile skin mode (build 0.270)
+
+- `BODY_SITES` gains `fragile` (thickness 0.55, toughness 0.5, tension 0.8). New `src/gameplay/cutThrough.ts` (+ test): cut-through tension = 1 + 0.35 × toughness (standard unchanged), used in the `PracticeSession` cut rule. Bite target scale 1.1.
+- Checked: gameplay/environments/setup tests (185, Node 24), tsc, check-sandbox, check-practice-setup, check-layout, browser `?site=fragile`.
+
 ### 2026-11-28 — Claude — First-pass rate (build 0.269)
 
 - `FreeNeedlePass` counts `backOuts` (backed fully out, or aborted mid-pass) and `undonePasses`; new `src/gameplay/firstPassRate.ts` (+ test); shown on the `.sandbox-depths` line via a new `firstPass()` source in `SandboxSummaryPanel`. check-sandbox asserts it.

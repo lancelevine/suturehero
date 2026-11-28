@@ -1,3 +1,4 @@
+import {cutThroughTension} from './cutThrough';
 import {holeStrength,holesNear} from '../tissue/punctureHoles';
 import {NeedleWear} from './needleWear';
 import {knotSurfaceAt,type KnotTissue} from '../knot/knotTissue';
@@ -503,7 +504,7 @@ export class PracticeSession {
       if(this.sandbox)this.grasp.needle.advanceFreeThread(step,this.freeThread,this.freePass.threadedPasses(),this.environment.threadFloorAt??this.environment.surfaceAt,this.environment.threadContact,{grasp:this.threadGrasp,jaws:this.threadJaws()});
       if(this.sandbox){
         // Yanking the thread cuts it through the newest completed pass (approximate: thread tension is geometric, not a force).
-        this.cutTime=this.freeThread.tension>PracticeSession.CUT_TENSION*this.holeStrength&&!this.freePass.inTissue?this.cutTime+step:0;
+        this.cutTime=this.freeThread.tension>cutThroughTension(PRACTICE_SETUP.skin.site?.toughness??1)*this.holeStrength&&!this.freePass.inTissue?this.cutTime+step:0;
         if(this.cutTime>=PracticeSession.CUT_SECONDS){this.cutTime=0;if(this.freePass.cutThrough()){this.cutThroughs++;this.freeThread.reset();}}
       }
       else{this.threadGrasp.reset();this.grasp.needle.advanceThread(step,threaded?this.pass.angle+this.pull.angle:null,this.pass.center,(this.course.active?this.freeKnot.surfaceAt:this.environment.threadFloorAt??this.environment.surfaceAt),this.environment.threadContact);}

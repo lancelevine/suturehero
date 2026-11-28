@@ -34,6 +34,8 @@ export const BODY_SITES: readonly BodySite[] = [
   { id: 'face', label: 'Face', thickness: 0.7, toughness: 0.8, tension: 0.7, look: { tone: [214, 158, 142], pores: 2600, creases: 6, hair: 0, freckles: 90 } },
   { id: 'scalp', label: 'Scalp', thickness: 1.5, toughness: 1.3, tension: 1.1, look: { tone: [208, 166, 146], pores: 900, creases: 2, hair: 2600, freckles: 0 } },
   { id: 'hand', label: 'Back of hand', thickness: 0.8, toughness: 0.9, tension: 0.9, look: { tone: [196, 146, 128], pores: 900, creases: 46, hair: 0, freckles: 30 } },
+  // Fragile skin (roadmap, 2026-11-28): thin, papery skin (elderly forearm, long steroid use); tears and cuts through easily.
+  { id: 'fragile', label: 'Fragile skin (elderly forearm)', thickness: 0.55, toughness: 0.5, tension: 0.8, look: { tone: [222, 178, 164], pores: 700, creases: 60, hair: 0, freckles: 140 } },
   { id: 'back', label: 'Back', thickness: 1.8, toughness: 1.3, tension: 1.4, look: { tone: [210, 164, 144], pores: 2400, creases: 4, hair: 0, freckles: 20 } },
 ];
 
