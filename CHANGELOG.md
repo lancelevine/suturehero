@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.288 — Left-handed view
+
+- Setup: new "Left-handed view" button mirrors the practice view for a left-handed surgeon; the legend and tool label read left needle driver / right forceps, and the bite summary calls left-to-right bites forehand (roadmap: "Left-handed mode"; the view is mirrored, so keyboard directions and mouse orbiting are mirrored too; the scoring itself is unchanged).
+
 ## Build 0.287 — Expert ghost replay
 
 - Practice view: running the Demo now records its instrument motion (kept in this browser). The new "Ghost" button replays it on see-through instruments, looping, so you can follow the expert's motion with your own (roadmap: "Expert ghost replay"; the ghost is the Demo's motion, not a recorded human expert, and shows instruments only, not the thread).

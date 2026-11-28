@@ -54,6 +54,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Left-handed view (build 0.288)
+
+- `?hand=left` mirrors the canvas with CSS `scaleX(-1)` (`src/main.ts`), swaps the legend and right tool label, and `describeBiteHands(passes, leftHanded)` swaps the direction words (test added). Scene coordinates and scoring are unchanged.
+- Checked: unit tests, tsc, browser (mirrored, legend swapped), check-layout, check-sandbox, check-practice-setup.
+
 ### 2026-11-28 — Claude — Expert ghost replay (build 0.287)
 
 - New `src/gameplay/ghostTrack.ts` (+ test; key `suturehero.ghostTrack.v1`, 10 Hz, 3-decimal rounding). `src/main.ts`: records while `demo.running`, saves when it stops; two transparent `Instrument` ghosts driven by `sampleGhost`; `Ghost: on/off` button in the view tools.

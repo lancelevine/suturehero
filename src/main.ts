@@ -141,7 +141,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.287';
+const APP_BUILD='0.288';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -500,6 +500,13 @@ try {
   const thicknessNote=()=>{if(!thicknessExercise||session.environment.id!=='skin')return '';const last=session.freePass.passes.at(-1);
    if(!last?.exit)return 'Thin-edge exercise: the left edge is about 1 mm thinner · take the bite deeper on that side so the edges sit level · ';
    return describeThicknessPass(sideDepths(last.tract,x=>SKIN_SURFACE_Y-(x<0?THIN_SIDE_DROP:0)),SCENE_MM_PER_UNIT)+' · ';};
+  // Left-handed view (roadmap, low priority): mirror the 3D view; the bite-hand wording follows it.
+  const leftHanded=new URLSearchParams(location.search).get('hand')==='left';
+  view.renderer.domElement.style.transform=leftHanded?'scaleX(-1)':'';
+  {const b=document.createElement('button');b.type='button';b.id='left-handed';b.textContent=leftHanded?'Right-handed view':'Left-handed view';b.title='Mirror the practice view for a left-handed surgeon (forehand becomes left to right)';
+   b.addEventListener('click',()=>{const url=new URL(location.href);if(leftHanded)url.searchParams.delete('hand');else url.searchParams.set('hand','left');location.href=url.toString();});
+   document.querySelector('#exam-mode')?.before(b);}
+  if(leftHanded)for(const span of Array.from(document.querySelectorAll('.legend span'))){const text=span.lastChild;if(text?.nodeType===Node.TEXT_NODE)text.textContent=text.textContent!.replace('Left forceps','Right forceps').replace('Right needle driver','Left needle driver');}
   // Langer's lines (environments/langerLines.ts): faint skin tension lines for the chosen body site.
   {const lines=new LangerLinesView(SKIN_SURFACE_Y,langerAngle(PRACTICE_SETUP.skin.site?.id));view.scene.add(lines.root);}
   // Purse-string (gameplay/purseString.ts): Sandbox exercise with a round defect marked on the right.
@@ -819,7 +826,7 @@ try {
     // Suture breaking strength: a pull held past this size's breaking point snaps the strand.
     if(session.freeKnot.active){const free=session.freeKnot;for(const key of ['long','short'] as const){if(breakMonitors[key].update(free.tension[key].demand,dt,sutureSize)){const strand=free[key];const at=Math.max(free.minimumCut(strand)+1,Math.floor(strand.count*0.6));if(free.cut(strand,at)){cutFeedback=`Suture snapped (${sutureSize.label}) · pulled too hard`;mistakeLog.add(time/1000,'suture snapped');}}}}
     fragmentsView.update(session.freeKnot.active?session.freeKnot.fragments:session.knotSlack.fragments);
-    setText(frameQuery('#right-tool-name'),input.scissorsActive?(session.environment.id==='microsurgery'?'Westcott scissors':'Mayo scissors'):session.environment.id==='microsurgery'?'Castroviejo driver':'Right needle driver'); if(session.environment.id==='skin'){tissue.setTargets(session.pass.entry,session.pass.exit);tissue.update(session.wound,session.eversion,session.course.tissueSites,session.course.siteZ,session.tissueField);}else artery.update(session.wound,session.eversion);
+    setText(frameQuery('#right-tool-name'),input.scissorsActive?(session.environment.id==='microsurgery'?'Westcott scissors':'Mayo scissors'):session.environment.id==='microsurgery'?'Castroviejo driver':leftHanded?'Left needle driver':'Right needle driver'); if(session.environment.id==='skin'){tissue.setTargets(session.pass.entry,session.pass.exit);tissue.update(session.wound,session.eversion,session.course.tissueSites,session.course.siteZ,session.tissueField);}else artery.update(session.wound,session.eversion);
     setHidden(crossSectionToggle.parentElement!,session.environment.id!=='skin');
     setHidden(crossSectionPanel,session.environment.id!=='skin'||!crossSectionToggle.checked);
     if(!crossSectionPanel.hidden)crossSection.update(session.tissueField,session.course.siteZ,session.pass,session.eversion);

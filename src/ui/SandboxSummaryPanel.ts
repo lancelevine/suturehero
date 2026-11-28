@@ -193,7 +193,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     key = nextKey;
     const n = (v: number | null, digits = 1, unit = ' mm') => (v === null ? '–' : `${v.toFixed(digits)}${unit}`);
     panel.querySelector('.sandbox-summary-line')!.textContent = `${s.passes} pass${s.passes === 1 ? '' : 'es'} · ${s.tears} torn · ${s.cutThroughs} cut through · mean bite ${n(s.meanBiteMm)} · depth ${n(s.meanDepthMm)} · entry ${n(s.meanEntryAngleDeg, 0, '°')} · ${s.stitches} tied (${s.secureKnots} secure)`;
-    panel.querySelector('.sandbox-hands')!.textContent = describeBiteHands(source.passes());
+    panel.querySelector('.sandbox-hands')!.textContent = describeBiteHands(source.passes(), new URLSearchParams(location.search).get('hand') === 'left');
     panel.querySelector('.sandbox-thread')!.textContent = describeThreadBudget(source.passes());
     panel.querySelector('.sandbox-patterns')!.textContent = describePatterns(recognisePatterns(source.passes()));
     panel.querySelector('.sandbox-shapes')!.textContent = describeBiteShapes(source.passes().filter((p) => p.exit).map((p) => biteShape(p.depth, Math.hypot(p.exit!.x - p.entry.x, p.exit!.z - p.entry.z))));
