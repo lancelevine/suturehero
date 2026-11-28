@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.261 — Loupe and microscope view
+
+- Practice view: new "View" button cycles naked eye → Loupe ×2.5 → Microscope ×4 (relative to the normal view); the microscope step adds a round eyepiece vignette. Hand tremor is magnified on screen by the same factor (roadmap: "Loupe and microscope view"; depth of field is not simulated yet).
+- Microsurgery: the Fresh needle button and needle wear note are now skin-only.
+
 ## Build 0.260 — Highlight clips
 
 - Practice view: new "Record 15 s clip" button records the 3D view for 15 seconds and downloads it as a WebM video, ready to share (roadmap: "Shareable highlight clips"; the HTML HUD and side panels are not in the clip yet, and it records live rather than from a replay).

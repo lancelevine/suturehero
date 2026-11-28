@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Loupe and microscope view (build 0.261)
+
+- New `src/scene/magnification.ts` (+ test): zoom steps 1 / 2.5 / 4 applied to `view.camera.zoom`; `.eyepiece-view` vignette in `src/ui/theme.css`. Button in `.workspace-view-tools` (`src/main.ts`). Also hid Fresh needle / wear note outside skin.
+- Checked: unit test, tsc, browser screenshot (vignette visible), check-layout, check-sandbox, check-practice-setup, check-guided-thread.
+- Lance: is ×4 enough for the microscope, and is the vignette helpful?
+
 ### 2026-11-28 — Claude — Highlight clips (build 0.260)
 
 - New `src/ui/clipRecorder.ts` (+ test): `canvas.captureStream(30)` + `MediaRecorder` for 15 s, downloaded as WebM; button disabled where unsupported. Mounted in `.workspace-view-tools` from `src/main.ts`.
