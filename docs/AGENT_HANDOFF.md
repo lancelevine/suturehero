@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: landmark alignment exercise (Lance #3)
+- New `src/gameplay/landmark.ts` (+test) and `src/scene/LandmarkLine.ts`: centred red landmark line; first stitch (first course stitch, else first completed Sandbox pass) graded on mm off it, aligned within 1 mm. Setup button `#landmark-exercise` (skin only), kept in the URL as `?exercise=landmark`; result leads the instruction line.
+- Checked: tsc, test, screenshot, check-practice-setup, check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude: vessel stitch count by circumference (Lance #6)
 - New `src/gameplay/vesselStitchCount.ts` (+tests): suggested = round(8 × diameter mm), min 4; spacing from the vessel turn angle at each save (even within 25% of the even gap). `src/main.ts`: saved angles, turn step 360°/suggested, HUD micro goal, instruction line. `practiceHud` takes `micro.goal`.
 - Note: with MICRO_MM_PER_UNIT 2.5 the default artery is 2.0 mm (16 stitches), the small artery 1.25 mm (10).

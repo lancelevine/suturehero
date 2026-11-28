@@ -32,7 +32,7 @@ Last updated: 2026-11-27
 - **Knot placement check:** skin knots off the incision and on the same side each time; vessel knots outside the lumen. *(First version in build 0.235: skin knots located where the strands cross, graded off-incision and same-side in the spacing line; vessel knots not yet.)*
 - **Air knot detection:** flags a first throw not snugged onto the tissue, leaving a loose loop under the knot. *(First version in build 0.235: live warning from the shared knot-engine interface (throw count and seated throws), so every engine is covered.)*
 - **Bite depth gauge:** cutaway view of each bite's depth (epidermis, dermis or fat); flags too shallow or too deep. *(First version in build 0.235: Sandbox summary line per pass; cutaway view still to do.)*
-- **Landmark alignment:** on wounds crossing a line like the vermilion border, brow or crease, the first stitch lines it up; scored on millimetres off.
+- **Landmark alignment:** on wounds crossing a line like the vermilion border, brow or crease, the first stitch lines it up; scored on millimetres off. *(First version in build 0.235: separate exercise with a centred landmark line (Lance); first stitch graded within 1 mm.)*
 - **Needle direction check (vessel):** outside-in on the first wall, inside-out on the second; flags any bite that goes the wrong way. *(Not started: the microsurgery stitch is one guided pass whose direction the sim sets, so there is nothing to grade until free vessel passes exist.)*
 - **Running locked stitch:** blanket stitch for scalp and oozing edges; scored on even lock tension and spacing, flags strangling locks.
 - **Pulley stitch:** far-near-near-far bite for high-tension edges; scored on bite order and tension taken off.

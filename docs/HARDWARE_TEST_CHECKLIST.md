@@ -165,3 +165,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: tie two Sandbox stitches with the knot pulled to the left each time; the spacing line ends "Knots: 2/2 off the incision · all on the left". Leave one over the wound line and it is counted.
 - Build 0.235: while free tying, pull a strand gently taut: it glows green; pull hard: it turns red.
 - Build 0.235: in Microsurgery (artery), the HUD progress reads x/16; after saving stitches the instruction line says "Stitches n/16 … evenly spaced" unless you turned the vessel unevenly between them.
+- Build 0.235: Setup → "Landmark exercise": a red line crosses the wound at the centre; put the first stitch on it and the instruction line says "aligned ✓".
