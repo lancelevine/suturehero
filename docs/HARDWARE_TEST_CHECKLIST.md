@@ -220,3 +220,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.274: rest an instrument tip on the table beside the pad — Skill Analysis "Sterile field" counts it.
 - [ ] Build 0.276: while snugging a throw, pull one end hard and leave the other slack — the slip-knot warning appears.
 - [ ] Build 0.277: press Case scenario — a patient story with a matching body site and goal appears; does the wording read right?
+- [ ] Build 0.278: Guide & controls — the curriculum lists the drills; links open them and done marks stick after reload. Is the order right?

@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Training curriculum (build 0.278)
+
+- New `src/gameplay/curriculum.ts` (+ test; key `suturehero.curriculum.v1`) and `src/ui/CurriculumPanel.ts`, mounted in `#curriculum-host` at the top of the Guide & controls drawer (`src/ui/WorkspaceLayout.ts`).
+- Checked: unit + ui tests, tsc, browser (11 steps, marking done updates next step), check-layout, check-practice-setup, check-sandbox.
+- Lance: please review the order and wording of the drills.
+
 ### 2026-11-28 — Claude — Case scenarios (build 0.277)
 
 - New `src/gameplay/caseScenarios.ts` (+ test): five cases with site, story, goal, stitch count; `#case-scenario` button reloads with `?site=…&case=…`; `caseNote` in `src/main.ts`.

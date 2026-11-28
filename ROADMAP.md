@@ -155,7 +155,7 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Venous coupler drill:** size the vein, evert onto the ring pins, close the device, flag missed pins.
 - **Deep-cavity suturing:** a wound in a pocket or under a retracted flap, at awkward angles.
 - **Ergonomics coaching:** cameras watch wrists, elbows and shoulders and nudge on posture drift.
-- **Training curriculum.**
+- **Training curriculum.** *(First version in build 0.278: ordered list of 11 drills with start links and trainee-set done marks.)*
 - **Left-handed mode (low priority):** mirror the scene, arc guide and scoring for left-handed surgeons.
 
 ## Maybe

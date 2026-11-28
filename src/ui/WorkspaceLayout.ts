@@ -39,7 +39,9 @@ export function mountWorkspaceLayout(app:HTMLElement){
  const analysis=drawer('workspace-skill-analysis','Skill analysis',[analysisHost]);
  const grip=workspace.querySelector('.grip-settings')!;
  const notes=Array.from(workspace.querySelectorAll('.knot-note'));
- const guide=drawer('workspace-guide','Guide & controls',[lesson,...notes,grip,workspace.querySelector('.controls')!]);
+ // Training curriculum (src/ui/CurriculumPanel.ts) fills this host.
+ const curriculumHost=document.createElement('div');curriculumHost.id='curriculum-host';
+ const guide=drawer('workspace-guide','Guide & controls',[curriculumHost,lesson,...notes,grip,workspace.querySelector('.controls')!]);
  const feedback=workspace.querySelector('.exercise-feedback')!,toolbar=workspace.querySelector('.toolbar')!,handling=workspace.querySelector('#skin-handling')!;
  const coach=document.createElement('div');coach.className='workspace-coach';coach.append(feedback,toolbar,handling);
  workspace.replaceChildren(stage,coach);

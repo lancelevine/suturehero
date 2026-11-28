@@ -79,6 +79,7 @@ import {KnotTimer,describeKnotTime,loadBestKnot,saveBestKnot} from './gameplay/k
 import {RunningLockTracker,describeLocks} from './gameplay/runningLock';
 import {BREAK_MESSAGE,NeedleBreakCheck,breakingForce} from './gameplay/needleBreak';
 import {Bleeder} from './gameplay/bleeder';
+import {mountCurriculumPanel} from './ui/CurriculumPanel';
 import {caseById,caseUrl,describeCase,nextCase} from './gameplay/caseScenarios';
 import {examReadout} from './gameplay/examMode';
 import {describeRubric,osatsRubric} from './gameplay/osatsRubric';
@@ -128,7 +129,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.277';
+const APP_BUILD='0.278';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -442,6 +443,7 @@ try {
   examButton?.addEventListener('click',()=>{if(exam){examFinished=true;examButton.disabled=true;return;}const url=new URL(location.href);url.searchParams.set('exercise','exam');location.href=url.toString();});
   const examText=()=>{const report=exportSkillReport() as SkillReport|null;const tears=session.freePass.torn.length;
    const rubric=report&&session.freePass.passes.length+tears>0?describeRubric(osatsRubric(report,tears)):'';return examReadout(session.clock.secondsSoFar,examFinished,rubric);};
+  {const host=document.querySelector<HTMLElement>('#curriculum-host');if(host)mountCurriculumPanel(host,(()=>{try{return localStorage;}catch{return null;}})(),location.href.split('?')[0]);}
   // Case-based scenarios (gameplay/caseScenarios.ts): a patient story sets the site and goal.
   const activeCase=caseById(new URL(location.href).searchParams.get('case'));
   document.querySelector('#case-scenario')?.addEventListener('click',()=>{location.href=caseUrl(nextCase(activeCase?.id??null,Math.random),location.href);});

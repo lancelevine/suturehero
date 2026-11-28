@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.278 — Training curriculum
+
+- Guide & controls: a training curriculum lists eleven drills in order, from the Sandbox warm-up and landmark exercise through running and locked running stitches, tension and fragile skin, endurance and microsurgery to the 10-minute exam. Each has a link that starts it and a box to mark it done (kept in this browser), with the next step shown (roadmap: "Training curriculum"; done marks are set by the trainee, not checked automatically).
+
 ## Build 0.277 — Case scenarios
 
 - Setup: new "Case scenario" button loads one of five fictional patient cases (kitchen-knife forearm cut, eyebrow split, bleeding scalp, elderly skin tear, back excision under tension). The case sets the body site, and the instruction line shows the story, the goal and stitch progress; you choose the closure (roadmap: "Case-based scenarios"; teaching cases, not clinical guidance).

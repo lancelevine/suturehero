@@ -234,3 +234,9 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 .closure-gallery figure { margin: 0; }
 .closure-gallery img { width: 100%; border-radius: 6px; border: 1px solid rgba(120, 220, 255, 0.25); display: block; }
 .closure-gallery figcaption { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+
+/* Training curriculum (ui/CurriculumPanel.ts). */
+#curriculum-host h3 { margin: 0 0 4px; font-size: 14px; }
+.curriculum-status { margin: 0 0 6px; font-size: 12px; opacity: 0.85; }
+.curriculum-list { margin: 0 0 12px; padding-left: 20px; font-size: 13px; line-height: 1.6; }
+.curriculum-list a { color: inherit; }
