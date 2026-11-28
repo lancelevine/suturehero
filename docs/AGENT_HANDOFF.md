@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Braided silk suture (build 0.251)
+
+- `SUTURES` in `src/setup/PracticeSetup.ts`: added `silk` (drag .972, bend .7, friction 1.45). Test now requires distinct colour/drag per material instead of exactly 3.
+- Did not make secure-throw counts material-specific: it would regrade the default Prolene 3-throw knot (Demo and checks expect secure). Ask Lance whether monofilaments should need 4–5 throws.
+- Checked: setup tests, tsc, `?suture=silk` loads without errors, check-practice-setup, check-free-tying, check-sandbox.
+
 ### 2026-11-28 — Claude — Edges that slide sideways (build 0.250)
 
 - New `src/gameplay/edgeShear.ts` (+ test): shift = (entryEdge − exitEdge)/2 mm, flagged above 0.75 mm. Joined onto the `.sandbox-bites` line in `src/ui/SandboxSummaryPanel.ts`.

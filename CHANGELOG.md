@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.251 — Braided silk suture
+
+- Setup: new suture "Silk · braided black" alongside the three monofilaments. It drags more through tissue, grips itself more in the knot, and bends more softly (roadmap: "Suture material choice"; illustrative values; monofilament memory and track marks are not modelled, and the throws needed for a secure knot are the same for every material).
+
 ## Build 0.250 — Edges that slide sideways
 
 - Sandbox summary: the bite line now estimates how far each pass pulls the wound line toward its wider side (half the difference between the entry and exit distances from the edge) and flags shifts over 0.75 mm (roadmap: "Edges that slide sideways"; estimate only, the edges are not drawn shifted and the drift over several stitches is not added up yet).

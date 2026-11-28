@@ -18,6 +18,8 @@ export const SUTURES:SutureProfile[]=[
  {id:'prolene',label:'Prolene · blue',color:0x315b9c,drag:.986,bend:1,friction:1},
  {id:'nylon',label:'Nylon · black',color:0x24242c,drag:.982,bend:1.18,friction:1.12},
  {id:'monocryl',label:'Monocryl · violet',color:0x8050ad,drag:.979,bend:.85,friction:1.18},
+ // Braided (roadmap "Suture material choice"): more drag through tissue and grip on itself, soft with little memory. Illustrative values.
+ {id:'silk',label:'Silk · braided black',color:0x1b2230,drag:.972,bend:.7,friction:1.45},
 ];
 /** Needles that can complete the guided exercise's bite (all but the Sandbox trainer). */
 export const GUIDED_NEEDLES=NEEDLES.filter(p=>p.id!=='trainer');

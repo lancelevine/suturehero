@@ -129,7 +129,7 @@ Last updated: 2026-11-27
 - **Exportable skills report:** per-session summary trended over weeks, for program directors or research. *(First step in build 0.235: Skill Analysis numbers in the session JSON export; weekly trends not yet.)*
 - **Haptic cues:** vibration in instrument handles for needle pop-through, over-grip and tears.
 - **Phones as cameras:** pair a phone camera by QR code; the stereo rig is the upgrade.
-- **Suture material choice:** thread type and size; monofilament memory, braided drag, track marks.
+- **Suture material choice:** thread type and size; monofilament memory, braided drag, track marks. *(Already in the app: sizes 3-0 to 6-0 and Prolene / nylon / Monocryl; build 0.251 adds braided silk with more drag and knot grip. Memory, track marks and material-specific throw counts not yet.)*
 - **Exam mode scored like OSATS:** timed, no hints, standard rubric.
 - **Benchmarks by training level:** compare against anonymous averages for students, residents and attendings.
 - **Adaptive next drill:** pick a drill that targets your weakest metric, spaced-repetition style.

@@ -195,3 +195,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.248: Sandbox — a very flat needle entry should skid (title says so); a steeper entry should bite normally.
 - [ ] Build 0.249: Back preset — a knot with a single first throw is flagged as slipping; a surgeon's start is secure.
 - [ ] Build 0.250: Sandbox — a bite much wider on one side is named in the summary's edge shear note.
+- [ ] Build 0.251: choose Silk · braided black — the thread should feel draggier and knots grip more than Prolene.
