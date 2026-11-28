@@ -175,3 +175,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: Setup → "Unequal edges exercise": cyan dots on the left edge, amber dots spaced wider on the right; bite from dot to dot and the line reports each gap's step ratio near 1.25×.
 - Build 0.235: with camera tracking, hold the needle driver still: Analysis "Tremor" stays low (green); shake it slightly and it rises.
 - Build 0.235: with sound on, a needle pass clicks, keeping a stitch chimes, and over-pulling a strand gives a low tug; "Sound off" silences them.
+- Build 0.235: cut a tail with the scissors about 5 mm from the knot: the message ends "tail 5 mm ✓"; cut far out and it says to trim.

@@ -101,7 +101,7 @@ Last updated: 2026-11-27
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads. *(First version in build 0.235: Skill Analysis counts driver loads within ±12% of two-thirds back; perpendicular grip not graded yet.)*
-- **Suture cutting check:** tracked scissors grade tail length, with no nick to the knot.
+- **Suture cutting check:** tracked scissors grade tail length, with no nick to the knot. *(First version in build 0.235: tail length graded on each cut, 3–10 mm; too-close cuts already refused.)*
 - **Economy of motion score:** path length, idle time and wasted moves per stitch, trended over sessions. *(First version in build 0.235: path length and idle time in Skill Analysis; wasted moves per stitch and trends not yet.)*
 - **Timed challenges like Moving Target:** for example 6 sutures in 2:00 within 1.0 mm on a moving wound, with personal bests.
 - **Skill tiers and unlocks:** bronze, silver and gold per skill; harder sites, microsurgery and vessel drills unlock as you go.

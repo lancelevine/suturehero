@@ -88,6 +88,7 @@ import {describeNerveAlignment,normaliseTwist,startingTwist,TWIST_STEP_DEGREES} 
 import {describeUnequalEdges} from './gameplay/unequalEdges';
 import {UnequalEdgeMarks} from './scene/UnequalEdgeMarks';
 import {loadSoundOn,saveSoundOn,SoundCues} from './ui/sound';
+import {describeTail,tailLengthMm} from './gameplay/tailLength';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -544,7 +545,7 @@ try {
     setDisabled((frameQuery('#position-scissors') as HTMLButtonElement),!canUseScissors());
     const cut=scissors.findCut(input.scissorsActive?(session.freeKnot.active?session.freeKnot.strands:[session.knotSlack.short,session.knotSlack.long]):[]);
     if(cut){
-      if(session.freeKnot.active){session.freeKnot.cut(cut.strand,cut.coordinate);cutFeedback=session.freeKnot.cutMessage;}
+      if(session.freeKnot.active){const free=session.freeKnot,tail=tailLengthMm(cut.coordinate,free.minimumCut(cut.strand),cut.strand.restLength,SCENE_MM_PER_UNIT);const done=free.cut(cut.strand,cut.coordinate);cutFeedback=free.cutMessage+(done?' · '+describeTail(tail):'');}
       else cutFeedback=session.knotSlack.cut(cut.strand,cut.coordinate)?'Suture cut · Knot retained':'Leave a free tail outside the knot';
     }
     playCues();
