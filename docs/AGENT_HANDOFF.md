@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Highlight clips (build 0.260)
+
+- New `src/ui/clipRecorder.ts` (+ test): `canvas.captureStream(30)` + `MediaRecorder` for 15 s, downloaded as WebM; button disabled where unsupported. Mounted in `.workspace-view-tools` from `src/main.ts`.
+- Checked: unit test, tsc, browser (clip downloaded, 280 KB), check-layout, check-sandbox, check-practice-setup.
+
 ### 2026-11-28 — Claude — Site-tuned bite targets (build 0.259)
 
 - New `src/gameplay/siteTargets.ts` (+ test): scales default bite targets by `SITE_BITE_SCALE`; applied in `SandboxSummaryPanel` target checks and export only, so the editable target inputs keep their stored values.

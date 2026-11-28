@@ -69,6 +69,7 @@ import {TipCollisionCounter} from './gameplay/tipCollisions';
 import {flipBlocker,FLIP_WARNING_SECONDS} from './gameplay/flipCheck';
 import {CrushScore} from './gameplay/crushScore';
 import {RotationScore} from './gameplay/rotationScore';
+import {mountClipButton} from './ui/clipRecorder';
 import {Bleeder} from './gameplay/bleeder';
 import {examReadout} from './gameplay/examMode';
 import {describeRubric,osatsRubric} from './gameplay/osatsRubric';
@@ -117,7 +118,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.259';
+const APP_BUILD='0.260';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -363,6 +364,8 @@ try {
   const showUnequalState=()=>{unequalButton.setAttribute('aria-pressed',String(unequalExercise));unequalButton.textContent=unequalExercise?'End unequal edges':'Unequal edges exercise';};
   showUnequalState();
   unequalButton.addEventListener('click',()=>{unequalExercise=!unequalExercise;const url=new URL(location.href);if(unequalExercise)url.searchParams.set('exercise','unequal');else url.searchParams.delete('exercise');history.replaceState(null,'',url);showUnequalState();unequalButton.blur();});
+  // Shareable highlight clips (ui/clipRecorder.ts).
+  {const host=document.querySelector('.workspace-view-tools');if(host)mountClipButton(host,view.renderer.domElement);}
   // Complication events (gameplay/bleeder.ts): optional bleeder after the third Sandbox pass.
   let complications=new URL(location.href).searchParams.get('complications')==='1';
   const complicationsButton=document.querySelector<HTMLButtonElement>('#complications');

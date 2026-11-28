@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.260 — Highlight clips
+
+- Practice view: new "Record 15 s clip" button records the 3D view for 15 seconds and downloads it as a WebM video, ready to share (roadmap: "Shareable highlight clips"; the HTML HUD and side panels are not in the clip yet, and it records live rather than from a replay).
+
 ## Build 0.259 — Site-tuned bite targets
 
 - Sandbox targets: the bite size target now follows the body site while it is still the default: Face 2.5–5 mm, Back of hand 3–6 mm, Forearm 4–8 mm, Scalp 5–9.5 mm, Back 5.5–11 mm. Custom targets set by a trainer are kept as they are (roadmap: "Site-tuned feedback and scoring"; illustrative scale factors).
