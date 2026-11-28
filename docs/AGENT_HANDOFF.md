@@ -54,6 +54,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Langer's lines (build 0.286)
+
+- New `src/environments/langerLines.ts` (+ test; illustrative angle per site) and `src/scene/LangerLinesView.ts`; note appended to the healing outlook in `SandboxSummaryPanel`.
+- Roadmap: marked the visual overhaul as in the app (Lance to judge against the mockup).
+- Checked: unit + ui/environment tests, tsc, screenshot (Back), check-sandbox, check-practice-setup, check-layout.
+- Lance: the per-site angles are placeholders; give real ones if you want them accurate.
+
 ### 2026-11-28 — Claude — Subcuticular bite placement (build 0.285)
 
 - New `src/gameplay/subcuticularPlacement.ts` (+ test): entry vs previous exit along the direction of travel (ahead > 0.5 mm = gap, behind > 2 mm = zig-zag); added as a check to running subcuticular in `stitchPatterns.ts`. The existing pattern test's example started each bite 2 mm ahead, which the rule calls a gap, so it now uses level starts and a second case asserts the gap is flagged (rule added, nothing loosened).

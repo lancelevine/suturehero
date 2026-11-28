@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.286 — Langer's lines
+
+- Body sites: each preset now shows faint skin tension (Langer's) lines on the pad at that site's angle to the wound, and the Sandbox healing outlook says whether the wound runs along or across them (across: gapes more, may scar wider) (roadmap: "Body sites with different skin"; illustrative angles per preset, not anatomical measurements).
+
 ## Build 0.285 — Subcuticular bite placement
 
 - Sandbox stitch patterns: a recognised running subcuticular line now also checks that each bite starts level with or just behind the last exit on the other side; bites started ahead (a gap) or far behind (a zig-zag) are counted (roadmap: "Subcuticular bite placement"; along the wound only; the dermal level is the existing "bites in the dermis" check).

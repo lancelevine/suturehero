@@ -8,6 +8,7 @@ import { describeEdgeShear } from '../gameplay/edgeShear';
 import { describeNextDrill } from '../gameplay/nextDrill';
 import { describeFirstPass } from '../gameplay/firstPassRate';
 import { describeHealingOutlook } from '../gameplay/healingOutlook';
+import { describeLanger, langerAngle } from '../environments/langerLines';
 import { addToGallery, galleryCaption, loadGallery } from '../gameplay/closureGallery';
 import { siteTunedTargets } from '../gameplay/siteTargets';
 import { describeRubric, osatsRubric } from '../gameplay/osatsRubric';
@@ -201,7 +202,8 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '') + (s.stitchZ && s.stitchZ.length > 1 ? ' · ' + describeStitchDensity(s.stitchZ, PRACTICE_SETUP.skin.site?.tension ?? 1, SCENE_MM_PER_UNIT) : '');
     {
       const outlook = describeHealingOutlook({ reviews: source.stitches().map((st) => st.review), spacingMm: s.spacingMm });
-      if (outlook) panel.querySelector('.sandbox-spacing')!.textContent += ' · ' + outlook;
+      const langer = describeLanger(langerAngle(PRACTICE_SETUP.skin.site?.id));
+      if (outlook) panel.querySelector('.sandbox-spacing')!.textContent += ' · ' + outlook + (langer ? ' · ' + langer : '');
     }
     const targetResults = checkTargets(s, siteTunedTargets(targets, PRACTICE_SETUP.skin.site?.id));
     const drillNote = describeNextDrill(targetResults);

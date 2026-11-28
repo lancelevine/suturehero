@@ -83,6 +83,8 @@ import {BREAK_MESSAGE,NeedleBreakCheck,breakingForce} from './gameplay/needleBre
 import {Bleeder} from './gameplay/bleeder';
 import {mountCurriculumPanel} from './ui/CurriculumPanel';
 import {TISSUE_LAYERS} from './tissue/anatomy';
+import {langerAngle} from './environments/langerLines';
+import {LangerLinesView} from './scene/LangerLinesView';
 import {describePurseString,gradePurseString} from './gameplay/purseString';
 import {PurseStringRing} from './scene/PurseStringRing';
 import {describeCornerPass,gradeCornerPass} from './gameplay/cornerStitch';
@@ -138,7 +140,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.285';
+const APP_BUILD='0.286';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -481,6 +483,8 @@ try {
   const thicknessNote=()=>{if(!thicknessExercise||session.environment.id!=='skin')return '';const last=session.freePass.passes.at(-1);
    if(!last?.exit)return 'Thin-edge exercise: the left edge is about 1 mm thinner · take the bite deeper on that side so the edges sit level · ';
    return describeThicknessPass(sideDepths(last.tract,x=>SKIN_SURFACE_Y-(x<0?THIN_SIDE_DROP:0)),SCENE_MM_PER_UNIT)+' · ';};
+  // Langer's lines (environments/langerLines.ts): faint skin tension lines for the chosen body site.
+  {const lines=new LangerLinesView(SKIN_SURFACE_Y,langerAngle(PRACTICE_SETUP.skin.site?.id));view.scene.add(lines.root);}
   // Purse-string (gameplay/purseString.ts): Sandbox exercise with a round defect marked on the right.
   const purseExercise=new URL(location.href).searchParams.get('exercise')==='purse';
   const purseRing=new PurseStringRing(SKIN_SURFACE_Y);purseRing.root.visible=purseExercise;view.scene.add(purseRing.root);
