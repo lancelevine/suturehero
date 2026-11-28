@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: flag — edges of different thickness / unequal length need a tissue-model refactor
+- The skin surface and layer heights are global constants (`TISSUE_LAYERS`, used in ~23 places: pass physics, thread surface, eversion, cross-section, scoring). A thick flap against thin skin needs per-side layer bounds (functions of x), and unequal edge length needs a non-straight wound. Multi-hour, high-risk; postponed until after nerve repair and vessel modes unless Lance wants it first.
+
 ### 2026-11-28 — Claude: tissue tension heatmap (big build #3)
 - New `src/scene/TissueTensionView.ts` (+test): per tied skin stitch a radial glow on the skin; tension = (initialGap / standard gap) × closure, green ≤ 0.8, red ≥ 1.3. Shown in skin practice for `course.tissueSites` (course and Sandbox). Normal blending (additive washed out on light skin).
 - Checked: tsc, test, screenshot with three forced sites (green/amber/red), check-sandbox, check-guided-thread, check-layout.
