@@ -157,3 +157,4 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Closure gallery:** a top-down snapshot of each finished closure with its score and date, to see progress over time.
 - **Suture removal drill:** cut one side close to the skin and pull toward the wound, without dragging outside thread through the track.
 - **First-pass rate:** counts how often the needle is backed out and re-bitten before a stitch is placed; first-pass percentage per closure and site.
+- **Thread damaged by instruments:** clamping suture in driver or forceps jaws crimps it, severity from the jaw sensor; crimped spots are weaker and break there under load.
