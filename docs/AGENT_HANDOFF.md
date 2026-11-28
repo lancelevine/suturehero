@@ -20,6 +20,7 @@ entry when finishing.
   0.205, in testing order). Older items were moved to `docs/archive/AGENT_HANDOFF-to-2026-11-14.md`
   on 2026-11-27 (several concern camera jaw tracking, removed in 0.205).
 - **Known issues:**
+  - Broken-needle complication (opt-in, build 0.268) can fire on ordinary threaded passes: free-pass forcing sits near the tear limit for seconds without tearing (see 2026-11-28 log).
   - `FreeKnotTechniques.test.ts` "retains a double surgeon first throw…"
     passes on Node 24 but fails on Node 22 (thread point moves 0.042 vs a
     0.034 limit). The result sits close to its threshold and is sensitive to
@@ -52,6 +53,11 @@ entry when finishing.
      stereo with them. Needs real-camera testing by Lance.
 
 ## Log
+
+### 2026-11-28 — Claude — Needle flex attempt dropped; forcing near the tear limit is common
+
+- Tried "Needle flex in tissue" (needle bends for good after sustained forcing above 60–80% of the tear limit) and dropped it: measured on check-sandbox's scripted wrist-turn passes, the first pass peaks at 77% of the tear limit, but the 2nd and 3rd (needle already threaded) sit at 85–98% for 5–9 s without tearing. So forcing near the limit is an ordinary state and cannot be used to detect mishandling yet.
+- Known issue: the 0.268 broken-needle complication (85% for 2 s) would therefore fire on later passes of a running line. It is opt-in (Complications toggle, off by default). Needs a better forcing signal (or real-camera calibration) before tuning.
 
 ### 2026-11-28 — Claude — Thread twist (build 0.281)
 
