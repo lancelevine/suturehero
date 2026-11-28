@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Knot worker investigation (partial fix)
+
+- Lance asked to fix `check-knot-worker` (fails 3/3: knot tied and locked, never seated, seat load 0).
+- Fixed: `KnotHost` gave the model more time per call than it can simulate (it advances at most `MAX_TIME_STEPS`/120 s per call) for replayed backlog frames and long requests (old 8-slice cap), silently dropping physics time when the worker fell behind. Now every call is sliced to ≤1/60 s (`slicesFor`, test in `KnotHost.test.ts`). Did not by itself make the check pass.
+- Findings: with identical instrument poses each frame, the worker host and the direct model never diverge and both tie 3/3 throws (probe, not committed). The main-thread `classic` engine passes the same browser check at the same 150 ms frames. So the worker failure comes from the main side seeing the knot state and corrections a frame late while the scripted hands work at the thread's reach limit (the existing note in `WorkerKnotEngine.test.ts` already says one frame decides whether a throw tightens there). Not resolved; options for Lance in the chat reply.
+
 ### 2026-11-28 — Claude — Browser check sweep (CI list)
 
 - Added to `DEFAULT_CHECKS` in `scripts/ci-browser-checks.mjs`: `check-guided-thread`, `check-stereo-capture-quality` (3/3, ~45 s), `check-calibration-ui` (3/3 after fix, ~70 s). Through the CI runner locally: 3/3 passed.

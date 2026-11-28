@@ -9,7 +9,16 @@ import type { KnotFrame, KnotRequest, KnotSnapshot, ToolState, WorkerModel } fro
 
 /** Slices per second of request time, and the most per request (bounds catch-up after a stall, s × 60). */
 const SLICES_PER_SECOND = 60;
-const MAX_SLICES = 8;
+/** Upper bound on slices for one request (1 s of physics), only to bound a pathological stall. */
+const MAX_SLICES = 60;
+
+/** Slices needed so no single model update carries more than one display frame of time.
+ * The model advances at most MAX_TIME_STEPS physics steps per call (1/30 s), so a longer
+ * time step in one call silently loses physics time (2026-11-28: this starved the worker
+ * engine of tightening and the Demo knot never seated). */
+export function slicesFor(dt: number) {
+  return Math.min(MAX_SLICES, Math.max(1, Math.ceil(dt * SLICES_PER_SECOND - 1e-6)));
+}
 
 /**
  * The worker side of a knot engine (2026-11-15): runs the classic knot model on its own
@@ -49,8 +58,9 @@ export class KnotHost {
               const tool = this.tools.find((t) => t.id === state.id);
               if (tool) applyTool(tool, state, request.tissue.environment);
             }
-            this.model.update(frame.dt, this.tools, blocked);
-            this.updates++;
+            const frameSlices = slicesFor(frame.dt);
+            for (let i = 0; i < frameSlices; i++) this.model.update(frame.dt / frameSlices, this.tools, blocked);
+            this.updates += frameSlices;
             this.simulatedSeconds += frame.dt;
           }
           for (const state of request.tools) {
@@ -65,7 +75,7 @@ export class KnotHost {
         // run it in display-frame slices, as the model only advances two physics steps per call,
         // moving the instruments smoothly from where they were to where they are now (a jump
         // per request is fast, jerky motion to the thread, which can stop a throw forming).
-        const slices = Math.min(MAX_SLICES, Math.max(1, Math.ceil(request.dt * SLICES_PER_SECOND - 1e-6)));
+        const slices = slicesFor(request.dt);
         for (let i = 0; i < slices; i++) {
           const t = (i + 1) / slices;
           this.tools.forEach((tool, k) => {
