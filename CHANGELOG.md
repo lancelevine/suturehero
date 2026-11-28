@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.250 — Edges that slide sideways
+
+- Sandbox summary: the bite line now estimates how far each pass pulls the wound line toward its wider side (half the difference between the entry and exit distances from the edge) and flags shifts over 0.75 mm (roadmap: "Edges that slide sideways"; estimate only, the edges are not drawn shifted and the drift over several stitches is not added up yet).
+
 ## Build 0.249 — First throws that slip back
 
 - Skin knots: on a tight body site (tension 1.2× or more, e.g. Back), a single first throw is reported as slipping back when let go and the knot is graded "may slip"; a surgeon's (double) first throw, or a deliberate sliding start, holds (roadmap: "First throws that slip back"; the edges do not visibly reopen yet).

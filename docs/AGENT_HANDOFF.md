@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Edges that slide sideways (build 0.250)
+
+- New `src/gameplay/edgeShear.ts` (+ test): shift = (entryEdge − exitEdge)/2 mm, flagged above 0.75 mm. Joined onto the `.sandbox-bites` line in `src/ui/SandboxSummaryPanel.ts`.
+- Checked: unit test, tsc, check-sandbox, check-layout.
+- Lance: take a bite much wider on one side in Sandbox; the summary should name it.
+
 ### 2026-11-28 — Claude — First throws that slip back (build 0.249)
 
 - `assessKnot` (`src/gameplay/stitchOutcome.ts`) takes `woundTension`; at ≥1.2 a single first throw (not a held-post sliding start) adds a note and caps security at "may slip". `PracticeSession` passes the body-site tension for skin. Test added.
