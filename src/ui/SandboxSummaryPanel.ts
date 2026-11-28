@@ -3,6 +3,7 @@ import { describeThreadBudget } from '../gameplay/threadBudget';
 import { describePatterns, recognisePatterns } from '../gameplay/stitchPatterns';
 import { biteShape, describeBiteShapes } from '../gameplay/biteShape';
 import { describeBiteDepths } from '../gameplay/biteDepth';
+import { describeDeadSpace } from '../gameplay/deadSpace';
 import { SCENE_MM_PER_UNIT } from '../setup/sceneScale';
 import { describeWarmups, loadWarmups, localDay, saveWarmup, WARMUP_SECONDS } from '../gameplay/warmupLog';
 import { formatClock } from './practiceHud';
@@ -156,7 +157,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     panel.querySelector('.sandbox-thread')!.textContent = describeThreadBudget(source.passes());
     panel.querySelector('.sandbox-patterns')!.textContent = describePatterns(recognisePatterns(source.passes()));
     panel.querySelector('.sandbox-shapes')!.textContent = describeBiteShapes(source.passes().filter((p) => p.exit).map((p) => biteShape(p.depth, Math.hypot(p.exit!.x - p.entry.x, p.exit!.z - p.entry.z))));
-    panel.querySelector('.sandbox-depths')!.textContent = describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT })));
+    panel.querySelector('.sandbox-depths')!.textContent = describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT }))) + (source.passes().length ? ' · ' + describeDeadSpace(source.passes().map((p) => p.depth), SCENE_MM_PER_UNIT) : '');
     panel.querySelector('.sandbox-bites')!.textContent = s.biteConsistency ? describeBiteConsistency(s.biteConsistency) : '';
     panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '');
     panel.querySelector('.sandbox-targets')!.innerHTML = checkTargets(s, targets).map((r) => `<li class="${r.met === null ? 'pending' : r.met ? 'met' : 'missed'}">${r.met === null ? '○' : r.met ? '✓' : '✗'} ${r.label} · ${r.detail}</li>`).join('');

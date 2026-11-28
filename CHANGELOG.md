@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.242 — Dead space check
+
+- Sandbox summary: the bite depth line now says whether any pass stops well above the dermis floor (more than about a third of the dermis left unclosed below it), naming those passes and how much is left open, and suggests taking them deeper (roadmap: "Dead space check"; approximate, from each pass's deepest point; not drawn in the cutaway yet).
+
 ## Build 0.241 — Needle dulling
 
 - Sandbox: the needle wears with every free pass (a cutting point 4% more force per pass, a taper 2.5%, up to 60%). A worn needle tolerates less forcing before the bite tears out. The instruction line shows the wear and suggests a fresh needle from 30%; the new "Fresh needle" button resets it (roadmap: "Needle dulling"; practice model, rates not measured).

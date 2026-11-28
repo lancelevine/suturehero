@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Dead space check (build 0.242)
+
+- New `src/gameplay/deadSpace.ts` (+ test): a pass whose deepest point stays more than 35% of the dermis thickness above the dermis floor is flagged. Appended to the Sandbox bite-depth line (`src/ui/SandboxSummaryPanel.ts`).
+- Checked: unit test, tsc, check-sandbox, check-layout.
+- Lance: make one shallow and one deep pass in Sandbox; only the shallow one should be named.
+
 ### 2026-11-28 — Claude — Needle dulling (build 0.241)
 
 - New `src/gameplay/needleWear.ts` (+ test). `PracticeSession.needleWear` multiplies the free-pass tear limits by `tearFactor`; `src/main.ts` adds wear per new free pass and a "Fresh needle" button (Sandbox only).
