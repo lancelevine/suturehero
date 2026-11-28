@@ -22,6 +22,8 @@ export interface KnotReport {
 /** Wound tension (body-site multiple of standard) at or above which a single first throw slips back
  * when let go (roadmap: "First throws that slip back"); a double (surgeon's) first throw holds. */
 export const FIRST_THROW_SLIP_TENSION = 1.2;
+/** Extra throws a flawed knot needs at most (so 4–5 in all). */
+export const MAX_EXTRA_THROWS = 2;
 
 export function assessKnot(throws: readonly ThrowRecord[], seatedThrows: number, woundTension = 1): KnotReport {
   const notes: string[] = [];
@@ -42,11 +44,15 @@ export function assessKnot(throws: readonly ThrowRecord[], seatedThrows: number,
   if (grannies) notes.push(`${grannies} granny throw${grannies > 1 ? 's' : ''} (same direction: slips) · reverse each throw`);
   const unseated = Math.max(0, throws.length - seatedThrows);
   if (unseated) notes.push(`${unseated} throw${unseated > 1 ? 's' : ''} not seated down on the knot · tighten each throw onto the last`);
-  if (throws.length < SECURE_THROWS) notes.push(`Add throws: ${SECURE_THROWS} or more for a secure knot`);
+  // Lance, 2026-11-28: three good square throws are enough; each flawed throw (granny or not seated),
+  // up to two, needs one more throw, so a flawed knot needs 4–5.
+  const flaws = grannies + unseated;
+  const needed = SECURE_THROWS + Math.min(MAX_EXTRA_THROWS, flaws);
+  if (throws.length < needed) notes.push(flaws ? `Add throws: ${needed} or more, as ${flaws === 1 ? 'one throw is' : 'some throws are'} not good` : `Add throws: ${SECURE_THROWS} or more for a secure knot`);
   const slidingStart = throws.length > 1 && throws[1].direction === throws[0].direction && !!throws[1].postHeld;
   const firstSlipped = woundTension >= FIRST_THROW_SLIP_TENSION && throws[0].wraps === 1 && !slidingStart;
   if (firstSlipped) notes.push("Single first throw slipped back under the wound's tension · start with a surgeon's (double) throw");
-  const security: KnotSecurity = !squares ? 'insecure' : grannies || unseated || firstSlipped || throws.length < SECURE_THROWS ? 'may slip' : 'secure';
+  const security: KnotSecurity = !squares ? 'insecure' : firstSlipped || throws.length < needed ? 'may slip' : 'secure';
   return { security, notes };
 }
 

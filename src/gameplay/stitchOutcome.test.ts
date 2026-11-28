@@ -46,3 +46,15 @@ describe('first throws that slip back', () => {
     expect(assessKnot([t(1, 1), t(1, -1), t(1, 1)], 3, 1).security).toBe('secure');
   });
 });
+
+describe('throws needed (Lance, 2026-11-28)', () => {
+  it('three good square throws are enough; flawed throws need four or five', () => {
+    expect(assessKnot([t(1, 1), t(1, -1), t(1, 1)], 3).security).toBe('secure');
+    // One granny throw: needs 4.
+    expect(assessKnot([t(1, 1), t(1, -1), t(1, -1)], 3).security).toBe('may slip');
+    expect(assessKnot([t(1, 1), t(1, -1), t(1, -1), t(1, 1)], 4).security).toBe('secure');
+    // Two flaws (granny + unseated): needs 5.
+    expect(assessKnot([t(1, 1), t(1, -1), t(1, -1), t(1, 1)], 3).security).toBe('may slip');
+    expect(assessKnot([t(1, 1), t(1, -1), t(1, -1), t(1, 1), t(1, -1)], 4).security).toBe('secure');
+  });
+});

@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.263 — Throws needed for a secure knot
+
+- Knot review: three good square throws are still enough for a secure knot. Each flawed throw (a granny throw or one not seated down on the knot), up to two, now needs one more throw, so a flawed knot can still be secure with 4–5 throws; the review says how many are needed (Lance, 2026-11-28).
+
 ## Build 0.262 — Moist tissue look
 
 - Graphics: the cut dermis and fat now have a wet clear-coat sheen, and the skin has a faint reddish sheen standing in for light passing through it (roadmap: "Lifelike tissue rendering"; a lighting approximation, not true subsurface scattering).

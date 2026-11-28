@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Lance's answers; throws needed (build 0.263)
+
+- Lance's answers: leave the knot worker as is (experimental); Microscope ×4 is enough; three good square throws are enough, flawed ones should require 4–5.
+- `assessKnot` (`src/gameplay/stitchOutcome.ts`): needed throws = 3 + min(2, grannies + unseated); a flawed knot with enough throws is now secure. Tests added.
+- Checked: gameplay + demo tests (173, Node 24), tsc, check-sandbox, check-free-tying, check-guided-thread.
+
 ### 2026-11-28 — Claude — Knot worker investigation (partial fix)
 
 - Lance asked to fix `check-knot-worker` (fails 3/3: knot tied and locked, never seated, seat load 0).

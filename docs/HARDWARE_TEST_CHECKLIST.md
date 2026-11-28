@@ -207,3 +207,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.260: press Record 15 s clip while stitching — a WebM downloads and plays back the view.
 - [ ] Build 0.261: View button — Loupe ×2.5 and Microscope ×4 zoom in; the microscope shows a round eyepiece; tracking still feels right when zoomed.
 - [ ] Build 0.262: tissue looks moist on the cut faces; frame rate is unchanged on your machine.
+- [ ] Build 0.263: tie a knot with one granny throw — 3 throws read "may slip", adding a 4th makes it secure.
