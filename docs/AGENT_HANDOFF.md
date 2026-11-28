@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: unequal edges exercise (big build #4, part)
+- New `src/gameplay/unequalEdges.ts` (+test): per gap, long-edge (right) step / short-edge step vs 1.25 ± 0.15. `src/scene/UnequalEdgeMarks.ts`: guide dots. Setup button `#unequal-exercise` (`?exercise=unequal`), line leads the instruction readout. Wound geometry not changed (approach avoids the per-side tissue refactor).
+- Checked: tsc, test, screenshot, check-practice-setup, check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude: vein and diseased-artery targets (big build #7)
 - `src/environments/MicroTargets.ts`: `vein` (thin wall 0.42/0.38) and `diseased-artery` (inner radius 0.3, plaque colours) targets. `ArteryTissue`: plaque nodules on the diseased lumen; the vein root flattens to 62% height unless `eversion.held` (scale about the vessel-frame pivot). `src/main.ts`: coaching line per target.
 - Limitations: needle-pass physics use the round profile (a flattened vein is visual only); separated intima not detected.

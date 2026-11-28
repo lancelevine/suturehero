@@ -85,6 +85,8 @@ import {BODY_SITES} from './environments/bodySites';
 import {BreakMonitor,describePull,resolveSize} from './gameplay/sutureStrength';
 import {TissueTensionView} from './scene/TissueTensionView';
 import {describeNerveAlignment,normaliseTwist,startingTwist,TWIST_STEP_DEGREES} from './gameplay/nerveAlignment';
+import {describeUnequalEdges} from './gameplay/unequalEdges';
+import {UnequalEdgeMarks} from './scene/UnequalEdgeMarks';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -257,6 +259,7 @@ try {
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#landmark-exercise') as HTMLElement).hidden=micro;
+    (document.querySelector('#unequal-exercise') as HTMLElement).hidden=micro;
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro&&microSelect.value!=='nerve');
     // Nerve repair: a fresh random fascicle twist on the right end each time (src/gameplay/nerveAlignment.ts).
     nerveTwist=micro&&microSelect.value==='nerve'?startingTwist():0;artery.setFascicleTwist(nerveTwist);
@@ -293,6 +296,13 @@ try {
   // Landmark alignment exercise (src/gameplay/landmark.ts): a centred line the first stitch must meet.
   const landmarkLine=new LandmarkLine(SKIN_SURFACE_Y); view.scene.add(landmarkLine.root);
   const landmarkButton=document.querySelector<HTMLButtonElement>('#landmark-exercise')!;
+  // Unequal-edges exercise (src/gameplay/unequalEdges.ts): guide dots and graded bite steps.
+  const unequalMarks=new UnequalEdgeMarks(SKIN_SURFACE_Y); view.scene.add(unequalMarks.root);
+  const unequalButton=document.querySelector<HTMLButtonElement>('#unequal-exercise')!;
+  let unequalExercise=new URL(location.href).searchParams.get('exercise')==='unequal';
+  const showUnequalState=()=>{unequalButton.setAttribute('aria-pressed',String(unequalExercise));unequalButton.textContent=unequalExercise?'End unequal edges':'Unequal edges exercise';};
+  showUnequalState();
+  unequalButton.addEventListener('click',()=>{unequalExercise=!unequalExercise;const url=new URL(location.href);if(unequalExercise)url.searchParams.set('exercise','unequal');else url.searchParams.delete('exercise');history.replaceState(null,'',url);showUnequalState();unequalButton.blur();});
   let landmarkExercise=new URL(location.href).searchParams.get('exercise')==='landmark';
   const showLandmarkState=()=>{landmarkButton.setAttribute('aria-pressed',String(landmarkExercise));landmarkButton.textContent=landmarkExercise?'End landmark exercise':'Landmark exercise';};
   showLandmarkState();
@@ -485,6 +495,7 @@ try {
    if(microSelect.value==='diseased-artery')return 'Diseased artery: take inside-out bites that pin the plaque and intima to the wall · ';
    return '';};
   const nerveNote=()=>session.environment.id==='microsurgery'&&microSelect.value==='nerve'?describeNerveAlignment(nerveTwist)+' · ':'';
+  const unequalNote=()=>unequalExercise&&session.environment.id==='skin'?describeUnequalEdges(session.freePass.passes)+' · ':'';
   const backWallNote=()=>session.environment.id==='microsurgery'&&session.pass.phase==='passing'&&catchesBackWall({centreY:session.pass.center.y,radius:session.pass.radius},microProfile(resolveMicroTarget(microSelect.value)))?BACK_WALL_WARNING+' · ':'';
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;
@@ -568,6 +579,7 @@ try {
     // Strand tension meters and cue (src/ui/practicePanels.ts).
     idealPath.update(session.environment.id==='skin',session.course.siteZ);
     landmarkLine.update(landmarkExercise&&session.environment.id==='skin',session.course.siteZ);
+    unequalMarks.update(unequalExercise&&session.environment.id==='skin',session.course.siteZ);
     {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&(session.course.finished||session.sandbox&&sites.length>=2);if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
     tensionView.update(session.course.tissueSites,session.course.siteZ,session.environment.id==='skin');
     sampleSkill();
@@ -626,7 +638,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),unequalNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,
