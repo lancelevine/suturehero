@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.279 — Thread crimp warning; crush score fix
+
+- Skin knot tying: with the Bluetooth jaw sensor, gripping the thread with the jaws squeezed fully shut is counted as a crimping grip and the instruction line asks you to hold the suture lightly (roadmap: "Thread damaged by instruments"; the crimp does not yet weaken the simulated thread).
+- Fix: the Skill Analysis "Tissue crush" score (build 0.258) counted every keyboard grip, because the keyboard closes the jaws fully. Both checks now only count openings measured by the jaw sensor.
+
 ## Build 0.278 — Training curriculum
 
 - Guide & controls: a training curriculum lists eleven drills in order, from the Sandbox warm-up and landmark exercise through running and locked running stitches, tension and fragile skin, endurance and microsurgery to the 10-minute exam. Each has a link that starts it and a box to mark it done (kept in this browser), with the next step shown (roadmap: "Training curriculum"; done marks are set by the trainee, not checked automatically).

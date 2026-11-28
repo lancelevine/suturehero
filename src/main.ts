@@ -74,6 +74,7 @@ import {MAGNIFICATION_STEPS,nextMagnification} from './scene/magnification';
 import {mountClipButton} from './ui/clipRecorder';
 import {LockMarks} from './scene/LockMarks';
 import {assessTieOff,describeTieOff} from './gameplay/runningTieOff';
+import {ThreadCrimpCheck,describeCrimps} from './gameplay/threadCrimp';
 import {UNEVEN_WARNING,UnevenPullCheck} from './gameplay/unevenPull';
 import {KnotTimer,describeKnotTime,loadBestKnot,saveBestKnot} from './gameplay/knotTimer';
 import {RunningLockTracker,describeLocks} from './gameplay/runningLock';
@@ -129,7 +130,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.278';
+const APP_BUILD='0.279';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -402,6 +403,8 @@ try {
    lineLoops=loops.map(l=>l.slackMm);
    const text=describeLocks(loops);return text?text+' · ':'';};
   // Instrument tie speed drill (gameplay/knotTimer.ts): each knot timed until locked and seated.
+  const threadCrimp=new ThreadCrimpCheck();
+  const crimpNote=()=>{const free=session.freeKnot;if(session.environment.id!=='skin')return '';if(free.active)for(const tool of tools)threadCrimp.update(tool.id,free.grips.has(tool.id)&&tool.jawSensed,tool.openness);const text=describeCrimps(threadCrimp);return text&&free.active?text+' · ':'';};
   const unevenPull=new UnevenPullCheck();let unevenClock=0;
   const unevenPullNote=()=>{const free=session.freeKnot,t=session.clock.secondsSoFar,dt=Math.max(0,Math.min(.1,t-unevenClock));unevenClock=t;if(session.environment.id!=='skin'||!free.active){unevenPull.reset();return '';}
    unevenPull.update(free.tension.long.demand,free.tension.short.demand,free.grips.size>=2&&!!free.sequence?.throws.length,dt);
@@ -662,7 +665,7 @@ try {
    regraspCheck.update(needle.points,grasp.heldPoint,session.freePass.inTissue);
    loadingCheck.update(needle.points,grasp.heldPoint,grasp.holder?.kind==='needle-driver',session.freePass.inTissue);
    needleHandling.update(grasp.holder?.kind??null,session.freePass.inTissue,t);
-   sawingPulls.update(session.freeThread.tension,session.freePass.threadedPasses().length>0,Math.max(0,t-sawingClock));rotationScore.update(session.freePass.inTissue,session.freePass.forcingWarning,Math.max(0,t-sawingClock));crushScore.update(hold.held,tools[0].openness,Math.max(0,t-sawingClock));for(const tool of tools){tool.root.updateWorldMatrix(true,false);sterileField.update(tool.id,tool.root.localToWorld(sterileTip.set(0,0,.05)),tool.minimumHeight);}sawingClock=t;
+   sawingPulls.update(session.freeThread.tension,session.freePass.threadedPasses().length>0,Math.max(0,t-sawingClock));rotationScore.update(session.freePass.inTissue,session.freePass.forcingWarning,Math.max(0,t-sawingClock));crushScore.update(hold.held&&tools[0].jawSensed,tools[0].openness,Math.max(0,t-sawingClock));for(const tool of tools){tool.root.updateWorldMatrix(true,false);sterileField.update(tool.id,tool.root.localToWorld(sterileTip.set(0,0,.05)),tool.minimumHeight);}sawingClock=t;
    edgePresentation.update(session.freePass.inTissue,{held:hold.held,ready:hold.ready,lift:hold.lift,traction:hold.traction.state});
    blindBites.update(session.freePass.passes.map(p=>p.exit),view.camera,[tools[0].root,tools[1].root,scissors.root]);
    tipCollisions.update(tip.distanceTo(forcepsTip),needleMm.distanceTo(tip)<NEEDLE_HANDOFF_MM&&needleMm.distanceTo(forcepsTip)<NEEDLE_HANDOFF_MM);
@@ -867,7 +870,7 @@ try {
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
      if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));strayTouches.update(needle.getTipPose().position,session.pass.phase!=='idle'||session.pull.phase!=='waiting'||session.freePass.inTissue,microProfile(resolveMicroTarget(microSelect.value)),dt);}
      freshNeedleButton.hidden=!session.sandbox||session.environment.id!=='skin';
-     setText(frameQuery('#exercise-readout'),exam?examText():caseNote()+unevenPullNote()+knotTimeNote()+tieOffNote()+lockNote()+bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),exam?examText():caseNote()+crimpNote()+unevenPullNote()+knotTimeNote()+tieOffNote()+lockNote()+bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

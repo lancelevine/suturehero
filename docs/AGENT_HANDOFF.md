@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Thread crimp; crush score fix (build 0.279)
+
+- New `src/gameplay/threadCrimp.ts` (+ test); `crimpNote` in `src/main.ts`.
+- `Instrument.jawSensed` (set by `setTrackedOpening`, i.e. the Hall sensor or a replay): crimp and the 0.258 crush score now only count sensed openings, since keyboard closing drives the jaws to 0 and made every keyboard grip a crush.
+- Checked: instruments + gameplay tests (190, Node 24), tsc, check-hall-sensor, check-free-tying, check-sandbox.
+
 ### 2026-11-28 — Claude — Training curriculum (build 0.278)
 
 - New `src/gameplay/curriculum.ts` (+ test; key `suturehero.curriculum.v1`) and `src/ui/CurriculumPanel.ts`, mounted in `#curriculum-host` at the top of the Guide & controls drawer (`src/ui/WorkspaceLayout.ts`).

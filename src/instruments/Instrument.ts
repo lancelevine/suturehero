@@ -76,6 +76,11 @@ export class Instrument {
     }
     this.openness=THREE.MathUtils.clamp(this.openness+command.jaw*dt,0,1); this.updateJaws();
   }
-  setTrackedOpening(value:number){this.openness=THREE.MathUtils.clamp(value,0,1);this.updateJaws();}
+  /** When a jaw sensor last set the opening (performance.now() ms; -Infinity if never). Keyboard
+   * closing drives the jaws fully shut, so squeeze-based checks only trust sensed openings. */
+  jawSensedAt=-Infinity;
+  setTrackedOpening(value:number){this.openness=THREE.MathUtils.clamp(value,0,1);this.jawSensedAt=performance.now();this.updateJaws();}
+  /** Whether the opening came from a jaw sensor within the last half second. */
+  get jawSensed(){return performance.now()-this.jawSensedAt<500;}
   private updateJaws() { this.forcepsArms?.update(this.openness); this.jaws.forEach((jaw,i)=>{jaw.rotation.y=(i===0?1:-1)*this.openness*0.35;}); }
 }
