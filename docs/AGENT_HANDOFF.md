@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Knot timer (build 0.271)
+
+- New `src/gameplay/knotTimer.ts` (+ test); `knotTimeNote` in `src/main.ts` (finish = `lockSeated` with ≥3 throws; best in `suturehero.knotTimes.v1`).
+- Checked: unit test, tsc, check-free-tying, check-running-lock, check-sandbox, browser ("Knot timer 3 s" after starting a knot).
+
 ### 2026-11-28 — Claude — Fragile skin mode (build 0.270)
 
 - `BODY_SITES` gains `fragile` (thickness 0.55, toughness 0.5, tension 0.8). New `src/gameplay/cutThrough.ts` (+ test): cut-through tension = 1 + 0.35 × toughness (standard unchanged), used in the `PracticeSession` cut rule. Bite target scale 1.1.

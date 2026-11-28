@@ -138,7 +138,7 @@ Last updated: 2026-11-27
 - **End-to-side anastomosis:** sew a vessel end onto a side opening in a second vessel; heel and toe first, then each side; scored on join angle and heel narrowing.
 - **Multi-layer closure:** buried deep dermal stitches first, then a skin layer; scored on whether the deep layer took tension off the skin.
 - **Buried knot check:** each deep dermal stitch goes deep to superficial, then superficial to deep, so the knot lands at the bottom of the wound.
-- **Instrument tie speed drills:** timed knots scored on speed and on whether each is square and lies flat.
+- **Instrument tie speed drills:** timed knots scored on speed and on whether each is square and lies flat. *(First version in build 0.271: every knot timed to locked and seated, square/flat shown, best time kept.)*
 - **Layered vessel wall:** every vessel has adventitia, media and intima the needle passes through in turn; adventitia-only bites pull out on tying, and bites that miss the intima leave a flap the patency test flags.
 
 ## Long term

@@ -214,3 +214,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.268: Complications on — hold the needle bent hard (short of tearing) for 2 s: it breaks and asks for Reset needle; normal passes do not break it.
 - [ ] Build 0.269: Sandbox — back a bite out and redo it: the first-pass rate drops below 100%.
 - [ ] Build 0.270: Fragile skin preset — bites tear and pulls cut through much more easily than on Forearm.
+- [ ] Build 0.271: tie a skin knot — the timer runs, and when the knot locks and seats it shows the time, square/flat and best.

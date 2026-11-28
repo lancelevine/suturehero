@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.271 — Knot timer
+
+- Skin knot tying: a timer runs from the start of tying; once the knot is locked and seated with three or more throws, the line shows the time, whether it is square and whether every throw lies flat, plus your best time in this browser (roadmap: "Instrument tie speed drills"; a dedicated timed-drill mode is not added yet).
+
 ## Build 0.270 — Fragile skin mode
 
 - Body sites: new "Fragile skin (elderly forearm)" preset: thin, papery, half the tear strength (tears past 18° or 3.5 mm off the curve) and slightly wider bite targets. Thread pulls now cut through according to skin toughness, so on fragile skin a firm pull cuts through (standard skin is unchanged) (roadmap: "Fragile skin mode"; illustrative values; tape support is not modelled).
