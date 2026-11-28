@@ -71,6 +71,7 @@ import {CrushScore} from './gameplay/crushScore';
 import {RotationScore} from './gameplay/rotationScore';
 import {MAGNIFICATION_STEPS,nextMagnification} from './scene/magnification';
 import {mountClipButton} from './ui/clipRecorder';
+import {LockMarks} from './scene/LockMarks';
 import {RunningLockTracker,describeLocks} from './gameplay/runningLock';
 import {Bleeder} from './gameplay/bleeder';
 import {examReadout} from './gameplay/examMode';
@@ -120,7 +121,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.264';
+const APP_BUILD='0.265';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -372,12 +373,14 @@ try {
    button.title='Magnify the view like surgical loupes or an operating microscope (tremor is magnified too)';button.addEventListener('click',()=>{step=nextMagnification(step);show();button.blur();});show();host?.prepend(button);}
   // Locked running stitch (gameplay/runningLock.ts): needle through the last loop before each bite.
   const runningLocks=new RunningLockTracker();
-  const lockNote=()=>{if(!session.sandbox||session.environment.id!=='skin')return '';
+  const lockMarks=new LockMarks();view.scene.add(lockMarks.root);
+  const lockNote=()=>{if(!session.sandbox||session.environment.id!=='skin'){lockMarks.update([]);return '';}
    const passes=session.freePass.passes.filter(p=>p.exit&&p.order!==undefined);
    runningLocks.keepOnly(passes.map(p=>p.order!));
    const threaded=session.freePass.threadedPasses().length;
    const newest=passes.at(-1);
    runningLocks.update(newest?{order:newest.order!,exit:newest.exit!}:null,threaded,needle.getTipPose().position,session.freePass.inTissue);
+   lockMarks.update(passes.filter(p=>runningLocks.locked.has(p.order!)).map(p=>p.exit!));
    const chain=passes.slice(-Math.min(passes.length,threaded));if(chain.length<2)return '';
    const slack=session.freeThread.loopSlackUnits();
    const loops=chain.slice(0,-1).map((p,i)=>({locked:runningLocks.locked.has(p.order!),slackMm:(slack[i]??0)*SCENE_MM_PER_UNIT}));

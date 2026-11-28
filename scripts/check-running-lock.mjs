@@ -37,6 +37,7 @@ try{
   assert.ok(locked);
   assert.equal(await drive(-.25),2,'second pass completes');
   await page.waitForFunction(()=>/Locked running: 1\/1 stitches locked/.test(document.querySelector('#exercise-readout').textContent),{},{timeout:10000});
+  assert.equal(await page.evaluate(()=>window.__sutureHeroSandbox.scene.getObjectByName('running-lock-marks').children.length),1,'the lock is drawn as a loop at the exit');
   // Without the lock gesture the next stitch is reported unlocked.
   await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__sutureHeroSandbox,{},{timeout:20000});

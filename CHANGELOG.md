@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.265 — Lock loops drawn
+
+- Sandbox: each locked running stitch now shows a small loop of thread lying on the skin at its exit (a marker; the simulated thread does not yet pass through it).
+
 ## Build 0.264 — Locked running stitch
 
 - Sandbox: after a running bite, passing the needle down through the loop beside the last exit (before the next bite) locks that stitch. With two or more stitches on one thread the instruction line reports how many are locked, whether the lock tension is even, and any lock pulled tight enough to strangle the edge (roadmap: "Running locked stitch"; the lock is detected from the needle's path, the thread is not yet drawn through the loop).

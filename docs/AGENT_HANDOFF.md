@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Lock loops drawn (build 0.265)
+
+- New `src/scene/LockMarks.ts` (+ test): torus marker at each locked exit; `check-running-lock` asserts it.
+- Checked: unit test, tsc, check-running-lock, check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude — Locked running stitch (build 0.264)
 
 - Lance chose item 2 (locked running stitch, running tie-off), then the rest of the roadmap.
