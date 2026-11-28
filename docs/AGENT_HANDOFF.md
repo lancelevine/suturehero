@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: figure-of-eight recognition
+- `stitchPatterns.ts`: pairs of same-side crossing passes 3–10 mm apart (not part of a ≥ 3 running run) → figure-of-eight, graded on matching bites (+test). Purse-string not started (needs a round defect). Checked: tsc, test, check-sandbox.
+
 ### 2026-11-28 — Claude: taper vs cutting point in skin (roadmap needle type)
 - `PracticeSession`: `TAPER_IN_SKIN_TEAR_FACTOR` 0.85 on the free-pass tear limits for taper needles in skin; the readout's tear text uses the same factor. Checked: tsc, PracticeSession tests (Node 24), check-sandbox. Default trainer needle (cutting) unchanged.
 

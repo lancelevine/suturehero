@@ -30,7 +30,7 @@ export interface PatternPass {
   deepestLayer?: string;
 }
 
-export type PatternName = 'simple' | 'vertical mattress' | 'horizontal mattress' | 'running' | 'running subcuticular';
+export type PatternName = 'simple' | 'vertical mattress' | 'horizontal mattress' | 'running' | 'running subcuticular' | 'figure-of-eight';
 
 export interface RecognisedStitch {
   pattern: PatternName;
@@ -43,6 +43,21 @@ const mm = (units: number) => units * SCENE_MM_PER_UNIT;
 const biteMm = (p: PatternPass) => mm((p.entryEdge + (p.exitEdge ?? p.entryEdge)) / 2);
 const middleZ = (p: PatternPass) => (p.entry.z + (p.exit?.z ?? p.entry.z)) / 2;
 const opposite = (a: PatternPass, b: PatternPass) => Math.sign(a.entry.x) !== Math.sign(b.entry.x);
+
+/** Figure-of-eight (2026-11-28): two passes from the same side, 3–10 mm apart, the thread crossing over the top. */
+function asFigureOfEight(a: PatternPass, b: PatternPass): RecognisedStitch | null {
+  if (!a.crossesWound || !b.crossesWound || opposite(a, b)) return null;
+  const apartMm = mm(Math.abs(middleZ(a) - middleZ(b)));
+  if (apartMm < HORIZONTAL_SPACING_MM.min || apartMm > HORIZONTAL_SPACING_MM.max) return null;
+  return {
+    pattern: 'figure-of-eight',
+    passes: [],
+    checks: [
+      { label: `bites match within ${HORIZONTAL_BITE_MATCH_MM} mm`, met: Math.abs(biteMm(a) - biteMm(b)) <= HORIZONTAL_BITE_MATCH_MM },
+      { label: `${apartMm.toFixed(1)} mm apart (${HORIZONTAL_SPACING_MM.min}–${HORIZONTAL_SPACING_MM.max})`, met: true },
+    ],
+  };
+}
 
 function asMattress(a: PatternPass, b: PatternPass): RecognisedStitch | null {
   if (!a.crossesWound || !b.crossesWound || !opposite(a, b)) return null;
@@ -138,7 +153,7 @@ export function recognisePatterns(passes: readonly PatternPass[]): RecognisedSti
       i += running.passes.length - 1;
       continue;
     }
-    const pair = i + 1 < done.length ? asMattress(done[i], done[i + 1]) : null;
+    const pair = i + 1 < done.length ? asMattress(done[i], done[i + 1]) ?? asFigureOfEight(done[i], done[i + 1]) : null;
     if (pair) {
       result.push({ ...pair, passes: [i + 1, i + 2] });
       i++;

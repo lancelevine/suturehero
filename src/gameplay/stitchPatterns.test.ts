@@ -26,8 +26,14 @@ describe('stitch pattern recognition', () => {
     expect(describePatterns(stitches)).toMatch(/^Stitch patterns: 1 simple · horizontal mattress \(passes 1\+2: ✓ bites match/);
   });
 
-  it('does not pair passes in the same direction', () => {
+  it('does not pair passes in the same direction at the same spot', () => {
     expect(recognisePatterns([pass(-1, 6, 0), pass(-1, 2, 0)]).map((s) => s.pattern)).toEqual(['simple', 'simple']);
+  });
+
+  it('recognises a figure-of-eight: two same-side passes a few mm apart', () => {
+    const [stitch] = recognisePatterns([pass(-1, 5, 0), pass(-1, 5.4, 6)]);
+    expect(stitch.pattern).toBe('figure-of-eight');
+    expect(stitch.checks.every((c) => c.met)).toBe(true);
   });
 
   it('recognises a running stitch and checks its spacing', () => {
