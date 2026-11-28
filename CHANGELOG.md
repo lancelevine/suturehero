@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.280 — Skin that relaxes under load
+
+- Tension heatmap: the tension each tied stitch holds now relaxes over a minute or two toward 75% of its tied value (skin creep), so an over-tight stitch's red glow and blanching ease with time (roadmap: "Skin that relaxes under load"; illustrative constants; the wound edges themselves do not move with it yet).
+
 ## Build 0.279 — Thread crimp warning; crush score fix
 
 - Skin knot tying: with the Bluetooth jaw sensor, gripping the thread with the jaws squeezed fully shut is counted as a crimping grip and the instruction line asks you to hold the suture lightly (roadmap: "Thread damaged by instruments"; the crimp does not yet weaken the simulated thread).

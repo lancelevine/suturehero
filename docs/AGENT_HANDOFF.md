@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Skin relaxation (build 0.280)
+
+- New `src/tissue/skinRelaxation.ts` (+ test): `relaxation(age)` = 0.75 + 0.25·e^(−age/60 s); `StitchAges` keyed by site z. `TissueTensionView.update` takes per-site factors.
+- Checked: unit + scene tests, tsc, check-sandbox, check-guided-thread, check-layout, check-profiler.
+
 ### 2026-11-28 — Claude — Thread crimp; crush score fix (build 0.279)
 
 - New `src/gameplay/threadCrimp.ts` (+ test); `crimpNote` in `src/main.ts`.

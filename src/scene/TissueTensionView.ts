@@ -51,28 +51,31 @@ export class TissueTensionView {
     this.root.name = 'tissue-tension';
   }
 
-  update(sites: readonly TissueSite[], siteZ: number, visible: boolean) {
+  /** `relax`: share of its tied tension each site still holds (tissue/skinRelaxation.ts); 1 if absent. */
+  update(sites: readonly TissueSite[], siteZ: number, visible: boolean, relax: readonly number[] = []) {
     this.root.visible = visible;
     this.root.position.z = -siteZ;
-    const key = sites.map((s) => `${s.siteZ}:${s.closure.toFixed(3)}:${s.initialGap}`).join(';');
+    const tensionOf = (site: TissueSite, i: number) => stitchTension(site) * (relax[i] ?? 1);
+    const key = sites.map((s, i) => `${s.siteZ}:${tensionOf(s, i).toFixed(2)}`).join(';');
     if (key === this.key) return;
     this.key = key;
     disposeChildren(this.root);
-    for (const site of sites) {
-      const material = new THREE.MeshBasicMaterial({ map: radialGlow(), color: tensionColour(stitchTension(site)), transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false });
+    sites.forEach((site, i) => {
+      const tension = tensionOf(site, i);
+      const material = new THREE.MeshBasicMaterial({ map: radialGlow(), color: tensionColour(tension), transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false });
       const glow = new THREE.Mesh(new THREE.PlaneGeometry(GLOW_RADIUS * 2, GLOW_RADIUS * 2).rotateX(-Math.PI / 2), material);
       glow.position.set(0, this.surfaceY + 0.006, site.siteZ);
       glow.renderOrder = 1;
       glow.name = 'tension-glow';
       this.root.add(glow);
       // Over-tight stitches blanch the skin: a pale patch at the centre (roadmap "Lifelike tissue rendering").
-      if (stitchTension(site) >= HIGH_TENSION) {
+      if (tension >= HIGH_TENSION) {
         const blanch = new THREE.Mesh(new THREE.PlaneGeometry(BLANCH_RADIUS * 2, BLANCH_RADIUS * 2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: radialGlow(), color: 0xfff4ee, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false }));
         blanch.position.set(0, this.surfaceY + 0.008, site.siteZ);
         blanch.renderOrder = 1;
         blanch.name = 'tension-blanch';
         this.root.add(blanch);
       }
-    }
+    });
   }
 }

@@ -110,6 +110,7 @@ import {describeTensionHold} from './gameplay/tensionHold';
 import {LandmarkLine} from './scene/LandmarkLine';
 import {BODY_SITES} from './environments/bodySites';
 import {BreakMonitor,describePull,resolveSize} from './gameplay/sutureStrength';
+import {StitchAges} from './tissue/skinRelaxation';
 import {TissueTensionView} from './scene/TissueTensionView';
 import {describeNerveAlignment,describeVesselTwist,normaliseTwist,startingTwist,TWIST_STEP_DEGREES} from './gameplay/nerveAlignment';
 import {describeUnequalEdges} from './gameplay/unequalEdges';
@@ -130,7 +131,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.279';
+const APP_BUILD='0.280';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -469,6 +470,8 @@ try {
   const gapScanView=new GapScanView(SKIN_SURFACE_Y); view.scene.add(gapScanView.root);
   // Tension heatmap around each tied stitch (src/scene/TissueTensionView.ts).
   const tensionView=new TissueTensionView(SKIN_SURFACE_Y); view.scene.add(tensionView.root);
+  // Skin that relaxes under load (tissue/skinRelaxation.ts): each tied stitch's tension fades over a minute or two.
+  const stitchAges=new StitchAges();
   // Plan vs actual (src/gameplay/planVsActual.ts): click spots on the skin while planning, compare with the passes.
   const planMarks=new PlanMarks(SKIN_SURFACE_Y); view.scene.add(planMarks.root);
   const plannedZ:number[]=[];let planning=false;
@@ -810,7 +813,7 @@ try {
     landmarkLine.update(landmarkExercise&&session.environment.id==='skin',session.course.siteZ);
     unequalMarks.update(unequalExercise&&session.environment.id==='skin',session.course.siteZ);
     {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&(session.course.finished||session.sandbox&&sites.length>=2);if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
-    tensionView.update(session.course.tissueSites,session.course.siteZ,session.environment.id==='skin');
+    tensionView.update(session.course.tissueSites,session.course.siteZ,session.environment.id==='skin',stitchAges.factors(session.course.tissueSites.map(site=>site.siteZ),session.clock.secondsSoFar));
     planMarks.update(plannedZ,session.course.siteZ,session.environment.id==='skin');
     sampleSkill();
     updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);

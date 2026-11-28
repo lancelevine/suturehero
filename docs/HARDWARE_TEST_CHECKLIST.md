@@ -222,3 +222,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.277: press Case scenario — a patient story with a matching body site and goal appears; does the wording read right?
 - [ ] Build 0.278: Guide & controls — the curriculum lists the drills; links open them and done marks stick after reload. Is the order right?
 - [ ] Build 0.279: with the Hall-sensor forceps, squeeze fully shut on the thread while tying — the crimp warning appears; a light grip does not.
+- [ ] Build 0.280: tie an over-tight stitch (red glow) and wait a minute or two — the glow eases toward amber.
