@@ -2,7 +2,7 @@ import {formatMm} from '../setup/sceneScale';
 import * as THREE from 'three';
 import {fieldShift,type TissueSite} from '../tissue/StitchField';
 import type {StitchMeta} from './sessionRecord';
-import {gapScan,OPEN_GAP} from './gapScan';
+import {gapScan,OPEN_GAP,describeWoundEnds} from './gapScan';
 import {describeStepOffs} from './stepOff';
 export interface CompletedStitch {
  readonly number:number;readonly site:TissueSite;readonly review:readonly string[];
@@ -35,7 +35,8 @@ export class StitchCourse {
   // Gap scan along the whole wound (src/gameplay/gapScan.ts): where the edges are still apart.
   const open=gapScan(this.sites);
   const scan=open.length?`Gap scan: open at ${open.map(span=>`${formatMm(span.from,0)} to ${formatMm(span.to,0)}`).join(', ')}`:'Gap scan: edges touching along the wound';
-  return `Between stitches: ${largest>OPEN_GAP?'visible opening':uneven?'uneven closure':'shared approximation'} · Largest midpoint gap ${formatMm(largest,2)} · ${scan} · ${describeStepOffs(this.sites)}`;
+  const endsNote=describeWoundEnds(open,units=>formatMm(units,0));
+  return `Between stitches: ${largest>OPEN_GAP?'visible opening':uneven?'uneven closure':'shared approximation'} · Largest midpoint gap ${formatMm(largest,2)} · ${scan} · ${endsNote} · ${describeStepOffs(this.sites)}`;
  }
  active=false;index=0;revision=0;
  private records:readonly CompletedStitch[]=[];

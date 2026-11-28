@@ -69,7 +69,7 @@ Last updated: 2026-11-27
 - **Pull direction when tying:** reads the thread's direction as each throw snugs down and flags throws pulled along the wound or upward instead of straight across in line with the bite.
 - **Sliding knot on tight wounds:** two same-way throws as a slip knot, slid down until edges just meet, then locked with a reversed throw; shows edge contact while sliding and checks it was locked.
 - **Needle dulling:** the needle wears with every pass (faster for cutting points and re-bites); shows the extra force needed and suggests a fresh needle once dull.
-- **Closing the wound ends:** marks each apex, checks the end stitches sit at or just past it at full depth, and shows any opening left at either end.
+- **Closing the wound ends:** marks each apex, checks the end stitches sit at or just past it at full depth, and shows any opening left at either end. *(First version in build 0.240: closure review reports an opening at either end from the gap scan; apex marks and end-stitch depth not yet.)*
 - **Stay tails as handles:** counts how often the vessel is turned by pulling its long stay tails versus grasping the wall; flags tail pulls hard enough to tear the bite.
 - **Lumen narrowing score:** after the last vessel stitch, measures the open lumen at the join against the original vessel, shows percent narrowed and points to bites that took too much wall or cinched too tight. *(First version in build 0.235: estimate from dilation, extra and inverted stitches after the last suggested stitch; not a geometric measurement yet.)*
 - **Wrap placement in the instrument tie:** tracks where the thread wraps on the driver and how far from the wound; flags wraps that slip off or miss the short tail.

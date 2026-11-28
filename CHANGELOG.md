@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.240 — Wound ends check
+
+- Closure review (guided course and Sandbox with two or more stitches): a new "Wound ends" part says whether either apex is left open and by how much, from the gap scan, and coaches placing the end stitch at or just past the apex (roadmap: "Closing the wound ends"; approximate, same model as the gap scan; apex marks on the pad and end-stitch depth not yet).
+
 ## Build 0.239 — Sawing pulls
 
 - Skill Analysis: new "Sawing pulls" row counts pulls that keep the thread taut through a stitch for at least 0.1 s, the same tension that cuts through tissue if held (roadmap: "Thread management scoring", first part; approximate, geometric tension rather than force). Tangles and snags on instruments are not scored yet.

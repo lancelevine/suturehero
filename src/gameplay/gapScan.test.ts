@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { TissueSite } from '../tissue/StitchField';
 import { gapScan } from './gapScan';
 
@@ -11,4 +11,15 @@ it('finds the open stretches between and beyond well-closed stitches', () => {
   const wide = gapScan([site(-0.9), site(0.9)]);
   expect(wide.some((span) => span.from < 0 && span.to > 0)).toBe(true);
   expect(gapScan([])).toEqual([]);
+});
+
+import { describeWoundEnds, woundEndOpenings } from './gapScan';
+describe('wound end check', () => {
+  const ends = { min: -1, max: 1 };
+  it('reports openings that reach either apex', () => {
+    expect(woundEndOpenings([{ from: -1, to: -0.7, widest: 0.1 }, { from: 0.1, to: 0.2, widest: 0.1 }], ends)).toEqual({ start: expect.closeTo(0.3, 6), finish: 0 });
+    expect(woundEndOpenings([{ from: 0.8, to: 1, widest: 0.1 }], ends).finish).toBeCloseTo(0.2, 6);
+    expect(describeWoundEnds([], (u) => `${u}`, ends)).toBe('Wound ends: both closed');
+    expect(describeWoundEnds([{ from: 0.8, to: 1, widest: 0.1 }], (u) => u.toFixed(1), ends)).toContain('far end open 0.2');
+  });
 });

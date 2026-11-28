@@ -37,3 +37,21 @@ export function gapScan(sites: readonly TissueSite[], ends: { min: number; max: 
   }
   return spans;
 }
+
+/** An open span within this distance of a wound end (scene units) counts as reaching that end. */
+const END_TOUCH = SCAN_STEP * 1.5;
+
+/** Wound-end check (roadmap: "Closing the wound ends"): is either apex left open, and by how much
+ * (scene units along the wound)? Uses the gap scan, so it is the same approximate model. */
+export function woundEndOpenings(open: readonly OpenSpan[], ends: { min: number; max: number } = WOUND_ENDS) {
+  const start = open.find((span) => span.from <= ends.min + END_TOUCH);
+  const finish = open.find((span) => span.to >= ends.max - END_TOUCH);
+  return { start: start ? start.to - ends.min : 0, finish: finish ? ends.max - finish.from : 0 };
+}
+
+export function describeWoundEnds(open: readonly OpenSpan[], formatLength: (units: number) => string, ends: { min: number; max: number } = WOUND_ENDS): string {
+  const { start, finish } = woundEndOpenings(open, ends);
+  if (!start && !finish) return 'Wound ends: both closed';
+  const parts = [start ? `near end open ${formatLength(start)}` : '', finish ? `far end open ${formatLength(finish)}` : ''].filter(Boolean);
+  return `Wound ends: ${parts.join(', ')} · place the end stitch at or just past the apex, at full depth`;
+}

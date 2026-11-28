@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Wound ends check (build 0.240)
+
+- `src/gameplay/gapScan.ts`: `woundEndOpenings` / `describeWoundEnds` (+ tests) report open spans that reach either end of `WOUND_ENDS`. Added to `StitchCourse.closureReview`.
+- Checked: gameplay unit tests (149, Node 24), tsc, check-guided-thread, check-sandbox.
+- Lance: finish a closure leaving one end unstitched and check the review names that end.
+
 ### 2026-11-28 — Claude — Sawing pulls in Skill Analysis (build 0.239)
 
 - New `src/gameplay/sawingPulls.ts` (+ test): counts episodes with free-thread tension above 1.35 (same as `PracticeSession.CUT_TENSION`) for ≥0.1 s while threaded. Row added in `src/ui/SkillAnalysisPanel.ts`; `sawingPulls` on `SkillReport`; sampled in `src/main.ts` `sampleSkill`.
