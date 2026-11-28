@@ -49,7 +49,7 @@ Last updated: 2026-11-27
 - **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert. *(First version in build 0.235: Sandbox summary classifies flask / straight / V-shaped, and the cross-section view names the planned bite's shape.)*
 - **Edges of different thickness:** thick flap edge to thinner skin; coaches a deeper bite on the thin side, scored by step-off and bite depth.
 - **Stitch density by tension:** reads tension along the wound first, suggests closer spacing where pull is highest, and scores whether density matched.
-- **Vessel twist check:** before the first stitches, marks rotation between the two ends and flags stay sutures placed out of line.
+- **Vessel twist check:** before the first stitches, marks rotation between the two ends and flags stay sutures placed out of line. *(First version in build 0.235: ink stripes on both ends, random starting twist, turn buttons; stay sutures out of line not flagged yet.)*
 - **Needle type and curve (upgrade the existing needle choice):** 3/8 vs 1/2 circle, cutting vs taper point; arc and tissue behavior change to match. *(First version in build 0.235: 3/8 and 1/2 circle, cutting and taper already existed; taper points now tear sooner in skin. Needle drag per point type not yet.)*
 - **Tail control on pull-through:** tracks the near-side tail while drawing the suture through; flags pulling it out or leaving too much to tie.
 - **Stitch angle across the wound:** draws each skin stitch's line across the wound and flags any more than a few degrees off 90. *(First version in build 0.235: Sandbox line per pass and a 10° target.)*

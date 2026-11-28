@@ -8,6 +8,7 @@ commit `bde9116`.
 ## Build 0.235 — Stitch angle across the wound
 
 - Unequal edges exercise (Setup): the right edge counts as 25% longer; guide dots show the steps, and each gap between bites is graded on stepping about 1.25× further along the long edge so the extra length spreads evenly (roadmap: "Edges of unequal length"; the pad's edges are drawn the same length).
+- Microsurgery: vessel twist check. Each vessel end has a dark ink stripe; the right end starts turned 12–30° and "Turn right end ±10°" lines the stripes up (also used for nerve fascicles), with the twist reported until within 5° (roadmap: "Vessel twist check").
 - Microsurgery: two new anastomosis targets. Vein: thin, bluish wall that sags flat unless the forceps hold it open; Diseased artery: yellow plaque on the lumen wall and a reminder to pin plaque and intima with inside-out bites (roadmap: "Hand-sewn vein anastomosis", "Diseased artery mode"; the needle pass still uses the round vessel shape, and separated intima is not detected yet).
 - Nerve repair: on the nerve target the right end's fascicle bundles start turned 12–30°; "Turn nerve end ±10°" lines them up, and the instruction line reports the twist until it is within 5° (roadmap: "Nerve repair"). The Acland clamp is hidden for nerves.
 - Tissue tension heatmap: each tied skin stitch gets a soft glow on the skin, green for low tension, amber, red for high (the gap it closed, relative to the standard gap, times how far it closed it) (roadmap: tissue heatmap).

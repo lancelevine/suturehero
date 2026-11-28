@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: vessel twist check (roadmap)
+- `ArteryTissue`: dark stripe along the top of each vessel end (not nerves); `setFascicleTwist` also turns the right stripe. `src/main.ts`: starting twist for every microsurgery target, buttons renamed "Turn right end ±10°", `describeVesselTwist` (+test) for vessels. "Plan stitches" hidden in microsurgery (also at load).
+- Checked: tsc, test, screenshot, check-practice-setup, check-guided-thread, check-layout.
+
 ### 2026-11-28 — Claude: pulley stitch recognition
 - `stitchPatterns.ts`: same-side pass pair within 10 mm with asymmetric bites (far ≥ 1.5× near) → pulley, graded on far-near then near-far order (+test); checked before figure-of-eight. Checked: tsc, test, check-sandbox.
 

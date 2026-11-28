@@ -34,6 +34,11 @@ export class ArteryTissue {
     geometry.rotateZ(Math.PI/2);geometry.translate(x,ARTERY.centerY,0);
     this.add(new THREE.Mesh(geometry,material),`${name}-${side}`);
    }
+   if(this.target!=='nerve'){
+    // Orientation stripe along the top of each end (roadmap: vessel twist check), like a surgeon's ink line.
+    const stripe=new THREE.BoxGeometry(ARTERY.length*.92,.012,.035);stripe.translate(x,ARTERY.centerY+ARTERY.outerRadius+.004,0);
+    this.add(new THREE.Mesh(stripe,new THREE.MeshBasicMaterial({color:0x1b2b6b})),`stripe-${side}`);
+   }
    if(this.target==='diseased-artery'){
     // Plaque nodules on the lumen wall (roadmap: diseased artery mode).
     const plaque=new THREE.MeshStandardMaterial({color:0xf0d27a,roughness:.6});
@@ -66,7 +71,7 @@ export class ArteryTissue {
  /** Nerve repair: turn the right end's fascicle bundles about the nerve axis (degrees). */
  setFascicleTwist(degrees:number){
   const radians=THREE.MathUtils.degToRad(degrees);
-  for(const child of this.root.children)if(/^fascicle(-end)?-1-/.test(child.name)){child.rotation.x=radians;child.position.set(0,0,0);}
+  for(const child of this.root.children)if(/^fascicle(-end)?-1-|^stripe-1$/.test(child.name)){child.rotation.x=radians;child.position.set(0,0,0);}
  }
  private add(mesh:THREE.Mesh,name:string){mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;this.root.add(mesh);this.surfaces.push({mesh,original:Float32Array.from(mesh.geometry.getAttribute('position').array)});}
  update(wound:WoundApproximation,eversion:EdgeEversion){

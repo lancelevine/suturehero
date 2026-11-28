@@ -24,3 +24,11 @@ export function describeNerveAlignment(twistDegrees: number) {
     ? `Fascicles aligned (${twist.toFixed(0)}° twist) ✓ · place the epineurial stitches`
     : `Fascicles ${twist.toFixed(0)}° out of line · turn the right nerve end to match the bundles before stitching`;
 }
+
+/** Vessel twist check (roadmap, 2026-11-28): the same alignment, read from the ink stripe on each end. */
+export function describeVesselTwist(twistDegrees: number) {
+  const twist = Math.abs(normaliseTwist(twistDegrees));
+  return twist <= ALIGNED_DEGREES
+    ? `Vessel ends in line (${twist.toFixed(0)}° twist) ✓`
+    : `Vessel ends twisted ${twist.toFixed(0)}° · line up the stripes before the stay sutures`;
+}

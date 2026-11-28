@@ -86,7 +86,7 @@ import {LandmarkLine} from './scene/LandmarkLine';
 import {BODY_SITES} from './environments/bodySites';
 import {BreakMonitor,describePull,resolveSize} from './gameplay/sutureStrength';
 import {TissueTensionView} from './scene/TissueTensionView';
-import {describeNerveAlignment,normaliseTwist,startingTwist,TWIST_STEP_DEGREES} from './gameplay/nerveAlignment';
+import {describeNerveAlignment,describeVesselTwist,normaliseTwist,startingTwist,TWIST_STEP_DEGREES} from './gameplay/nerveAlignment';
 import {describeUnequalEdges} from './gameplay/unequalEdges';
 import {UnequalEdgeMarks} from './scene/UnequalEdgeMarks';
 import {loadSoundOn,saveSoundOn,SoundCues} from './ui/sound';
@@ -130,7 +130,7 @@ try {
   // Adjustable Acland double clamp on the vessel (src/scene/AclandClamp.ts, src/environments/MicroTargets.ts).
   const aclandClamp=new AclandClamp();
   let nerveTwist=0;
-  const nerveButtons=([['Turn nerve end −10°',-TWIST_STEP_DEGREES],['Turn nerve end +10°',TWIST_STEP_DEGREES]] as const).map(([label,step])=>{
+  const nerveButtons=([['Turn right end −10°',-TWIST_STEP_DEGREES],['Turn right end +10°',TWIST_STEP_DEGREES]] as const).map(([label,step])=>{
    const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
    button.addEventListener('click',()=>{nerveTwist=normaliseTwist(nerveTwist+step);artery.setFascicleTwist(nerveTwist);});document.querySelector('.workspace-view-tools')?.prepend(button);return button;});
   // Turn / flip the vessel (microsurgery only): the next stitch site comes to the top, as with the double clamp.
@@ -272,10 +272,11 @@ try {
     (document.querySelector('#landmark-exercise') as HTMLElement).hidden=micro;
     (document.querySelector('#unequal-exercise') as HTMLElement).hidden=micro;
     (document.querySelector('#endurance-exercise') as HTMLElement).hidden=micro;
+    const planToggle=document.querySelector<HTMLElement>('.plan-toggle');if(planToggle)planToggle.hidden=micro;
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro&&microSelect.value!=='nerve');
     // Nerve repair: a fresh random fascicle twist on the right end each time (src/gameplay/nerveAlignment.ts).
-    nerveTwist=micro&&microSelect.value==='nerve'?startingTwist():0;artery.setFascicleTwist(nerveTwist);
-    for(const button of nerveButtons)button.hidden=!(micro&&microSelect.value==='nerve');
+    nerveTwist=micro?startingTwist():0;artery.setFascicleTwist(nerveTwist);
+    for(const button of nerveButtons)button.hidden=!micro;
     vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;
     for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
@@ -338,7 +339,7 @@ try {
    const label=()=>{planButton.textContent=planning?'Done planning':'Plan stitches';planButton.setAttribute('aria-pressed',String(planning));clearButton.hidden=!plannedZ.length;};label();
    planButton.addEventListener('click',()=>{planning=!planning;label();planButton.blur();});
    clearButton.addEventListener('click',()=>{plannedZ.length=0;label();clearButton.blur();});
-   toolsBar?.prepend(clearButton);toolsBar?.prepend(planButton);
+   toolsBar?.prepend(clearButton);toolsBar?.prepend(planButton);planButton.hidden=session.environment.id!=='skin';
    // A click (not a drag) on the skin while planning adds a spot at that point along the wound.
    const canvas=view.renderer.domElement;let downAt:{x:number;y:number}|null=null;
    canvas.addEventListener('pointerdown',e=>{downAt={x:e.clientX,y:e.clientY};});
@@ -571,7 +572,7 @@ try {
    if(microSelect.value==='vein')return session.eversion.held?'Vein held open · take the bite now · ':'Vein collapsed · hold the wall open with forceps counterpressure before each bite · ';
    if(microSelect.value==='diseased-artery')return 'Diseased artery: take inside-out bites that pin the plaque and intima to the wall · ';
    return '';};
-  const nerveNote=()=>session.environment.id==='microsurgery'&&microSelect.value==='nerve'?describeNerveAlignment(nerveTwist)+' · ':'';
+  const nerveNote=()=>session.environment.id!=='microsurgery'?'':(microSelect.value==='nerve'?describeNerveAlignment(nerveTwist):describeVesselTwist(nerveTwist))+' · ';
   const unequalNote=()=>unequalExercise&&session.environment.id==='skin'?describeUnequalEdges(session.freePass.passes)+' · ':'';
   const planNote=()=>{if(!plannedZ.length||session.environment.id!=='skin')return '';const actual=session.freePass.passes.filter(p=>p.exit&&!p.torn).map(p=>(p.entry.z+p.exit!.z)/2);const text=describePlan(plannedZ,actual);return text?text+' · ':'';};
   const enduranceNote=()=>enduranceExercise&&session.environment.id==='skin'?describeEndurance(session.freePass.passes)+' · ':'';
