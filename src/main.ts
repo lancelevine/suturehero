@@ -77,6 +77,7 @@ import {BACK_WALL_WARNING,catchesBackWall} from './gameplay/backWallCatch';
 import {AIR_KNOT_WARNING,AirKnotWatcher} from './gameplay/airKnot';
 import {describeVesselEversion} from './gameplay/stitchOutcome';
 import {describeKnotPlacement,knotPoint,knotSide,type KnotSide} from './gameplay/knotPlacement';
+import {describeVesselCount,suggestedStitchCount} from './gameplay/vesselStitchCount';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -121,7 +122,7 @@ try {
     // The frozen copy is in world coordinates; place it in the turned vessel frame so it turns with the vessel.
     vesselStitchesView.root.updateWorldMatrix(true,false);
     vesselStitchesView.root.children.at(-1)?.applyMatrix4(vesselStitchesView.root.matrixWorld.clone().invert());
-    session.saveVesselStitch();resetCourseTools();vesselFrame.turnBy(2*Math.PI/MICRO_GOAL_STITCHES);
+    vesselAngles.push(vesselFrame.angle);session.saveVesselStitch();resetCourseTools();vesselFrame.turnBy(2*Math.PI/vesselGoal());
   });
   document.querySelector('.workspace-view-tools')?.prepend(saveVesselButton);vesselTurnButtons.push(saveVesselButton);
   // Stay suture plan marks on the vessel ends (src/scene/StaySutureMarks.ts).
@@ -130,6 +131,10 @@ try {
   // Vessel, clamp and stay marks turn together about the vessel axis (src/scene/VesselFrame.ts).
   const vesselFrame=new VesselFrame();vesselFrame.root.add(artery.root,aclandClamp.root,stayMarks.root);
   // Saved vessel stitches stay on the vessel and turn with it (anastomosis plan step 2).
+  // Saved stitch positions (vessel turn angle at each save) and the suggested count by circumference (src/gameplay/vesselStitchCount.ts).
+  const vesselAngles:number[]=[];
+  const vesselDiameterMm=()=>2*microProfile(resolveMicroTarget(microSelect.value)).outerRadius*MICRO_MM_PER_UNIT;
+  const vesselGoal=()=>suggestedStitchCount(vesselDiameterMm());
   const vesselStitchesView=new CompletedStitchesView();vesselFrame.root.add(vesselStitchesView.root);
   view.scene.add(tissue.root,vesselFrame.root,needle.root,...tools.map(tool=>tool.root));
   const scissors=new Scissors();view.scene.add(scissors.root);
@@ -227,7 +232,7 @@ try {
     (document.querySelector('#micro-target-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro);
-    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();
+    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;
     for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
     stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),micro);
@@ -396,7 +401,7 @@ try {
     precisionMm:last&&last.exitEdge!==null?Math.abs(last.entryEdge-last.exitEdge)*SCENE_MM_PER_UNIT:null,
     tension:free.active?Math.max(free.tension.long.tautness,free.tension.short.tautness):null,
     stitches:session.environment.id==='microsurgery'?session.vesselStitches:session.course.completed.length,course:session.course.active,
-    micro:session.environment.id==='microsurgery'?{alignmentMm:(session.wound.initialGap*(1-session.wound.closure)+Math.abs(session.wound.edgeMismatch))*MICRO_MM_PER_UNIT,closure:session.wound.closure}:undefined};
+    micro:session.environment.id==='microsurgery'?{alignmentMm:(session.wound.initialGap*(1-session.wound.closure)+Math.abs(session.wound.edgeMismatch))*MICRO_MM_PER_UNIT,closure:session.wound.closure,goal:vesselGoal()}:undefined};
   });
   // Skill Analysis: needle-driver tip motion and forceps hold, sampled each frame (src/gameplay/skillAnalysis.ts).
   const skillRecorder=new SkillRecorder();
@@ -430,7 +435,7 @@ try {
   mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
   // Back-wall catch alert during a vessel bite (src/gameplay/backWallCatch.ts).
-  const vesselNote=()=>{const text=session.environment.id==='microsurgery'?describeVesselEversion(session.vesselEversions):'';return text?text+' · ':'';};
+  const vesselNote=()=>{if(session.environment.id!=='microsurgery'||!vesselAngles.length)return '';return describeVesselCount(vesselAngles,vesselDiameterMm())+' · '+describeVesselEversion(session.vesselEversions)+' · ';};
   // Air knot (src/gameplay/airKnot.ts): first throw not seated before the next, from any knot engine.
   const airKnot=new AirKnotWatcher();
   const airKnotNote=()=>{const free=session.freeKnot;if(!free.active){airKnot.reset();return '';}airKnot.update(free.sequence?.throws.length??0,free.seatedThrows,free.sequence?.sliding??false);return airKnot.flagged?AIR_KNOT_WARNING+' · ':'';};

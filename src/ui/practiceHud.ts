@@ -26,7 +26,7 @@ export interface HudInput {
   /** In the 3-stitch course (else the Sandbox challenge). */
   course: boolean;
   /** Microsurgery: remaining gap plus edge step between the vessel ends (mm) and closure (0–1). */
-  micro?: { alignmentMm: number; closure: number };
+  micro?: { alignmentMm: number; closure: number; /** Suggested stitch count for this vessel (default MICRO_GOAL_STITCHES). */ goal?: number };
 }
 
 export interface HudState {
@@ -47,7 +47,7 @@ export function formatClock(seconds: number) {
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
 export function hudState(input: HudInput): HudState {
-  const goal = input.micro ? MICRO_GOAL_STITCHES : input.course ? COURSE_GOAL_STITCHES : SANDBOX_GOAL_STITCHES;
+  const goal = input.micro ? (input.micro.goal ?? MICRO_GOAL_STITCHES) : input.course ? COURSE_GOAL_STITCHES : SANDBOX_GOAL_STITCHES;
   const done = Math.min(goal, input.stitches);
   const precision = input.precisionMm;
   const withinPrecision = precision === null ? null : precision <= PRECISION_TARGET_MM;

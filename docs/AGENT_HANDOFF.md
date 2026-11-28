@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: vessel stitch count by circumference (Lance #6)
+- New `src/gameplay/vesselStitchCount.ts` (+tests): suggested = round(8 × diameter mm), min 4; spacing from the vessel turn angle at each save (even within 25% of the even gap). `src/main.ts`: saved angles, turn step 360°/suggested, HUD micro goal, instruction line. `practiceHud` takes `micro.goal`.
+- Note: with MICRO_MM_PER_UNIT 2.5 the default artery is 2.0 mm (16 stitches), the small artery 1.25 mm (10).
+- Checked: tsc, tests, browser (HUD 1/16, line text), check-practice-setup, check-guided-thread, check-layout.
+
 ### 2026-11-28 — Claude: forehand/backhand (Lance #2) and softer bite label (#5)
 - New `src/gameplay/biteHand.ts` (+test): right-to-left crossing = forehand (Lance). Sandbox summary "Bites" line.
 - `CrossSectionView`: shallow planned bite now reads "shallow (widest at the surface) · a deeper bite gives a flask shape that everts the edges" (my call on #5; the default plan was not changed).
