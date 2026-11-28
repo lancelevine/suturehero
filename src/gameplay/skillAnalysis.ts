@@ -45,6 +45,8 @@ export interface SkillReport {
   idleSeconds?: number;
   /** Driver/forceps tip bumps outside needle handoffs (src/gameplay/tipCollisions.ts), when counted. */
   tipCollisions?: number;
+  /** Sustained pulls that dragged the taut thread through tissue (sawingPulls.ts). */
+  sawingPulls?: number;
   /** In-tissue needle regrasps, and how many landed on the tip (src/suture/gripPosition.ts), when counted. */
   regrasps?: { total: number; onTip: number };
   /** Completed passes, and how many exited behind an instrument from the view camera (src/scene/blindBite.ts). */

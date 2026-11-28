@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.239 — Sawing pulls
+
+- Skill Analysis: new "Sawing pulls" row counts pulls that keep the thread taut through a stitch for at least 0.1 s, the same tension that cuts through tissue if held (roadmap: "Thread management scoring", first part; approximate, geometric tension rather than force). Tangles and snags on instruments are not scored yet.
+
 ## Build 0.238 — Safe vessel flip
 
 - Microsurgery: "Turn vessel 45°" and "Flip vessel" now refuse to turn while the needle is in the wall, while thread is through an untied bite, or while the forceps hold the wall, with a short warning on the instruction line (roadmap: "Flip the vessel" checks; turning the clamp at those moments would tear the stitch). Saved stitches and both vessel ends turn together, so a turn adds no twist.

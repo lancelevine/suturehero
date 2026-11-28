@@ -183,3 +183,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.236: microsurgery — save several vessel stitches; the "Bites:" readout (≈2× wall, equal sides) should match your judgement.
 - [ ] Build 0.237: microsurgery — close the forceps within the vessel wall (should flag a full-wall pinch), then on the adventitia / inside the lumen (should read good).
 - [ ] Build 0.238: microsurgery — press Flip vessel mid-bite (should refuse with a warning) and after Save stitch & turn (should turn).
+- [ ] Build 0.239: Sandbox — yank the thread through a pass: Skill Analysis "Sawing pulls" should rise; gentle pulls should not.

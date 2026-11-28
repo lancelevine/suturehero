@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Sawing pulls in Skill Analysis (build 0.239)
+
+- New `src/gameplay/sawingPulls.ts` (+ test): counts episodes with free-thread tension above 1.35 (same as `PracticeSession.CUT_TENSION`) for ≥0.1 s while threaded. Row added in `src/ui/SkillAnalysisPanel.ts`; `sawingPulls` on `SkillReport`; sampled in `src/main.ts` `sampleSkill`.
+- Checked: unit tests, tsc, check-sandbox, check-free-tying, check-layout.
+- Lance: in Sandbox, yank the thread through a pass and check the count rises; gentle pulls should not count.
+
 ### 2026-11-28 — Claude — Safe vessel flip (build 0.238)
 
 - New `src/gameplay/flipCheck.ts` (+ test): `flipBlocker` refuses a vessel turn while the needle is in the wall (pass phase `passing`), thread is through an untied bite (`complete`) or the forceps hold the wall. Wired into the Turn/Flip buttons in `src/main.ts`; "Save stitch & turn" is unchanged.
