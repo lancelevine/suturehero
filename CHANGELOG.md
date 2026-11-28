@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.245 — Pull direction when tying
+
+- Skin knot tying: as each throw seats, the line between the forceps and driver tips is checked; the instruction line counts throws pulled straight across the wound and flags the last one if it was pulled along the wound or upward (roadmap: "Pull direction when tying"; approximate, from the instrument tips rather than the strands).
+
 ## Build 0.244 — Stitch density by tension
 
 - Sandbox spacing line: with two or more tied stitches, each gap is graded against a suggested spacing that is closer where the edges pull hardest (mid-wound, and on tighter body sites such as the back), wider toward the ends; it counts matched gaps and gaps too wide for the pull (roadmap: "Stitch density by tension"; illustrative pull profile, not measured).

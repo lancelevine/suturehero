@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Pull direction when tying (build 0.245)
+
+- New `src/gameplay/pullDirection.ts` (+ test): tip-to-tip line classed across / along the wound (>35° off x) / upward (>45° rise). `src/main.ts` samples it when `freeKnot.seatedThrows` rises (skin only) and shows it while the knot is active.
+- Checked: unit test, tsc, check-free-tying, check-guided-thread, check-sandbox, check-layout, browser (stubbed seated throw → "Throw pull: 1/1 straight across").
+- Lance: tie a knot pulling along the wound on one throw; that throw should be flagged.
+
 ### 2026-11-28 — Claude — Stitch density by tension (build 0.244)
 
 - New `src/gameplay/stitchDensity.ts` (+ test): pull = site tension × (1 + 0.5 mid-wound falloff); suggested spacing 7 mm / pull, ±35%. `stitchZ` added to the Sandbox summary (optional field); line appended to the spacing line in `src/ui/SandboxSummaryPanel.ts`.
