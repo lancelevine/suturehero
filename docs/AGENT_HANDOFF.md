@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: economy of motion, idle time (roadmap)
+- `idleSeconds` in `src/gameplay/skillAnalysis.ts` (+test): time below `MOVING_SPEED_MM_S`; Skill Analysis "Idle time" (green under 30% of the session). Checked: tsc, tests, check-sandbox.
+
 ### 2026-11-28 — Claude: live tremor meter (roadmap)
 - `tremorMm` in `src/gameplay/skillAnalysis.ts` (+test): RMS of each tip sample from the midpoint of its neighbours over the last 5 s; Skill Analysis "Tremor" (green ≤ 0.1 mm, `TREMOR_GOOD_MM`). Checked: tsc, tests, check-sandbox. Needs camera tracking to mean much (Lance).
 

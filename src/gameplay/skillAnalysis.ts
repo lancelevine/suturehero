@@ -41,6 +41,8 @@ export interface SkillReport {
   speed: Array<{ t: number; v: number }>;
   /** Tip tremor (mm RMS): jitter of each sample about the midpoint of its neighbours; null before enough samples. */
   tremorMm?: number | null;
+  /** Seconds the tip stayed below MOVING_SPEED_MM_S (economy of motion). */
+  idleSeconds?: number;
   /** Driver/forceps tip bumps outside needle handoffs (src/gameplay/tipCollisions.ts), when counted. */
   tipCollisions?: number;
   /** In-tissue needle regrasps, and how many landed on the tip (src/suture/gripPosition.ts), when counted. */
@@ -68,6 +70,18 @@ export function tremorMm(points: ReadonlyArray<{ x: number; z: number }>) {
     sum += (points[i].x - mx) ** 2 + (points[i].z - mz) ** 2;
   }
   return Math.sqrt(sum / (points.length - 2));
+}
+
+/** Seconds between samples while the tip moved slower than MOVING_SPEED_MM_S (economy of motion). */
+export function idleSeconds(samples: ReadonlyArray<{ t: number; x: number; z: number }>) {
+  let idle = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const dt = samples[i].t - samples[i - 1].t;
+    if (dt <= 0) continue;
+    const speed = Math.hypot(samples[i].x - samples[i - 1].x, samples[i].z - samples[i - 1].z) / dt;
+    if (speed < MOVING_SPEED_MM_S) idle += dt;
+  }
+  return idle;
 }
 
 export class SkillRecorder {
@@ -124,6 +138,7 @@ export class SkillRecorder {
       speed,
       // Last ~5 s of tip samples for a live reading.
       tremorMm: tremorMm(samples.slice(-5 * SAMPLE_HZ)),
+      idleSeconds: idleSeconds(samples),
     };
   }
 }

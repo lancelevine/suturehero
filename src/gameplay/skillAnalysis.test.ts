@@ -40,3 +40,8 @@ it('measures tremor as jitter about the smoothed path', async () => {
   expect(tremorMm([{ x: 0, z: 0 }, { x: 1, z: 0.4 }, { x: 2, z: 0 }])).toBeCloseTo(0.4);
   expect(tremorMm([])).toBeNull();
 });
+
+it('adds up idle time below the moving speed', async () => {
+  const { idleSeconds } = await import('./skillAnalysis');
+  expect(idleSeconds([{ t: 0, x: 0, z: 0 }, { t: 1, x: 0, z: 0 }, { t: 2, x: 50, z: 0 }])).toBe(1);
+});

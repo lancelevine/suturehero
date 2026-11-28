@@ -41,6 +41,7 @@ export function skillRows(report: SkillReport): Array<{ label: string; value: st
     ...(report.needleHandling === undefined ? [] : [{ label: 'Needle handling', value: needleHandlingText(report.needleHandling), help: 'Needle drops outside the tissue, and the mean time from forceps pickup to the driver holding the needle', good: report.needleHandling.drops === 0 && report.needleHandling.loads.length > 0 }]),
     ...(report.needleLoading === undefined ? [] : [{ label: 'Needle loading', value: report.needleLoading.total ? `${report.needleLoading.good}/${report.needleLoading.total}` : '–', help: 'Driver loads about two-thirds back from the needle tip', good: report.needleLoading.total > 0 && report.needleLoading.good === report.needleLoading.total }]),
     ...(report.tremorMm === undefined ? [] : [{ label: 'Tremor', value: report.tremorMm === null ? '–' : `${report.tremorMm.toFixed(2)} mm`, help: 'Tip jitter over the last 5 s (RMS about the smoothed path; mainly for microsurgery)', good: report.tremorMm !== null && report.tremorMm <= TREMOR_GOOD_MM }]),
+    ...(report.idleSeconds === undefined ? [] : [{ label: 'Idle time', value: `${Math.round(report.idleSeconds)} s (${report.seconds > 0 ? Math.round((report.idleSeconds / report.seconds) * 100) : 0}%)`, help: 'Time the needle-driver tip was nearly still (economy of motion)', good: report.seconds > 0 && report.idleSeconds / report.seconds < 0.3 }]),
   ];
 }
 
