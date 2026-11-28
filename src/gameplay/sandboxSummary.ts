@@ -37,6 +37,8 @@ export interface SandboxSummary {
   stitchOrder?: StitchOrderReview;
   /** Bites compared with the median bite (src/gameplay/biteConsistency.ts); absent in older saved summaries. */
   biteConsistency?: BiteConsistency;
+  /** Tied stitch positions along the wound (scene units), for the density-by-tension check; absent in older saved summaries. */
+  stitchZ?: number[];
 }
 
 /**
@@ -74,6 +76,7 @@ export function summarizeSandbox(passes: readonly FreePassRecord[], torn: readon
     spacingMm: sorted.slice(1).map((s, i) => mm(s.siteZ - sorted[i].siteZ)),
     worstSquareOffDeg: squareOff.length ? Math.max(...squareOff) : null,
     stitchOrder: reviewStitchOrder(stitches.map((s) => s.siteZ)),
+    stitchZ: sorted.map((s) => s.siteZ),
     biteConsistency: biteConsistency(passes.map((p) => ({ entryMm: mm(p.entryEdge), exitMm: p.exitEdge === null ? null : mm(p.exitEdge) }))),
   };
 }

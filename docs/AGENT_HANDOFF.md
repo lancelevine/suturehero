@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Stitch density by tension (build 0.244)
+
+- New `src/gameplay/stitchDensity.ts` (+ test): pull = site tension × (1 + 0.5 mid-wound falloff); suggested spacing 7 mm / pull, ±35%. `stitchZ` added to the Sandbox summary (optional field); line appended to the spacing line in `src/ui/SandboxSummaryPanel.ts`.
+- Checked: gameplay + ui tests (244, Node 24), tsc, check-sandbox, check-layout, check-practice-setup.
+- Lance: on the Back preset, tie evenly spaced stitches; the middle gaps should read too wide.
+
 ### 2026-11-28 — Claude — Rotate, don't push (build 0.243)
 
 - New `src/gameplay/rotationScore.ts` (+ test): in-tissue time with vs without `freePass.forcingWarning`. Row in `src/ui/SkillAnalysisPanel.ts`, `rotatingShare` on `SkillReport`, sampled in `sampleSkill` (`src/main.ts`).
