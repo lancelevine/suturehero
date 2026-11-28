@@ -187,3 +187,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.240: close a wound but leave one end unstitched — the closure review's "Wound ends" should name that end as open.
 - [ ] Build 0.241: Sandbox — after 8+ passes the needle reads dull and tears out a little sooner; Fresh needle clears it.
 - [ ] Build 0.242: Sandbox — one shallow and one deep pass: the summary's dead space note should name only the shallow pass.
+- [ ] Build 0.243: Sandbox with camera — a smooth wrist rotation keeps Skill Analysis "Rotate, not push" high; pushing straight through lowers it.

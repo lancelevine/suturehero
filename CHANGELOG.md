@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.243 — Rotate, don't push
+
+- Skill Analysis: new "Rotate, not push" row, the share of time with the needle in tissue spent following its curve rather than forcing it off the curve (pushing widens the puncture); green at 90% (roadmap: "Rotate, don't push"; uses the Sandbox forcing warning, not the driver marker directly).
+
 ## Build 0.242 — Dead space check
 
 - Sandbox summary: the bite depth line now says whether any pass stops well above the dermis floor (more than about a third of the dermis left unclosed below it), naming those passes and how much is left open, and suggests taking them deeper (roadmap: "Dead space check"; approximate, from each pass's deepest point; not drawn in the cutaway yet).

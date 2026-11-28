@@ -67,6 +67,7 @@ import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, fre
 import {FpsCounter} from './diagnostics/FrameRates';
 import {TipCollisionCounter} from './gameplay/tipCollisions';
 import {flipBlocker,FLIP_WARNING_SECONDS} from './gameplay/flipCheck';
+import {RotationScore} from './gameplay/rotationScore';
 import {SawingPullCheck} from './gameplay/sawingPulls';
 import {VesselGraspCheck,describeVesselGrasp} from './gameplay/vesselGrasp';
 import {LoadingCheck,RegraspCheck} from './suture/gripPosition';
@@ -108,7 +109,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.242';
+const APP_BUILD='0.243';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -532,10 +533,10 @@ try {
   const blindBites=new BlindBiteCheck();
   const edgePresentation=new EdgePresentationCheck();
   const needleHandling=new NeedleHandlingCheck();
-  const sawingPulls=new SawingPullCheck();let sawingClock=0;
+  const sawingPulls=new SawingPullCheck();const rotationScore=new RotationScore();let sawingClock=0;
   let skillClock=0;
   const sampleSkill=()=>{
-   const t=session.clock.secondsSoFar;if(t<skillClock){skillRecorder.clear();tipCollisions.reset();regraspCheck.reset();loadingCheck.reset();blindBites.reset();edgePresentation.reset();needleHandling.reset();sawingPulls.reset();}skillClock=t;
+   const t=session.clock.secondsSoFar;if(t<skillClock){skillRecorder.clear();tipCollisions.reset();regraspCheck.reset();loadingCheck.reset();blindBites.reset();edgePresentation.reset();needleHandling.reset();sawingPulls.reset();rotationScore.reset();}skillClock=t;
    tools[1].root.updateWorldMatrix(true,false);
    const tip=tools[1].root.localToWorld(skillTip.copy(DRIVER_TIP_LOCAL)).multiplyScalar(SCENE_MM_PER_UNIT);
    const hold=session.eversion;
@@ -547,13 +548,13 @@ try {
    regraspCheck.update(needle.points,grasp.heldPoint,session.freePass.inTissue);
    loadingCheck.update(needle.points,grasp.heldPoint,grasp.holder?.kind==='needle-driver',session.freePass.inTissue);
    needleHandling.update(grasp.holder?.kind??null,session.freePass.inTissue,t);
-   sawingPulls.update(session.freeThread.tension,session.freePass.threadedPasses().length>0,Math.max(0,t-sawingClock));sawingClock=t;
+   sawingPulls.update(session.freeThread.tension,session.freePass.threadedPasses().length>0,Math.max(0,t-sawingClock));rotationScore.update(session.freePass.inTissue,session.freePass.forcingWarning,Math.max(0,t-sawingClock));sawingClock=t;
    edgePresentation.update(session.freePass.inTissue,{held:hold.held,ready:hold.ready,lift:hold.lift,traction:hold.traction.state});
    blindBites.update(session.freePass.passes.map(p=>p.exit),view.camera,[tools[0].root,tools[1].root,scissors.root]);
    tipCollisions.update(tip.distanceTo(forcepsTip),needleMm.distanceTo(tip)<NEEDLE_HANDOFF_MM&&needleMm.distanceTo(forcepsTip)<NEEDLE_HANDOFF_MM);
   };
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
-  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,sawingPulls:sawingPulls.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleLoading:{total:loadingCheck.loads,good:loadingCheck.good},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
+  mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,sawingPulls:sawingPulls.count,rotatingShare:rotationScore.rotatingShare,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleLoading:{total:loadingCheck.loads,good:loadingCheck.good},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   exportSkillReport=()=>{const r=skillRecorder.report(session.clock.secondsSoFar,passSymmetries());return {...r,path:undefined,ideal:undefined,speed:undefined};};
   // Mistakes for the replay timeline (src/ui/replayTimeline.ts), on the replay's clock (s).
   const mistakeLog=new MistakeLog();

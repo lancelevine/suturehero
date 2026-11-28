@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Rotate, don't push (build 0.243)
+
+- New `src/gameplay/rotationScore.ts` (+ test): in-tissue time with vs without `freePass.forcingWarning`. Row in `src/ui/SkillAnalysisPanel.ts`, `rotatingShare` on `SkillReport`, sampled in `sampleSkill` (`src/main.ts`).
+- Checked: unit tests, tsc, check-sandbox, check-layout.
+- Lance: with the camera driver, compare a smooth wrist turn to a straight push; the row should drop for the push.
+
 ### 2026-11-28 — Claude — Dead space check (build 0.242)
 
 - New `src/gameplay/deadSpace.ts` (+ test): a pass whose deepest point stays more than 35% of the dermis thickness above the dermis floor is flagged. Appended to the Sandbox bite-depth line (`src/ui/SandboxSummaryPanel.ts`).
