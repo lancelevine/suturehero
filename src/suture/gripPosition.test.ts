@@ -20,3 +20,12 @@ it('counts in-tissue regrasps on the tip once per grip', () => {
   check.update(points, tip, true);
   expect([check.regrasps, check.tipGrabs]).toEqual([2, 1]);
 });
+
+it('grades driver loads against two-thirds back from the tip', async () => {
+  const { LoadingCheck } = await import('./gripPosition');
+  const check = new LoadingCheck();
+  check.update(points, new THREE.Vector3(0.3, 0, 0), true, false); // 70% back from the tip
+  check.update(points, new THREE.Vector3(0.9, 0, 0), true, false); // near the tip
+  check.update(points, new THREE.Vector3(0.5, 0, 0), true, true); // in tissue: not a load
+  expect([check.loads, check.good]).toEqual([2, 1]);
+});

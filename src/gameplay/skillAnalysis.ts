@@ -49,6 +49,8 @@ export interface SkillReport {
   edgePresentation?: { total: number; everted: number };
   /** Needle drops and forceps-to-driver load times in seconds (src/gameplay/needleHandling.ts). */
   needleHandling?: { drops: number; regrabs: number; loads: readonly number[] };
+  /** Driver loads of the needle and how many were about two-thirds back from the tip (src/suture/gripPosition.ts). */
+  needleLoading?: { total: number; good: number };
 }
 
 export class SkillRecorder {

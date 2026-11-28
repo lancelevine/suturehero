@@ -36,6 +36,7 @@ export function skillRows(report: SkillReport): Array<{ label: string; value: st
     ...(report.blindExits === undefined ? [] : [{ label: 'Blind exits', value: report.blindExits.total ? `${report.blindExits.hidden}/${report.blindExits.total}` : '–', help: 'Needle exits hidden behind an instrument from this view when they happened (approximate)', good: report.blindExits.total > 0 && report.blindExits.hidden === 0 }]),
     ...(report.edgePresentation === undefined ? [] : [{ label: 'Edge presented', value: report.edgePresentation.total ? `${report.edgePresentation.everted}/${report.edgePresentation.total}` : '–', help: 'Needle entries made while the forceps held the edge gently everted (not flat, over-pulled or unheld)', good: report.edgePresentation.total > 0 && report.edgePresentation.everted === report.edgePresentation.total }]),
     ...(report.needleHandling === undefined ? [] : [{ label: 'Needle handling', value: needleHandlingText(report.needleHandling), help: 'Needle drops outside the tissue, and the mean time from forceps pickup to the driver holding the needle', good: report.needleHandling.drops === 0 && report.needleHandling.loads.length > 0 }]),
+    ...(report.needleLoading === undefined ? [] : [{ label: 'Needle loading', value: report.needleLoading.total ? `${report.needleLoading.good}/${report.needleLoading.total}` : '–', help: 'Driver loads about two-thirds back from the needle tip', good: report.needleLoading.total > 0 && report.needleLoading.good === report.needleLoading.total }]),
   ];
 }
 

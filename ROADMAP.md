@@ -100,7 +100,7 @@ Last updated: 2026-11-27
 - **Thread that stretches:** monofilaments stretch under load and spring back when released, so a knot snugged with the strand pulled hard sits looser after; finest sutures stretch most, set per suture type.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
-- **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
+- **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads. *(First version in build 0.235: Skill Analysis counts driver loads within ±12% of two-thirds back; perpendicular grip not graded yet.)*
 - **Suture cutting check:** tracked scissors grade tail length, with no nick to the knot.
 - **Economy of motion score:** path length, idle time and wasted moves per stitch, trended over sessions.
 - **Timed challenges like Moving Target:** for example 6 sutures in 2:00 within 1.0 mm on a moving wound, with personal bests.

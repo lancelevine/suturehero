@@ -44,3 +44,35 @@ export class RegraspCheck {
     this.lastHeld = null;
   }
 }
+
+/**
+ * Needle loading check (roadmap, 2026-11-28): the driver should hold the needle about two-thirds of
+ * the way back from the tip. Counts each new driver grip made outside the tissue (loading) and
+ * whether it lands within LOAD_TOLERANCE of LOAD_TARGET (share of the needle from the tip).
+ */
+export const LOAD_TARGET = 2 / 3;
+export const LOAD_TOLERANCE = 0.12;
+
+export class LoadingCheck {
+  loads = 0;
+  good = 0;
+  /** Last load's position from the tip (0 tip … 1 eye), or null. */
+  last: number | null = null;
+  private lastHeld: THREE.Vector3 | null = null;
+
+  update(points: readonly THREE.Vector3[], heldPoint: THREE.Vector3 | null, holderIsDriver: boolean, needleInTissue: boolean) {
+    const newGrip = heldPoint !== null && heldPoint !== this.lastHeld;
+    this.lastHeld = heldPoint;
+    if (!newGrip || !holderIsDriver || needleInTissue) return;
+    this.loads++;
+    this.last = gripFractionFromTip(points, heldPoint);
+    if (Math.abs(this.last - LOAD_TARGET) <= LOAD_TOLERANCE) this.good++;
+  }
+
+  reset() {
+    this.loads = 0;
+    this.good = 0;
+    this.last = null;
+    this.lastHeld = null;
+  }
+}

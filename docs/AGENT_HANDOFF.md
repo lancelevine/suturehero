@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: needle loading check (roadmap)
+- `LoadingCheck` in `src/suture/gripPosition.ts` (+test): new driver grips outside the tissue, good within 2/3 ± 0.12 of the needle from the tip. Skill Analysis "Needle loading". Checked: tsc, tests, check-sandbox.
+
 ### 2026-11-28 — Claude: fix CI failure from the phone layout
 - Deploy runs failed `check-tracking-lab-scroll` (Lab must scroll inside one screen at 390×844); the phone "page scrolls" override now skips `.tracking-lab-active`. Checked: check-tracking-lab-scroll, check-layout, phone layout still camera-below-scene.
 
