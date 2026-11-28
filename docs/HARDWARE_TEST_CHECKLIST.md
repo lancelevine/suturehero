@@ -215,3 +215,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.269: Sandbox — back a bite out and redo it: the first-pass rate drops below 100%.
 - [ ] Build 0.270: Fragile skin preset — bites tear and pulls cut through much more easily than on Forearm.
 - [ ] Build 0.271: tie a skin knot — the timer runs, and when the knot locks and seats it shows the time, square/flat and best.
+- [ ] Build 0.272: Save session to progress — a snapshot with date and targets appears in the Sandbox gallery.

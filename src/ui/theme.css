@@ -228,3 +228,9 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 /* Microscope eyepiece (scene/magnification.ts): round field of view. */
 .eyepiece-view { position: relative; }
 .eyepiece-view::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at center, transparent 0 46%, rgba(0, 0, 0, 0.55) 54%, #000 64%); }
+
+/* Closure gallery (gameplay/closureGallery.ts). */
+.closure-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 8px; }
+.closure-gallery figure { margin: 0; }
+.closure-gallery img { width: 100%; border-radius: 6px; border: 1px solid rgba(120, 220, 255, 0.25); display: block; }
+.closure-gallery figcaption { font-size: 11px; opacity: 0.8; margin-top: 2px; }

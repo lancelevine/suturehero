@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Closure gallery (build 0.272)
+
+- New `src/gameplay/closureGallery.ts` (+ test; key `suturehero.closureGallery.v1`, 12 entries, trims when storage is full). `requestSnapshot`/`takeSnapshot` in `src/main.ts` (240 px JPEG right after render); gallery grid in `SandboxSummaryPanel`; styles in `theme.css`. check-sandbox asserts a gallery image after saving.
+- Checked: unit + ui tests, tsc, check-sandbox ×2, check-layout, browser (snapshot not blank).
+
 ### 2026-11-28 — Claude — Knot timer (build 0.271)
 
 - New `src/gameplay/knotTimer.ts` (+ test); `knotTimeNote` in `src/main.ts` (finish = `lockSeated` with ≥3 throws; best in `suturehero.knotTimes.v1`).

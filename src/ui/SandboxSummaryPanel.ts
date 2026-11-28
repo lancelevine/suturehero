@@ -7,6 +7,7 @@ import { describeDeadSpace } from '../gameplay/deadSpace';
 import { describeEdgeShear } from '../gameplay/edgeShear';
 import { describeNextDrill } from '../gameplay/nextDrill';
 import { describeFirstPass } from '../gameplay/firstPassRate';
+import { addToGallery, galleryCaption, loadGallery } from '../gameplay/closureGallery';
 import { siteTunedTargets } from '../gameplay/siteTargets';
 import { describeRubric, osatsRubric } from '../gameplay/osatsRubric';
 import type { SkillReport } from '../gameplay/skillAnalysis';
@@ -40,6 +41,8 @@ export interface SandboxSource {
   sessionSeconds(): number;
   /** Skill Analysis report for the session export (roadmap "Exportable skills report"). */
   skillReport?(): unknown;
+  /** A small image of the view for the closure gallery (null if unavailable). */
+  snapshot?(): Promise<string | null>;
   /** Bites backed out / undone (first-pass rate). */
   firstPass?(): { backOuts: number; undone: number };
 }
@@ -79,7 +82,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
   panel.innerHTML = `<h3>Sandbox session</h3><div class="sandbox-warmup"><button type="button" data-action="warmup">Start 5-minute warm-up</button><span class="sandbox-warmup-status" role="status"></span></div><p class="sandbox-summary-line" role="status"></p><p class="sandbox-spacing"></p><p class="sandbox-bites"></p><p class="sandbox-depths"></p><p class="sandbox-shapes"></p><p class="sandbox-patterns"></p><p class="sandbox-thread"></p><p class="sandbox-hands"></p><ul class="sandbox-targets"></ul>
 <details><summary>Instructor targets</summary><form class="sandbox-target-form">${TARGET_FIELDS.map((f) => `<label>${f.label} <input type="number" name="${f.key}" step="${f.step}" min="0"></label>`).join('')}<button type="button" data-action="defaults">Defaults</button></form></details>
 <label class="sandbox-trainee">Trainee name or ID <input type="text" name="trainee" maxlength="80" autocomplete="off"></label>
-<div class="sandbox-summary-actions"><button type="button" data-action="save">Save session to progress</button><button type="button" data-action="export">Export session JSON</button><button type="button" data-action="stitches-csv">Export stitches CSV</button><button type="button" data-action="progress-csv">Export progress CSV</button></div><p class="sandbox-trend"></p>
+<div class="sandbox-summary-actions"><button type="button" data-action="save">Save session to progress</button><button type="button" data-action="export">Export session JSON</button><button type="button" data-action="stitches-csv">Export stitches CSV</button><button type="button" data-action="progress-csv">Export progress CSV</button></div><p class="sandbox-trend"></p><div class="closure-gallery" aria-label="Closure gallery"></div>
 <small>Approximate practice measures (mm on the practice scale); not a validated assessment.</small>`;
   host.append(panel);
   const form = panel.querySelector<HTMLFormElement>('.sandbox-target-form')!;
@@ -144,6 +147,12 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     } else if (action === 'save') {
       appendProgress(storage, saved());
       render(true);
+      const results = checkTargets(current(), siteTunedTargets(targets, PRACTICE_SETUP.skin.site?.id));
+      void source.snapshot?.().then((image) => {
+        if (!image) return;
+        addToGallery(storage, { at: new Date().toISOString(), image, met: results.filter((r) => r.met === true).length, total: results.length });
+        renderGallery();
+      });
     } else if (action === 'export') {
       const data = { build: source.build(), trainee: trainee() || null, sessionSeconds: Math.round(source.sessionSeconds()), summary: current(), targets, targetResults: checkTargets(current(), siteTunedTargets(targets, PRACTICE_SETUP.skin.site?.id)), passes: source.passes(), torn: source.torn(), stitches: source.stitches(), stitchRecords: source.stitchRecords(), progress: loadProgress(storage), skills: source.skillReport?.() ?? null };
       download(JSON.stringify(data, null, 2), 'application/json', fileName('session', 'json'));
@@ -154,6 +163,25 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     }
   });
   let key = '';
+  // Closure gallery (gameplay/closureGallery.ts): saved snapshots, newest first; rebuilt only when it changes.
+  let galleryKey = '';
+  const renderGallery = () => {
+    const entries = loadGallery(storage);
+    const key = entries.map((e) => e.at).join('|');
+    if (key === galleryKey) return;
+    galleryKey = key;
+    const host = panel.querySelector<HTMLElement>('.closure-gallery')!;
+    host.replaceChildren(...entries.map((entry) => {
+      const figure = document.createElement('figure');
+      const image = document.createElement('img');
+      image.src = entry.image;
+      image.alt = `Closure saved ${galleryCaption(entry)}`;
+      const caption = document.createElement('figcaption');
+      caption.textContent = galleryCaption(entry);
+      figure.append(image, caption);
+      return figure;
+    }));
+  };
   const render = (force = false) => {
     panel.hidden = !source.active();
     if (panel.hidden) return;
@@ -176,6 +204,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     const rubricNote = s.passes > 0 && skill && typeof skill.seconds === 'number' ? describeRubric(osatsRubric(skill, s.tears + s.cutThroughs)) : '';
     panel.querySelector('.sandbox-targets')!.innerHTML = targetResults.map((r) => `<li class="${r.met === null ? 'pending' : r.met ? 'met' : 'missed'}">${r.met === null ? '○' : r.met ? '✓' : '✗'} ${r.label} · ${r.detail}</li>`).join('') + (drillNote ? `<li class="next-drill">→ ${drillNote}</li>` : '') + (rubricNote ? `<li class="osats-rubric">${rubricNote}</li>` : '');
     panel.querySelector('.sandbox-trend')!.textContent = describeTrend(loadProgress(storage), targets);
+    renderGallery();
   };
   render(true);
   setInterval(render, REFRESH_MS);

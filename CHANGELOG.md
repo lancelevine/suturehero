@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.272 — Closure gallery
+
+- Sandbox: "Save session to progress" also saves a small snapshot of the practice view with the date and how many targets were met; the last 12 are shown as a gallery in the Sandbox panel, kept in this browser (roadmap: "Closure gallery"; the snapshot is the current view, not a forced top-down camera).
+
 ## Build 0.271 — Knot timer
 
 - Skin knot tying: a timer runs from the start of tying; once the knot is locked and seated with three or more throws, the line shows the time, whether it is square and whether every throw lies flat, plus your best time in this browser (roadmap: "Instrument tie speed drills"; a dedicated timed-drill mode is not added yet).

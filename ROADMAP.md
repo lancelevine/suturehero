@@ -164,7 +164,7 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Healing time-lapse:** likely scar outcome from tension, eversion and spacing.
 - **Case-based scenarios:** a patient story sets the site, wound and constraints; the trainee picks the closure and suture.
 - **Sterile field score:** flag any time an instrument tip touches something outside the sterile field.
-- **Closure gallery:** a top-down snapshot of each finished closure with its score and date, to see progress over time.
+- **Closure gallery:** a top-down snapshot of each finished closure with its score and date, to see progress over time. *(First version in build 0.272: snapshot of the current view on Save session, last 12 kept per browser; not forced top-down.)*
 - **Suture removal drill:** cut one side close to the skin and pull toward the wound, without dragging outside thread through the track.
 - **First-pass rate:** counts how often the needle is backed out and re-bitten before a stitch is placed; first-pass percentage per closure and site. *(First version in build 0.269: Sandbox summary per session; per-site and trend not yet.)*
 - **Thread damaged by instruments:** clamping suture in driver or forceps jaws crimps it, severity from the jaw sensor; crimped spots are weaker and break there under load.

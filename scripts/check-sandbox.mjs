@@ -57,6 +57,7 @@ try{
   await panel.locator('input[name="trainee"]').fill('Resident, A');
   await panel.locator('input[name="trainee"]').dispatchEvent('change');
   await panel.getByRole('button',{name:'Save session to progress'}).click();
+  await page.waitForFunction(()=>document.querySelectorAll('.closure-gallery img').length>=1&&document.querySelector('.closure-gallery img').src.startsWith('data:image/jpeg'),{},{timeout:10000});
   const downloaded=async name=>{
    const [download]=await Promise.all([page.waitForEvent('download'),panel.getByRole('button',{name}).click()]);
    return {file:download.suggestedFilename(),text:await readFile(await download.path(),'utf8')};

@@ -124,7 +124,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.271';
+const APP_BUILD='0.272';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -141,7 +141,7 @@ try {
   // Sandbox session summary, targets, progress and export (ui/SandboxSummaryPanel.ts).
   {const review=document.querySelector('#workspace-session-review');const host=document.createElement('div');if(review)review.querySelector('summary')?.after(host);else document.querySelector('.exercise-feedback')?.after(host);
    // Mounted after the session exists (it is created further down this setup).
-   setTimeout(()=>mountSandboxSummaryPanel(host,{skillReport:()=>exportSkillReport(),firstPass:()=>({backOuts:session.freePass.backOuts,undone:session.freePass.undonePasses}),active:()=>session.sandbox||session.canFinishSandboxStitch||session.freePass.passes.length>0,passes:()=>session.freePass.passes,torn:()=>session.freePass.torn,stitches:()=>session.course.active?[]:session.course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review})),build:()=>document.querySelector('.version')?.textContent??'',stitchRecords:()=>session.course.completed.map(r=>({number:r.number,review:r.review,meta:r.meta})),sessionSeconds:()=>session.clock.secondsSoFar}),0);}
+   setTimeout(()=>mountSandboxSummaryPanel(host,{snapshot:requestSnapshot,skillReport:()=>exportSkillReport(),firstPass:()=>({backOuts:session.freePass.backOuts,undone:session.freePass.undonePasses}),active:()=>session.sandbox||session.canFinishSandboxStitch||session.freePass.passes.length>0,passes:()=>session.freePass.passes,torn:()=>session.freePass.torn,stitches:()=>session.course.active?[]:session.course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review})),build:()=>document.querySelector('.version')?.textContent??'',stitchRecords:()=>session.course.completed.map(r=>({number:r.number,review:r.review,meta:r.meta})),sessionSeconds:()=>session.clock.secondsSoFar}),0);}
   /** How long the "tissue torn" message stays (ms), and the torn passes already announced. */
   const TORN_MESSAGE_MS=3500;let tornSeen=0,tornMessageUntil=0,cutSeen=0,cutMessageUntil=0;view.scene.add(passMarks.root);
   const tipMarkers=new TipMarkers([{root:tools[0].root,color:0x65d8c1},{root:tools[1].root,color:0xe65353}]);view.scene.add(tipMarkers.root);
@@ -402,6 +402,10 @@ try {
    if(!free.active)return '';const text=describeKnotTime(knotTimer,now,bestKnot,!!free.sequence?.locked,free.seatedThrows>=throws&&throws>0);return text?text+' · ':'';};
   // Shareable highlight clips (ui/clipRecorder.ts).
   let clipAfterRender=()=>{};
+  // Closure gallery snapshots (gameplay/closureGallery.ts): a small JPEG of the view, taken right after a render.
+  let snapshotRequest:((image:string|null)=>void)|null=null;
+  const requestSnapshot=()=>new Promise<string|null>(resolve=>{snapshotRequest=resolve;});
+  const takeSnapshot=()=>{if(!snapshotRequest)return;const resolve=snapshotRequest;snapshotRequest=null;try{const source=view.renderer.domElement,width=240,height=Math.round(width*source.height/Math.max(1,source.width));const c=document.createElement('canvas');c.width=width;c.height=height;c.getContext('2d')!.drawImage(source,0,0,width,height);resolve(c.toDataURL('image/jpeg',.72));}catch{resolve(null);}};
   {const host=document.querySelector('.workspace-view-tools');if(host)clipAfterRender=mountClipButton(host,view.renderer.domElement,()=>({title:frameQuery('#exercise-title')?.textContent?.trim()??'',timer:document.querySelector('.practice-hud-timer, .hud-timer')?.textContent?.trim()??'',instruction:frameQuery('#exercise-readout')?.textContent?.trim()??''})).afterRender;}
   // Complication events (gameplay/bleeder.ts): optional bleeder after the third Sandbox pass.
   let complications=new URL(location.href).searchParams.get('complications')==='1';
@@ -859,6 +863,6 @@ try {
     const holdProgress=frameQuery('.hold-progress') as HTMLElement|null;if(holdProgress&&holdProgress.hidden!==session.sandbox)holdProgress.hidden=session.sandbox;}
     const status=frameQuery('#grasp-status')!; const statusText=graspStatusText({tractionAlert,edge,passPhase:pass.phase,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,preparingEdge:session.preparingEdge,freeKnotActive:session.freeKnot.active,loadTestActive:session.loadTest.active,driverOpenness:tools[1].openness,knot,releaseCheck:session.releaseCheck,graspStatus:grasp.status}); if(status.textContent!==statusText) status.textContent=statusText; if(session.environment.id==='microsurgery')for(const selector of ['#exercise-title','#exercise-readout','#grasp-status','#position-forceps']){
       const element=frameQuery(selector)!;setText(element,element.textContent!.replaceAll('Skin edge','Vessel edge').replaceAll('skin edge','vessel edge').replaceAll('Dermal purchase','Wall purchase'));
-    } view.controls.update(); perf.measure('Simulator render submission',()=>view.renderer.render(view.scene,view.camera));clipAfterRender(); tools.forEach(tool=>{const meter=frameQuery(`#${tool.id}-jaw`) as HTMLMeterElement,opening=tool.id==='right'&&input.scissorsActive?scissors.openness:tool.openness;if(meter.value!==opening)meter.value=opening;});perf.sample('Simulator CPU frame',performance.now()-frameStarted);});
+    } view.controls.update(); perf.measure('Simulator render submission',()=>view.renderer.render(view.scene,view.camera));clipAfterRender();takeSnapshot(); tools.forEach(tool=>{const meter=frameQuery(`#${tool.id}-jaw`) as HTMLMeterElement,opening=tool.id==='right'&&input.scissorsActive?scissors.openness:tool.openness;if(meter.value!==opening)meter.value=opening;});perf.sample('Simulator CPU frame',performance.now()-frameStarted);});
   window.addEventListener('pagehide',()=>{input.dispose(); view.renderer.setAnimationLoop(null);});
 } catch(error) { document.querySelector('#error')!.textContent='The 3D workspace could not start. Please use a browser with WebGL enabled.'; console.error(error); }
