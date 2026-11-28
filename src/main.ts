@@ -74,6 +74,7 @@ import {gapScan,type OpenSpan} from './gameplay/gapScan';
 import {GapScanView} from './scene/GapScanView';
 import {describeStepOffs} from './gameplay/stepOff';
 import {BACK_WALL_WARNING,catchesBackWall} from './gameplay/backWallCatch';
+import {AIR_KNOT_WARNING,AirKnotWatcher} from './gameplay/airKnot';
 import {describeVesselEversion} from './gameplay/stitchOutcome';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
@@ -424,6 +425,9 @@ try {
   const frameQuery=cachedQuery();
   // Back-wall catch alert during a vessel bite (src/gameplay/backWallCatch.ts).
   const vesselNote=()=>{const text=session.environment.id==='microsurgery'?describeVesselEversion(session.vesselEversions):'';return text?text+' · ':'';};
+  // Air knot (src/gameplay/airKnot.ts): first throw not seated before the next, from any knot engine.
+  const airKnot=new AirKnotWatcher();
+  const airKnotNote=()=>{const free=session.freeKnot;if(!free.active){airKnot.reset();return '';}airKnot.update(free.sequence?.throws.length??0,free.seatedThrows,free.sequence?.sliding??false);return airKnot.flagged?AIR_KNOT_WARNING+' · ':'';};
   const backWallNote=()=>session.environment.id==='microsurgery'&&session.pass.phase==='passing'&&catchesBackWall({centreY:session.pass.center.y,radius:session.pass.radius},microProfile(resolveMicroTarget(microSelect.value)))?BACK_WALL_WARNING+' · ':'';
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;
@@ -561,7 +565,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

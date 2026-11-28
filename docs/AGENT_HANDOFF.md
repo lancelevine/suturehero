@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: air knot detection (roadmap #3, knot signals)
+- Finding: no engine change needed; `KnotEngine` already exposes `sequence.throws`, `seatedThrows`, `knotAtTissue`, strands, entry/exit.
+- New `src/gameplay/airKnot.ts` (+test): flags a second throw started while no throw is seated (sliding knots excluded). `src/main.ts` prefixes the instruction line with the warning while free tying.
+- Checked: tsc, test, check-free-tying, check-sandbox, check-knot, and a full Demo run watching the instruction line: no false "Air knot" on the correctly tied Demo knot.
+- Next: knot placement (approximate the knot from where the long and short strands cross).
+
 ### 2026-11-27 — Claude: vessel eversion per saved stitch
 - `PracticeSession.vesselEversions` records `tissueResponse.eversion` per saved vessel stitch; `describeVesselEversion` (`src/gameplay/stitchOutcome.ts`, shares `EVERTED_ABOVE` with `assessEdges`, +test) shown at the start of the microsurgery instruction line. Checked: tsc, stitchOutcome + PracticeSession tests (Node 24), check-practice-setup, check-guided-thread, check-sandbox.
 
