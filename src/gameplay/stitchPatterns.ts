@@ -30,7 +30,7 @@ export interface PatternPass {
   deepestLayer?: string;
 }
 
-export type PatternName = 'simple' | 'vertical mattress' | 'horizontal mattress' | 'running' | 'running subcuticular' | 'figure-of-eight';
+export type PatternName = 'simple' | 'vertical mattress' | 'horizontal mattress' | 'running' | 'running subcuticular' | 'figure-of-eight' | 'pulley';
 
 export interface RecognisedStitch {
   pattern: PatternName;
@@ -43,6 +43,28 @@ const mm = (units: number) => units * SCENE_MM_PER_UNIT;
 const biteMm = (p: PatternPass) => mm((p.entryEdge + (p.exitEdge ?? p.entryEdge)) / 2);
 const middleZ = (p: PatternPass) => (p.entry.z + (p.exit?.z ?? p.entry.z)) / 2;
 const opposite = (a: PatternPass, b: PatternPass) => Math.sign(a.entry.x) !== Math.sign(b.entry.x);
+
+/** A far bite is at least this many times its near bite (pulley stitch). */
+export const PULLEY_FAR_TO_NEAR = 1.5;
+
+/** Pulley (2026-11-28): far-near then near-far, two same-side passes a few mm apart; takes tension off the edges. */
+function asPulley(a: PatternPass, b: PatternPass): RecognisedStitch | null {
+  if (!a.crossesWound || !b.crossesWound || opposite(a, b) || a.exitEdge === null || b.exitEdge === null) return null;
+  const apartMm = mm(Math.abs(middleZ(a) - middleZ(b)));
+  if (apartMm < 1 || apartMm > HORIZONTAL_SPACING_MM.max) return null;
+  const farNear = a.entryEdge >= PULLEY_FAR_TO_NEAR * a.exitEdge;
+  const nearFar = b.exitEdge >= PULLEY_FAR_TO_NEAR * b.entryEdge;
+  const reversed = a.exitEdge >= PULLEY_FAR_TO_NEAR * a.entryEdge && b.entryEdge >= PULLEY_FAR_TO_NEAR * b.exitEdge;
+  if (!(farNear && nearFar) && !reversed) return null;
+  return {
+    pattern: 'pulley',
+    passes: [],
+    checks: [
+      { label: 'far-near, then near-far', met: farNear && nearFar },
+      { label: `${apartMm.toFixed(1)} mm apart (≤ ${HORIZONTAL_SPACING_MM.max})`, met: true },
+    ],
+  };
+}
 
 /** Figure-of-eight (2026-11-28): two passes from the same side, 3–10 mm apart, the thread crossing over the top. */
 function asFigureOfEight(a: PatternPass, b: PatternPass): RecognisedStitch | null {
@@ -153,7 +175,7 @@ export function recognisePatterns(passes: readonly PatternPass[]): RecognisedSti
       i += running.passes.length - 1;
       continue;
     }
-    const pair = i + 1 < done.length ? asMattress(done[i], done[i + 1]) ?? asFigureOfEight(done[i], done[i + 1]) : null;
+    const pair = i + 1 < done.length ? asMattress(done[i], done[i + 1]) ?? asPulley(done[i], done[i + 1]) ?? asFigureOfEight(done[i], done[i + 1]) : null;
     if (pair) {
       result.push({ ...pair, passes: [i + 1, i + 2] });
       i++;

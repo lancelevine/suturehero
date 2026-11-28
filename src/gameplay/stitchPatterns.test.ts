@@ -30,6 +30,14 @@ describe('stitch pattern recognition', () => {
     expect(recognisePatterns([pass(-1, 6, 0), pass(-1, 2, 0)]).map((s) => s.pattern)).toEqual(['simple', 'simple']);
   });
 
+  it('recognises a pulley stitch: far-near then near-far', () => {
+    const u2 = (mm: number) => mm / SCENE_MM_PER_UNIT;
+    const asym = (zMm: number, entryMm: number, exitMm: number): PatternPass => ({ entry: { x: -u2(entryMm), z: u2(zMm) }, exit: { x: u2(exitMm), z: u2(zMm) }, entryEdge: u2(entryMm), exitEdge: u2(exitMm), depth: u2(3), crossesWound: true });
+    const [stitch] = recognisePatterns([asym(0, 8, 3), asym(3, 3, 8)]);
+    expect(stitch.pattern).toBe('pulley');
+    expect(stitch.checks[0].met).toBe(true);
+  });
+
   it('recognises a figure-of-eight: two same-side passes a few mm apart', () => {
     const [stitch] = recognisePatterns([pass(-1, 5, 0), pass(-1, 5.4, 6)]);
     expect(stitch.pattern).toBe('figure-of-eight');

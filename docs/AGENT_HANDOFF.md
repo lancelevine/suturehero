@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: pulley stitch recognition
+- `stitchPatterns.ts`: same-side pass pair within 10 mm with asymmetric bites (far ≥ 1.5× near) → pulley, graded on far-near then near-far order (+test); checked before figure-of-eight. Checked: tsc, test, check-sandbox.
+
 ### 2026-11-28 — Claude: figure-of-eight recognition
 - `stitchPatterns.ts`: pairs of same-side crossing passes 3–10 mm apart (not part of a ≥ 3 running run) → figure-of-eight, graded on matching bites (+test). Purse-string not started (needs a round defect). Checked: tsc, test, check-sandbox.
 
