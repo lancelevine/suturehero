@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Exam mode (build 0.255)
+
+- New `src/gameplay/examMode.ts` (+ test). `#exam-mode` button reloads with `?exercise=exam`; in exam the readout is only `examReadout(...)` and `idealPath` is hidden; Finish exam (or 10 min) shows `describeRubric`.
+- Checked: unit + ui tests, tsc, browser (9:53 left → Finish → result), check-practice-setup, check-layout, check-sandbox, check-guided-thread.
+- Not hidden yet: Sandbox summary panel, pass marks and Skill Analysis.
+
 ### 2026-11-28 — Claude — OSATS-style rubric (build 0.254)
 
 - New `src/gameplay/osatsRubric.ts` (+ test): respect for tissue, time and motion, instrument handling, flow, each 1–5 from `SkillReport`. Shown as `<li class="osats-rubric">` in the Sandbox targets after the first pass. `exportSkillReport` in `src/main.ts` now carries the optional counts too.

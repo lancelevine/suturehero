@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.255 — Exam mode
+
+- Setup: new "Exam (10 min)" button starts a timed Sandbox run with no hints: the instruction line shows only the time left, and the ideal suture path guide is hidden. "Finish exam" (or the time running out) shows the OSATS-style rubric as the result (roadmap: "Exam mode scored like OSATS"; the rubric is approximate; other overlays such as the Sandbox summary are still available).
+
 ## Build 0.254 — OSATS-style rubric
 
 - Sandbox targets: after the first pass, an "OSATS-style" line scores four of the seven OSATS global rating items 1–5 from the measured numbers: respect for tissue (forceps control, tears), time and motion (smoothness, idle time), instrument handling (drops, tip regrasps, tip collisions) and flow (idle share). It is an automated approximation, not a validated OSATS score (roadmap: "Exam mode scored like OSATS"; a timed no-hints exam mode is not built yet).
