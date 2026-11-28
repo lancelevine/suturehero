@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: suture breaking strength (big build #2); locked/tie-off deferred
+- New `src/gameplay/sutureStrength.ts` (+test): sizes 3-0/4-0/5-0/6-0 with relative breaking points on the thread model's pull demand (1.01/0.85/0.7/0.55), snap after 0.15 s over. Default 3-0 (never snaps), so existing exercises and the Demo are unchanged. `src/main.ts`: Setup "Size" (`?size=`), per-strand `BreakMonitor`, snap = `freeKnot.cut` at 60% along the strand, peak-pull gauge in the instruction line while tying.
+- Locked running stitch and running tie-off not started: they need loop topology in the thread model (noted in ROADMAP).
+- Checked: tsc, test, page load with `?size=6-0` (no errors), check-free-tying, check-knot, check-sandbox. Snapping not seen in a browser yet (needs a hard pull with a fine size).
+
 ### 2026-11-28 — Claude: tension hold on running stitches (big build #1, step 1)
 - `src/suture/FreeThreadGuide.ts`: per-loop extra slack (segments) for every pass but the newest; with a time step it grows 0.6/s (max 3) while the thread is not taut and shrinks 3/s when tension ≥ 0.97; loose-span cost includes it. `loopSlackUnits()` exposes it (+test). Calls without `dt` are unchanged.
 - New `src/gameplay/tensionHold.ts` (+test): slack loops over 2 mm named in the Sandbox instruction line.

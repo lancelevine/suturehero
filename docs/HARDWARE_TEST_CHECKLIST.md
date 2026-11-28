@@ -168,3 +168,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: Setup → "Landmark exercise": a red line crosses the wound at the centre; put the first stitch on it and the instruction line says "aligned ✓".
 - Build 0.235: Setup → Body site → Scalp: the pad shows stubble and the dermis is thicker; Face: pinker, finer pores, freckles, edges closer. Move the Tension slider up and the wound gap widens.
 - Build 0.235: in Sandbox, make two passes without tying and let the thread rest: after a few seconds the earlier loop sags and the line says "slack at loop 1"; pull the thread taut and it tightens.
+- Build 0.235: Setup → Size 6-0, tie and pull hard: the strand snaps with "Suture snapped (6-0)"; with 3-0 the same pull does not snap. The instruction line shows "Pull: peak N% of … breaking point".
