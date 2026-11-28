@@ -88,6 +88,7 @@ Last updated: 2026-11-27
 - **Needle that stays put when released:** a needle let go mid-bite is held by tissue friction and nudged by recoil; in loose tissue or a shallow bite it can slip back out.
 - **Needle holes that last:** every pass leaves a puncture; clusters of holes from re-bites lower tear strength so stitches can tear through on tying, and extra vessel holes leak at the patency test.
 - **Tissue that moves with the needle:** skin shifts and rolls away from the needle tip unless forceps hold the edge as countertraction; unsupported bites land off target and shallow, judged from the forceps' tracked position and jaw force.
+- **Thread with weight:** loose suture hangs and drapes under gravity; a long slack strand falls across the wound where the next bite can catch the loop or the driver can trap it in a knot.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
