@@ -124,7 +124,7 @@ Last updated: 2026-11-27
 - **Procedural wound variety:** lacerations, stellate wounds, ellipses with dog-ears, defects under tension.
 - **Tissue handling score:** forceps crush damage from the jaw sensors. *(First version in build 0.258: Skill Analysis share of hold time with the jaws squeezed shut; force is not measured.)*
 - **Knot quality check:** square vs granny, number of throws, slippage. *(Already in the app: each knot review names square/granny/sliding/surgeon's start, counts throws and seated throws, and grades secure / may slip / insecure (`src/gameplay/stitchOutcome.ts`).)*
-- **Complication events mid-closure:** a bleeder, a torn bite, a broken needle. *(First version in build 0.257: optional bleeder after the third Sandbox pass, stopped by forceps pressure; torn bite and broken needle not yet.)*
+- **Complication events mid-closure:** a bleeder, a torn bite, a broken needle. *(First version in build 0.257: optional bleeder after the third Sandbox pass, stopped by forceps pressure; torn bite and broken needle not yet.)* *(Build 0.268: broken needle from sustained hard forcing; a torn bite already happens from forcing past the tear limit.)*
 - **Loupe and microscope view:** 10 to 20x, shallow depth of field, real tremor scaled up. *(First version in build 0.261: ×2.5 loupe and ×4 microscope steps relative to the normal view, eyepiece vignette; shallow depth of field not yet.)*
 - **Exportable skills report:** per-session summary trended over weeks, for program directors or research. *(First step in build 0.235: Skill Analysis numbers in the session JSON export; weekly trends not yet.)*
 - **Haptic cues:** vibration in instrument handles for needle pop-through, over-grip and tears.

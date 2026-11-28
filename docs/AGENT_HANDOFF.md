@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Broken needle complication (build 0.268)
+
+- New `src/gameplay/needleBreak.ts` (+ test): breaks after 2 s of forcing above 85% of the tear limits (70% broke check-sandbox's clean pass, which peaks at 77%). Wired in `bleederNote` (`src/main.ts`): aborts the pass and resets the grasp.
+- Checked: unit test, tsc, check-sandbox (with and without `?complications=1`), check-running-lock.
+
 ### 2026-11-28 — Claude — HUD in highlight clips (build 0.267)
 
 - `src/ui/clipRecorder.ts`: records a 2D composite canvas; `afterRender()` (called right after `renderer.render` in `src/main.ts`, since the WebGL buffer is not preserved) copies the frame and draws title/timer/instruction. `wrapLines` tested.

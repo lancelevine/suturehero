@@ -74,6 +74,7 @@ import {mountClipButton} from './ui/clipRecorder';
 import {LockMarks} from './scene/LockMarks';
 import {assessTieOff,describeTieOff} from './gameplay/runningTieOff';
 import {RunningLockTracker,describeLocks} from './gameplay/runningLock';
+import {BREAK_MESSAGE,NeedleBreakCheck,breakingForce} from './gameplay/needleBreak';
 import {Bleeder} from './gameplay/bleeder';
 import {examReadout} from './gameplay/examMode';
 import {describeRubric,osatsRubric} from './gameplay/osatsRubric';
@@ -122,7 +123,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.267';
+const APP_BUILD='0.268';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -403,14 +404,17 @@ try {
   showComplications();
   complicationsButton?.addEventListener('click',()=>{complications=!complications;const url=new URL(location.href);if(complications)url.searchParams.set('complications','1');else url.searchParams.delete('complications');history.replaceState(null,'',url);showComplications();complicationsButton.blur();});
   const bleeder=new Bleeder();
+  const needleBreak=new NeedleBreakCheck();let breakMessageUntil=0;
   const bleedPool=new THREE.Mesh(new THREE.SphereGeometry(1,24,12).scale(1,.08,1),new THREE.MeshStandardMaterial({color:0x7a0d12,roughness:.12,metalness:0}));bleedPool.name='bleeder-pool';bleedPool.visible=false;view.scene.add(bleedPool);
   let bleedClock=0;const bleedJaw=new THREE.Vector3();
   const bleederNote=()=>{const t=session.clock.secondsSoFar,dt=Math.max(0,Math.min(.1,t-bleedClock));bleedClock=t;
-   if(!complications||!session.sandbox||session.freePass.passes.length===0){if(bleeder.state!=='waiting'||session.freePass.passes.length===0)bleeder.reset();bleedPool.visible=false;return '';}
+   if(complications&&session.sandbox&&needleBreak.update(session.freePass.inTissue,breakingForce(session.freePass.forcing,session.freePass.tearLimits),dt)){session.freePass.abortCurrent();grasp.reset();breakMessageUntil=performance.now()+6000;}
+   const breakText=performance.now()<breakMessageUntil?BREAK_MESSAGE+' · ':'';
+   if(!complications||!session.sandbox||session.freePass.passes.length===0){if(bleeder.state!=='waiting'||session.freePass.passes.length===0)bleeder.reset();bleedPool.visible=false;return breakText;}
    const last=session.freePass.passes.at(-1);bleeder.checkStart(session.freePass.passes.length,last?.exit??null);
    tools[0].root.updateWorldMatrix(true,false);bleeder.update(dt,tools[0].root.localToWorld(bleedJaw.set(0,0,.05)),tools[0].openness<=.2);
    bleedPool.visible=bleeder.state!=='waiting'&&bleeder.pool>0;if(bleeder.site){bleedPool.position.set(bleeder.site.x,bleeder.site.y+.003,bleeder.site.z);bleedPool.scale.setScalar(Math.max(.001,bleeder.pool));}
-   const text=bleeder.describe();return text?text+' · ':'';};
+   const text=bleeder.describe();return breakText+(text?text+' · ':'');};
   // Exam mode (gameplay/examMode.ts): timed, no hints, OSATS-style result.
   const exam=new URL(location.href).searchParams.get('exercise')==='exam';
   let examFinished=false;

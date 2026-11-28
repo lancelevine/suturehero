@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.268 — Broken needle complication
+
+- Complications (Sandbox, when switched on): forcing the needle hard off its curve (over 85% of the skin's tear limit) for 2 s in one pass breaks it; the pass stops and the instruction line says to reset the needle (roadmap: "Complication events mid-closure"; illustrative limits; a torn bite already happens from harder forcing).
+
 ## Build 0.267 — HUD in highlight clips
 
 - Highlight clips now include the exercise title, timer and instruction line in a band along the bottom of the video (roadmap: "Shareable highlight clips"; recording a replay instead of live is not added yet).
