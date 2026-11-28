@@ -1,3 +1,4 @@
+import {tensionGlow} from './tensionTint';
 import {PRACTICE_SETUP} from '../setup/PracticeSetup';
 import {tissueTractPoints} from '../tissue/sutureTract';
 import * as THREE from 'three';
@@ -28,5 +29,7 @@ export class FreeKnotView {
     this.tip.position.copy(model.short.points.at(-1)!);
     this.tip.material.color.setHex(model.gripLabel('right')==='short tail'?0x65df9b:0xffcc55);
     this.root.updateWorldMatrix(true,false);this.long.update(model.long.points,this.root.matrixWorld);this.short.update(model.short.points,this.root.matrixWorld);
+    // Live tension heatmap (src/scene/tensionTint.ts).
+    tensionGlow(model.tension.long,this.long.material.emissive);tensionGlow(model.tension.short,this.short.material.emissive);
   }
 }

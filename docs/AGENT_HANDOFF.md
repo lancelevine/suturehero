@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: live tension heatmap on the strands
+- New `src/scene/tensionTint.ts` (+test): emissive glow from `StrandTensionView` (none when released/slack, green × tautness when gentle, red when excessive). `FreeKnotView` applies it to the long and short strands each frame. Checked: tsc, test, check-free-tying, check-knot, check-sandbox. Not seen in a screenshot (needs a held, taut strand).
+
 ### 2026-11-27 — Claude: knot placement check (roadmap #3)
 - New `src/gameplay/knotPlacement.ts` (+test): knot = midpoint of the closest long/short strand points; side left/right, or "on the incision" within 1.5 mm of x = 0. `src/main.ts` records it when a Sandbox stitch is kept or a course stitch advances, and appends the summary to the spacing line (reset on course start).
 - Checked: tsc, test, check-sandbox, check-guided-thread, check-free-tying. Knot location is approximate (closest strand approach); Lance to try.
