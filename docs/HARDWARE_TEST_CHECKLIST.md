@@ -193,3 +193,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.246: instrument tie — a wrap close to the wound reads fine, one far away is flagged, and a wrap that slides off the driver before grasping the short tail is flagged as slipped.
 - [ ] Build 0.247: Sandbox — undo and redo a bite in the same spot 3–4 times, then pull hard: the note shows nearby holes and the thread cuts through sooner.
 - [ ] Build 0.248: Sandbox — a very flat needle entry should skid (title says so); a steeper entry should bite normally.
+- [ ] Build 0.249: Back preset — a knot with a single first throw is flagged as slipping; a surgeon's start is secure.

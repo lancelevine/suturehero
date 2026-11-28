@@ -36,3 +36,13 @@ it('summarises eversion over saved vessel stitches', async () => {
   expect(describeVesselEversion([])).toBe('');
   expect(describeVesselEversion([0.01, 0.001, -0.01])).toBe('Vessel eversion: 1/3 stitches everted · inverted at stitch 3');
 });
+
+describe('first throws that slip back', () => {
+  it('a single first throw slips on a tight wound; a surgeon\'s start holds', () => {
+    const single = assessKnot([t(1, 1), t(1, -1), t(1, 1)], 3, 1.4);
+    expect(single.security).toBe('may slip');
+    expect(single.notes.join(' ')).toContain('slipped back');
+    expect(assessKnot([t(2, 1), t(1, -1), t(1, 1)], 3, 1.4).security).toBe('secure');
+    expect(assessKnot([t(1, 1), t(1, -1), t(1, 1)], 3, 1).security).toBe('secure');
+  });
+});

@@ -19,7 +19,11 @@ export interface KnotReport {
   notes: string[];
 }
 
-export function assessKnot(throws: readonly ThrowRecord[], seatedThrows: number): KnotReport {
+/** Wound tension (body-site multiple of standard) at or above which a single first throw slips back
+ * when let go (roadmap: "First throws that slip back"); a double (surgeon's) first throw holds. */
+export const FIRST_THROW_SLIP_TENSION = 1.2;
+
+export function assessKnot(throws: readonly ThrowRecord[], seatedThrows: number, woundTension = 1): KnotReport {
   const notes: string[] = [];
   if (!throws.length) return { security: 'insecure', notes: ['No throws'] };
   // Consecutive single throws in the same direction after the start form a granny (slips); opposing ones are square.
@@ -39,7 +43,10 @@ export function assessKnot(throws: readonly ThrowRecord[], seatedThrows: number)
   const unseated = Math.max(0, throws.length - seatedThrows);
   if (unseated) notes.push(`${unseated} throw${unseated > 1 ? 's' : ''} not seated down on the knot · tighten each throw onto the last`);
   if (throws.length < SECURE_THROWS) notes.push(`Add throws: ${SECURE_THROWS} or more for a secure knot`);
-  const security: KnotSecurity = !squares ? 'insecure' : grannies || unseated || throws.length < SECURE_THROWS ? 'may slip' : 'secure';
+  const slidingStart = throws.length > 1 && throws[1].direction === throws[0].direction && !!throws[1].postHeld;
+  const firstSlipped = woundTension >= FIRST_THROW_SLIP_TENSION && throws[0].wraps === 1 && !slidingStart;
+  if (firstSlipped) notes.push("Single first throw slipped back under the wound's tension · start with a surgeon's (double) throw");
+  const security: KnotSecurity = !squares ? 'insecure' : grannies || unseated || firstSlipped || throws.length < SECURE_THROWS ? 'may slip' : 'secure';
   return { security, notes };
 }
 

@@ -113,7 +113,7 @@ export class PracticeSession {
   /** Knot security and edge approximation of the Sandbox stitch being tied (gameplay/stitchOutcome.ts), or null. */
   get sandboxStitchOutcome(){
     if(!this.freeKnotAnchors||!this.freeKnot.active)return null;
-    return {knot:assessKnot(this.freeKnot.sequence?.throws??[],Math.max(this.freeKnot.seatedThrows,this.freeSeatedThrows)),edges:assessEdges(this.wound.closure,this.tissueResponse.eversion,this.wound.edgeMismatch)};
+    return {knot:assessKnot(this.freeKnot.sequence?.throws??[],Math.max(this.freeKnot.seatedThrows,this.freeSeatedThrows),this.environment.id==='skin'?PRACTICE_SETUP.skin.site?.tension??1:1),edges:assessEdges(this.wound.closure,this.tissueResponse.eversion,this.wound.edgeMismatch)};
   }
   finishSandboxStitch(){
     if(!this.canFinishSandboxStitch||this.sandboxStitchZ===null)return false;

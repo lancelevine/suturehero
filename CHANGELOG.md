@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.249 — First throws that slip back
+
+- Skin knots: on a tight body site (tension 1.2× or more, e.g. Back), a single first throw is reported as slipping back when let go and the knot is graded "may slip"; a surgeon's (double) first throw, or a deliberate sliding start, holds (roadmap: "First throws that slip back"; the edges do not visibly reopen yet).
+
 ## Build 0.248 — Needles that skid
 
 - Sandbox: a needle tip meeting the skin flatter than 20° skids over the surface instead of biting; the pass does not start and the title says to lift the hand so the tip enters closer to 90° (roadmap: "Needles that skid off the skin"; illustrative limit; the late off-target catch is not modelled).

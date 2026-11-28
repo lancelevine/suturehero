@@ -53,6 +53,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — First throws that slip back (build 0.249)
+
+- `assessKnot` (`src/gameplay/stitchOutcome.ts`) takes `woundTension`; at ≥1.2 a single first throw (not a held-post sliding start) adds a note and caps security at "may slip". `PracticeSession` passes the body-site tension for skin. Test added.
+- Also: `check-demo` passed on build 0.248 (needle skid) locally.
+- Checked: gameplay + demo tests (162, Node 24), tsc, check-sandbox, check-free-tying, check-guided-thread, check-practice-setup.
+- Lance: on Back, tie with a single first throw (flagged) and with a surgeon's start (secure).
+
 ### 2026-11-28 — Claude — Needles that skid (build 0.248)
 
 - New `src/tissue/needleSkid.ts` (+ test). `FreeNeedlePass.engage` refuses entries under 20° (sets `rejection = SKID_MESSAGE`, counts `skidCount`); `sandboxTitle` in `src/ui/practiceMessages.ts` shows it (previously every rejection read as torn skin).
