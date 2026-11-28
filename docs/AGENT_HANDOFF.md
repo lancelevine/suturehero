@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Sterile field score (build 0.274)
+
+- New `src/gameplay/sterileField.ts` (+ test): tip within 0.03 of the tool's `minimumHeight` outside the pad footprint (±2.67 × ±1.675) counts once per touchdown per instrument. Row in Skill Analysis; sampled in `sampleSkill`.
+- Checked: unit + ui tests, tsc, browser (0 at rest), check-sandbox, check-layout, check-free-tying.
+
 ### 2026-11-28 — Claude — Stray needle touches (build 0.273)
 
 - New `src/gameplay/strayTouches.ts` (+ test): tip in the wall band or lumen while not biting, confirmed after 0.5 s without a bite starting. Updated per frame next to the vessel grasp check in `src/main.ts`.

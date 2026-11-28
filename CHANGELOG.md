@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.274 — Sterile field score
+
+- Skill Analysis: new "Sterile field" row counts each time an instrument tip touches the table outside the practice pad (roadmap: "Sterile field score"; approximate: the pad is treated as the sterile field).
+
 ## Build 0.273 — Stray needle touches
 
 - Microsurgery: the instruction line counts each time the needle tip touches the vessel wall (or enters the lumen) outside a bite, as scratched intima is a clot risk; a contact that turns into a bite within half a second is not counted (roadmap: "Stray needle touches"; approximate, from the tip point; touches are not marked on the vessel yet).

@@ -51,6 +51,8 @@ export interface SkillReport {
   rotatingShare?: number | null;
   /** Share of skin-hold time with the forceps jaws squeezed shut (crushScore.ts). */
   crushShare?: number | null;
+  /** Instrument tip touchdowns outside the sterile field (sterileField.ts). */
+  sterileBreaks?: number;
   /** In-tissue needle regrasps, and how many landed on the tip (src/suture/gripPosition.ts), when counted. */
   regrasps?: { total: number; onTip: number };
   /** Completed passes, and how many exited behind an instrument from the view camera (src/scene/blindBite.ts). */
