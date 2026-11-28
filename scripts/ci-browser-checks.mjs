@@ -50,6 +50,11 @@ const DEFAULT_CHECKS = [
   'check-tracking-panels',
   // Updated for bitmap flow frames (2026-11-27); passed 4/4 here.
   'check-performance',
+  // Added 2026-11-28 after passing every local run: guided thread (many runs), stereo capture quality 3/3,
+  // calibration UI 3/3 (after scrolling to the camera feed on phones).
+  'check-guided-thread',
+  'check-stereo-capture-quality',
+  'check-calibration-ui',
 ];
 const PORT = 5173;
 const SERVER_START_TIMEOUT_MS = 60_000;

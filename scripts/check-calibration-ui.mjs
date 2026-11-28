@@ -22,6 +22,8 @@ try{
  await page.evaluate(()=>window.__originalCameraVideo=document.querySelector('#camera-video'));
  const visible=async()=>{
   assert(await page.locator('#camera-video').isVisible());assert(await page.locator('#camera-video-2').isVisible());assert(await page.locator('#viewport').isVisible());
+  // Phones put the camera panel below the scene (Lance, 2026-11-28): scroll to it there, then it must fit on screen.
+  if(page.viewportSize().width<600)await page.locator('#camera-video').scrollIntoViewIfNeeded();
   const box=await page.locator('#camera-video').boundingBox();assert(box.y>=0&&box.y+box.height<=page.viewportSize().height+1,'camera feed must remain on screen while setting up');
   assert(await page.evaluate(()=>window.__originalCameraVideo===document.querySelector('#camera-video')&&document.querySelector('#camera-video').srcObject?.active));
  };

@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Browser check sweep (CI list)
+
+- Added to `DEFAULT_CHECKS` in `scripts/ci-browser-checks.mjs`: `check-guided-thread`, `check-stereo-capture-quality` (3/3, ~45 s), `check-calibration-ui` (3/3 after fix, ~70 s). Through the CI runner locally: 3/3 passed.
+- `check-calibration-ui` was failing at 390 px: the phone layout puts the camera panel below the scene (Lance's choice), so the check now scrolls to the feed on phones before requiring it to fit on screen. The fit limit itself is unchanged.
+- Left out: `check-knot` (passes 3/3 but ~4 min each), `check-knot-worker` (fails 3/3; the worker engines are experimental and do not seat the knot, see 2026-11-27), `check-demo` (~12 min), `check-depth-stability` (flaky).
+
 ### 2026-11-28 — Claude — Moist tissue look (build 0.262)
 
 - `src/tissue/TissuePatch.ts`: layer materials are now `MeshPhysicalMaterial` (clear coat 0.55 on dermis/fat, sheen 0.35 reddish on epidermis).
