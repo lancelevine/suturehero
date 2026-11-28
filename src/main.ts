@@ -83,6 +83,8 @@ import {BREAK_MESSAGE,NeedleBreakCheck,breakingForce} from './gameplay/needleBre
 import {Bleeder} from './gameplay/bleeder';
 import {mountCurriculumPanel} from './ui/CurriculumPanel';
 import {TISSUE_LAYERS} from './tissue/anatomy';
+import {describePurseString,gradePurseString} from './gameplay/purseString';
+import {PurseStringRing} from './scene/PurseStringRing';
 import {describeCornerPass,gradeCornerPass} from './gameplay/cornerStitch';
 import {CornerFlapMarks} from './scene/CornerFlapMarks';
 import {THIN_SIDE_DROP,describeThicknessPass,sideDepths} from './gameplay/edgeThickness';
@@ -136,7 +138,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.283';
+const APP_BUILD='0.284';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -479,6 +481,12 @@ try {
   const thicknessNote=()=>{if(!thicknessExercise||session.environment.id!=='skin')return '';const last=session.freePass.passes.at(-1);
    if(!last?.exit)return 'Thin-edge exercise: the left edge is about 1 mm thinner · take the bite deeper on that side so the edges sit level · ';
    return describeThicknessPass(sideDepths(last.tract,x=>SKIN_SURFACE_Y-(x<0?THIN_SIDE_DROP:0)),SCENE_MM_PER_UNIT)+' · ';};
+  // Purse-string (gameplay/purseString.ts): Sandbox exercise with a round defect marked on the right.
+  const purseExercise=new URL(location.href).searchParams.get('exercise')==='purse';
+  const purseRing=new PurseStringRing(SKIN_SURFACE_Y);purseRing.root.visible=purseExercise;view.scene.add(purseRing.root);
+  document.querySelector('#purse-exercise')?.addEventListener('click',()=>{const url=new URL(location.href);if(purseExercise)url.searchParams.delete('exercise');else url.searchParams.set('exercise','purse');location.href=url.toString();});
+  {const b=document.querySelector('#purse-exercise');if(b){b.textContent=purseExercise?'End purse-string':'Purse-string exercise';b.setAttribute('aria-pressed',String(purseExercise));}}
+  const purseNote=()=>purseExercise&&session.environment.id==='skin'?describePurseString(gradePurseString(session.freePass.passes.filter(p=>p.exit).map(p=>({entry:p.entry,exit:p.exit!}))))+' · ':'';
   // Corner stitch (gameplay/cornerStitch.ts): Sandbox exercise with a V-shaped flap marked on the right.
   const cornerExercise=new URL(location.href).searchParams.get('exercise')==='corner';
   const cornerMarks=new CornerFlapMarks(SKIN_SURFACE_Y);cornerMarks.root.visible=cornerExercise;view.scene.add(cornerMarks.root);
@@ -898,7 +906,7 @@ try {
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
      if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));strayTouches.update(needle.getTipPose().position,session.pass.phase!=='idle'||session.pull.phase!=='waiting'||session.freePass.inTissue,microProfile(resolveMicroTarget(microSelect.value)),dt);}
      freshNeedleButton.hidden=!session.sandbox||session.environment.id!=='skin';
-     setText(frameQuery('#exercise-readout'),exam?examText():cornerNote()+thicknessNote()+caseNote()+twistNote()+crimpNote()+unevenPullNote()+knotTimeNote()+tieOffNote()+lockNote()+bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),exam?examText():purseNote()+cornerNote()+thicknessNote()+caseNote()+twistNote()+crimpNote()+unevenPullNote()+knotTimeNote()+tieOffNote()+lockNote()+bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

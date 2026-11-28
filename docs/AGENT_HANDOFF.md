@@ -54,6 +54,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Purse-string exercise (build 0.284)
+
+- New `src/gameplay/purseString.ts` (+ test) and `src/scene/PurseStringRing.ts`; `?exercise=purse` via `#purse-exercise`. Ring centre x = 0.75: free passes only engage within |x| ≤ 1.31 (`PAD_HALF_X` in `FreeNeedlePass`), so a ring further out cannot be bitten.
+- Checked: unit test, tsc, browser (ring visible, passes complete beside it), check-sandbox, check-practice-setup, check-layout.
+
 ### 2026-11-28 — Claude — Corner stitch exercise (build 0.283)
 
 - New `src/gameplay/cornerStitch.ts` (+ tests) and `src/scene/CornerFlapMarks.ts`; `?exercise=corner` via `#corner-exercise`. Grades the newest free pass.

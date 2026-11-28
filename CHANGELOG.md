@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.284 — Purse-string exercise
+
+- Setup: new "Purse-string exercise" (Sandbox). A round defect about 11 mm across is marked on the right half of the pad. Bites whose entry and exit sit on the ring are graded on coverage around the circle (300° or more closes it), going round in one direction, and even spacing (roadmap: "Figure-of-eight and purse-string stitches"; the defect is marked, not cut, and cinching is not simulated).
+
 ## Build 0.283 — Corner stitch exercise
 
 - Setup: new "Corner stitch exercise" (Sandbox). A V-shaped flap is marked on the right side with its tip (purple dot) at the wound edge. After each pass the instruction line checks the half-buried horizontal mattress: skin entered and exited on the far (left) side only, the flap skin not punctured, and the path passing through the flap tip at dermal depth (roadmap: "Corner stitch"; graded from the needle's path; the flap is marked, not cut, and strangling the tip is not modelled).
