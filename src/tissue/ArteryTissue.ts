@@ -68,6 +68,11 @@ export class ArteryTissue {
   }
   this.root.name=this.target+'-workspace';
  }
+ /** Vessel dilation (src/gameplay/vesselDilation.ts): widen both lumens, kept just inside the outer wall. */
+ setDilation(factor:number){
+  const profile=microProfile(this.target),scale=Math.min(factor,profile.outerRadius/profile.innerRadius*.97);
+  for(const child of this.root.children)if(/^lumen-/.test(child.name)){child.scale.set(1,scale,scale);child.position.set(0,profile.centerY*(1-scale),0);}
+ }
  /** Nerve repair: turn the right end's fascicle bundles about the nerve axis (degrees). */
  setFascicleTwist(degrees:number){
   const radians=THREE.MathUtils.degToRad(degrees);

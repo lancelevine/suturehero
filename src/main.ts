@@ -98,6 +98,7 @@ import {mountFirstRun} from './ui/firstRun';
 import {MistakeLog,mountReplayTimeline} from './ui/replayTimeline';
 import {describeEndurance} from './gameplay/endurance';
 import {TAPER_IN_SKIN_TEAR_FACTOR} from './gameplay/PracticeSession';
+import {describeDilation,dilateStep} from './gameplay/vesselDilation';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -130,6 +131,11 @@ try {
   // Adjustable Acland double clamp on the vessel (src/scene/AclandClamp.ts, src/environments/MicroTargets.ts).
   const aclandClamp=new AclandClamp();
   let nerveTwist=0;
+  // Vessel dilation step (src/gameplay/vesselDilation.ts): one Dilate button for both ends.
+  let dilation=1,intimaTorn=false;
+  const dilateButton=document.createElement('button');dilateButton.type='button';dilateButton.textContent='Dilate ends';dilateButton.hidden=true;dilateButton.className='vessel-turn';
+  dilateButton.addEventListener('click',()=>{({dilation,torn:intimaTorn}=dilateStep(dilation,intimaTorn));artery.setDilation(dilation);dilateButton.blur();});
+  document.querySelector('.workspace-view-tools')?.prepend(dilateButton);
   const nerveButtons=([['Turn right end −10°',-TWIST_STEP_DEGREES],['Turn right end +10°',TWIST_STEP_DEGREES]] as const).map(([label,step])=>{
    const button=document.createElement('button');button.type='button';button.textContent=label;button.hidden=true;button.className='vessel-turn';
    button.addEventListener('click',()=>{nerveTwist=normaliseTwist(nerveTwist+step);artery.setFascicleTwist(nerveTwist);});document.querySelector('.workspace-view-tools')?.prepend(button);return button;});
@@ -276,6 +282,7 @@ try {
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro&&microSelect.value!=='nerve');
     // Nerve repair: a fresh random fascicle twist on the right end each time (src/gameplay/nerveAlignment.ts).
     nerveTwist=micro?startingTwist():0;artery.setFascicleTwist(nerveTwist);
+    dilation=1;intimaTorn=false;artery.setDilation(1);dilateButton.hidden=!micro||microSelect.value==='nerve';
     for(const button of nerveButtons)button.hidden=!micro;
     vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;
     for(const button of vesselTurnButtons)button.hidden=!micro;
@@ -572,6 +579,7 @@ try {
    if(microSelect.value==='vein')return session.eversion.held?'Vein held open · take the bite now · ':'Vein collapsed · hold the wall open with forceps counterpressure before each bite · ';
    if(microSelect.value==='diseased-artery')return 'Diseased artery: take inside-out bites that pin the plaque and intima to the wall · ';
    return '';};
+  const dilationNote=()=>session.environment.id==='microsurgery'&&microSelect.value!=='nerve'?describeDilation(dilation,intimaTorn)+' · ':'';
   const nerveNote=()=>session.environment.id!=='microsurgery'?'':(microSelect.value==='nerve'?describeNerveAlignment(nerveTwist):describeVesselTwist(nerveTwist))+' · ';
   const unequalNote=()=>unequalExercise&&session.environment.id==='skin'?describeUnequalEdges(session.freePass.passes)+' · ':'';
   const planNote=()=>{if(!plannedZ.length||session.environment.id!=='skin')return '';const actual=session.freePass.passes.filter(p=>p.exit&&!p.torn).map(p=>(p.entry.z+p.exit!.z)/2);const text=describePlan(plannedZ,actual);return text?text+' · ':'';};
@@ -721,7 +729,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),enduranceNote()+planNote()+unequalNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

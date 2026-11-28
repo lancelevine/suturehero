@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: vessel dilation step (roadmap)
+- New `src/gameplay/vesselDilation.ts` (+test): 5% steps, good 110–130%, intima torn past 135% (sticky until the target is switched). `ArteryTissue.setDilation` scales both lumens (capped inside the outer wall). `src/main.ts`: "Dilate ends" button (vessels only), reset on environment switch, line in the readout.
+- Checked: tsc, test, browser (120% ✓ after 4 presses, screenshot), check-practice-setup, check-guided-thread, check-layout.
+
 ### 2026-11-28 — Claude: vessel twist check (roadmap)
 - `ArteryTissue`: dark stripe along the top of each vessel end (not nerves); `setFascicleTwist` also turns the right stripe. `src/main.ts`: starting twist for every microsurgery target, buttons renamed "Turn right end ±10°", `describeVesselTwist` (+test) for vessels. "Plan stitches" hidden in microsurgery (also at load).
 - Checked: tsc, test, screenshot, check-practice-setup, check-guided-thread, check-layout.
