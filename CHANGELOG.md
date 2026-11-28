@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.267 — HUD in highlight clips
+
+- Highlight clips now include the exercise title, timer and instruction line in a band along the bottom of the video (roadmap: "Shareable highlight clips"; recording a replay instead of live is not added yet).
+
 ## Build 0.266 — Running stitch tie-off
 
 - Sandbox: tying a knot after a running line grades the tie-off from the thread at the moment the knot starts: how long the last loop was left (1.5 mm or more to tie to), whether the last bite was cinched, and whether the earlier loops are snug (roadmap: "Running stitch tie-off"; approximate, from the thread's loop slack).

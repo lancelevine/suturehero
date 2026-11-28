@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — HUD in highlight clips (build 0.267)
+
+- `src/ui/clipRecorder.ts`: records a 2D composite canvas; `afterRender()` (called right after `renderer.render` in `src/main.ts`, since the WebGL buffer is not preserved) copies the frame and draws title/timer/instruction. `wrapLines` tested.
+- Checked: unit test, tsc, browser (downloaded clip decoded: scene visible, darker overlay band at the bottom), check-layout, check-sandbox, check-profiler.
+
 ### 2026-11-28 — Claude — Running stitch tie-off (build 0.266)
 
 - New `src/gameplay/runningTieOff.ts` (+ test). `tieOffNote` in `src/main.ts` captures the running line's loop slack (from `lockNote`) and grades it when `session.freeKnot` becomes active. Note: `session.sandbox` reads false while a free knot is active, so these notes guard on the skin environment plus `sandbox || freeKnot.active`.

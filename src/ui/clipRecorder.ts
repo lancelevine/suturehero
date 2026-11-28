@@ -13,26 +13,64 @@ export function clipFileName(now: Date) {
   return `suturehero-clip-${now.toISOString().slice(0, 19).replace(/[:T]/g, '-')}.webm`;
 }
 
-/** Mounts a "Record 15 s clip" button that records `canvas` and downloads the result. */
-export function mountClipButton(host: Element, canvas: HTMLCanvasElement) {
+/** Lines drawn over the clip (title, timer, instruction). Pixels of padding and line height. */
+const OVERLAY_PAD = 16;
+const OVERLAY_LINE = 22;
+
+/** Wraps `text` to lines no wider than `width` using `measure`. */
+export function wrapLines(text: string, width: number, measure: (s: string) => number) {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && measure(next) > width) { lines.push(line); line = word; } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** Mounts a "Record 15 s clip" button that records `canvas` with the HUD text from `overlay()` drawn
+ * over it, and downloads the result. Call the returned `afterRender()` right after each render. */
+export function mountClipButton(host: Element, canvas: HTMLCanvasElement, overlay: () => { title: string; timer: string; instruction: string } = () => ({ title: '', timer: '', instruction: '' })) {
+  const composite = document.createElement('canvas');
+  const context = composite.getContext('2d');
+  let recording = false;
+  const afterRender = () => {
+    if (!recording || !context) return;
+    if (composite.width !== canvas.width || composite.height !== canvas.height) { composite.width = canvas.width; composite.height = canvas.height; }
+    context.drawImage(canvas, 0, 0);
+    const scale = Math.max(1, canvas.width / 1200);
+    const { title, timer, instruction } = overlay();
+    context.font = `600 ${Math.round(18 * scale)}px system-ui, sans-serif`;
+    const lines = [title && timer ? `${title} · ${timer}` : title || timer, ...wrapLines(instruction, canvas.width - 2 * OVERLAY_PAD * scale, (s) => context.measureText(s).width).slice(0, 3)].filter(Boolean);
+    if (!lines.length) return;
+    const boxHeight = (lines.length * OVERLAY_LINE + OVERLAY_PAD) * scale;
+    context.fillStyle = 'rgba(6, 14, 28, 0.72)';
+    context.fillRect(0, canvas.height - boxHeight, canvas.width, boxHeight);
+    context.fillStyle = '#e8f6ff';
+    lines.forEach((line, i) => context.fillText(line, OVERLAY_PAD * scale, canvas.height - boxHeight + (OVERLAY_PAD / 2 + OVERLAY_LINE * (i + 0.75)) * scale));
+  };
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'vessel-turn';
   button.textContent = `Record ${CLIP_SECONDS} s clip`;
-  button.title = 'Record the practice view for 15 seconds and download it as a video (the side panels are not included)';
+  button.title = 'Record the practice view for 15 seconds, with the title, timer and instructions, and download it as a video';
   const Recorder = (globalThis as { MediaRecorder?: typeof MediaRecorder }).MediaRecorder;
   const mime = Recorder ? clipMimeType((t) => Recorder.isTypeSupported(t)) : null;
-  if (!Recorder || !mime || typeof canvas.captureStream !== 'function') {
+  if (!Recorder || !mime || !context || typeof composite.captureStream !== 'function') {
     button.disabled = true;
     button.title = 'Clip recording is not supported in this browser';
   }
   button.addEventListener('click', () => {
     if (!Recorder || !mime) return;
-    const stream = canvas.captureStream(CLIP_FPS);
+    recording = true;
+    afterRender();
+    const stream = composite.captureStream(CLIP_FPS);
     const recorder = new Recorder(stream, { mimeType: mime });
     const chunks: Blob[] = [];
     recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
     recorder.onstop = () => {
+      recording = false;
       stream.getTracks().forEach((track) => track.stop());
       const link = document.createElement('a');
       link.href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
@@ -53,5 +91,5 @@ export function mountClipButton(host: Element, canvas: HTMLCanvasElement) {
     }, 1000);
   });
   host.prepend(button);
-  return button;
+  return { button, afterRender };
 }

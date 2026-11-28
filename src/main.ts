@@ -122,7 +122,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.266';
+const APP_BUILD='0.267';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -394,7 +394,8 @@ try {
    lineLoops=loops.map(l=>l.slackMm);
    const text=describeLocks(loops);return text?text+' · ':'';};
   // Shareable highlight clips (ui/clipRecorder.ts).
-  {const host=document.querySelector('.workspace-view-tools');if(host)mountClipButton(host,view.renderer.domElement);}
+  let clipAfterRender=()=>{};
+  {const host=document.querySelector('.workspace-view-tools');if(host)clipAfterRender=mountClipButton(host,view.renderer.domElement,()=>({title:frameQuery('#exercise-title')?.textContent?.trim()??'',timer:document.querySelector('.practice-hud-timer, .hud-timer')?.textContent?.trim()??'',instruction:frameQuery('#exercise-readout')?.textContent?.trim()??''})).afterRender;}
   // Complication events (gameplay/bleeder.ts): optional bleeder after the third Sandbox pass.
   let complications=new URL(location.href).searchParams.get('complications')==='1';
   const complicationsButton=document.querySelector<HTMLButtonElement>('#complications');
@@ -848,6 +849,6 @@ try {
     const holdProgress=frameQuery('.hold-progress') as HTMLElement|null;if(holdProgress&&holdProgress.hidden!==session.sandbox)holdProgress.hidden=session.sandbox;}
     const status=frameQuery('#grasp-status')!; const statusText=graspStatusText({tractionAlert,edge,passPhase:pass.phase,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,preparingEdge:session.preparingEdge,freeKnotActive:session.freeKnot.active,loadTestActive:session.loadTest.active,driverOpenness:tools[1].openness,knot,releaseCheck:session.releaseCheck,graspStatus:grasp.status}); if(status.textContent!==statusText) status.textContent=statusText; if(session.environment.id==='microsurgery')for(const selector of ['#exercise-title','#exercise-readout','#grasp-status','#position-forceps']){
       const element=frameQuery(selector)!;setText(element,element.textContent!.replaceAll('Skin edge','Vessel edge').replaceAll('skin edge','vessel edge').replaceAll('Dermal purchase','Wall purchase'));
-    } view.controls.update(); perf.measure('Simulator render submission',()=>view.renderer.render(view.scene,view.camera)); tools.forEach(tool=>{const meter=frameQuery(`#${tool.id}-jaw`) as HTMLMeterElement,opening=tool.id==='right'&&input.scissorsActive?scissors.openness:tool.openness;if(meter.value!==opening)meter.value=opening;});perf.sample('Simulator CPU frame',performance.now()-frameStarted);});
+    } view.controls.update(); perf.measure('Simulator render submission',()=>view.renderer.render(view.scene,view.camera));clipAfterRender(); tools.forEach(tool=>{const meter=frameQuery(`#${tool.id}-jaw`) as HTMLMeterElement,opening=tool.id==='right'&&input.scissorsActive?scissors.openness:tool.openness;if(meter.value!==opening)meter.value=opening;});perf.sample('Simulator CPU frame',performance.now()-frameStarted);});
   window.addEventListener('pagehide',()=>{input.dispose(); view.renderer.setAnimationLoop(null);});
 } catch(error) { document.querySelector('#error')!.textContent='The 3D workspace could not start. Please use a browser with WebGL enabled.'; console.error(error); }
