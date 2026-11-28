@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Daily challenge (build 0.253)
+
+- New `src/gameplay/dailyChallenge.ts` (+ test): FNV hash of the UTC day picks a `BODY_SITES` entry and 3–6 stitches; best seconds per day in `suturehero.dailyChallenge.v1`. `#daily-challenge` button (`src/ui/practicePageMarkup.ts`) reloads with `?site=…&exercise=daily&day=…`; `dailyNote` in `src/main.ts` shows progress (tied = `session.course.completed` outside the guided course).
+- Checked: unit tests, ui tests, tsc, browser (button → Face, 3 stitches today), check-practice-setup, check-layout, check-sandbox.
+- Lance: a shared leaderboard would need a server; say if you want one.
+
 ### 2026-11-28 — Claude — Next drill suggestion (build 0.252)
 
 - New `src/gameplay/nextDrill.ts` (+ test): maps the first missed `checkTargets` result to a drill. Appended as an `<li class="next-drill">` after the targets in `src/ui/SandboxSummaryPanel.ts`.

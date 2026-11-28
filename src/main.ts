@@ -68,6 +68,7 @@ import {FpsCounter} from './diagnostics/FrameRates';
 import {TipCollisionCounter} from './gameplay/tipCollisions';
 import {flipBlocker,FLIP_WARNING_SECONDS} from './gameplay/flipCheck';
 import {RotationScore} from './gameplay/rotationScore';
+import {challengeUrl,dailyChallenge,describeDaily,loadBest,saveBest,utcDay} from './gameplay/dailyChallenge';
 import {WrapPlacementCheck,describeWraps} from './gameplay/wrapPlacement';
 import {classifyPull,describePulls,type PullVerdict} from './gameplay/pullDirection';
 import {SawingPullCheck} from './gameplay/sawingPulls';
@@ -111,7 +112,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.252';
+const APP_BUILD='0.253';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -357,6 +358,16 @@ try {
   const showUnequalState=()=>{unequalButton.setAttribute('aria-pressed',String(unequalExercise));unequalButton.textContent=unequalExercise?'End unequal edges':'Unequal edges exercise';};
   showUnequalState();
   unequalButton.addEventListener('click',()=>{unequalExercise=!unequalExercise;const url=new URL(location.href);if(unequalExercise)url.searchParams.set('exercise','unequal');else url.searchParams.delete('exercise');history.replaceState(null,'',url);showUnequalState();unequalButton.blur();});
+  // Daily challenge (gameplay/dailyChallenge.ts): same body site and stitch count for everyone each day.
+  const dailyParams=new URL(location.href).searchParams;
+  const daily=dailyParams.get('exercise')==='daily'?dailyChallenge(dailyParams.get('day')??utcDay(new Date())):null;
+  document.querySelector('#daily-challenge')?.addEventListener('click',()=>{location.href=challengeUrl(dailyChallenge(utcDay(new Date())),location.href);});
+  let dailyFinished:number|null=null;
+  const dailyStorage=(()=>{try{return localStorage;}catch{return null;}})();
+  let dailyBest=daily?loadBest(dailyStorage,daily.day):null;
+  const dailyNote=()=>{if(!daily||session.environment.id!=='skin')return '';const tied=session.course.active?0:session.course.completed.length;
+   if(dailyFinished===null&&tied>=daily.stitches){dailyFinished=session.clock.secondsSoFar;saveBest(dailyStorage,daily.day,dailyFinished);dailyBest=loadBest(dailyStorage,daily.day);}
+   return describeDaily(daily,tied,dailyBest,dailyFinished)+' · ';};
   let landmarkExercise=new URL(location.href).searchParams.get('exercise')==='landmark';
   const showLandmarkState=()=>{landmarkButton.setAttribute('aria-pressed',String(landmarkExercise));landmarkButton.textContent=landmarkExercise?'End landmark exercise':'Landmark exercise';};
   showLandmarkState();
@@ -766,7 +777,7 @@ try {
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
      if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));}
      freshNeedleButton.hidden=!session.sandbox;
-     setText(frameQuery('#exercise-readout'),wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

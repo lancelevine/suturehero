@@ -133,7 +133,7 @@ Last updated: 2026-11-27
 - **Exam mode scored like OSATS:** timed, no hints, standard rubric.
 - **Benchmarks by training level:** compare against anonymous averages for students, residents and attendings.
 - **Adaptive next drill:** pick a drill that targets your weakest metric, spaced-repetition style. *(First version in build 0.252: Sandbox suggests one drill for the first missed target; spaced repetition and saved history not used yet.)*
-- **Daily challenge:** the same wound for everyone each day, with a leaderboard.
+- **Daily challenge:** the same wound for everyone each day, with a leaderboard. *(First version in build 0.253: date-seeded body site and stitch goal, best time per browser; a shared leaderboard needs a server.)*
 - **Supermicrosurgery drill:** 0.3 to 0.8 mm vessels at lymphaticovenous anastomosis scale, 11-0 or 12-0 suture, higher magnification.
 - **End-to-side anastomosis:** sew a vessel end onto a side opening in a second vessel; heel and toe first, then each side; scored on join angle and heel narrowing.
 - **Multi-layer closure:** buried deep dermal stitches first, then a skin layer; scored on whether the deep layer took tension off the skin.

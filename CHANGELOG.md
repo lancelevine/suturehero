@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.253 — Daily challenge
+
+- Setup: new "Daily challenge" button. Everyone gets the same wound each day: the body site and a 3–6 stitch goal are chosen from the date (UTC). The instruction line shows progress, the time when the goal is reached, and your best time today, kept in this browser (roadmap: "Daily challenge"; no shared leaderboard, which would need a server).
+
 ## Build 0.252 — Next drill suggestion
 
 - Sandbox targets: after the target list, a "Next drill" line picks one drill aimed at the first missed target (for example the Landmark drill for bite size, symmetry or squareness, the Unequal edges drill for spacing, slow curve-following passes for tears), or the Endurance drill once every checked target is met (roadmap: "Adaptive next drill"; a simple rule, not spaced repetition or history-based yet).
