@@ -90,6 +90,7 @@ Last updated: 2026-11-27
 - **Tissue that moves with the needle:** skin shifts and rolls away from the needle tip unless forceps hold the edge as countertraction; unsupported bites land off target and shallow, judged from the forceps' tracked position and jaw force.
 - **Thread with weight:** loose suture hangs and drapes under gravity; a long slack strand falls across the wound where the next bite can catch the loop or the driver can trap it in a knot.
 - **First throws that slip back:** on a wound under tension, a single first throw loosens when let go and the edges pull apart; a double wrap (surgeon's knot) holds by friction from wraps and thread material until the second throw locks it.
+- **Edges that slide sideways:** a bite wider on one side pulls the wound line toward that side when tied, shearing the edges along the wound; over several stitches this leaves a wavy line or mismatched end, read from the needle's entry and exit points.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
