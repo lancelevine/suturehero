@@ -112,7 +112,7 @@ Last updated: 2026-11-27
 - **Live tremor meter:** instrument tip tremor gauge and per-session tremor score, mainly for microsurgery. *(First version in build 0.235: live tremor row in Skill Analysis; per-session score and microscope scaling not yet.)*
 - **Plan vs actual:** mark planned stitch spots before closing, then overlay the plan on what you did.
 - **Setup check before each session:** confirm every marker is seen by both cameras, flag poor lighting or a smudged lens, warn on calibration drift.
-- **Eversion score:** after each stitch, check whether the edges are slightly everted, flat or inverted.
+- **Eversion score:** after each stitch, check whether the edges are slightly everted, flat or inverted. *(Already in the app: every stitch review says edges everted / flat / inverted (`assessEdges`, src/gameplay/stitchOutcome.ts); vessel stitches too since build 0.235.)*
 - **Endurance mode:** a 20 to 30 stitch incision, graphing how precision, tremor and speed drift.
 
 ## Mid term
