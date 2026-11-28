@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.281 — Thread twist
+
+- Sandbox: rolling the needle driver to follow the needle's curve now twists the thread. The instruction line shows the stored twist from one turn, warns past three turns that the slack will curl into loops, and the twist lets out while the needle hangs free (or on Reset needle) (roadmap: "Thread twist"; the thread is not drawn curling yet).
+
 ## Build 0.280 — Skin that relaxes under load
 
 - Tension heatmap: the tension each tied stitch holds now relaxes over a minute or two toward 75% of its tied value (skin creep), so an over-tight stitch's red glow and blanching ease with time (roadmap: "Skin that relaxes under load"; illustrative constants; the wound edges themselves do not move with it yet).

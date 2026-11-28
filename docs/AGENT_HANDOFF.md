@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Thread twist (build 0.281)
+
+- New `src/suture/threadTwist.ts` (+ test): signed roll of the driver about its local z while it holds the needle; relaxes 0.5 turn/s when not held. `twistNote` in `src/main.ts`; reset on Reset needle.
+- Checked: unit test, tsc, check-sandbox, check-running-lock, check-layout, browser (3 scripted passes → 2.9 turns).
+
 ### 2026-11-28 — Claude — Skin relaxation (build 0.280)
 
 - New `src/tissue/skinRelaxation.ts` (+ test): `relaxation(age)` = 0.75 + 0.25·e^(−age/60 s); `StitchAges` keyed by site z. `TissueTensionView.update` takes per-site factors.
