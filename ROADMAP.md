@@ -109,7 +109,7 @@ Last updated: 2026-11-27
 - **Shareable highlight clips:** 15-second replay with the HUD overlaid, ready to post.
 - **Guided first run:** 2-minute walkthrough of camera setup, instrument tracking check, one guided stitch and a first score.
 - **Lifelike tissue rendering:** light through the skin, wet sheen, blood at punctures, edges that blanch under too much tension.
-- **Live tremor meter:** instrument tip tremor gauge and per-session tremor score, mainly for microsurgery.
+- **Live tremor meter:** instrument tip tremor gauge and per-session tremor score, mainly for microsurgery. *(First version in build 0.235: live tremor row in Skill Analysis; per-session score and microscope scaling not yet.)*
 - **Plan vs actual:** mark planned stitch spots before closing, then overlay the plan on what you did.
 - **Setup check before each session:** confirm every marker is seen by both cameras, flag poor lighting or a smudged lens, warn on calibration drift.
 - **Eversion score:** after each stitch, check whether the edges are slightly everted, flat or inverted.

@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: live tremor meter (roadmap)
+- `tremorMm` in `src/gameplay/skillAnalysis.ts` (+test): RMS of each tip sample from the midpoint of its neighbours over the last 5 s; Skill Analysis "Tremor" (green ≤ 0.1 mm, `TREMOR_GOOD_MM`). Checked: tsc, tests, check-sandbox. Needs camera tracking to mean much (Lance).
+
 ### 2026-11-28 — Claude: needle loading check (roadmap)
 - `LoadingCheck` in `src/suture/gripPosition.ts` (+test): new driver grips outside the tissue, good within 2/3 ± 0.12 of the needle from the tip. Skill Analysis "Needle loading". Checked: tsc, tests, check-sandbox.
 

@@ -33,3 +33,10 @@ it('routes the ideal path through the needle entry points', () => {
   recorder.add(sample(1, 50));
   expect(recorder.report(1, [], [{ x: 20, z: 5 }]).ideal).toEqual([{ x: 0, z: 0 }, { x: 20, z: 5 }, { x: 50, z: 0 }]);
 });
+
+it('measures tremor as jitter about the smoothed path', async () => {
+  const { tremorMm } = await import('./skillAnalysis');
+  expect(tremorMm([{ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 2, z: 0 }])).toBe(0);
+  expect(tremorMm([{ x: 0, z: 0 }, { x: 1, z: 0.4 }, { x: 2, z: 0 }])).toBeCloseTo(0.4);
+  expect(tremorMm([])).toBeNull();
+});

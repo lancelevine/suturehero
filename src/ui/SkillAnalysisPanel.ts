@@ -24,6 +24,9 @@ export function needleHandlingText(handling: { drops: number; loads: readonly nu
   return `${drops} · load ${mean.toFixed(1)} s`;
 }
 
+/** Tip tremor at or below this (mm) shows green. */
+export const TREMOR_GOOD_MM = 0.1;
+
 export function skillRows(report: SkillReport): Array<{ label: string; value: string; help: string; good: boolean }> {
   return [
     { label: 'Time', value: formatClock(report.seconds), help: 'Time since the practice session started', good: false },
@@ -37,6 +40,7 @@ export function skillRows(report: SkillReport): Array<{ label: string; value: st
     ...(report.edgePresentation === undefined ? [] : [{ label: 'Edge presented', value: report.edgePresentation.total ? `${report.edgePresentation.everted}/${report.edgePresentation.total}` : '–', help: 'Needle entries made while the forceps held the edge gently everted (not flat, over-pulled or unheld)', good: report.edgePresentation.total > 0 && report.edgePresentation.everted === report.edgePresentation.total }]),
     ...(report.needleHandling === undefined ? [] : [{ label: 'Needle handling', value: needleHandlingText(report.needleHandling), help: 'Needle drops outside the tissue, and the mean time from forceps pickup to the driver holding the needle', good: report.needleHandling.drops === 0 && report.needleHandling.loads.length > 0 }]),
     ...(report.needleLoading === undefined ? [] : [{ label: 'Needle loading', value: report.needleLoading.total ? `${report.needleLoading.good}/${report.needleLoading.total}` : '–', help: 'Driver loads about two-thirds back from the needle tip', good: report.needleLoading.total > 0 && report.needleLoading.good === report.needleLoading.total }]),
+    ...(report.tremorMm === undefined ? [] : [{ label: 'Tremor', value: report.tremorMm === null ? '–' : `${report.tremorMm.toFixed(2)} mm`, help: 'Tip jitter over the last 5 s (RMS about the smoothed path; mainly for microsurgery)', good: report.tremorMm !== null && report.tremorMm <= TREMOR_GOOD_MM }]),
   ];
 }
 

@@ -39,6 +39,8 @@ export interface SkillReport {
   ideal: Array<{ x: number; z: number }> | null;
   /** Tip speed over time (s, mm/s). */
   speed: Array<{ t: number; v: number }>;
+  /** Tip tremor (mm RMS): jitter of each sample about the midpoint of its neighbours; null before enough samples. */
+  tremorMm?: number | null;
   /** Driver/forceps tip bumps outside needle handoffs (src/gameplay/tipCollisions.ts), when counted. */
   tipCollisions?: number;
   /** In-tissue needle regrasps, and how many landed on the tip (src/suture/gripPosition.ts), when counted. */
@@ -51,6 +53,21 @@ export interface SkillReport {
   needleHandling?: { drops: number; regrabs: number; loads: readonly number[] };
   /** Driver loads of the needle and how many were about two-thirds back from the tip (src/suture/gripPosition.ts). */
   needleLoading?: { total: number; good: number };
+}
+
+/**
+ * Live tremor (roadmap, 2026-11-28): RMS distance (mm) of each tip sample from the midpoint of its
+ * neighbours, which ignores smooth movement and keeps the fast back-and-forth jitter.
+ */
+export function tremorMm(points: ReadonlyArray<{ x: number; z: number }>) {
+  if (points.length < 3) return null;
+  let sum = 0;
+  for (let i = 1; i < points.length - 1; i++) {
+    const mx = (points[i - 1].x + points[i + 1].x) / 2;
+    const mz = (points[i - 1].z + points[i + 1].z) / 2;
+    sum += (points[i].x - mx) ** 2 + (points[i].z - mz) ** 2;
+  }
+  return Math.sqrt(sum / (points.length - 2));
 }
 
 export class SkillRecorder {
@@ -105,6 +122,8 @@ export class SkillRecorder {
       path: samples.map((s) => ({ x: s.x, z: s.z })),
       ideal: first && last && first !== last ? [{ x: first.x, z: first.z }, ...waypoints.map((w) => ({ x: w.x, z: w.z })), { x: last.x, z: last.z }] : null,
       speed,
+      // Last ~5 s of tip samples for a live reading.
+      tremorMm: tremorMm(samples.slice(-5 * SAMPLE_HZ)),
     };
   }
 }
