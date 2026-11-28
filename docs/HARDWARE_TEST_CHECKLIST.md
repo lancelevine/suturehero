@@ -227,3 +227,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.282: Thin-edge exercise — the left half sits lower; a bite deeper on the left reads "edges should sit level", an even bite predicts a step-off.
 - [ ] Build 0.283: Corner stitch exercise — a half-buried horizontal mattress from the left through the flap tip reads good; a simple stitch through the flap is flagged.
 - [ ] Build 0.284: Purse-string exercise — bites in and out along the purple ring, going round, report coverage; at 300°+ it says ready to cinch.
+- [ ] Build 0.287: run the Demo once, then press Ghost — see-through instruments replay its motion while you practise.

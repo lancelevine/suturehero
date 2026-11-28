@@ -54,6 +54,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Expert ghost replay (build 0.287)
+
+- New `src/gameplay/ghostTrack.ts` (+ test; key `suturehero.ghostTrack.v1`, 10 Hz, 3-decimal rounding). `src/main.ts`: records while `demo.running`, saves when it stops; two transparent `Instrument` ghosts driven by `sampleGhost`; `Ghost: on/off` button in the view tools.
+- Checked: unit test, tsc, browser (seeded track → ghost visible and moving; 20 s of Demo → 112 samples saved), check-sandbox, check-layout, check-practice-setup, check-free-tying.
+
 ### 2026-11-28 — Claude — Profile build number fixed
 
 - `performanceContext` in `src/tracking.ts` had been left at `build: '0.236'` since build 0.236 (a space after the colon stopped my bump command from matching), so exported profiles reported 0.236. Now `build:'0.286'`, matching `APP_BUILD`.

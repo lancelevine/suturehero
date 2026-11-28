@@ -71,6 +71,7 @@ import {SterileFieldCheck} from './gameplay/sterileField';
 import {CrushScore} from './gameplay/crushScore';
 import {RotationScore} from './gameplay/rotationScore';
 import {MAGNIFICATION_STEPS,nextMagnification} from './scene/magnification';
+import {GhostRecorder,ghostDuration,loadGhost,sampleGhost,saveGhost} from './gameplay/ghostTrack';
 import {mountClipButton} from './ui/clipRecorder';
 import {LockMarks} from './scene/LockMarks';
 import {assessTieOff,describeTieOff} from './gameplay/runningTieOff';
@@ -140,7 +141,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.286';
+const APP_BUILD='0.287';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -427,6 +428,22 @@ try {
   const knotTimeNote=()=>{if(session.environment.id!=='skin')return '';const free=session.freeKnot,throws=free.sequence?.throws.length??0,now=session.clock.secondsSoFar;
    const done=knotTimer.update(now,free.active,free.lockSeated&&throws>=3);if(done!==null){saveBestKnot(knotStorage,done);bestKnot=loadBestKnot(knotStorage);}
    if(!free.active)return '';const text=describeKnotTime(knotTimer,now,bestKnot,!!free.sequence?.locked,free.seatedThrows>=throws&&throws>0);return text?text+' · ':'';};
+  // Expert ghost replay (gameplay/ghostTrack.ts): the Demo's instrument motion, replayed on see-through instruments.
+  const ghostStorage=(()=>{try{return localStorage;}catch{return null;}})();
+  let ghostTrack=loadGhost(ghostStorage);const ghostRecorder=new GhostRecorder();let demoWasRunning=false;let ghostStart:number|null=null;
+  const ghostTools=[new Instrument('left',0),new Instrument('right',0)];
+  for(const ghost of ghostTools){ghost.root.name=`ghost-${ghost.id}`;ghost.root.visible=false;ghost.root.traverse(o=>{if(o instanceof THREE.Mesh){const m=(o.material as THREE.Material).clone();m.transparent=true;m.opacity=.3;m.depthWrite=false;o.material=m;o.castShadow=false;}});view.scene.add(ghost.root);}
+  const ghostButton=document.createElement('button');ghostButton.type='button';ghostButton.className='vessel-turn';ghostButton.title='Follow the expert: replay the Demo\'s instrument motion as see-through instruments (run the Demo once to record it)';
+  const showGhostButton=()=>{ghostButton.textContent=ghostStart!==null?'Ghost: on':'Ghost: off';ghostButton.disabled=!ghostTrack.length&&ghostStart===null;ghostButton.setAttribute('aria-pressed',String(ghostStart!==null));};
+  ghostButton.addEventListener('click',()=>{ghostStart=ghostStart===null?session.clock.secondsSoFar:null;if(ghostStart===null)ghostTools.forEach(g=>g.root.visible=false);showGhostButton();ghostButton.blur();});
+  document.querySelector('.workspace-view-tools')?.prepend(ghostButton);showGhostButton();
+  const ghostUpdate=()=>{const running=!!demo?.running;
+   if(running){if(!demoWasRunning)ghostRecorder.reset();ghostRecorder.add(session.clock.secondsSoFar,tools.map(t=>({position:t.root.position,quaternion:t.root.quaternion,openness:t.openness})));}
+   else if(demoWasRunning&&ghostRecorder.samples.length>10){ghostTrack=ghostRecorder.samples;saveGhost(ghostStorage,ghostTrack);showGhostButton();}
+   demoWasRunning=running;
+   if(ghostStart===null||running)return;const duration=ghostDuration(ghostTrack);if(!duration)return;
+   const values=sampleGhost(ghostTrack,(session.clock.secondsSoFar-ghostStart)%duration);if(!values)return;
+   ghostTools.forEach((g,i)=>{const v=values[i];if(!v)return;g.root.visible=true;g.root.position.set(v[0],v[1],v[2]);g.root.quaternion.set(v[3],v[4],v[5],v[6]).normalize();g.setTrackedOpening(v[7]);});};
   // Shareable highlight clips (ui/clipRecorder.ts).
   let clipAfterRender=()=>{};
   // Closure gallery snapshots (gameplay/closureGallery.ts): a small JPEG of the view, taken right after a render.
@@ -910,6 +927,7 @@ try {
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
      if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));strayTouches.update(needle.getTipPose().position,session.pass.phase!=='idle'||session.pull.phase!=='waiting'||session.freePass.inTissue,microProfile(resolveMicroTarget(microSelect.value)),dt);}
      freshNeedleButton.hidden=!session.sandbox||session.environment.id!=='skin';
+     ghostUpdate();
      setText(frameQuery('#exercise-readout'),exam?examText():purseNote()+cornerNote()+thicknessNote()+caseNote()+twistNote()+crimpNote()+unevenPullNote()+knotTimeNote()+tieOffNote()+lockNote()+bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,

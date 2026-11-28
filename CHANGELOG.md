@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.287 — Expert ghost replay
+
+- Practice view: running the Demo now records its instrument motion (kept in this browser). The new "Ghost" button replays it on see-through instruments, looping, so you can follow the expert's motion with your own (roadmap: "Expert ghost replay"; the ghost is the Demo's motion, not a recorded human expert, and shows instruments only, not the thread).
+
 ## Build 0.286 — Langer's lines
 
 - Body sites: each preset now shows faint skin tension (Langer's) lines on the pad at that site's angle to the wound, and the Sandbox healing outlook says whether the wound runs along or across them (across: gapes more, may scar wider) (roadmap: "Body sites with different skin"; illustrative angles per preset, not anatomical measurements).
