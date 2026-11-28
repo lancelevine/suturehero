@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: body sites with sliders and presets (Lance #4)
+- New `src/environments/bodySites.ts` (+tests): presets (forearm, face, scalp, back of hand, back) → thickness / toughness / tension sliders (0.5–2×) → dermalBottom, tear limits, wound gap; plus a skin look. `PracticeSetup.resolveSetup` uses `?site=…&thick=&tough=&tension=` over the skin type (`SkinProfile` type). `PracticeSession` uses `skin.gap`. `skinSurface(look)` (cached per look; the default look is unchanged) adds tone, pores, creases, freckles and hair stubs. Setup select `#body-site` + sliders; changes reload the practice like other setup choices.
+- Checked: tsc, bodySites + PracticeSetup tests, screenshots (scalp, face, hand; gaps 0.11 / 0.07 / 0.09), check-practice-setup, check-sandbox, check-layout, check-guided-thread.
+
 ### 2026-11-28 — Claude: landmark alignment exercise (Lance #3)
 - New `src/gameplay/landmark.ts` (+test) and `src/scene/LandmarkLine.ts`: centred red landmark line; first stitch (first course stitch, else first completed Sandbox pass) graded on mm off it, aligned within 1 mm. Setup button `#landmark-exercise` (skin only), kept in the URL as `?exercise=landmark`; result leads the instruction line.
 - Checked: tsc, test, screenshot, check-practice-setup, check-sandbox, check-layout.

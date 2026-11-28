@@ -166,3 +166,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: while free tying, pull a strand gently taut: it glows green; pull hard: it turns red.
 - Build 0.235: in Microsurgery (artery), the HUD progress reads x/16; after saving stitches the instruction line says "Stitches n/16 … evenly spaced" unless you turned the vessel unevenly between them.
 - Build 0.235: Setup → "Landmark exercise": a red line crosses the wound at the centre; put the first stitch on it and the instruction line says "aligned ✓".
+- Build 0.235: Setup → Body site → Scalp: the pad shows stubble and the dermis is thicker; Face: pinker, finer pores, freckles, edges closer. Move the Tension slider up and the wound gap widens.

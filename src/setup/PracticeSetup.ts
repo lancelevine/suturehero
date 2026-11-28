@@ -1,3 +1,4 @@
+import {resolveSiteSkin,type SkinLook} from '../environments/bodySites';
 import {SKIN_TYPES} from '../environments/SkinTypes';
 export interface NeedleProfile {id:string;label:string;radius:number;arc:number;tip:'cutting'|'taper';description:string}
 /** Representative practice-scale profiles; commercial codes vary by product. */
@@ -20,11 +21,13 @@ export const SUTURES:SutureProfile[]=[
 ];
 /** Needles that can complete the guided exercise's bite (all but the Sandbox trainer). */
 export const GUIDED_NEEDLES=NEEDLES.filter(p=>p.id!=='trainer');
+/** A skin type or a body site (src/environments/bodySites.ts): sites add a wound gap and a skin look. */
+export interface SkinProfile {readonly id:string;readonly label:string;readonly dermalBottom:number;readonly tear:{readonly degrees:number;readonly units:number;readonly seconds:number};readonly gap?:number;readonly look?:SkinLook;readonly site?:{readonly id:string;readonly thickness:number;readonly toughness:number;readonly tension:number}}
 export function resolveSetup(search='',options:{trainerDefault?:boolean}={}){
  const params=new URLSearchParams(search);
  const microsurgery=params.get('environment')==='microsurgery';
  const fallback=options.trainerDefault&&!microsurgery?NEEDLES.find(p=>p.id==='trainer')!:NEEDLES[0];
- return {environment:microsurgery?'microsurgery':'skin',skin:SKIN_TYPES.find(p=>p.id===params.get('skin'))??SKIN_TYPES[1],needle:NEEDLES.find(p=>p.id===params.get('needle'))??fallback,suture:SUTURES.find(p=>p.id===params.get('suture'))??SUTURES[0],knotEngine:params.get('knot')??'classic'};
+ return {environment:microsurgery?'microsurgery':'skin',skin:(resolveSiteSkin(params) as SkinProfile|null)??(SKIN_TYPES.find(p=>p.id===params.get('skin'))??SKIN_TYPES[1]) as SkinProfile,needle:NEEDLES.find(p=>p.id===params.get('needle'))??fallback,suture:SUTURES.find(p=>p.id===params.get('suture'))??SUTURES[0],knotEngine:params.get('knot')??'classic'};
 }
 // A setup change reloads the practice so every module receives one consistent profile.
 // In the browser the skin Sandbox defaults to the short trainer needle; tests and microsurgery keep the PS-2.

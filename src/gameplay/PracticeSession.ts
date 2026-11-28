@@ -63,7 +63,7 @@ export class PracticeSession {
   selectedTechnique?:KnotTechnique;
   setEnvironment(id:EnvironmentId,target:MicroTarget='artery'){
     this.reset();this.vesselStitches=0;this.vesselEversions.length=0;this.environment=id==='microsurgery'?createMicroEnvironment(target):environments.skin;
-    this.wound.initialGap=id==='microsurgery'?microProfile(target).gap:.1;
+    this.wound.initialGap=id==='microsurgery'?microProfile(target).gap:PRACTICE_SETUP.skin.gap??.1;
     this.eversion.edgeX=this.wound.initialGap/2;this.eversion.reset();
     this.pass.purchaseY=this.environment.purchaseY;this.wound.purchaseValidator=this.environment.loadBearing;
     this.configureTissueResponse();this.freeKnot.threadFloorAt=this.environment.threadFloorAt;this.freeKnot.tissueContact=this.environment.threadContact;this.freeKnot.driverObstacle=this.environment.driverObstacle;

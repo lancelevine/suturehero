@@ -4,6 +4,7 @@ import { TISSUE_LAYERS } from './anatomy';
 import type { EdgeEversion } from './EdgeEversion';
 import { tissueSurface } from '../visuals/tissueSurfaces';
 import { skinSurface } from '../visuals/skinSurface';
+import { PRACTICE_SETUP } from '../setup/PracticeSetup';
 import * as THREE from 'three';
 import type { WoundApproximation } from './WoundApproximation';
 /** Three fully split anatomical layers follow the independent approximation model. */
@@ -18,7 +19,7 @@ export class TissuePatch {
   private lastResponse=-1;
   constructor() {
   const group=this.root;
-  const skinMaps=skinSurface();
+  const skinMaps=skinSurface(PRACTICE_SETUP.skin.look);
   const dermis=tissueSurface('dermis'),fat=tissueSurface('fat');
   // Keep the established surface height and needle entry coordinates. Every
   // layer is split completely; no solid base or wound strip bridges the gap.

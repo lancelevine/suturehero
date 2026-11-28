@@ -80,6 +80,7 @@ import {describeKnotPlacement,knotPoint,knotSide,type KnotSide} from './gameplay
 import {describeVesselCount,suggestedStitchCount} from './gameplay/vesselStitchCount';
 import {describeLandmark} from './gameplay/landmark';
 import {LandmarkLine} from './scene/LandmarkLine';
+import {BODY_SITES} from './environments/bodySites';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -218,8 +219,18 @@ try {
   session.selectedTechnique=techniqueSelect.value==='sliding'?'sliding':'surgeon';
   const restartSetup=()=>{
     const url=new URL(location.href);url.searchParams.set('skin',skinSelect.value);url.searchParams.set('needle',needleSelect.value);url.searchParams.set('suture',materialSelect.value);
-    url.searchParams.set('environment',session.environment.id);url.searchParams.set('target',microSelect.value);url.searchParams.set('technique',techniqueSelect.value);url.searchParams.set('knot',knotEngineSelect.value);location.assign(url.href);
+    url.searchParams.set('environment',session.environment.id);url.searchParams.set('target',microSelect.value);url.searchParams.set('technique',techniqueSelect.value);url.searchParams.set('knot',knotEngineSelect.value);
+    // Body site and its sliders (src/environments/bodySites.ts).
+    if(siteSelect.value){url.searchParams.set('site',siteSelect.value);for(const key of ['thick','tough','tension'])url.searchParams.set(key,String(Number(siteSlider(key).value)/100));}
+    else for(const key of ['site','thick','tough','tension'])url.searchParams.delete(key);
+    location.assign(url.href);
   };
+  // Body site presets and sliders: picking a site loads its preset values; a slider change restarts with the override.
+  const siteSelect=document.querySelector<HTMLSelectElement>('#body-site')!;
+  const siteSlider=(key:string)=>document.querySelector<HTMLInputElement>(`#site-${key}`)!;
+  {const current=PRACTICE_SETUP.skin.site;siteSelect.value=current?.id??'';document.querySelector<HTMLElement>('#site-sliders')!.hidden=!current;
+   for(const [key,field] of [['thick','thickness'],['tough','toughness'],['tension','tension']] as const){const input=siteSlider(key),value=current?current[field]:1;input.value=String(Math.round(value*100));document.querySelector(`#site-${key}-value`)!.textContent=`${value.toFixed(2)}×`;input.addEventListener('change',restartSetup);}
+   siteSelect.addEventListener('change',()=>{const site=BODY_SITES.find(s=>s.id===siteSelect.value);if(site){siteSlider('thick').value=String(Math.round(site.thickness*100));siteSlider('tough').value=String(Math.round(site.toughness*100));siteSlider('tension').value=String(Math.round(site.tension*100));}restartSetup();});}
   techniqueSelect.addEventListener('change',restartSetup);knotEngineSelect.addEventListener('change',restartSetup);skinSelect.addEventListener('change',restartSetup);needleSelect.addEventListener('change',restartSetup);materialSelect.addEventListener('change',restartSetup);
   const originalLesson=document.querySelector('.lesson p')!.textContent!;
   const originalEversion=document.querySelector('#eversion-note')!.textContent!;
