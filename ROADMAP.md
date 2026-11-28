@@ -165,3 +165,4 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Thread damaged by instruments:** clamping suture in driver or forceps jaws crimps it, severity from the jaw sensor; crimped spots are weaker and break there under load.
 - **Fat that bulges into the wound:** under tension soft fat pushes up between the edges; bites that drag fat or stitches tied over it hold the dermis apart though skin looks closed, shown in the cutaway.
 - **A driver that ratchets:** skin drivers lock on a ratchet and unlocking jolts the needle, which can pull it back out of a fresh bite; lock and release read from the jaw sensor; microsurgery drivers stay unlocked.
+- **Square knots that turn into slip knots:** pulling one strand harder while snugging flips a square knot into a sliding half hitch that slips under load, read from per-strand tension in the knot model.
