@@ -100,7 +100,7 @@ Last updated: 2026-11-27
 - **Thread that stretches:** monofilaments stretch under load and spring back when released, so a knot snugged with the strand pulled hard sits looser after; finest sutures stretch most, set per suture type.
 - **Vessel walls that ride up the needle:** a needle pushed instead of rotated, or a dull one, plows a thin vessel wall ahead of it so it bunches and folds over the tip, taking a pleat or missing the intima; forceps countertraction inside the lumen keeps the wall flat.
 - **A needle fatter than its thread:** the step where thread joins the needle, and a hole cut wider than the suture, catch and drag the edge when pulled through fast or at an angle; in a vessel wall the oversized hole tears or leaks around the stitch.
-- **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
+- **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline. *(First version in build 0.235: replay at ½× already existed; now a timeline with the playback cursor and mistakes marked. Orbit during replay already works.)*
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent. *(First version in build 0.235: the Sandbox ideal line fades with consistent near-90°, square passes; a per-bite entry-arc overlay not yet.)*
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads. *(First version in build 0.235: Skill Analysis counts driver loads within ±12% of two-thirds back; perpendicular grip not graded yet.)*
 - **Suture cutting check:** tracked scissors grade tail length, with no nick to the knot. *(First version in build 0.235: tail length graded on each cut, 3–10 mm; too-close cuts already refused.)*

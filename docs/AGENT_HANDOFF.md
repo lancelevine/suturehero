@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: replay timeline with mistakes (roadmap self-review replay)
+- New `src/ui/replayTimeline.ts` (+test): `MistakeLog` (30 s) and a timeline bar (cursor + red ticks). `ReplayBuffer.window` / `ReplayController.window` expose the recorded window. `src/main.ts` logs tears, tip collisions, blind exits, tip regrasps, air knots and snapped sutures on the replay clock (`time/1000`) and updates the bar each frame.
+- Checked: tsc, replayTimeline + ReplayController tests, browser (bar visible during replay, cursor moves, no console errors), check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude: blanching over tight stitches
 - `TissueTensionView`: stitches at or above HIGH_TENSION also get a pale radial patch (test updated). Checked: tsc, test, check-sandbox.
 

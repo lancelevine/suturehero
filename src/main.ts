@@ -95,6 +95,7 @@ import {loadBests,recordBest} from './gameplay/personalBest';
 import {describePlan} from './gameplay/planVsActual';
 import {PlanMarks} from './scene/PlanMarks';
 import {mountFirstRun} from './ui/firstRun';
+import {MistakeLog,mountReplayTimeline} from './ui/replayTimeline';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -521,6 +522,18 @@ try {
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
   mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleLoading:{total:loadingCheck.loads,good:loadingCheck.good},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   exportSkillReport=()=>{const r=skillRecorder.report(session.clock.secondsSoFar,passSymmetries());return {...r,path:undefined,ideal:undefined,speed:undefined};};
+  // Mistakes for the replay timeline (src/ui/replayTimeline.ts), on the replay's clock (s).
+  const mistakeLog=new MistakeLog();
+  const replayTimeline=mountReplayTimeline(document.querySelector<HTMLElement>('#viewport')!);
+  let seen={torn:0,collisions:0,blind:0,tipGrabs:0,air:false};
+  const noteMistakes=(now:number)=>{
+   const torn=session.freePass.torn.length;if(torn>seen.torn)mistakeLog.add(now,'tear');
+   if(tipCollisions.count>seen.collisions)mistakeLog.add(now,'tip collision');
+   if(blindBites.hidden>seen.blind)mistakeLog.add(now,'blind exit');
+   if(regraspCheck.tipGrabs>seen.tipGrabs)mistakeLog.add(now,'regrasp on the tip');
+   if(airKnot.flagged&&!seen.air)mistakeLog.add(now,'air knot');
+   seen={torn,collisions:tipCollisions.count,blind:blindBites.hidden,tipGrabs:regraspCheck.tipGrabs,air:airKnot.flagged};
+  };
   const frameQuery=cachedQuery();
   // Guided first run (src/ui/firstRun.ts): once per browser, never for automated checks.
   mountFirstRun(document.querySelector<HTMLElement>('#viewport')!,(()=>{try{return localStorage;}catch{return null;}})(),navigator.webdriver===true);
@@ -587,9 +600,9 @@ try {
       if(session.freeKnot.active){const free=session.freeKnot,tail=tailLengthMm(cut.coordinate,free.minimumCut(cut.strand),cut.strand.restLength,SCENE_MM_PER_UNIT);const done=free.cut(cut.strand,cut.coordinate);cutFeedback=free.cutMessage+(done?' · '+describeTail(tail):'');}
       else cutFeedback=session.knotSlack.cut(cut.strand,cut.coordinate)?'Suture cut · Knot retained':'Leave a free tail outside the knot';
     }
-    playCues();
+    playCues();noteMistakes(time/1000);replayTimeline.update(replay.replaying,replay.progress,mistakeLog.within(replay.window));
     // Suture breaking strength: a pull held past this size's breaking point snaps the strand.
-    if(session.freeKnot.active){const free=session.freeKnot;for(const key of ['long','short'] as const){if(breakMonitors[key].update(free.tension[key].demand,dt,sutureSize)){const strand=free[key];const at=Math.max(free.minimumCut(strand)+1,Math.floor(strand.count*0.6));if(free.cut(strand,at))cutFeedback=`Suture snapped (${sutureSize.label}) · pulled too hard`;}}}
+    if(session.freeKnot.active){const free=session.freeKnot;for(const key of ['long','short'] as const){if(breakMonitors[key].update(free.tension[key].demand,dt,sutureSize)){const strand=free[key];const at=Math.max(free.minimumCut(strand)+1,Math.floor(strand.count*0.6));if(free.cut(strand,at)){cutFeedback=`Suture snapped (${sutureSize.label}) · pulled too hard`;mistakeLog.add(time/1000,'suture snapped');}}}}
     fragmentsView.update(session.freeKnot.active?session.freeKnot.fragments:session.knotSlack.fragments);
     setText(frameQuery('#right-tool-name'),input.scissorsActive?(session.environment.id==='microsurgery'?'Westcott scissors':'Mayo scissors'):session.environment.id==='microsurgery'?'Castroviejo driver':'Right needle driver'); if(session.environment.id==='skin'){tissue.setTargets(session.pass.entry,session.pass.exit);tissue.update(session.wound,session.eversion,session.course.tissueSites,session.course.siteZ,session.tissueField);}else artery.update(session.wound,session.eversion);
     setHidden(crossSectionToggle.parentElement!,session.environment.id!=='skin');

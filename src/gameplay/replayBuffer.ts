@@ -28,6 +28,11 @@ export class ReplayBuffer<T> {
     return this.frames.length;
   }
 
+  /** Time of the oldest and newest frame (s), or null when empty. */
+  get window(): { start: number; end: number } | null {
+    return this.frames.length ? { start: this.frames[0].t, end: this.frames[this.frames.length - 1].t } : null;
+  }
+
   /** Duration covered (s). */
   get duration() {
     return this.frames.length > 1 ? this.frames[this.frames.length - 1].t - this.frames[0].t : 0;

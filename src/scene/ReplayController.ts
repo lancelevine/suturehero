@@ -43,6 +43,11 @@ export class ReplayController {
     return this.player?.progress ?? 0;
   }
 
+  /** The recorded time window (s), for marking events on a replay timeline. */
+  get window() {
+    return this.buffer.window;
+  }
+
   get available() {
     return this.buffer.duration >= 1;
   }

@@ -220,3 +220,7 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 .first-run div{display:flex;gap:6px;flex-wrap:wrap}
 .first-run button{font-size:12px;padding:5px 10px}
 .first-run .hud-eyebrow{font-size:10px;letter-spacing:1.5px;color:var(--sh-cyan)}
+/* Replay timeline with mistake ticks (src/ui/replayTimeline.ts). */
+.replay-timeline{position:absolute;left:14px;right:14px;bottom:14px;height:8px;z-index:4;border-radius:4px;background:rgba(6,13,26,.7);box-shadow:inset 0 0 0 1px var(--sh-line)}
+.replay-timeline .replay-cursor{position:absolute;top:-3px;width:2px;height:14px;background:var(--sh-cyan);box-shadow:0 0 6px var(--sh-cyan);transform:translateX(-1px)}
+.replay-timeline .replay-mistake{position:absolute;top:-4px;width:6px;height:16px;border-radius:2px;background:#ff3b30;transform:translateX(-3px);cursor:help}
