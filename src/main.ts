@@ -96,6 +96,7 @@ import {describePlan} from './gameplay/planVsActual';
 import {PlanMarks} from './scene/PlanMarks';
 import {mountFirstRun} from './ui/firstRun';
 import {MistakeLog,mountReplayTimeline} from './ui/replayTimeline';
+import {describeEndurance} from './gameplay/endurance';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -269,6 +270,7 @@ try {
     (document.querySelector('#clamp-field') as HTMLElement).hidden=!micro;
     (document.querySelector('#landmark-exercise') as HTMLElement).hidden=micro;
     (document.querySelector('#unequal-exercise') as HTMLElement).hidden=micro;
+    (document.querySelector('#endurance-exercise') as HTMLElement).hidden=micro;
     aclandClamp.update(microProfile(resolveMicroTarget(microSelect.value)),micro&&microSelect.value!=='nerve');
     // Nerve repair: a fresh random fascicle twist on the right end each time (src/gameplay/nerveAlignment.ts).
     nerveTwist=micro&&microSelect.value==='nerve'?startingTwist():0;artery.setFascicleTwist(nerveTwist);
@@ -308,6 +310,12 @@ try {
   // Unequal-edges exercise (src/gameplay/unequalEdges.ts): guide dots and graded bite steps.
   const unequalMarks=new UnequalEdgeMarks(SKIN_SURFACE_Y); view.scene.add(unequalMarks.root);
   const unequalButton=document.querySelector<HTMLButtonElement>('#unequal-exercise')!;
+  // Endurance run (src/gameplay/endurance.ts): 20 passes, precision drift first → last five.
+  const enduranceButton=document.querySelector<HTMLButtonElement>('#endurance-exercise')!;
+  let enduranceExercise=new URL(location.href).searchParams.get('exercise')==='endurance';
+  const showEnduranceState=()=>{enduranceButton.setAttribute('aria-pressed',String(enduranceExercise));enduranceButton.textContent=enduranceExercise?'End endurance run':'Endurance (20 passes)';};
+  showEnduranceState();
+  enduranceButton.addEventListener('click',()=>{enduranceExercise=!enduranceExercise;const url=new URL(location.href);if(enduranceExercise)url.searchParams.set('exercise','endurance');else url.searchParams.delete('exercise');history.replaceState(null,'',url);showEnduranceState();enduranceButton.blur();});
   let unequalExercise=new URL(location.href).searchParams.get('exercise')==='unequal';
   const showUnequalState=()=>{unequalButton.setAttribute('aria-pressed',String(unequalExercise));unequalButton.textContent=unequalExercise?'End unequal edges':'Unequal edges exercise';};
   showUnequalState();
@@ -565,6 +573,7 @@ try {
   const nerveNote=()=>session.environment.id==='microsurgery'&&microSelect.value==='nerve'?describeNerveAlignment(nerveTwist)+' · ':'';
   const unequalNote=()=>unequalExercise&&session.environment.id==='skin'?describeUnequalEdges(session.freePass.passes)+' · ':'';
   const planNote=()=>{if(!plannedZ.length||session.environment.id!=='skin')return '';const actual=session.freePass.passes.filter(p=>p.exit&&!p.torn).map(p=>(p.entry.z+p.exit!.z)/2);const text=describePlan(plannedZ,actual);return text?text+' · ':'';};
+  const enduranceNote=()=>enduranceExercise&&session.environment.id==='skin'?describeEndurance(session.freePass.passes)+' · ':'';
   const backWallNote=()=>session.environment.id==='microsurgery'&&session.pass.phase==='passing'&&catchesBackWall({centreY:session.pass.center.y,radius:session.pass.radius},microProfile(resolveMicroTarget(microSelect.value)))?BACK_WALL_WARNING+' · ':'';
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;
@@ -710,7 +719,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),planNote()+unequalNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),enduranceNote()+planNote()+unequalNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,
