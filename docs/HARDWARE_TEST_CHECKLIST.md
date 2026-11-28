@@ -203,3 +203,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.256: microsurgery — choose Supermicro · 0.6 mm lymphatic; the vessel is tiny and the guided stitch still completes.
 - [ ] Build 0.257: Complications on — after the third Sandbox pass a blood pool grows at its exit; 3 s of closed-forceps pressure on it stops it.
 - [ ] Build 0.258: Hall-sensor forceps — gentle edge hold keeps Skill Analysis "Tissue crush" low; squeezing fully shut raises it (tune CRUSH_OPENNESS if needed).
+- [ ] Build 0.259: Face / Back presets — the Sandbox bite target changes (2.5–5 mm on Face, 5.5–11 mm on Back); are these ranges right?

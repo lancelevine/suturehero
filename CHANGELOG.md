@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.259 — Site-tuned bite targets
+
+- Sandbox targets: the bite size target now follows the body site while it is still the default: Face 2.5–5 mm, Back of hand 3–6 mm, Forearm 4–8 mm, Scalp 5–9.5 mm, Back 5.5–11 mm. Custom targets set by a trainer are kept as they are (roadmap: "Site-tuned feedback and scoring"; illustrative scale factors).
+
 ## Build 0.258 — Tissue crush score
 
 - Skill Analysis: new "Tissue crush" row, the share of skin-hold time with the forceps jaws squeezed fully shut (openness 5% or less), which crushes the edge; green at 10% or less (roadmap: "Tissue handling score"; uses the forceps openness, from the Bluetooth jaw sensor when connected; jaw force itself is not measured).

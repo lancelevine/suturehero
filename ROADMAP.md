@@ -120,7 +120,7 @@ Last updated: 2026-11-27
 ## Mid term
 
 - **Real-camera instrument tracking** with the OV9281 stereo pair.
-- **Site-tuned feedback and scoring.**
+- **Site-tuned feedback and scoring.** *(First version in build 0.259: default bite-size target scales with the body site; other targets unchanged.)*
 - **Procedural wound variety:** lacerations, stellate wounds, ellipses with dog-ears, defects under tension.
 - **Tissue handling score:** forceps crush damage from the jaw sensors. *(First version in build 0.258: Skill Analysis share of hold time with the jaws squeezed shut; force is not measured.)*
 - **Knot quality check:** square vs granny, number of throws, slippage.

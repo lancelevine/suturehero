@@ -6,6 +6,7 @@ import { describeBiteDepths } from '../gameplay/biteDepth';
 import { describeDeadSpace } from '../gameplay/deadSpace';
 import { describeEdgeShear } from '../gameplay/edgeShear';
 import { describeNextDrill } from '../gameplay/nextDrill';
+import { siteTunedTargets } from '../gameplay/siteTargets';
 import { describeRubric, osatsRubric } from '../gameplay/osatsRubric';
 import type { SkillReport } from '../gameplay/skillAnalysis';
 import { describeStitchDensity } from '../gameplay/stitchDensity';
@@ -141,7 +142,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
       appendProgress(storage, saved());
       render(true);
     } else if (action === 'export') {
-      const data = { build: source.build(), trainee: trainee() || null, sessionSeconds: Math.round(source.sessionSeconds()), summary: current(), targets, targetResults: checkTargets(current(), targets), passes: source.passes(), torn: source.torn(), stitches: source.stitches(), stitchRecords: source.stitchRecords(), progress: loadProgress(storage), skills: source.skillReport?.() ?? null };
+      const data = { build: source.build(), trainee: trainee() || null, sessionSeconds: Math.round(source.sessionSeconds()), summary: current(), targets, targetResults: checkTargets(current(), siteTunedTargets(targets, PRACTICE_SETUP.skin.site?.id)), passes: source.passes(), torn: source.torn(), stitches: source.stitches(), stitchRecords: source.stitchRecords(), progress: loadProgress(storage), skills: source.skillReport?.() ?? null };
       download(JSON.stringify(data, null, 2), 'application/json', fileName('session', 'json'));
     } else if (action === 'stitches-csv') {
       download(stitchesCsv(source.stitchRecords(), trainee(), source.build()), 'text/csv', fileName('stitches', 'csv'));
@@ -166,7 +167,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     panel.querySelector('.sandbox-depths')!.textContent = describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT }))) + (source.passes().length ? ' · ' + describeDeadSpace(source.passes().map((p) => p.depth), SCENE_MM_PER_UNIT) : '');
     panel.querySelector('.sandbox-bites')!.textContent = [s.biteConsistency ? describeBiteConsistency(s.biteConsistency) : '', describeEdgeShear(source.passes().map((p) => ({ entryEdgeMm: p.entryEdge * SCENE_MM_PER_UNIT, exitEdgeMm: p.exitEdge === null ? null : p.exitEdge * SCENE_MM_PER_UNIT })))].filter(Boolean).join(' · ');
     panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '') + (s.stitchZ && s.stitchZ.length > 1 ? ' · ' + describeStitchDensity(s.stitchZ, PRACTICE_SETUP.skin.site?.tension ?? 1, SCENE_MM_PER_UNIT) : '');
-    const targetResults = checkTargets(s, targets);
+    const targetResults = checkTargets(s, siteTunedTargets(targets, PRACTICE_SETUP.skin.site?.id));
     const drillNote = describeNextDrill(targetResults);
     const skill = source.skillReport?.() as SkillReport | undefined;
     const rubricNote = s.passes > 0 && skill && typeof skill.seconds === 'number' ? describeRubric(osatsRubric(skill, s.tears + s.cutThroughs)) : '';

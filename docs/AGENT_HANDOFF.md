@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Site-tuned bite targets (build 0.259)
+
+- New `src/gameplay/siteTargets.ts` (+ test): scales default bite targets by `SITE_BITE_SCALE`; applied in `SandboxSummaryPanel` target checks and export only, so the editable target inputs keep their stored values.
+- Checked: unit + ui tests, tsc, check-sandbox, check-practice-setup, browser `?site=face` → "Bite 2.5–5 mm".
+- Lance: please check the per-site bite ranges.
+
 ### 2026-11-28 — Claude — Tissue crush score (build 0.258)
 
 - New `src/gameplay/crushScore.ts` (+ test): hold time with forceps openness ≤0.05 while `eversion.held`. Row in `src/ui/SkillAnalysisPanel.ts`; `crushShare` on `SkillReport`; sampled in `sampleSkill`.
