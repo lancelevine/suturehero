@@ -44,6 +44,9 @@ try{
   assert.equal(await drive(.25),1);
   assert.equal(await drive(-.25),2);
   await page.waitForFunction(()=>/Running stitch: 0\/1 stitches locked/.test(document.querySelector('#exercise-readout').textContent),{},{timeout:10000});
+  // Tie off the running line: the tie-off is graded from the loop slack when the knot starts.
+  assert.ok(await page.evaluate(()=>window.__sutureHeroSandbox.session.tieFreePass()));
+  await page.waitForFunction(()=>/Running tie-off: last loop left [\d.]+ mm/.test(document.querySelector('#exercise-readout').textContent),{},{timeout:10000});
   assert.deepEqual(errors,[]);
-  console.log('Running lock: needle through the loop between two passes is reported as a locked running stitch; without it, as unlocked.');
+  console.log('Running lock: needle through the loop between two passes is reported as a locked running stitch; without it, as unlocked; tying off grades the last loop.');
 }finally{await browser.close();}

@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.266 — Running stitch tie-off
+
+- Sandbox: tying a knot after a running line grades the tie-off from the thread at the moment the knot starts: how long the last loop was left (1.5 mm or more to tie to), whether the last bite was cinched, and whether the earlier loops are snug (roadmap: "Running stitch tie-off"; approximate, from the thread's loop slack).
+- Lock loops now stay drawn while a knot is being tied.
+
 ## Build 0.265 — Lock loops drawn
 
 - Sandbox: each locked running stitch now shows a small loop of thread lying on the skin at its exit (a marker; the simulated thread does not yet pass through it).

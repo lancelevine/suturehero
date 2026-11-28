@@ -53,6 +53,13 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Running stitch tie-off (build 0.266)
+
+- New `src/gameplay/runningTieOff.ts` (+ test). `tieOffNote` in `src/main.ts` captures the running line's loop slack (from `lockNote`) and grades it when `session.freeKnot` becomes active. Note: `session.sandbox` reads false while a free knot is active, so these notes guard on the skin environment plus `sandbox || freeKnot.active`.
+- `check-running-lock` now also ties off and expects the tie-off line (2/2 after the fix).
+- Checked: unit tests, tsc, check-running-lock ×2, check-sandbox, check-free-tying, check-layout.
+- Item 2 (locked running + tie-off) first versions done; continuing down the roadmap.
+
 ### 2026-11-28 — Claude — Lock loops drawn (build 0.265)
 
 - New `src/scene/LockMarks.ts` (+ test): torus marker at each locked exit; `check-running-lock` asserts it.
