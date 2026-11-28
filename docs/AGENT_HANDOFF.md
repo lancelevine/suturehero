@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Uneven pull warning (build 0.276)
+
+- New `src/gameplay/unevenPull.ts` (+ test): one strand demand ≥0.35 with the other ≤0.1 for 0.5 s with both held. `unevenPullNote` in `src/main.ts`.
+- Checked: unit test, tsc, check-free-tying, check-sandbox, check-running-lock.
+
 ### 2026-11-28 — Claude — Healing outlook (build 0.275)
 
 - New `src/gameplay/healingOutlook.ts` (+ test): reads the stitch review lines and spacing; appended to `.sandbox-spacing`. Labelled illustrative, not clinical.

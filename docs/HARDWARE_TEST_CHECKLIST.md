@@ -218,3 +218,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.272: Save session to progress — a snapshot with date and targets appears in the Sandbox gallery.
 - [ ] Build 0.273: microsurgery — brush the needle tip against the vessel without biting: the stray touch count rises; normal bites do not count.
 - [ ] Build 0.274: rest an instrument tip on the table beside the pad — Skill Analysis "Sterile field" counts it.
+- [ ] Build 0.276: while snugging a throw, pull one end hard and leave the other slack — the slip-knot warning appears.

@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.276 — Uneven pull warning
+
+- Skin knot tying: while both ends are held, pulling one strand hard with the other nearly slack for half a second shows a warning that the square knot can turn into a slip knot (roadmap: "Square knots that turn into slip knots"; a warning from the relative strand pull; the knot itself is not converted into a slip knot yet).
+
 ## Build 0.275 — Healing outlook
 
 - Sandbox summary: once stitches are tied, the spacing line ends with an illustrative healing outlook ("a fine, flat line" … "a more visible scar") and the reasons: gaps, inverted or uneven edges, overlap, uneven spacing. Teaching feedback, not a clinical prediction (roadmap: "Healing time-lapse", first step; no time-lapse image yet).
