@@ -1,6 +1,6 @@
 export const MICRO_TRAY_Y=-.52;
 export const MICRO_FLOOR_Y=-.7;
-export type MicroTarget='artery'|'small-artery'|'nerve'|'vein'|'diseased-artery';
+export type MicroTarget='artery'|'small-artery'|'nerve'|'vein'|'diseased-artery'|'supermicro';
 export interface MicroTargetProfile {id:MicroTarget;label:string;outerRadius:number;innerRadius:number;centerY:number;gap:number;length:number;purchaseY:number;color:number;innerColor:number;cutColor:number}
 export const MICRO_TARGETS:Record<MicroTarget,MicroTargetProfile>={
  artery:{id:'artery',label:'Artery',outerRadius:.4,innerRadius:.32,centerY:.01,gap:.3,length:2.6,purchaseY:.37,color:0xd98388,innerColor:0xb95161,cutColor:0xf0b5ac},
@@ -9,9 +9,11 @@ export const MICRO_TARGETS:Record<MicroTarget,MicroTargetProfile>={
  // Vein (roadmap, 2026-11-28): thin wall that collapses unless held open with forceps counterpressure.
  vein:{id:'vein',label:'Vein · thin wall',outerRadius:.42,innerRadius:.38,centerY:.01,gap:.3,length:2.6,purchaseY:.4,color:0x9a7f9f,innerColor:0x7a4c6e,cutColor:0xd8b9cc},
  // Diseased artery (roadmap, 2026-11-28): stiff, plaque-lined; bites must pin plaque and intima to the wall.
+ // Supermicrosurgery (roadmap, 2026-11-28): a 0.6 mm lymphatic-scale vessel (lymphaticovenous anastomosis); same top height as the others.
+ supermicro:{id:'supermicro',label:'Supermicro · 0.6 mm lymphatic',outerRadius:.12,innerRadius:.095,centerY:.29,gap:.2,length:2.6,purchaseY:.4,color:0xe2c4b4,innerColor:0xc99a8a,cutColor:0xf4ddd0},
  'diseased-artery':{id:'diseased-artery',label:'Diseased artery · plaque',outerRadius:.4,innerRadius:.3,centerY:.01,gap:.3,length:2.6,purchaseY:.36,color:0xc98a7c,innerColor:0xe0c27a,cutColor:0xead3a2},
 };
-export function resolveMicroTarget(value:string|null):MicroTarget{return value==='small-artery'||value==='nerve'||value==='vein'||value==='diseased-artery'?value:'artery';}
+export function resolveMicroTarget(value:string|null):MicroTarget{return value==='small-artery'||value==='nerve'||value==='vein'||value==='diseased-artery'||value==='supermicro'?value:'artery';}
 
 /**
  * Adjustable Acland double clamp (roadmap, 2026-11-27): pushing the clamp in brings the vessel ends

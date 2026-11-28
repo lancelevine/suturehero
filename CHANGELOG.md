@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.256 — Supermicrosurgery target
+
+- Microsurgery: new target "Supermicro · 0.6 mm lymphatic" for lymphaticovenous-anastomosis scale practice, with a thin wall and a smaller gap; the suggested stitch count scales down with it (roadmap: "Supermicrosurgery drill"; 11-0/12-0 suture and higher magnification are not modelled yet).
+
 ## Build 0.255 — Exam mode
 
 - Setup: new "Exam (10 min)" button starts a timed Sandbox run with no hints: the instruction line shows only the time left, and the ideal suture path guide is hidden. "Finish exam" (or the time running out) shows the OSATS-style rubric as the result (roadmap: "Exam mode scored like OSATS"; the rubric is approximate; other overlays such as the Sandbox summary are still available).

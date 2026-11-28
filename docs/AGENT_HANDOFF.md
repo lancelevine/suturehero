@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Supermicrosurgery target (build 0.256)
+
+- `MICRO_TARGETS.supermicro` in `src/environments/MicroTargets.ts` (outer .12 / inner .095 units = 0.6 mm at 2.5 mm/unit, top at the same height as the others, gap .2).
+- Checked: environments/tissue/gameplay tests (237, Node 24), tsc, guided BV-1 microsurgery flow on `target=supermicro` (temporary copy of check-guided-thread), check-practice-setup, check-layout.
+
 ### 2026-11-28 — Claude — Exam mode (build 0.255)
 
 - New `src/gameplay/examMode.ts` (+ test). `#exam-mode` button reloads with `?exercise=exam`; in exam the readout is only `examReadout(...)` and `idealPath` is hidden; Finish exam (or 10 min) shows `describeRubric`.
