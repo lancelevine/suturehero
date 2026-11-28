@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: sound cues (roadmap)
+- New `src/ui/sound.ts` (+test): WebAudio-synthesized pop / chime / tug, rate-limited, on by default, `suturehero.sound.v1`. `src/main.ts`: "Sound on/off" view button; cues on new passes, kept stitches (course or vessel), and the first frame a strand goes "excessive". Timer tick deliberately left out.
+- Checked: tsc, test, check-sandbox, check-layout. Not heard (sandbox has no audio output); Lance to listen.
+
 ### 2026-11-28 — Claude: economy of motion, idle time (roadmap)
 - `idleSeconds` in `src/gameplay/skillAnalysis.ts` (+test): time below `MOVING_SPEED_MM_S`; Skill Analysis "Idle time" (green under 30% of the session). Checked: tsc, tests, check-sandbox.
 

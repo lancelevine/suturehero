@@ -87,6 +87,7 @@ import {TissueTensionView} from './scene/TissueTensionView';
 import {describeNerveAlignment,normaliseTwist,startingTwist,TWIST_STEP_DEGREES} from './gameplay/nerveAlignment';
 import {describeUnequalEdges} from './gameplay/unequalEdges';
 import {UnequalEdgeMarks} from './scene/UnequalEdgeMarks';
+import {loadSoundOn,saveSoundOn,SoundCues} from './ui/sound';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -484,6 +485,19 @@ try {
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
   mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleLoading:{total:loadingCheck.loads,good:loadingCheck.good},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
+  // Sound cues (src/ui/sound.ts): pop-through, kept stitch, over-pulled thread; toggle in the view tools.
+  const soundStorage=(()=>{try{return localStorage;}catch{return null;}})();
+  const sound=new SoundCues(loadSoundOn(soundStorage));
+  {const button=document.createElement('button');button.type='button';button.className='sound-toggle';
+   const label=()=>{button.textContent=sound.on?'Sound on':'Sound off';button.setAttribute('aria-pressed',String(sound.on));};label();
+   button.addEventListener('click',()=>{sound.on=!sound.on;saveSoundOn(soundStorage,sound.on);label();button.blur();});
+   document.querySelector('.workspace-view-tools')?.append(button);}
+  let heardPasses=0,heardStitches=0,heardOverPull=false;
+  const playCues=()=>{
+   const passes=session.freePass.passes.length;if(passes>heardPasses)sound.play('pop');heardPasses=passes;
+   const kept=session.environment.id==='microsurgery'?session.vesselStitches:session.course.completed.length;if(kept>heardStitches)sound.play('chime');heardStitches=kept;
+   const free=session.freeKnot;const over=free.active&&(free.tension.long.state==='excessive'||free.tension.short.state==='excessive');if(over&&!heardOverPull)sound.play('tug');heardOverPull=over;
+  };
   // Back-wall catch alert during a vessel bite (src/gameplay/backWallCatch.ts).
   const vesselNote=()=>{if(session.environment.id!=='microsurgery'||!vesselAngles.length)return '';return describeVesselCount(vesselAngles,vesselDiameterMm())+' · '+describeVesselEversion(session.vesselEversions)+' · ';};
   // Air knot (src/gameplay/airKnot.ts): first throw not seated before the next, from any knot engine.
@@ -533,6 +547,7 @@ try {
       if(session.freeKnot.active){session.freeKnot.cut(cut.strand,cut.coordinate);cutFeedback=session.freeKnot.cutMessage;}
       else cutFeedback=session.knotSlack.cut(cut.strand,cut.coordinate)?'Suture cut · Knot retained':'Leave a free tail outside the knot';
     }
+    playCues();
     // Suture breaking strength: a pull held past this size's breaking point snaps the strand.
     if(session.freeKnot.active){const free=session.freeKnot;for(const key of ['long','short'] as const){if(breakMonitors[key].update(free.tension[key].demand,dt,sutureSize)){const strand=free[key];const at=Math.max(free.minimumCut(strand)+1,Math.floor(strand.count*0.6));if(free.cut(strand,at))cutFeedback=`Suture snapped (${sutureSize.label}) · pulled too hard`;}}}
     fragmentsView.update(session.freeKnot.active?session.freeKnot.fragments:session.knotSlack.fragments);
