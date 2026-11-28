@@ -166,7 +166,7 @@ Bigger goal: cover more types of surgery than just suturing.
 - **Sterile field score:** flag any time an instrument tip touches something outside the sterile field.
 - **Closure gallery:** a top-down snapshot of each finished closure with its score and date, to see progress over time.
 - **Suture removal drill:** cut one side close to the skin and pull toward the wound, without dragging outside thread through the track.
-- **First-pass rate:** counts how often the needle is backed out and re-bitten before a stitch is placed; first-pass percentage per closure and site.
+- **First-pass rate:** counts how often the needle is backed out and re-bitten before a stitch is placed; first-pass percentage per closure and site. *(First version in build 0.269: Sandbox summary per session; per-site and trend not yet.)*
 - **Thread damaged by instruments:** clamping suture in driver or forceps jaws crimps it, severity from the jaw sensor; crimped spots are weaker and break there under load.
 - **Fat that bulges into the wound:** under tension soft fat pushes up between the edges; bites that drag fat or stitches tied over it hold the dermis apart though skin looks closed, shown in the cutaway.
 - **A driver that ratchets:** skin drivers lock on a ratchet and unlocking jolts the needle, which can pull it back out of a fresh bite; lock and release read from the jaw sensor; microsurgery drivers stay unlocked.

@@ -6,6 +6,7 @@ import { describeBiteDepths } from '../gameplay/biteDepth';
 import { describeDeadSpace } from '../gameplay/deadSpace';
 import { describeEdgeShear } from '../gameplay/edgeShear';
 import { describeNextDrill } from '../gameplay/nextDrill';
+import { describeFirstPass } from '../gameplay/firstPassRate';
 import { siteTunedTargets } from '../gameplay/siteTargets';
 import { describeRubric, osatsRubric } from '../gameplay/osatsRubric';
 import type { SkillReport } from '../gameplay/skillAnalysis';
@@ -39,6 +40,8 @@ export interface SandboxSource {
   sessionSeconds(): number;
   /** Skill Analysis report for the session export (roadmap "Exportable skills report"). */
   skillReport?(): unknown;
+  /** Bites backed out / undone (first-pass rate). */
+  firstPass?(): { backOuts: number; undone: number };
 }
 
 /** Trainee name or ID, kept in this browser and written into every export (traineeExport.ts). */
@@ -164,7 +167,7 @@ export function mountSandboxSummaryPanel(host: HTMLElement, source: SandboxSourc
     panel.querySelector('.sandbox-thread')!.textContent = describeThreadBudget(source.passes());
     panel.querySelector('.sandbox-patterns')!.textContent = describePatterns(recognisePatterns(source.passes()));
     panel.querySelector('.sandbox-shapes')!.textContent = describeBiteShapes(source.passes().filter((p) => p.exit).map((p) => biteShape(p.depth, Math.hypot(p.exit!.x - p.entry.x, p.exit!.z - p.entry.z))));
-    panel.querySelector('.sandbox-depths')!.textContent = describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT }))) + (source.passes().length ? ' · ' + describeDeadSpace(source.passes().map((p) => p.depth), SCENE_MM_PER_UNIT) : '');
+    panel.querySelector('.sandbox-depths')!.textContent = [source.firstPass ? describeFirstPass(source.passes().length, source.firstPass().backOuts, source.firstPass().undone) : '', describeBiteDepths(source.passes().map((p) => ({ deepestLayer: p.deepestLayer, depthMm: p.depth * SCENE_MM_PER_UNIT })))].filter(Boolean).join(' · ') + (source.passes().length ? ' · ' + describeDeadSpace(source.passes().map((p) => p.depth), SCENE_MM_PER_UNIT) : '');
     panel.querySelector('.sandbox-bites')!.textContent = [s.biteConsistency ? describeBiteConsistency(s.biteConsistency) : '', describeEdgeShear(source.passes().map((p) => ({ entryEdgeMm: p.entryEdge * SCENE_MM_PER_UNIT, exitEdgeMm: p.exitEdge === null ? null : p.exitEdge * SCENE_MM_PER_UNIT })))].filter(Boolean).join(' · ');
     panel.querySelector('.sandbox-spacing')!.textContent = describeSpacing(s.spacingMm) + (s.stitchOrder?.total ? ' · ' + describeStitchOrder(s.stitchOrder) : '') + (s.stitchZ && s.stitchZ.length > 1 ? ' · ' + describeStitchDensity(s.stitchZ, PRACTICE_SETUP.skin.site?.tension ?? 1, SCENE_MM_PER_UNIT) : '');
     const targetResults = checkTargets(s, siteTunedTargets(targets, PRACTICE_SETUP.skin.site?.id));

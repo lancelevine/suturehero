@@ -123,7 +123,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.268';
+const APP_BUILD='0.269';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -140,7 +140,7 @@ try {
   // Sandbox session summary, targets, progress and export (ui/SandboxSummaryPanel.ts).
   {const review=document.querySelector('#workspace-session-review');const host=document.createElement('div');if(review)review.querySelector('summary')?.after(host);else document.querySelector('.exercise-feedback')?.after(host);
    // Mounted after the session exists (it is created further down this setup).
-   setTimeout(()=>mountSandboxSummaryPanel(host,{skillReport:()=>exportSkillReport(),active:()=>session.sandbox||session.canFinishSandboxStitch||session.freePass.passes.length>0,passes:()=>session.freePass.passes,torn:()=>session.freePass.torn,stitches:()=>session.course.active?[]:session.course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review})),build:()=>document.querySelector('.version')?.textContent??'',stitchRecords:()=>session.course.completed.map(r=>({number:r.number,review:r.review,meta:r.meta})),sessionSeconds:()=>session.clock.secondsSoFar}),0);}
+   setTimeout(()=>mountSandboxSummaryPanel(host,{skillReport:()=>exportSkillReport(),firstPass:()=>({backOuts:session.freePass.backOuts,undone:session.freePass.undonePasses}),active:()=>session.sandbox||session.canFinishSandboxStitch||session.freePass.passes.length>0,passes:()=>session.freePass.passes,torn:()=>session.freePass.torn,stitches:()=>session.course.active?[]:session.course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review})),build:()=>document.querySelector('.version')?.textContent??'',stitchRecords:()=>session.course.completed.map(r=>({number:r.number,review:r.review,meta:r.meta})),sessionSeconds:()=>session.clock.secondsSoFar}),0);}
   /** How long the "tissue torn" message stays (ms), and the torn passes already announced. */
   const TORN_MESSAGE_MS=3500;let tornSeen=0,tornMessageUntil=0,cutSeen=0,cutMessageUntil=0;view.scene.add(passMarks.root);
   const tipMarkers=new TipMarkers([{root:tools[0].root,color:0x65d8c1},{root:tools[1].root,color:0xe65353}]);view.scene.add(tipMarkers.root);

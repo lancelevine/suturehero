@@ -53,6 +53,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — First-pass rate (build 0.269)
+
+- `FreeNeedlePass` counts `backOuts` (backed fully out, or aborted mid-pass) and `undonePasses`; new `src/gameplay/firstPassRate.ts` (+ test); shown on the `.sandbox-depths` line via a new `firstPass()` source in `SandboxSummaryPanel`. check-sandbox asserts it.
+- Checked: tissue + ui tests (159, Node 24), tsc, check-sandbox, check-running-lock, check-layout.
+
 ### 2026-11-28 — Claude — Broken needle complication (build 0.268)
 
 - New `src/gameplay/needleBreak.ts` (+ test): breaks after 2 s of forcing above 85% of the tear limits (70% broke check-sandbox's clean pass, which peaks at 77%). Wired in `bleederNote` (`src/main.ts`): aborts the pass and resets the grasp.

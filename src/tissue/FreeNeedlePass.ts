@@ -265,6 +265,7 @@ export class FreeNeedlePass {
     this.observe(e, pose);
     if (e.angle < 0) {
       // Backed fully out: the pass is abandoned.
+      this.backOuts++;
       this.engagement = null;
       this.previousTip = this.tip(pose.position, pose.quaternion);
     } else if (e.exitAngle !== null && e.angle >= e.exitAngle + this.arc) {
@@ -396,6 +397,7 @@ export class FreeNeedlePass {
 
   /** Cancels the pass in progress (e.g. the needle was reset), keeping completed ones. */
   abortCurrent() {
+    if (this.engagement) this.backOuts++;
     this.engagement = null;
     this.previousTip = null;
     this.forcing = { degrees: 0, units: 0 };
@@ -418,6 +420,7 @@ export class FreeNeedlePass {
       this.rents.pop();
     } else {
       const undone = this.passes.pop()!;
+      this.undonePasses++;
       // Needle holes that last (tissue/punctureHoles.ts): the punctures stay after an undo.
       this.undoneHoles.push(undone.entry.clone());
       if (undone.exit) this.undoneHoles.push(undone.exit.clone());
@@ -427,6 +430,10 @@ export class FreeNeedlePass {
 
   /** Punctures left so far: every pass's entry and exit, torn and undone ones included. */
   readonly undoneHoles: THREE.Vector3[] = [];
+  /** Bites backed out or cancelled before completing (first-pass rate). */
+  backOuts = 0;
+  /** Completed passes taken back with Undo (first-pass rate). */
+  undonePasses = 0;
   holes(): THREE.Vector3[] {
     const holes = [...this.undoneHoles];
     for (const record of [...this.passes, ...this.torn]) {
@@ -439,6 +446,8 @@ export class FreeNeedlePass {
   /** Ends any pass in progress and forgets completed ones. */
   reset() {
     this.undoneHoles.length = 0;
+    this.backOuts = 0;
+    this.undonePasses = 0;
     this.engagement = null;
     this.previousTip = null;
     this.passes.length = 0;

@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.269 — First-pass rate
+
+- Sandbox summary: the bite depth line starts with the first-pass rate, the share of bites placed without being backed out, cancelled or undone and re-bitten (roadmap: "First-pass rate"; per session, not yet per site or over time).
+
 ## Build 0.268 — Broken needle complication
 
 - Complications (Sandbox, when switched on): forcing the needle hard off its curve (over 85% of the skin's tear limit) for 2 s in one pass breaks it; the pass stops and the instruction line says to reset the needle (roadmap: "Complication events mid-closure"; illustrative limits; a torn bite already happens from harder forcing).

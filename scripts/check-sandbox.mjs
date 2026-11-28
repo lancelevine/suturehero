@@ -50,6 +50,7 @@ try{
   await page.locator('#replay').click();
   await page.waitForFunction(()=>/Replay/.test(document.querySelector('#replay').textContent)&&!/Stop/.test(document.querySelector('#replay').textContent),{},{timeout:5000});
   assert.match(await page.locator('.sandbox-summary-line').textContent(),/1 pass · 0 torn/);
+  assert.match(await page.locator('.sandbox-depths').textContent(),/First-pass rate \d+%/);
   // Results export (build 0.217): trainee name, saved progress and the CSV/JSON downloads.
   const panel=page.locator('.sandbox-summary');
   if(!await page.locator('#workspace-session-review').evaluate(e=>e.open))await page.locator('#workspace-review-toggle').click();

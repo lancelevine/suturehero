@@ -212,3 +212,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.266: Sandbox running line — leave the last loop long and tie: the tie-off line reports loop length, cinching and line slack.
 - [ ] Build 0.267: record a clip — the title, timer and instructions appear along the bottom of the video.
 - [ ] Build 0.268: Complications on — hold the needle bent hard (short of tearing) for 2 s: it breaks and asks for Reset needle; normal passes do not break it.
+- [ ] Build 0.269: Sandbox — back a bite out and redo it: the first-pass rate drops below 100%.
