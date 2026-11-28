@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-27 — Claude: knot placement check (roadmap #3)
+- New `src/gameplay/knotPlacement.ts` (+test): knot = midpoint of the closest long/short strand points; side left/right, or "on the incision" within 1.5 mm of x = 0. `src/main.ts` records it when a Sandbox stitch is kept or a course stitch advances, and appends the summary to the spacing line (reset on course start).
+- Checked: tsc, test, check-sandbox, check-guided-thread, check-free-tying. Knot location is approximate (closest strand approach); Lance to try.
+
 ### 2026-11-27 — Claude: air knot detection (roadmap #3, knot signals)
 - Finding: no engine change needed; `KnotEngine` already exposes `sequence.throws`, `seatedThrows`, `knotAtTissue`, strands, entry/exit.
 - New `src/gameplay/airKnot.ts` (+test): flags a second throw started while no throw is seated (sliding knots excluded). `src/main.ts` prefixes the instruction line with the warning while free tying.

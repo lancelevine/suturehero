@@ -162,3 +162,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: in Microsurgery, complete a stitch, press "Save stitch & turn": the knot stays on the vessel and turns with it, a fresh stitch starts on top, and the HUD reads 1/8. Repeat and use "Flip vessel" for the back wall.
 - Build 0.235: in Microsurgery, plan a very deep vessel bite; while passing it the instruction line starts with "Back wall caught".
 - Build 0.235: tie a first throw but leave it loose above the skin, then make the second throw; the instruction line starts with "Air knot". A normally seated knot shows no warning.
+- Build 0.235: tie two Sandbox stitches with the knot pulled to the left each time; the spacing line ends "Knots: 2/2 off the incision · all on the left". Leave one over the wound line and it is counted.

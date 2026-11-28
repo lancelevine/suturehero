@@ -76,6 +76,7 @@ import {describeStepOffs} from './gameplay/stepOff';
 import {BACK_WALL_WARNING,catchesBackWall} from './gameplay/backWallCatch';
 import {AIR_KNOT_WARNING,AirKnotWatcher} from './gameplay/airKnot';
 import {describeVesselEversion} from './gameplay/stitchOutcome';
+import {describeKnotPlacement,knotPoint,knotSide,type KnotSide} from './gameplay/knotPlacement';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -171,15 +172,20 @@ try {
   showNeedleGuide.addEventListener('change',()=>showNeedleGuide.blur());
   const resetCourseTools=()=>{input.scissorsActive=false;scissors.reset();cutFeedback='';closeUp=false;closeUpButton.setAttribute('aria-pressed','false');closeUpButton.textContent='Close-up view';view.resetCamera();};
   document.querySelector('#start-course')!.addEventListener('click',()=>{if(session.startCourse())resetCourseTools();(document.activeElement as HTMLElement|null)?.blur();});
+  // Knot placement (src/gameplay/knotPlacement.ts): which side of the incision each kept knot sits on.
+  const knotSides:KnotSide[]=[];
+  const recordKnotSide=()=>{const free=session.freeKnot.active,long=free?session.freeKnot.long:session.knotSlack.long,short=free?session.freeKnot.short:session.knotSlack.short;const point=knotPoint(long.points,short.points);if(point)knotSides.push(knotSide(point.x));};
+  document.querySelector('#start-course')!.addEventListener('click',()=>{knotSides.length=0;});
   document.querySelector('#next-stitch')!.addEventListener('click',()=>{
     const site=session.course.siteZ,sources=session.freeKnot.active?[freeView.root]:[knotView.root];
+    if(session.canAdvanceStitch)recordKnotSide();
     if(session.advanceStitch()){completedView.retain(sources,site);resetCourseTools();}
     (document.activeElement as HTMLElement|null)?.blur();
   });
   document.querySelector('#free-tying')!.addEventListener('click',()=>{
     // Sandbox with a completed free pass: tie on that stitch (Stage B3); otherwise the tying lab's preplaced stitch.
     // A tied Sandbox stitch: keep it (frozen knot, closure at its position) and start the next one.
-    if(session.canFinishSandboxStitch){completedView.retain([freeView.root],0);session.finishSandboxStitch();input.scissorsActive=false;scissors.reset();cutFeedback='';(document.activeElement as HTMLElement|null)?.blur();return;}
+    if(session.canFinishSandboxStitch){recordKnotSide();completedView.retain([freeView.root],0);session.finishSandboxStitch();input.scissorsActive=false;scissors.reset();cutFeedback='';(document.activeElement as HTMLElement|null)?.blur();return;}
     const onFreePass=session.canTieFreePass;
     input.scissorsActive=false;scissors.reset();cutFeedback='';if(onFreePass)session.tieFreePass();else session.beginFreeTying('auto');closeUp=true;closeUpButton.setAttribute('aria-pressed','true');closeUpButton.textContent='Wide view';view.closeUp(freeTarget());
   });
@@ -490,7 +496,7 @@ try {
     setAttr(stitchPosition,'min',String(Math.ceil(course.positionLimits.min*100-1e-7)));setAttr(stitchPosition,'max',String(Math.floor(course.positionLimits.max*100+1e-7)));{const site=String(Math.round(course.siteZ*100));if(stitchPosition.value!==site)stitchPosition.value=site;}
     setPlanText('#stitch-position-value',course.siteZ.toFixed(2));
     setPlanText('#bite-plan-status',!session.canPlanBites?'Bite plan locked for this stitch':session.bitePlanLimited?'Widths adjusted to fit the needle and preserve dermal purchase.':'Bite widths are relative to the default bite; position uses practice units.');
-    setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)} · ${describeStepOffs(course.tissueSites)}`:'Start a 3-stitch session to review spacing.');
+    setPlanText('#spacing-review',course.active?`${course.spacingReview} · ${course.closureReview}${knotSides.length?' · '+describeKnotPlacement(knotSides):''}${!course.finished?' · Sites reserve room for the remaining stitches, with a minimum 0.30 separation.':''}`:course.completed.length?`Sandbox · ${describeSpacing(summarizeSandbox([],[],course.completed.map(r=>({siteZ:r.site.siteZ,review:r.review}))).spacingMm)} · ${describeStepOffs(course.tissueSites)}${knotSides.length?' · '+describeKnotPlacement(knotSides):''}`:'Start a 3-stitch session to review spacing.');
     setHidden((frameQuery('.course-controls') as HTMLElement),session.environment.id!=='skin');
     completedView.update(course.completed.length,course.siteZ);
     updateCourseButtons(frameQuery,{skin:session.environment.id==='skin',active:course.active,finished:course.finished,index:course.index,canAdvance:session.canAdvanceStitch,canFinishSandboxStitch:session.canFinishSandboxStitch,canTieFreePass:session.canTieFreePass});
