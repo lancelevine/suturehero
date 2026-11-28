@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Safe vessel flip (build 0.238)
+
+- New `src/gameplay/flipCheck.ts` (+ test): `flipBlocker` refuses a vessel turn while the needle is in the wall (pass phase `passing`), thread is through an untied bite (`complete`) or the forceps hold the wall. Wired into the Turn/Flip buttons in `src/main.ts`; "Save stitch & turn" is unchanged.
+- Checked: unit test, tsc, browser (idle flip turns; flip mid-pass refused with warning), check-practice-setup, check-guided-thread, check-layout.
+- Lance: try Flip mid-bite and after saving a stitch.
+
 ### 2026-11-28 — Claude — Vessel grasp check (build 0.237)
 
 - New `src/gameplay/vesselGrasp.ts` (+ test): forceps close on the vessel classed as adventitia / lumen counterpressure / full-wall pinch by the jaw tip's distance from the vessel axis. Wired in `src/main.ts` (per frame in microsurgery, not nerve; shown first in the instruction line).
