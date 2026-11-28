@@ -54,6 +54,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Profile build number fixed
+
+- `performanceContext` in `src/tracking.ts` had been left at `build: '0.236'` since build 0.236 (a space after the colon stopped my bump command from matching), so exported profiles reported 0.236. Now `build:'0.286'`, matching `APP_BUILD`.
+- Considered extracting `performanceContext` to shrink `tracking.ts`: it reads ~25 page-level values, so a module would only move the object behind a large parameter; not done.
+
 ### 2026-11-28 — Claude — Langer's lines (build 0.286)
 
 - New `src/environments/langerLines.ts` (+ test; illustrative angle per site) and `src/scene/LangerLinesView.ts`; note appended to the healing outlook in `SandboxSummaryPanel`.
