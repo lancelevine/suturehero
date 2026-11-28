@@ -84,6 +84,7 @@ import {challengeUrl,dailyChallenge,describeDaily,loadBest,saveBest,utcDay} from
 import {WrapPlacementCheck,describeWraps} from './gameplay/wrapPlacement';
 import {classifyPull,describePulls,type PullVerdict} from './gameplay/pullDirection';
 import {SawingPullCheck} from './gameplay/sawingPulls';
+import {StrayTouchCheck,describeStrayTouches} from './gameplay/strayTouches';
 import {VesselGraspCheck,describeVesselGrasp} from './gameplay/vesselGrasp';
 import {LoadingCheck,RegraspCheck} from './suture/gripPosition';
 import {BlindBiteCheck} from './scene/blindBite';
@@ -124,7 +125,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.272';
+const APP_BUILD='0.273';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -204,6 +205,7 @@ try {
   const vesselAngles:number[]=[];
   const vesselBites:ReturnType<typeof vesselBite>[]=[];
   const vesselGrasp=new VesselGraspCheck();
+  const strayTouches=new StrayTouchCheck();
   const vesselDiameterMm=()=>2*microProfile(resolveMicroTarget(microSelect.value)).outerRadius*MICRO_MM_PER_UNIT;
   const vesselGoal=()=>suggestedStitchCount(vesselDiameterMm());
   const vesselStitchesView=new CompletedStitchesView();vesselFrame.root.add(vesselStitchesView.root);
@@ -325,7 +327,7 @@ try {
     nerveTwist=micro?startingTwist():0;artery.setFascicleTwist(nerveTwist);
     dilation=1;intimaTorn=false;artery.setDilation(1);dilateButton.hidden=!micro||microSelect.value==='nerve';
     for(const button of nerveButtons)button.hidden=!micro;
-    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;vesselBites.length=0;vesselGrasp.reset();
+    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;vesselBites.length=0;vesselGrasp.reset();strayTouches.reset();
     for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
     stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),micro);
@@ -685,7 +687,7 @@ try {
   };
   // Back-wall catch alert during a vessel bite (src/gameplay/backWallCatch.ts).
   const vesselGraspJaw=new THREE.Vector3();
-  const vesselGraspNote=()=>{const text=session.environment.id==='microsurgery'?describeVesselGrasp(vesselGrasp):'';return text?text+' · ':'';};
+  const vesselGraspNote=()=>{const text=session.environment.id==='microsurgery'?[describeVesselGrasp(vesselGrasp),describeStrayTouches(strayTouches)].filter(Boolean).join(' · '):'';return text?text+' · ':'';};
   const vesselNote=()=>{if(session.environment.id!=='microsurgery'||!vesselAngles.length)return '';
    // After the last suggested stitch: estimated lumen narrowing at the join (src/gameplay/lumenNarrowing.ts).
    const done=vesselAngles.length>=vesselGoal()?describeLumenNarrowing(lumenNarrowingPercent({dilation,stitches:vesselAngles.length,suggested:vesselGoal(),inverted:session.vesselEversions.filter(e=>e<-0.002).length}))+' · ':'';
@@ -850,7 +852,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));}
+     if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));strayTouches.update(needle.getTipPose().position,session.pass.phase!=='idle'||session.pull.phase!=='waiting'||session.freePass.inTissue,microProfile(resolveMicroTarget(microSelect.value)),dt);}
      freshNeedleButton.hidden=!session.sandbox||session.environment.id!=='skin';
      setText(frameQuery('#exercise-readout'),exam?examText():knotTimeNote()+tieOffNote()+lockNote()+bleederNote()+dailyNote()+wrapNote()+pullNoteTying()+needleWearNote()+(performance.now()<flipWarning.until?flipWarning.text+' · ':'')+vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,

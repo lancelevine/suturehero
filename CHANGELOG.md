@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.273 — Stray needle touches
+
+- Microsurgery: the instruction line counts each time the needle tip touches the vessel wall (or enters the lumen) outside a bite, as scratched intima is a clot risk; a contact that turns into a bite within half a second is not counted (roadmap: "Stray needle touches"; approximate, from the tip point; touches are not marked on the vessel yet).
+
 ## Build 0.272 — Closure gallery
 
 - Sandbox: "Save session to progress" also saves a small snapshot of the practice view with the date and how many targets were met; the last 12 are shown as a gallery in the Sandbox panel, kept in this browser (roadmap: "Closure gallery"; the snapshot is the current view, not a forced top-down camera).

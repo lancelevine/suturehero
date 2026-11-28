@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Stray needle touches (build 0.273)
+
+- New `src/gameplay/strayTouches.ts` (+ test): tip in the wall band or lumen while not biting, confirmed after 0.5 s without a bite starting. Updated per frame next to the vessel grasp check in `src/main.ts`.
+- Roadmap: noted that Overlapping edges is already in the stitch review.
+- Checked: unit test, tsc, check-guided-thread, check-practice-setup, check-sandbox.
+
 ### 2026-11-28 — Claude — Closure gallery (build 0.272)
 
 - New `src/gameplay/closureGallery.ts` (+ test; key `suturehero.closureGallery.v1`, 12 entries, trims when storage is full). `requestSnapshot`/`takeSnapshot` in `src/main.ts` (240 px JPEG right after render); gallery grid in `SandboxSummaryPanel`; styles in `theme.css`. check-sandbox asserts a gallery image after saving.
