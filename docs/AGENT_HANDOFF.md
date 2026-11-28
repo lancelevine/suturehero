@@ -40,7 +40,7 @@ entry when finishing.
     `RenderedPoseState`); camera 1 does not clear `decodeBusy` on stop, camera 2 does. Both
     unchanged; check with real cameras before changing.
   - The Demo fails below about 20 fps (a wrap is lost at 15 fps), on every engine.
-- **Open questions for Lance (2026-11-27):** landmark alignment placement; body sites as presets vs sliders; default guided bite reads V-shaped (see log).
+- **Lance's decisions (2026-11-28):** see the log entry of that date (build order, forehand = right-to-left, landmark as a separate centred exercise, body-site sliders with presets that look like the body part, vessel count by circumference + spacing, phone camera below the scene).
 - **Next up (proposed, not started):**
   3. Continue splitting `src/tracking.ts`: capture pipeline, rotation, camera 2 marker state,
      stereo pairing step, render-loop pose state and the 3D preview are done (2026-11-27); left
@@ -52,6 +52,16 @@ entry when finishing.
      stereo with them. Needs real-camera testing by Lance.
 
 ## Log
+
+### 2026-11-28 — Lance's answers (decisions)
+1. Big builds in this order: looped running stitches (locked, tie-off, tension hold) → suture breaking strength → tissue tension heatmap → edges of different thickness/length → corner stitch → nerve repair → vein and diseased-artery modes.
+2. Forehand = right-to-left for a right-handed needle driver.
+3. Landmark alignment: a separate exercise, landmark at the centre.
+4. Body sites: sliders with presets, and make the pad look like that part of the body.
+5. Default bite label: Claude's call.
+6. Vessel stitch count: scale by circumference (8 for a 1 mm artery); spacing evenness also matters.
+7–11. Thresholds, thread budget (~100 mm strand), MICRO_MM_PER_UNIT 2.5, HUD challenges and stat definitions: OK as they are.
+12. Phone: camera panel below the 3D scene.
 
 ### 2026-11-28 — Claude: thread budget (roadmap)
 - Finding: a continuous running thread already exists (Stage B2, `FreeThreadGuide`: untied Sandbox passes share one strand).
