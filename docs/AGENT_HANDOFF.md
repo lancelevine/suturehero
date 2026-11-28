@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Bleeder complication (build 0.257)
+
+- New `src/gameplay/bleeder.ts` (+ test). `#complications` toggle (`?complications=1`) in setup; `bleederNote` in `src/main.ts` starts the bleeder at the third pass's exit, grows a `bleeder-pool` mesh, stops after 3 s of closed forceps within reach.
+- Checked: unit test, tsc, check-sandbox (also with `?complications=1`), check-practice-setup, check-layout, check-free-tying. The pool and pressure were not seen with real passes in the browser (faking passes breaks other readers).
+- Lance: turn Complications on, make three passes, then press the bleeding exit with closed forceps.
+
 ### 2026-11-28 — Claude — Supermicrosurgery target (build 0.256)
 
 - `MICRO_TARGETS.supermicro` in `src/environments/MicroTargets.ts` (outer .12 / inner .095 units = 0.6 mm at 2.5 mm/unit, top at the same height as the others, gap .2).

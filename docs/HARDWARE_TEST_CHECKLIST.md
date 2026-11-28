@@ -201,3 +201,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.254: Sandbox — after a few passes the OSATS-style line appears; compare its scores with your own rating.
 - [ ] Build 0.255: Exam (10 min) — only the timer shows while stitching; Finish exam shows the OSATS-style result.
 - [ ] Build 0.256: microsurgery — choose Supermicro · 0.6 mm lymphatic; the vessel is tiny and the guided stitch still completes.
+- [ ] Build 0.257: Complications on — after the third Sandbox pass a blood pool grows at its exit; 3 s of closed-forceps pressure on it stops it.

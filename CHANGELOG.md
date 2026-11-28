@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.257 — Bleeder complication
+
+- Setup: new "Complications" toggle (off by default). When on, the exit of the third Sandbox pass starts to bleed: a dark pool grows there until you hold the closed forceps on it for 3 s; the instruction line coaches the pressure (roadmap: "Complication events mid-closure"; illustrative rates; torn-bite and broken-needle events not yet).
+
 ## Build 0.256 — Supermicrosurgery target
 
 - Microsurgery: new target "Supermicro · 0.6 mm lymphatic" for lymphaticovenous-anastomosis scale practice, with a thin wall and a smaller gap; the suggested stitch count scales down with it (roadmap: "Supermicrosurgery drill"; 11-0/12-0 suture and higher magnification are not modelled yet).
