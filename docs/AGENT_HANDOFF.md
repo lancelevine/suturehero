@@ -54,6 +54,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Stay tension (build 0.289)
+
+- New `src/tissue/stayTension.ts` (+ test); `ArteryTissue.stayTension` (default 1 = unchanged shape) scales the vessel root's height (0.8–1) alongside the vein collapse; `#stay-tension` slider; slack warning on the instruction line.
+- Checked: unit + tissue/environment tests, tsc, browser (slack → 0.82 height, warning shown), check-guided-thread, check-practice-setup, check-layout.
+
 ### 2026-11-28 — Claude — Left-handed view (build 0.288)
 
 - `?hand=left` mirrors the canvas with CSS `scaleX(-1)` (`src/main.ts`), swaps the legend and right tool label, and `describeBiteHands(passes, leftHanded)` swaps the direction words (test added). Scene coordinates and scoring are unchanged.

@@ -229,3 +229,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.284: Purse-string exercise — bites in and out along the purple ring, going round, report coverage; at 300°+ it says ready to cinch.
 - [ ] Build 0.287: run the Demo once, then press Ghost — see-through instruments replay its motion while you practise.
 - [ ] Build 0.288: Left-handed view — the scene is mirrored and labels read left driver / right forceps; does it feel right with a left-handed setup?
+- [ ] Build 0.289: microsurgery — drag Stay tension down: the vessel flattens and the slack warning appears; at full it is round.

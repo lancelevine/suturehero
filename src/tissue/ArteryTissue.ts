@@ -1,3 +1,4 @@
+import {stayShape} from './stayTension';
 import * as THREE from 'three';
 import {microProfile,type MicroTarget} from '../environments/MicroTargets';
 import type {WoundApproximation} from './WoundApproximation';
@@ -79,10 +80,14 @@ export class ArteryTissue {
   for(const child of this.root.children)if(/^fascicle(-end)?-1-|^stripe-1$/.test(child.name)){child.rotation.x=radians;child.position.set(0,0,0);}
  }
  private add(mesh:THREE.Mesh,name:string){mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;this.root.add(mesh);this.surfaces.push({mesh,original:Float32Array.from(mesh.geometry.getAttribute('position').array)});}
+ /** How taut the stay sutures are held, 0 (slack) to 1 (taut). */
+ stayTension=1;
  update(wound:WoundApproximation,eversion:EdgeEversion){
   // Vein: the thin wall collapses unless the forceps hold it open (roadmap: vein mode).
-  const collapse=this.target==='vein'&&!eversion.held?VEIN_COLLAPSED:1;
-  if(this.root.scale.y!==collapse){const centerY=microProfile(this.target).centerY;this.root.scale.y=collapse;this.root.position.y=-centerY*collapse;/* inside VesselFrame, whose pivot is the axis */}
+  // Stay tension (roadmap "Stay tension that shapes the lumen"): slack stays let the walls sag together, taut stays open it.
+  const collapse=(this.target==='vein'&&!eversion.held?VEIN_COLLAPSED:1)*stayShape(this.stayTension).height;
+  const width=stayShape(this.stayTension).width;
+  if(this.root.scale.y!==collapse||this.root.scale.z!==width){const centerY=microProfile(this.target).centerY;this.root.scale.y=collapse;this.root.scale.z=width;this.root.position.y=-centerY*collapse;/* inside VesselFrame, whose pivot is the axis */}
   if(wound.closure===this.lastClosure&&eversion.revision===this.lastEversion)return;
   this.lastClosure=wound.closure;this.lastEversion=eversion.revision;
   const point=new THREE.Vector3();
