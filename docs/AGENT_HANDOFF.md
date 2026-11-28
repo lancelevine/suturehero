@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: phone layout, camera below the scene (Lance #12)
+- `src/ui/theme.css` (≤ 760 px): `.workspace-visuals` one column (scene ≥ 300 px / 48vh, camera dock ≥ 340 px below), stage rows auto (including the `:has(drawer open)` rule), and the app/workspace no longer pinned to one screen height, so the page scrolls. Checked: 390 px full-page screenshot, check-layout, check-iphone-start, check-status-strip.
+
 ### 2026-11-28 — Lance's answers (decisions)
 1. Big builds in this order: looped running stitches (locked, tie-off, tension hold) → suture breaking strength → tissue tension heatmap → edges of different thickness/length → corner stitch → nerve repair → vein and diseased-artery modes.
 2. Forehand = right-to-left for a right-handed needle driver.

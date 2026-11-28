@@ -7,6 +7,8 @@ commit `bde9116`.
 
 ## Build 0.235 — Stitch angle across the wound
 
+- Phone layout: the camera panel now sits below the 3D scene (full width, taller), and the page scrolls instead of squeezing everything into one screen.
+
 - Microsurgery: green Acland double clamp on the vessel. The "Acland clamp" slider (50–150%) pushes the vessel ends closer or spreads them apart, which sets how far the stitch must pull; changing it restarts the stitch (roadmap: "Adjustable green double Acland clamp").
 - Sandbox: thread budget. The summary shows how much of the suture strand your passes have used (arc through the tissue plus the loose thread between passes) and warns when too little is left to tie (roadmap: "Thread budget"; uses the sim's ~100 mm strand, not an 18-inch pack yet).
 - Live tension heatmap: while tying, each held suture strand glows green as it draws taut and red when pulled too hard (relative, from the thread model) (roadmap: "Live tension heatmap").

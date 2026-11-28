@@ -197,3 +197,11 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 /* Sandbox 5-minute warm-up row. */
 .sandbox-warmup{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:6px 0 10px}
 .sandbox-warmup-status{font-size:12px;color:var(--sh-muted)}
+/* Phone (Lance, 2026-11-28): camera panel below the 3D scene instead of beside it. */
+@media(max-width:760px){
+.workspace-first .workspace-visuals,.workspace-first.camera-setup-active .workspace-visuals{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(300px,48vh) auto!important}
+.workspace-first .workspace-stage,.workspace-first.camera-setup-active .workspace-stage,.workspace-first.camera-setup-active .workspace-stage:has(.workspace-calibration-drawer:not([hidden])){grid-template-rows:auto!important;min-height:0;height:auto}
+.workspace-first #app,.workspace-first .suturing-app,.workspace-first .workspace{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important}
+.workspace-first .workspace-stage{align-content:start;flex:none!important}
+.workspace-first .workspace-camera-dock,.workspace-first.camera-setup-active .workspace-camera-dock{min-height:340px}
+}
