@@ -198,3 +198,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.251: choose Silk · braided black — the thread should feel draggier and knots grip more than Prolene.
 - [ ] Build 0.252: Sandbox — miss a target (e.g. tear a pass): the target list ends with a matching "Next drill" suggestion.
 - [ ] Build 0.253: press Daily challenge — today's site loads; tying the goal number of stitches shows your time and best today.
+- [ ] Build 0.254: Sandbox — after a few passes the OSATS-style line appears; compare its scores with your own rating.

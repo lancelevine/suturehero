@@ -130,7 +130,7 @@ Last updated: 2026-11-27
 - **Haptic cues:** vibration in instrument handles for needle pop-through, over-grip and tears.
 - **Phones as cameras:** pair a phone camera by QR code; the stereo rig is the upgrade.
 - **Suture material choice:** thread type and size; monofilament memory, braided drag, track marks. *(Already in the app: sizes 3-0 to 6-0 and Prolene / nylon / Monocryl; build 0.251 adds braided silk with more drag and knot grip. Memory, track marks and material-specific throw counts not yet.)*
-- **Exam mode scored like OSATS:** timed, no hints, standard rubric.
+- **Exam mode scored like OSATS:** timed, no hints, standard rubric. *(First step in build 0.254: approximate OSATS-style scores for 4 of 7 items in the Sandbox; the timed, no-hints exam mode is not built yet.)*
 - **Benchmarks by training level:** compare against anonymous averages for students, residents and attendings.
 - **Adaptive next drill:** pick a drill that targets your weakest metric, spaced-repetition style. *(First version in build 0.252: Sandbox suggests one drill for the first missed target; spaced repetition and saved history not used yet.)*
 - **Daily challenge:** the same wound for everyone each day, with a leaderboard. *(First version in build 0.253: date-seeded body site and stitch goal, best time per browser; a shared leaderboard needs a server.)*

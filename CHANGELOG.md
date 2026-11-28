@@ -5,6 +5,11 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.254 — OSATS-style rubric
+
+- Sandbox targets: after the first pass, an "OSATS-style" line scores four of the seven OSATS global rating items 1–5 from the measured numbers: respect for tissue (forceps control, tears), time and motion (smoothness, idle time), instrument handling (drops, tip regrasps, tip collisions) and flow (idle share). It is an automated approximation, not a validated OSATS score (roadmap: "Exam mode scored like OSATS"; a timed no-hints exam mode is not built yet).
+- Skill report export now includes the tip collisions, sawing pulls, rotation share, regrasps and needle handling counts.
+
 ## Build 0.253 — Daily challenge
 
 - Setup: new "Daily challenge" button. Everyone gets the same wound each day: the body site and a 3–6 stitch goal are chosen from the date (UTC). The instruction line shows progress, the time when the goal is reached, and your best time today, kept in this browser (roadmap: "Daily challenge"; no shared leaderboard, which would need a server).

@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — OSATS-style rubric (build 0.254)
+
+- New `src/gameplay/osatsRubric.ts` (+ test): respect for tissue, time and motion, instrument handling, flow, each 1–5 from `SkillReport`. Shown as `<li class="osats-rubric">` in the Sandbox targets after the first pass. `exportSkillReport` in `src/main.ts` now carries the optional counts too.
+- Checked: unit + ui tests, tsc, check-sandbox, check-layout, browser.
+- Lance: please check the mapping against how you'd rate OSATS; the thresholds are my guesses.
+
 ### 2026-11-28 — Claude — Daily challenge (build 0.253)
 
 - New `src/gameplay/dailyChallenge.ts` (+ test): FNV hash of the UTC day picks a `BODY_SITES` entry and 3–6 stitches; best seconds per day in `suturehero.dailyChallenge.v1`. `#daily-challenge` button (`src/ui/practicePageMarkup.ts`) reloads with `?site=…&exercise=daily&day=…`; `dailyNote` in `src/main.ts` shows progress (tied = `session.course.completed` outside the guided course).

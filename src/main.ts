@@ -112,7 +112,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.253';
+const APP_BUILD='0.254';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -579,7 +579,7 @@ try {
   };
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
   mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,sawingPulls:sawingPulls.count,rotatingShare:rotationScore.rotatingShare,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleLoading:{total:loadingCheck.loads,good:loadingCheck.good},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
-  exportSkillReport=()=>{const r=skillRecorder.report(session.clock.secondsSoFar,passSymmetries());return {...r,path:undefined,ideal:undefined,speed:undefined};};
+  exportSkillReport=()=>{const r=skillRecorder.report(session.clock.secondsSoFar,passSymmetries());return {...r,path:undefined,ideal:undefined,speed:undefined,tipCollisions:tipCollisions.count,sawingPulls:sawingPulls.count,rotatingShare:rotationScore.rotatingShare,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}};};
   // Mistakes for the replay timeline (src/ui/replayTimeline.ts), on the replay's clock (s).
   const mistakeLog=new MistakeLog();
   const replayTimeline=mountReplayTimeline(document.querySelector<HTMLElement>('#viewport')!);
