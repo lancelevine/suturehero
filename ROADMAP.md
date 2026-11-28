@@ -96,6 +96,7 @@ Last updated: 2026-11-27
 - **Redoing a bad stitch:** cut out a placed stitch with the tracked scissors and pull the thread free; its tension releases, the edges spring apart there, and its holes stay for the replacement bite to work around.
 - **Pull speed that matters:** drag on the suture rises with pull speed; quick smooth pulls are fine in skin, but fast or jerky pulls through a fine vessel wall tear the bite or snap 10-0, judged from the driver's tracked velocity.
 - **Needles that skid off the skin:** a tip meeting the skin at a shallow angle slides across the surface instead of biting, then catches late and off target; a near-90 degree entry bites cleanly.
+- **Stay tension that shapes the lumen:** stay suture pull changes the vessel's cross-section; taut opens a clear slit between front and back walls, slack lets them sag together so bites catch the back wall, and too hard tears bites near the stays.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
