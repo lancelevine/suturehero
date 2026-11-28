@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: plan vs actual (roadmap)
+- New `src/gameplay/planVsActual.ts` (+test) and `src/scene/PlanMarks.ts`: planned spots along the wound (click on the skin while "Plan stitches" is on; raycast on the tissue, |x| < 0.8), matched greedily to completed passes within 1 mm. "Clear plan" button. Line leads the instruction readout. Plan is per page load (not saved).
+- Checked: tsc, test, browser (click adds a ring and the line, no console errors), check-sandbox, check-layout. Full CI browser set also passed locally (41/41) before this item.
+
 ### 2026-11-28 — Claude: personal bests (roadmap "Timed challenges")
 - New `src/gameplay/personalBest.ts` (+test), `suturehero.personalBests.v1`; `practiceHud` takes `bestSeconds` for the card title. `src/main.ts` records once per completion (sandbox / course / micro-<target>). Note: the block must sit above `mountPracticeHud` (the HUD renders on mount; placed after, it threw and the page's catch hid it — caught in a browser check of the card title).
 - Checked: tsc, personalBest + practiceHud tests, browser (card title, no console errors), check-sandbox, check-layout, check-practice-setup.

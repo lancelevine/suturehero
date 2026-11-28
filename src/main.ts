@@ -92,6 +92,8 @@ import {UnequalEdgeMarks} from './scene/UnequalEdgeMarks';
 import {loadSoundOn,saveSoundOn,SoundCues} from './ui/sound';
 import {describeTail,tailLengthMm} from './gameplay/tailLength';
 import {loadBests,recordBest} from './gameplay/personalBest';
+import {describePlan} from './gameplay/planVsActual';
+import {PlanMarks} from './scene/PlanMarks';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -316,6 +318,26 @@ try {
   const gapScanView=new GapScanView(SKIN_SURFACE_Y); view.scene.add(gapScanView.root);
   // Tension heatmap around each tied stitch (src/scene/TissueTensionView.ts).
   const tensionView=new TissueTensionView(SKIN_SURFACE_Y); view.scene.add(tensionView.root);
+  // Plan vs actual (src/gameplay/planVsActual.ts): click spots on the skin while planning, compare with the passes.
+  const planMarks=new PlanMarks(SKIN_SURFACE_Y); view.scene.add(planMarks.root);
+  const plannedZ:number[]=[];let planning=false;
+  {const toolsBar=document.querySelector('.workspace-view-tools');
+   const planButton=document.createElement('button');planButton.type='button';planButton.className='plan-toggle';
+   const clearButton=document.createElement('button');clearButton.type='button';clearButton.textContent='Clear plan';clearButton.hidden=true;
+   const label=()=>{planButton.textContent=planning?'Done planning':'Plan stitches';planButton.setAttribute('aria-pressed',String(planning));clearButton.hidden=!plannedZ.length;};label();
+   planButton.addEventListener('click',()=>{planning=!planning;label();planButton.blur();});
+   clearButton.addEventListener('click',()=>{plannedZ.length=0;label();clearButton.blur();});
+   toolsBar?.prepend(clearButton);toolsBar?.prepend(planButton);
+   // A click (not a drag) on the skin while planning adds a spot at that point along the wound.
+   const canvas=view.renderer.domElement;let downAt:{x:number;y:number}|null=null;
+   canvas.addEventListener('pointerdown',e=>{downAt={x:e.clientX,y:e.clientY};});
+   canvas.addEventListener('pointerup',e=>{
+    if(!planning||!downAt||Math.hypot(e.clientX-downAt.x,e.clientY-downAt.y)>5||session.environment.id!=='skin')return;
+    const rect=canvas.getBoundingClientRect(),ray=new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1),view.camera);
+    const hit=ray.intersectObject(tissue.root,true)[0];
+    if(hit&&Math.abs(hit.point.x)<0.8){plannedZ.push(hit.point.z+session.course.siteZ);plannedZ.sort((a,b)=>a-b);label();}
+   });}
   let scannedSites:readonly unknown[]|null=null,openSpans:OpenSpan[]=[];
   // Sandbox: put the needle back at its starting point, cancelling a pass in progress (completed passes stay).
   view.scene.add(replay.paths);
@@ -523,6 +545,7 @@ try {
    return '';};
   const nerveNote=()=>session.environment.id==='microsurgery'&&microSelect.value==='nerve'?describeNerveAlignment(nerveTwist)+' · ':'';
   const unequalNote=()=>unequalExercise&&session.environment.id==='skin'?describeUnequalEdges(session.freePass.passes)+' · ':'';
+  const planNote=()=>{if(!plannedZ.length||session.environment.id!=='skin')return '';const actual=session.freePass.passes.filter(p=>p.exit&&!p.torn).map(p=>(p.entry.z+p.exit!.z)/2);const text=describePlan(plannedZ,actual);return text?text+' · ':'';};
   const backWallNote=()=>session.environment.id==='microsurgery'&&session.pass.phase==='passing'&&catchesBackWall({centreY:session.pass.center.y,radius:session.pass.radius},microProfile(resolveMicroTarget(microSelect.value)))?BACK_WALL_WARNING+' · ':'';
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
   let markedStitchStep=-1;
@@ -611,6 +634,7 @@ try {
     unequalMarks.update(unequalExercise&&session.environment.id==='skin',session.course.siteZ);
     {const sites=session.course.tissueSites,show=session.environment.id==='skin'&&(session.course.finished||session.sandbox&&sites.length>=2);if(show&&sites!==scannedSites){scannedSites=sites;openSpans=gapScan(sites);}gapScanView.update(show?openSpans:[],session.course.siteZ);}
     tensionView.update(session.course.tissueSites,session.course.siteZ,session.environment.id==='skin');
+    planMarks.update(plannedZ,session.course.siteZ,session.environment.id==='skin');
     sampleSkill();
     updateTensionPanel(frameQuery,session.freeKnot.active?session.freeKnot:null);
     const edge=session.eversion;
@@ -667,7 +691,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),unequalNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),planNote()+unequalNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,
