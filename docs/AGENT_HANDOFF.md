@@ -53,6 +53,9 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: fix CI failure from the phone layout
+- Deploy runs failed `check-tracking-lab-scroll` (Lab must scroll inside one screen at 390×844); the phone "page scrolls" override now skips `.tracking-lab-active`. Checked: check-tracking-lab-scroll, check-layout, phone layout still camera-below-scene.
+
 ### 2026-11-28 — Claude: unequal edges exercise (big build #4, part)
 - New `src/gameplay/unequalEdges.ts` (+test): per gap, long-edge (right) step / short-edge step vs 1.25 ± 0.15. `src/scene/UnequalEdgeMarks.ts`: guide dots. Setup button `#unequal-exercise` (`?exercise=unequal`), line leads the instruction readout. Wound geometry not changed (approach avoids the per-side tissue refactor).
 - Checked: tsc, test, screenshot, check-practice-setup, check-sandbox, check-layout.

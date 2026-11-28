@@ -201,7 +201,7 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 @media(max-width:760px){
 .workspace-first .workspace-visuals,.workspace-first.camera-setup-active .workspace-visuals{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(300px,48vh) auto!important}
 .workspace-first .workspace-stage,.workspace-first.camera-setup-active .workspace-stage,.workspace-first.camera-setup-active .workspace-stage:has(.workspace-calibration-drawer:not([hidden])){grid-template-rows:auto!important;min-height:0;height:auto}
-.workspace-first #app,.workspace-first .suturing-app,.workspace-first .workspace{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important}
+.workspace-first:not(.tracking-lab-active) #app,.workspace-first:not(.tracking-lab-active) .suturing-app,.workspace-first:not(.tracking-lab-active) .workspace{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important}
 .workspace-first .workspace-stage{align-content:start;flex:none!important}
 .workspace-first .workspace-camera-dock,.workspace-first.camera-setup-active .workspace-camera-dock{min-height:340px}
 }
