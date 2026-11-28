@@ -53,6 +53,10 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: guided first run (roadmap)
+- New `src/ui/firstRun.ts` (+test): four-step card in `#viewport` (camera → calibrate → `#begin-pass` → analysis), `suturehero.firstRun.v1`; skipped when `navigator.webdriver` (so browser checks are unaffected). Styles in theme.css.
+- Checked: tsc, test, screenshot with webdriver overridden (card, Next advances), check-sandbox, check-layout, check-practice-setup.
+
 ### 2026-11-28 — Claude: skill tiers (roadmap)
 - New `src/gameplay/skillTiers.ts` (+test): gold/silver/bronze cut-offs for Smoothness (0.9/0.8/0.6), Accuracy (0.5/1/1.5 mm), Jaws control (0.9/0.8/0.6), Tremor (0.05/0.1/0.2 mm); badges in the Skill Analysis rows, styled in `theme.css`. Unlocks deliberately not added. Checked: tsc, tests, check-sandbox.
 

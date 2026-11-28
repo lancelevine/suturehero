@@ -177,3 +177,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: with sound on, a needle pass clicks, keeping a stitch chimes, and over-pulling a strand gives a low tug; "Sound off" silences them.
 - Build 0.235: cut a tail with the scissors about 5 mm from the knot: the message ends "tail 5 mm ✓"; cut far out and it says to trim.
 - Build 0.235: press "Plan stitches", click three spots on the wound (purple rings), "Done planning", then stitch: the line reports hits within 1 mm and spots not used.
+- Build 0.235: in a fresh browser (or after clearing site data) a "Welcome · Step 1 of 4" card appears over the scene; its buttons open Camera, Calibrate, the guided exercise and Analysis; Skip hides it for good.

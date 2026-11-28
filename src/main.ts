@@ -94,6 +94,7 @@ import {describeTail,tailLengthMm} from './gameplay/tailLength';
 import {loadBests,recordBest} from './gameplay/personalBest';
 import {describePlan} from './gameplay/planVsActual';
 import {PlanMarks} from './scene/PlanMarks';
+import {mountFirstRun} from './ui/firstRun';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
@@ -518,6 +519,8 @@ try {
   const passSymmetries=()=>session.freePass.passes.filter(p=>p.exitEdge!==null).map(p=>Math.abs(p.entryEdge-p.exitEdge!)*SCENE_MM_PER_UNIT);
   mountSkillAnalysisPanel(document.querySelector<HTMLElement>('#skill-analysis-host')!,()=>({...skillRecorder.report(session.clock.secondsSoFar,passSymmetries(),session.freePass.passes.map(p=>({x:p.entry.x*SCENE_MM_PER_UNIT,z:p.entry.z*SCENE_MM_PER_UNIT}))),tipCollisions:tipCollisions.count,regrasps:{total:regraspCheck.regrasps,onTip:regraspCheck.tipGrabs},needleLoading:{total:loadingCheck.loads,good:loadingCheck.good},blindExits:{total:blindBites.exits,hidden:blindBites.hidden},edgePresentation:{total:edgePresentation.total,everted:edgePresentation.counts.everted},needleHandling:{drops:needleHandling.drops,regrabs:needleHandling.regrabs,loads:needleHandling.loads}}),()=>!!document.querySelector<HTMLDetailsElement>('#workspace-skill-analysis')?.open);
   const frameQuery=cachedQuery();
+  // Guided first run (src/ui/firstRun.ts): once per browser, never for automated checks.
+  mountFirstRun(document.querySelector<HTMLElement>('#viewport')!,(()=>{try{return localStorage;}catch{return null;}})(),navigator.webdriver===true);
   // Sound cues (src/ui/sound.ts): pop-through, kept stitch, over-pulled thread; toggle in the view tools.
   const soundStorage=(()=>{try{return localStorage;}catch{return null;}})();
   const sound=new SoundCues(loadSoundOn(soundStorage));

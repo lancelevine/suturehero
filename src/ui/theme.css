@@ -213,3 +213,10 @@ body .production-mode{background:radial-gradient(120% 90% at 50% 0%,#10234a 0%,v
 .skill-analysis .skill-tier.gold{background:#f5c542;box-shadow:0 0 6px rgba(245,197,66,.6)}
 .skill-analysis .skill-tier.silver{background:#c8d3df}
 .skill-analysis .skill-tier.bronze{background:#cd8a52}
+/* Guided first run card (src/ui/firstRun.ts). */
+.first-run{position:absolute;left:14px;bottom:70px;z-index:5;width:min(320px,calc(100% - 28px));background:var(--sh-panel);box-shadow:var(--sh-glow);backdrop-filter:var(--sh-blur);-webkit-backdrop-filter:var(--sh-blur);border-radius:var(--sh-radius);padding:12px 14px;color:var(--sh-text);font-family:var(--sh-font)}
+.first-run strong{display:block;font-size:15px;margin:4px 0}
+.first-run p{margin:0 0 10px;font-size:12px;color:var(--sh-muted);line-height:1.45}
+.first-run div{display:flex;gap:6px;flex-wrap:wrap}
+.first-run button{font-size:12px;padding:5px 10px}
+.first-run .hud-eyebrow{font-size:10px;letter-spacing:1.5px;color:var(--sh-cyan)}
