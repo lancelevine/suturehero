@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.237 — Vessel grasp check
+
+- Microsurgery: each time the forceps close on the vessel, the grab is classed by where the jaw sits: on the adventitia outside the wall or inside the lumen for counterpressure (good), or within the wall itself, which is flagged as a full-wall pinch that crushes the intima. The instruction line shows the last grab and how many pinched the wall (roadmap: "Vessel grasp check"; approximate, from the jaw tip point only).
+
 ## Build 0.236 — Microsurgical bite geometry
 
 - Microsurgery: each saved vessel stitch is measured against the wall thickness. The instruction line shows how many bites sit about 1.5–2.5× the wall from the edge with both sides within 20% of each other, plus the last bite's ratio (roadmap: "Microsurgical bite geometry"; approximate, from the needle entry and exit points; needle angle to the wall is not graded yet).

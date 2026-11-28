@@ -66,6 +66,7 @@ import { mountCourseExport } from './ui/courseExport';
 import { environmentTexts, exerciseProgress, exerciseReadout, exerciseTitle, freeKnotStateText, graspStatusText, knotActionLabel, sandboxTitle } from './ui/practiceMessages';
 import {FpsCounter} from './diagnostics/FrameRates';
 import {TipCollisionCounter} from './gameplay/tipCollisions';
+import {VesselGraspCheck,describeVesselGrasp} from './gameplay/vesselGrasp';
 import {LoadingCheck,RegraspCheck} from './suture/gripPosition';
 import {BlindBiteCheck} from './scene/blindBite';
 import {EdgePresentationCheck} from './gameplay/edgePresentation';
@@ -105,7 +106,7 @@ const app=document.querySelector<HTMLDivElement>('#app')!;
 /** User-facing build number: bump for each user-visible change (AGENTS.md → Versioning). */
 /** Camera-driven instruments stay inside this box (scene units); allocated once, not per frame. */
 const CAMERA_POSE_MIN=new THREE.Vector3(-4,.15,-3),CAMERA_POSE_MAX=new THREE.Vector3(4,4,4);
-const APP_BUILD='0.236';
+const APP_BUILD='0.237';
 app.innerHTML=practicePageMarkup({build:APP_BUILD,buildInfo:__SUTUREHERO_BUILD__,revision:__SUTUREHERO_REVISION__});
 const workspaceLayout=mountWorkspaceLayout(app);
 mountCalibrationPanel(workspaceLayout.calibrationHost);
@@ -167,6 +168,7 @@ try {
   // Saved stitch positions (vessel turn angle at each save) and the suggested count by circumference (src/gameplay/vesselStitchCount.ts).
   const vesselAngles:number[]=[];
   const vesselBites:ReturnType<typeof vesselBite>[]=[];
+  const vesselGrasp=new VesselGraspCheck();
   const vesselDiameterMm=()=>2*microProfile(resolveMicroTarget(microSelect.value)).outerRadius*MICRO_MM_PER_UNIT;
   const vesselGoal=()=>suggestedStitchCount(vesselDiameterMm());
   const vesselStitchesView=new CompletedStitchesView();vesselFrame.root.add(vesselStitchesView.root);
@@ -288,7 +290,7 @@ try {
     nerveTwist=micro?startingTwist():0;artery.setFascicleTwist(nerveTwist);
     dilation=1;intimaTorn=false;artery.setDilation(1);dilateButton.hidden=!micro||microSelect.value==='nerve';
     for(const button of nerveButtons)button.hidden=!micro;
-    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;vesselBites.length=0;
+    vesselFrame.setAxisHeight(microProfile(resolveMicroTarget(microSelect.value)).centerY);vesselFrame.setAngle(0);vesselStitchesView.clear();vesselAngles.length=0;vesselBites.length=0;vesselGrasp.reset();
     for(const button of vesselTurnButtons)button.hidden=!micro;
     (document.querySelector('#stay-field') as HTMLElement).hidden=!micro;
     stayMarks.update(microProfile(resolveMicroTarget(microSelect.value)),stayPlan(),micro);
@@ -572,6 +574,8 @@ try {
    const free=session.freeKnot;const over=free.active&&(free.tension.long.state==='excessive'||free.tension.short.state==='excessive');if(over&&!heardOverPull)sound.play('tug');heardOverPull=over;
   };
   // Back-wall catch alert during a vessel bite (src/gameplay/backWallCatch.ts).
+  const vesselGraspJaw=new THREE.Vector3();
+  const vesselGraspNote=()=>{const text=session.environment.id==='microsurgery'?describeVesselGrasp(vesselGrasp):'';return text?text+' · ':'';};
   const vesselNote=()=>{if(session.environment.id!=='microsurgery'||!vesselAngles.length)return '';
    // After the last suggested stitch: estimated lumen narrowing at the join (src/gameplay/lumenNarrowing.ts).
    const done=vesselAngles.length>=vesselGoal()?describeLumenNarrowing(lumenNarrowingPercent({dilation,stitches:vesselAngles.length,suggested:vesselGoal(),inverted:session.vesselEversions.filter(e=>e<-0.002).length}))+' · ':'';
@@ -736,7 +740,8 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     if(session.environment.id==='microsurgery'&&microSelect.value!=='nerve'){tools[0].root.updateWorldMatrix(true,false);vesselGrasp.update(tools[0].root.localToWorld(vesselGraspJaw.set(0,0,0.05)),tools[0].openness,microProfile(resolveMicroTarget(microSelect.value)));}
+     setText(frameQuery('#exercise-readout'),vesselGraspNote()+enduranceNote()+planNote()+unequalNote()+dilationNote()+vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:Math.round(PRACTICE_SETUP.skin.tear.degrees*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1)),tearText:formatMm(PRACTICE_SETUP.skin.tear.units*(PRACTICE_SETUP.needle.tip==='taper'?TAPER_IN_SKIN_TEAR_FACTOR:1))},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

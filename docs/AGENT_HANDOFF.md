@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Vessel grasp check (build 0.237)
+
+- New `src/gameplay/vesselGrasp.ts` (+ test): forceps close on the vessel classed as adventitia / lumen counterpressure / full-wall pinch by the jaw tip's distance from the vessel axis. Wired in `src/main.ts` (per frame in microsurgery, not nerve; shown first in the instruction line).
+- Checked: unit test, tsc, browser run (jaw in wall → pinch flagged; jaw on adventitia → good), check-practice-setup, check-guided-thread, check-layout.
+- Lance: grab the vessel wall with the forceps on purpose, then the adventitia, and see whether the readout agrees.
+
 ### 2026-11-28 — Claude — Microsurgical bite geometry (build 0.236)
 
 - New `src/gameplay/vesselBite.ts` (+ test): bite distance from the edge as a multiple of wall thickness, good at 1.5–2.5× with sides within 20%. Wired in `src/main.ts` (saved on "Save stitch & turn", shown in the vessel instruction line).

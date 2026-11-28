@@ -181,3 +181,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: make a mistake (for example tear a pass or bump the instrument tips), then press Replay: a bar under the scene shows a red tick at that moment as the cursor passes it.
 - Build 0.235: Microsurgery → "Dilate ends" four times: "Dilated 120% ✓"; keep pressing past 135%: "Intima torn".
 - [ ] Build 0.236: microsurgery — save several vessel stitches; the "Bites:" readout (≈2× wall, equal sides) should match your judgement.
+- [ ] Build 0.237: microsurgery — close the forceps within the vessel wall (should flag a full-wall pinch), then on the adventitia / inside the lumen (should read good).
