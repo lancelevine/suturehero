@@ -28,6 +28,16 @@ const LOOSE_SLACK = 1.05;
  * ≈ 54 mm/s) through a short tract, slower through a longer one (per DRAG_TRACT_UNITS of tract).
  */
 export const MAX_SLIDE_SPEED = 2;
+/**
+ * Tension hold on running stitches (roadmap, 2026-11-28): while the running thread is not held
+ * taut, earlier loops slowly gain extra thread (they go slack); pulling the thread taut takes it
+ * back. In strand segments per second, up to LOOP_SLACK_MAX segments per loop. Needs a time step.
+ */
+export const LOOP_LOOSEN_RATE = 0.6;
+export const LOOP_TIGHTEN_RATE = 3;
+export const LOOP_SLACK_MAX = 3;
+/** The thread counts as held taut at this tension or above. */
+export const HELD_TAUT = 0.97;
 export const DRAG_TRACT_UNITS = 0.3;
 /** An eye jump larger than this in one frame (scene units, ≈ 7 mm) is a tracking glitch or a reset, not a pull: no drag. */
 const EYE_JUMP = 0.25;
@@ -50,17 +60,34 @@ export class FreeThreadGuide {
   /** The newest pass's tract last frame: drag applies from the frame its thread first comes out. */
   private newestTract: FreeTract | null = null;
   private previousDistance = 0;
+  /** Extra thread (segments) in each earlier loop, by pass. */
+  private readonly loopSlack = new Map<FreeTract, number>();
+  private restLength = 0;
+  private olderTracts: FreeTract[] = [];
 
   reset() {
     this.newestTract = null;
     this.exteriorCount = 1;
     this.slid = 1;
     this.tension = 0;
+    this.loopSlack.clear();
+    this.olderTracts = [];
+  }
+
+  /** Extra thread in each earlier loop of a running stitch (scene units), oldest loop first. */
+  loopSlackUnits() {
+    return [...this.olderTracts].reverse().map((tract) => (this.loopSlack.get(tract) ?? 0) * this.restLength);
   }
 
   /** Pins for this frame; `passes` newest first. */
   anchors(strand: ThreadStrand, eye: THREE.Vector3, passes: readonly ThreadedPass[], dt?: number): Map<number, THREE.Vector3> {
+    // Loops loosen while the thread was not held taut last frame, and tighten when it was.
+    if (dt !== undefined) {
+      const change = this.tension >= HELD_TAUT ? -LOOP_TIGHTEN_RATE * dt : this.tension > 0 ? LOOP_LOOSEN_RATE * dt : 0;
+      for (const [tract, slack] of this.loopSlack) this.loopSlack.set(tract, THREE.MathUtils.clamp(slack + change, 0, LOOP_SLACK_MAX));
+    }
     this.tension = 0;
+    this.restLength = strand.restLength;
     const pins = new Map<number, THREE.Vector3>([[0, eye.clone()]]);
     const rest = strand.restLength;
     const last = strand.count - 1 - TAIL_RESERVE;
@@ -79,12 +106,16 @@ export class FreeThreadGuide {
       const exit = exitAngle !== null && eyeAngle > exitAngle ? tractPoint(tract, exitAngle) : null;
       return { tract, insideEnd, arcCount, exit, entry: tractPoint(tract, 0) };
     });
+    // Earlier loops of a running stitch (every pass but the newest) carry their own slack.
+    this.olderTracts = layout.slice(1).map((pass) => pass.tract);
+    for (const tract of this.loopSlack.keys()) if (!this.olderTracts.includes(tract)) this.loopSlack.delete(tract);
+    for (const tract of this.olderTracts) if (!this.loopSlack.has(tract)) this.loopSlack.set(tract, 0);
     // Older passes get their thread first: their path plus the loose span from the newer pass's entry.
     // Pulling the needle further takes thread from the free tail, never out of earlier passes (2026-11-15:
     // the needle-side thread used the whole strand first, so the thread jumped to the latest pass).
     const olderCost = (k: number) => {
       const loose = layout[k].exit ? Math.max(1, Math.ceil((layout[k - 1].entry.distanceTo(layout[k].exit!) * LOOSE_SLACK) / rest)) : 0;
-      return loose + layout[k].arcCount;
+      return loose + layout[k].arcCount + Math.round(this.loopSlack.get(layout[k].tract) ?? 0);
     };
     let keep = layout.length;
     const firstMinimum = layout[0].arcCount + (layout[0].exit ? 1 : 0);

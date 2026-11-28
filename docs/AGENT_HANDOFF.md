@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: tension hold on running stitches (big build #1, step 1)
+- `src/suture/FreeThreadGuide.ts`: per-loop extra slack (segments) for every pass but the newest; with a time step it grows 0.6/s (max 3) while the thread is not taut and shrinks 3/s when tension ≥ 0.97; loose-span cost includes it. `loopSlackUnits()` exposes it (+test). Calls without `dt` are unchanged.
+- New `src/gameplay/tensionHold.ts` (+test): slack loops over 2 mm named in the Sandbox instruction line.
+- Checked: tsc, FreeThreadGuide + tensionHold tests (Node 24), check-sandbox, check-free-tying, check-guided-thread, freeKnotDemo unit test.
+- Next: locked running stitch and running tie-off.
+
 ### 2026-11-28 — Claude: body sites with sliders and presets (Lance #4)
 - New `src/environments/bodySites.ts` (+tests): presets (forearm, face, scalp, back of hand, back) → thickness / toughness / tension sliders (0.5–2×) → dermalBottom, tear limits, wound gap; plus a skin look. `PracticeSetup.resolveSetup` uses `?site=…&thick=&tough=&tension=` over the skin type (`SkinProfile` type). `PracticeSession` uses `skin.gap`. `skinSurface(look)` (cached per look; the default look is unchanged) adds tone, pores, creases, freckles and hair stubs. Setup select `#body-site` + sliders; changes reload the practice like other setup choices.
 - Checked: tsc, bodySites + PracticeSetup tests, screenshots (scalp, face, hand; gaps 0.11 / 0.07 / 0.09), check-practice-setup, check-sandbox, check-layout, check-guided-thread.

@@ -54,7 +54,7 @@ Last updated: 2026-11-27
 - **Tail control on pull-through:** tracks the near-side tail while drawing the suture through; flags pulling it out or leaving too much to tie.
 - **Stitch angle across the wound:** draws each skin stitch's line across the wound and flags any more than a few degrees off 90. *(First version in build 0.235: Sandbox line per pass and a 10° target.)*
 - **Needle pickup and transfer:** under the scope, pick up the needle with forceps, pass to the driver and load it without setting it down; times it and counts drops and re-grabs. *(First version in build 0.235: Skill Analysis drops and forceps-to-driver load time.)*
-- **Tension hold on running stitches:** tracks strand tension between bites; shows earlier loops going slack or the wound bunching.
+- **Tension hold on running stitches:** tracks strand tension between bites; shows earlier loops going slack or the wound bunching. *(First version in build 0.235: loops loosen when the thread is not held taut and tighten when pulled; slack loops named live.)*
 - **Blind bite flag:** flags each bite where the needle tip was hidden from view as it exited. *(First version in build 0.235: Skill Analysis "Blind exits" from the 3D view camera.)*
 - **Vessel eversion:** extends the eversion score to every vessel stitch, with a ring view marking any spot where an edge rolled in. *(First version in build 0.235: eversion of each saved vessel stitch, everted count and inverted stitches named; ring view still to do.)*
 - **Set-back dermal stitch:** buried stitch with bites 2 to 3 mm back from the edge under the dermis; scored on set-back distance and the eversion it gives.

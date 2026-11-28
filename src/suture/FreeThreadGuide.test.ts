@@ -95,3 +95,22 @@ describe('thread drag through the tissue', () => {
     expect(pull(3)).toBeGreaterThan(1.35);
   });
 });
+
+describe('tension hold on running stitches', () => {
+  it('lets earlier loops go slack while the thread is not held taut, and tightens them when pulled', () => {
+    const strand = new ThreadStrand();
+    const older = tractAt(-0.3), newer = tractAt(0.2);
+    const guide = new FreeThreadGuide();
+    const passes = [{ tract: newer, eyeAngle: Infinity }, { tract: older, eyeAngle: Infinity }];
+    const exit = tractPoint(newer, newer.exitAngle!);
+    // Eye resting near the newest exit with plenty of thread out: not taut.
+    guide.anchors(strand, exit.clone().add(new THREE.Vector3(0.6, 0.3, 0)), passes, 0.05);
+    for (let i = 0; i < 80; i++) guide.anchors(strand, exit.clone().add(new THREE.Vector3(0.1, 0.05, 0)), passes, 0.05);
+    const slack = guide.loopSlackUnits();
+    expect(slack).toHaveLength(1);
+    expect(slack[0]).toBeGreaterThan(0);
+    // Pull the needle steadily away so the thread runs taut: the loop tightens again.
+    for (let d = 0.2; d <= 6; d += 0.05) guide.anchors(strand, exit.clone().add(new THREE.Vector3(d, d / 2, 0)), passes, 0.05);
+    expect(guide.loopSlackUnits()[0]).toBeLessThan(slack[0]);
+  });
+});
