@@ -1,3 +1,4 @@
+import { placementCheck } from './subcuticularPlacement';
 import { SCENE_MM_PER_UNIT } from '../setup/sceneScale';
 
 /**
@@ -160,6 +161,7 @@ function asRunning(done: readonly PatternPass[], start: number): RecognisedStitc
       { label: 'bites in the dermis', met: run.every((p) => p.deepestLayer === undefined || p.deepestLayer === 'dermis') },
       { label: 'alternating sides', met: true },
       ...(run.length > 2 ? [runChecks(run)] : []),
+      placementCheck(run),
     ],
   };
 }

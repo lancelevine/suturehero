@@ -54,6 +54,11 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Subcuticular bite placement (build 0.285)
+
+- New `src/gameplay/subcuticularPlacement.ts` (+ test): entry vs previous exit along the direction of travel (ahead > 0.5 mm = gap, behind > 2 mm = zig-zag); added as a check to running subcuticular in `stitchPatterns.ts`. The existing pattern test's example started each bite 2 mm ahead, which the rule calls a gap, so it now uses level starts and a second case asserts the gap is flagged (rule added, nothing loosened).
+- Checked: gameplay tests (191, Node 24), tsc, check-sandbox, check-layout.
+
 ### 2026-11-28 — Claude — Purse-string exercise (build 0.284)
 
 - New `src/gameplay/purseString.ts` (+ test) and `src/scene/PurseStringRing.ts`; `?exercise=purse` via `#purse-exercise`. Ring centre x = 0.75: free passes only engage within |x| ≤ 1.31 (`PAD_HALF_X` in `FreeNeedlePass`), so a ring further out cannot be bitten.

@@ -53,8 +53,13 @@ describe('stitch pattern recognition', () => {
 
   it('recognises a running subcuticular closure from alternating dermal bites', () => {
     const bite = (fromSide: number, zMm: number): PatternPass => ({ entry: { x: fromSide * u(2), z: u(zMm) }, exit: { x: fromSide * u(1), z: u(zMm + 3) }, entryEdge: u(2), exitEdge: u(1), depth: u(2), crossesWound: false, deepestLayer: 'dermis' });
-    const [run] = recognisePatterns([bite(-1, 0), bite(1, 5), bite(-1, 10)]);
+    // Each bite starts level with the last exit on the other side (2026-11-28 placement check).
+    const [run] = recognisePatterns([bite(-1, 0), bite(1, 3), bite(-1, 6)]);
     expect(run.pattern).toBe('running subcuticular');
     expect(run.checks.every((c) => c.met)).toBe(true);
+    // Starting each bite 2 mm ahead of the last exit leaves gaps.
+    const [gappy] = recognisePatterns([bite(-1, 0), bite(1, 5), bite(-1, 10)]);
+    expect(gappy.checks.at(-1)!.label).toContain('ahead (gap)');
+    expect(gappy.checks.at(-1)!.met).toBe(false);
   });
 });

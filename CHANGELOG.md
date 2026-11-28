@@ -5,6 +5,10 @@ Per-build notes, newest first. These were moved here from the README on
 label in the app header. The README before this move is in git history at
 commit `bde9116`.
 
+## Build 0.285 — Subcuticular bite placement
+
+- Sandbox stitch patterns: a recognised running subcuticular line now also checks that each bite starts level with or just behind the last exit on the other side; bites started ahead (a gap) or far behind (a zig-zag) are counted (roadmap: "Subcuticular bite placement"; along the wound only; the dermal level is the existing "bites in the dermis" check).
+
 ## Build 0.284 — Purse-string exercise
 
 - Setup: new "Purse-string exercise" (Sandbox). A round defect about 11 mm across is marked on the right half of the pad. Bites whose entry and exit sit on the ring are graded on coverage around the circle (300° or more closes it), going round in one direction, and even spacing (roadmap: "Figure-of-eight and purse-string stitches"; the defect is marked, not cut, and cinching is not simulated).
