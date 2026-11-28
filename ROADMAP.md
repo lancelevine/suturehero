@@ -84,6 +84,7 @@ Last updated: 2026-11-27
 - **Thread friction through the tissue:** each bite gets friction from how sharply the thread bends through it and the material (capstan effect), so tension pulled at one end fades along a running line and slack is taken up loop by loop.
 - **Needle flex in tissue:** fine needles bend elastically when twisted or pushed off their curve in tissue; past a limit they stay bent, and the bent arc carries into later bites.
 - **Wet thread that sticks:** a field wetness level makes 9-0 and 10-0 thread cling to the vessel, background and instrument tips and drag instead of dropping; heavier sutures barely affected.
+- **Thread twist:** rotating the driver to follow the needle's curve stores twist in the thread; after several bites the slack curls into loops and kinks that snag, and the twist relaxes when the thread hangs free.
 - **Self-review replay:** slow motion, orbit camera, mistakes marked on the timeline.
 - **Needle arc guide:** overlay of the ideal 90 degree entry and arc that fades as you get consistent.
 - **Needle loading check:** about two-thirds back, perpendicular, near the driver tip; flag bad loads.
