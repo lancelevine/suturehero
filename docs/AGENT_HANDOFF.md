@@ -53,6 +53,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude: vein and diseased-artery targets (big build #7)
+- `src/environments/MicroTargets.ts`: `vein` (thin wall 0.42/0.38) and `diseased-artery` (inner radius 0.3, plaque colours) targets. `ArteryTissue`: plaque nodules on the diseased lumen; the vein root flattens to 62% height unless `eversion.held` (scale about the vessel-frame pivot). `src/main.ts`: coaching line per target.
+- Limitations: needle-pass physics use the round profile (a flattened vein is visual only); separated intima not detected.
+- Checked: tsc, MicroTargets + practiceMessages tests, screenshots (vein, diseased artery), browser (vein scale 0.62 when not held), check-practice-setup, check-guided-thread, check-layout.
+- Big-build list status: 1 running loops (tension hold done; locked/tie-off need loop topology), 2 breaking strength done, 3 tissue heatmap done, 4–5 edges thickness/length + corner stitch need the per-side tissue refactor (flagged), 6 nerve done, 7 vein/diseased done.
+
 ### 2026-11-28 — Claude: nerve repair (big build #6; #4–5 flagged above)
 - New `src/gameplay/nerveAlignment.ts` (+test): random starting twist 12–30° either way, aligned within 5°. `ArteryTissue.setFascicleTwist` rotates the right end's fascicle meshes; `src/main.ts` sets a new twist on each switch to the nerve target, adds ±10° view buttons and leads the instruction line with the alignment; clamp hidden for nerves.
 - Checked: tsc, test, browser (18° → 48° after +30°, screenshot, no errors), check-practice-setup, check-guided-thread, check-layout.

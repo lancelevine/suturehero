@@ -480,6 +480,10 @@ try {
   const landmarkNote=()=>{if(!landmarkExercise||session.environment.id!=='skin')return '';const first=session.freePass.passes.find(p=>p.exit&&!p.torn);const z=session.course.completed[0]?.site.siteZ??(first?(first.entry.z+first.exit!.z)/2:null);return describeLandmark(z)+' · ';};
   const tensionHoldNote=()=>{if(!session.sandbox||session.freeKnot.active)return '';const text=describeTensionHold(session.freeThread.loopSlackUnits());return text?text+' · ':'';};
   const pullNote=()=>{const free=session.freeKnot;if(!free.active){breakMonitors.long.reset();breakMonitors.short.reset();return '';}const peak=Math.max(breakMonitors.long.peakShare,breakMonitors.short.peakShare);return peak>0.05?describePull(peak,sutureSize)+' · ':'';};
+  const vesselModeNote=()=>{if(session.environment.id!=='microsurgery')return '';
+   if(microSelect.value==='vein')return session.eversion.held?'Vein held open · take the bite now · ':'Vein collapsed · hold the wall open with forceps counterpressure before each bite · ';
+   if(microSelect.value==='diseased-artery')return 'Diseased artery: take inside-out bites that pin the plaque and intima to the wall · ';
+   return '';};
   const nerveNote=()=>session.environment.id==='microsurgery'&&microSelect.value==='nerve'?describeNerveAlignment(nerveTwist)+' · ':'';
   const backWallNote=()=>session.environment.id==='microsurgery'&&session.pass.phase==='passing'&&catchesBackWall({centreY:session.pass.center.y,radius:session.pass.radius},microProfile(resolveMicroTarget(microSelect.value)))?BACK_WALL_WARNING+' · ':'';
   const stitchStepElements=Array.from(document.querySelectorAll<HTMLElement>('[data-stitch-step]'));
@@ -622,7 +626,7 @@ try {
     if(title.textContent!==message) title.textContent=message;
     setData((frameQuery('#exercise-title') as HTMLElement),'passSupport',pass.phase==='passing'?(session.oppositeEdgeRequired?(session.oppositeEdgeReady?'aligned':'opposite'):'entry'):'idle');
     {const free=session.freeKnot,outcome=session.sandboxStitchOutcome;
-     setText(frameQuery('#exercise-readout'),nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
+     setText(frameQuery('#exercise-readout'),vesselModeNote()+nerveNote()+pullNote()+tensionHoldNote()+landmarkNote()+airKnotNote()+backWallNote()+vesselNote()+exerciseReadout({sandbox:session.sandbox,edge,tractionAlert,preparingEdge:session.preparingEdge,oppositeEdgeRequired:session.oppositeEdgeRequired,oppositeEdgeInstruction:session.oppositeEdgeInstruction,
       freePasses:freePass.passes,skin:{label:PRACTICE_SETUP.skin.label,tearDegrees:PRACTICE_SETUP.skin.tear.degrees,tearText:formatMm(PRACTICE_SETUP.skin.tear.units)},pass,wound:session.wound,
       freeKnot:free.active?{forcepsHolding:free.grips.has('left')?free.gripLabel('left'):null,driverHolding:free.grips.has('right')?free.gripLabel('right'):null,winding:free.winding,driverOnTissue:free.driverOnTissue,instruction:free.instruction,handlingHint,reachLimited:free.reachLimited,tightness:free.retainedThrow.active?free.retainedThrow.tightness:null,outcome:outcome?{security:outcome.knot.security,notes:outcome.knot.notes,edgeNotes:outcome.edges.notes}:null}:null,
       knot:knot.active?{throws:knot.throws,targetThrows:knot.targetThrows,threadState:knot.threadState,phase:knot.phase,slack:session.knotSlack.enabled?{state:session.knotSlack.state,friction:session.knotSlack.material.friction.state}:null,loadTest:session.loadTest.active?{load:session.loadTest.load,slip:session.loadTest.slip}:null,releaseState:session.releaseCheck.state}:null,

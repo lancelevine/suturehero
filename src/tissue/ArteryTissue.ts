@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import {microProfile,type MicroTarget} from '../environments/MicroTargets';
 import type {WoundApproximation} from './WoundApproximation';
 import type {EdgeEversion} from './EdgeEversion';
+/** Vein height when not held open (share of round). */
+const VEIN_COLLAPSED=.62;
 /** Vessel wall and lumen roughness (wet tissue reads as slightly glossy). */
 const VESSEL_WALL_ROUGHNESS=.48;
 const VESSEL_LUMEN_ROUGHNESS=.6;
@@ -32,6 +34,15 @@ export class ArteryTissue {
     geometry.rotateZ(Math.PI/2);geometry.translate(x,ARTERY.centerY,0);
     this.add(new THREE.Mesh(geometry,material),`${name}-${side}`);
    }
+   if(this.target==='diseased-artery'){
+    // Plaque nodules on the lumen wall (roadmap: diseased artery mode).
+    const plaque=new THREE.MeshStandardMaterial({color:0xf0d27a,roughness:.6});
+    for(let n=0;n<14;n++){
+     const a=n/14*Math.PI*2+side*.3,along=x+((n*37)%11/11-.5)*ARTERY.length*.8,r=ARTERY.innerRadius-.02;
+     const nodule=new THREE.SphereGeometry(.05+((n*13)%5)*.008,12,8);nodule.scale(1.6,1,1);nodule.translate(along,ARTERY.centerY+Math.cos(a)*r,Math.sin(a)*r);
+     this.add(new THREE.Mesh(nodule,plaque),`plaque-${side}-${n}`);
+    }
+   }
    if(this.target==='nerve'){
     const fascicleMaterial=new THREE.MeshStandardMaterial({color:0xe2c987,roughness:.82});
     const endMaterial=new THREE.MeshStandardMaterial({color:0xffedc2,roughness:.9,side:THREE.DoubleSide});
@@ -59,6 +70,9 @@ export class ArteryTissue {
  }
  private add(mesh:THREE.Mesh,name:string){mesh.name=name;mesh.castShadow=true;mesh.receiveShadow=true;this.root.add(mesh);this.surfaces.push({mesh,original:Float32Array.from(mesh.geometry.getAttribute('position').array)});}
  update(wound:WoundApproximation,eversion:EdgeEversion){
+  // Vein: the thin wall collapses unless the forceps hold it open (roadmap: vein mode).
+  const collapse=this.target==='vein'&&!eversion.held?VEIN_COLLAPSED:1;
+  if(this.root.scale.y!==collapse){const centerY=microProfile(this.target).centerY;this.root.scale.y=collapse;this.root.position.y=-centerY*collapse;/* inside VesselFrame, whose pivot is the axis */}
   if(wound.closure===this.lastClosure&&eversion.revision===this.lastEversion)return;
   this.lastClosure=wound.closure;this.lastEversion=eversion.revision;
   const point=new THREE.Vector3();

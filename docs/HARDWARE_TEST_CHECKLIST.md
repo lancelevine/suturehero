@@ -171,3 +171,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - Build 0.235: Setup → Size 6-0, tie and pull hard: the strand snaps with "Suture snapped (6-0)"; with 3-0 the same pull does not snap. The instruction line shows "Pull: peak N% of … breaking point".
 - Build 0.235: tie three stitches on a high-tension body site (Back, or Tension slider up): the glows around the stitches turn amber/red; on Face they stay green.
 - Build 0.235: Microsurgery → Nerve: the instruction line says the fascicles are N° out of line; use "Turn nerve end ±10°" until it says aligned. No clamp on the nerve.
+- Build 0.235: Microsurgery → Vein: the vessel sags flat until you hold the edge with the forceps; Diseased artery: yellow plaque inside, coaching line about inside-out bites.

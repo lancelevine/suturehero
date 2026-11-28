@@ -7,6 +7,7 @@ commit `bde9116`.
 
 ## Build 0.235 — Stitch angle across the wound
 
+- Microsurgery: two new anastomosis targets. Vein: thin, bluish wall that sags flat unless the forceps hold it open; Diseased artery: yellow plaque on the lumen wall and a reminder to pin plaque and intima with inside-out bites (roadmap: "Hand-sewn vein anastomosis", "Diseased artery mode"; the needle pass still uses the round vessel shape, and separated intima is not detected yet).
 - Nerve repair: on the nerve target the right end's fascicle bundles start turned 12–30°; "Turn nerve end ±10°" lines them up, and the instruction line reports the twist until it is within 5° (roadmap: "Nerve repair"). The Acland clamp is hidden for nerves.
 - Tissue tension heatmap: each tied skin stitch gets a soft glow on the skin, green for low tension, amber, red for high (the gap it closed, relative to the standard gap, times how far it closed it) (roadmap: tissue heatmap).
 - Suture size (Setup): 3-0 (default), 4-0, 5-0 or 6-0. Finer sutures snap at a lower pull; holding a pull past the breaking point snaps the strand, and while tying the instruction line shows the peak pull as a share of the breaking point (roadmap: "Suture breaking strength"; relative to the thread model's pull, not a measured force).

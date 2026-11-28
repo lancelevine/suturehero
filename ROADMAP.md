@@ -44,8 +44,8 @@ Last updated: 2026-11-27
 - **Driver grip force:** needle driver jaw sensor flags clamping hard enough to bend a fine needle or so light it spins mid-bite.
 - **Instrument tip collisions:** flags driver and forceps tips bumping, crossing or blocking each other; count per closure with replay markers. *(First version in build 0.235: bump count in Skill Analysis; crossing/blocking and replay markers still to do.)*
 - **Edges of unequal length:** measures both edges, shows the spacing needed to absorb the difference, and scores how evenly it was spread.
-- **Hand-sewn vein anastomosis:** vein mode on the vessel with a thin wall that collapses unless held open with forceps counterpressure; all vessel checks apply.
-- **Diseased artery mode:** stiff, plaque-lined vessel; bites must pin plaque and intima to the wall; flags separated intima.
+- **Hand-sewn vein anastomosis:** vein mode on the vessel with a thin wall that collapses unless held open with forceps counterpressure; all vessel checks apply. *(First version in build 0.235: vein target with a thin wall that collapses unless held open; pass physics still use the round vessel.)*
+- **Diseased artery mode:** stiff, plaque-lined vessel; bites must pin plaque and intima to the wall; flags separated intima. *(First version in build 0.235: plaque-lined target and coaching line; separated intima not detected yet.)*
 - **Bite shape view:** cutaway of each needle path, flask-shaped vs straight or V-shaped, showing why edges evert or invert. *(First version in build 0.235: Sandbox summary classifies flask / straight / V-shaped, and the cross-section view names the planned bite's shape.)*
 - **Edges of different thickness:** thick flap edge to thinner skin; coaches a deeper bite on the thin side, scored by step-off and bite depth.
 - **Stitch density by tension:** reads tension along the wound first, suggests closer spacing where pull is highest, and scores whether density matched.
