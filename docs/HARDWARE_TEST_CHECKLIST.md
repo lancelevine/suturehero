@@ -224,3 +224,4 @@ Moved here from the handoff Status block on 2026-11-27; details are in
 - [ ] Build 0.279: with the Hall-sensor forceps, squeeze fully shut on the thread while tying — the crimp warning appears; a light grip does not.
 - [ ] Build 0.280: tie an over-tight stitch (red glow) and wait a minute or two — the glow eases toward amber.
 - [ ] Build 0.281: several Sandbox bites rolling the driver one way — the thread twist count rises; letting the needle hang lets it out.
+- [ ] Build 0.282: Thin-edge exercise — the left half sits lower; a bite deeper on the left reads "edges should sit level", an even bite predicts a step-off.

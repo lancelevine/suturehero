@@ -78,6 +78,13 @@ export class TissuePatch {
       eversion?.deformPoint(mesh.position,mesh.position);mesh.position.z+=siteZ;
     }
   }
+  /** Edges of different thickness (gameplay/edgeThickness.ts): lower the left half of the pad. */
+  private thinDrop=0;
+  setThinSideDrop(drop:number){
+    if(drop===this.thinDrop)return;
+    for(const {mesh} of this.surfaces)if(mesh.name.endsWith('-left'))mesh.position.y+=this.thinDrop-drop;
+    this.thinDrop=drop;this.lastSites=undefined;
+  }
 }
 export function createTissuePatch() {return new TissuePatch().root;}
 

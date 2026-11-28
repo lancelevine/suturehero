@@ -216,6 +216,8 @@ export class PracticeSession {
   readonly knotSlack=new KnotSlack();
   readonly wound=new WoundApproximation();
   readonly needleWear=new NeedleWear();
+  /** Thin-edge exercise: how much lower the left skin surface is (scene units; 0 = off). */
+  thinSideDrop=0;
   /** Free passes meet the live skin (tissue/freeSkinSurface.ts) and tear at the skin type's limits. */
   private shapeFreePass(){
     const pass=this.freePass;
@@ -230,7 +232,9 @@ export class PracticeSession {
     if(this.environment.id!=='skin'){pass.surfaceAt=()=>SKIN_SURFACE_Y;pass.halfGapAt=()=>0;return;}
     const top=TISSUE_LAYERS.epidermis.top,edge=this.wound.initialGap/2;
     const halfGapAt=(z:number)=>Math.max(0,this.tissuePoint(new THREE.Vector3(edge,top,z)).x);
-    const source={halfGapAt,shapedTopAt:(x:number,z:number)=>this.eversion.deformPoint(this.tissuePoint(new THREE.Vector3(x,top,z))).y};
+    // Edges of different thickness (gameplay/edgeThickness.ts): the thin left side sits lower.
+    const drop=this.thinSideDrop;
+    const source={halfGapAt,shapedTopAt:(x:number,z:number)=>this.eversion.deformPoint(this.tissuePoint(new THREE.Vector3(x,top,z))).y-(x<0?drop:0)};
     pass.halfGapAt=halfGapAt;
     pass.surfaceAt=(x,z)=>shapedSkinSurface(x,z,source);
   }

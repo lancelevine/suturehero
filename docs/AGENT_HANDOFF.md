@@ -54,6 +54,12 @@ entry when finishing.
 
 ## Log
 
+### 2026-11-28 — Claude — Edges of different thickness (build 0.282)
+
+- Lighter approach than per-side `TISSUE_LAYERS`: `PracticeSession.thinSideDrop` lowers the Sandbox needle surface for x<0 (`shapeFreePass`), `TissuePatch.setThinSideDrop` lowers the left meshes. New `src/gameplay/edgeThickness.ts` (+ test): per-side depth from the tract, predicted step-off = drop − (thin − thick). `#thickness-exercise` reloads with `?exercise=thickness`.
+- Not done: thinner layers (layer judgement still uses the standard depths), lift on tying, guided course support. Corner stitch still needs a V-shaped wound.
+- Checked: gameplay + tissue tests (254, Node 24), tsc, browser (scripted pass → 2.2 mm predicted step-off), check-sandbox, check-practice-setup, check-layout, check-guided-thread.
+
 ### 2026-11-28 — Claude — Needle flex attempt dropped; forcing near the tear limit is common
 
 - Tried "Needle flex in tissue" (needle bends for good after sustained forcing above 60–80% of the tear limit) and dropped it: measured on check-sandbox's scripted wrist-turn passes, the first pass peaks at 77% of the tear limit, but the 2nd and 3rd (needle already threaded) sit at 85–98% for 5–9 s without tearing. So forcing near the limit is an ordinary state and cannot be used to detect mishandling yet.
